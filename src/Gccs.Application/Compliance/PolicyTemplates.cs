@@ -1,4 +1,5 @@
 using Gccs.Application.Audit;
+using Gccs.Application.Ai;
 using Gccs.Application.Common;
 using Gccs.Application.Tenancy;
 using Gccs.Domain.Audit;
@@ -10,7 +11,8 @@ public sealed class PolicyTemplateService(
     IPolicyTemplateRepository repository,
     IAuditEventWriter auditEventWriter,
     ContentClassificationPolicy classificationPolicy,
-    IApplicationTransaction transaction)
+    IApplicationTransaction transaction,
+    AiOutputReviewService? aiOutputReview = null)
 {
     public Task<IReadOnlyList<PolicyTemplateDto>> ListAsync(bool includeReviewStates, CancellationToken cancellationToken = default) =>
         repository.ListAsync(includeReviewStates, cancellationToken);
@@ -102,9 +104,15 @@ public sealed class PolicyTemplateService(
                     ["classification"] = generated.Classification.Classification.ToString()
                 },
                 token);
+            if (request.AiOutputId is Guid aiOutputId)
+                await RequiredAiReview().RequireDeliverableLinkAsync(aiOutputId, generated.TenantId,
+                    AiDeliverableType.Policy, generated.Id, actorUserId, token);
             return generated;
         }, cancellationToken);
     }
+
+    private AiOutputReviewService RequiredAiReview() => aiOutputReview ??
+        throw new AiOutputReviewValidationException("aiOutputId", "AI output provenance processing is unavailable.");
 
     public async Task<GeneratedPolicyDto?> UpdateGeneratedPolicyAsync(
         Guid policyId,
@@ -407,7 +415,7 @@ public sealed record GeneratedPolicyDto(
     DateTimeOffset CreatedAt,
     DateTimeOffset? UpdatedAt);
 
-public sealed record GenerateDraftPolicyRequest(ContentClassificationRequest Classification);
+public sealed record GenerateDraftPolicyRequest(ContentClassificationRequest Classification, Guid? AiOutputId = null);
 
 public sealed record UpdateGeneratedPolicyRequest(string Title, string Body, ContentClassificationRequest Classification);
 

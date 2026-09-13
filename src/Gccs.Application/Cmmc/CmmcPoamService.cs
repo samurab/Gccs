@@ -1,4 +1,6 @@
 using Gccs.Application.Audit;
+using Gccs.Application.Ai;
+using Gccs.Application.Common;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Cmmc;
 
@@ -6,7 +8,9 @@ namespace Gccs.Application.Cmmc;
 
 public sealed class CmmcPoamService(
     ICmmcPoamRepository repository,
-    IAuditEventWriter auditEventWriter)
+    IAuditEventWriter auditEventWriter,
+    IApplicationTransaction? transaction = null,
+    AiOutputReviewService? aiOutputReview = null)
 {
     public Task<IReadOnlyList<CmmcPoamItemDto>> ListCurrentTenantAsync(
         CancellationToken cancellationToken = default) =>
@@ -28,22 +32,28 @@ public sealed class CmmcPoamService(
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
-        var normalized = Normalize(request);
-        Validate(normalized);
-        var created = await repository.CreateAsync(assessmentId, normalized, actorUserId, cancellationToken);
-        if (created is not null)
+        async Task<CmmcPoamItemDto?> CreateCore(CancellationToken token)
         {
-            await WriteAuditAsync(
-                created,
-                actorUserId,
-                AuditAction.Created,
-                $"POA&M item '{created.Weakness}' was created.",
-                null,
-                cancellationToken);
+            var normalized = Normalize(request);
+            Validate(normalized);
+            var created = await repository.CreateAsync(assessmentId, normalized, actorUserId, token);
+            if (created is not null)
+            {
+                await WriteAuditAsync(created, actorUserId, AuditAction.Created,
+                    $"POA&M item '{created.Weakness}' was created.", null, token);
+                if (request.AiOutputId is Guid aiOutputId)
+                    await RequiredAiReview().RequireDeliverableLinkAsync(aiOutputId, created.TenantId,
+                        AiDeliverableType.Poam, created.Id, actorUserId, token);
+            }
+            return created;
         }
-
-        return created;
+        return transaction is null
+            ? await CreateCore(cancellationToken)
+            : await transaction.ExecuteAsync(CreateCore, cancellationToken);
     }
+
+    private AiOutputReviewService RequiredAiReview() => aiOutputReview ??
+        throw new AiOutputReviewValidationException("aiOutputId", "AI output provenance processing is unavailable.");
 
     public async Task<CmmcPoamItemDto?> UpdateAsync(
         Guid assessmentId,

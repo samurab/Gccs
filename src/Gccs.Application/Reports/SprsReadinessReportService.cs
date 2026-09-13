@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Gccs.Application.Audit;
+using Gccs.Application.Ai;
 using Gccs.Application.Common;
 using Gccs.Application.Cmmc;
 using Gccs.Application.Tenancy;
@@ -18,7 +19,8 @@ public sealed class SprsReadinessReportService(
     IAuditEventWriter auditEventWriter,
     TenantDataHandlingModePolicyService dataHandlingModePolicy,
     IApplicationTransaction transaction,
-    ContentClassificationPolicy classificationPolicy)
+    ContentClassificationPolicy classificationPolicy,
+    AiOutputReviewService? aiOutputReview = null)
 {
     public Task<SprsReadinessReportDto?> GenerateAsync(
         Guid assessmentId,
@@ -157,9 +159,16 @@ public sealed class SprsReadinessReportService(
                 },
                 transactionCancellationToken);
 
+            if (normalizedRequest.AiOutputId is Guid outputId)
+                await RequiredAiReview().RequireDeliverableLinkAsync(outputId, report.TenantId,
+                    AiDeliverableType.Report, report.Id, actorUserId, transactionCancellationToken);
+
             return report;
         }, cancellationToken);
     }
+
+    private AiOutputReviewService RequiredAiReview() => aiOutputReview ??
+        throw new AiOutputReviewValidationException("aiOutputId", "AI output provenance processing is unavailable.");
 
     private static SprsReadinessReportRequest NormalizeAndValidateRequest(SprsReadinessReportRequest request)
     {
@@ -285,7 +294,8 @@ public sealed record SprsReadinessReportRequest(
     string? ReviewerNotes,
     string? LeadershipReviewStatus,
     IReadOnlyList<SprsConditionalDeductionSelection>? ConditionalDeductionSelections,
-    [property: System.Text.Json.Serialization.JsonRequired] ContentClassificationRequest? Classification);
+    [property: System.Text.Json.Serialization.JsonRequired] ContentClassificationRequest? Classification,
+    Guid? AiOutputId = null);
 
 public sealed record SprsReadinessReportDto(
     Guid Id,

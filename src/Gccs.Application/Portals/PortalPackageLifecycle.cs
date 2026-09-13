@@ -19,14 +19,15 @@ public sealed class PortalPackageLifecycleService(
         CancellationToken cancellationToken = default)
     {
         ValidateShare(request, timeProvider.GetUtcNow());
-        await eligibilityValidator.ValidateAsync(
+        var approvalMetadata = await eligibilityValidator.ValidateAsync(
             request.PackageId, request.InvitationId, tenantId, timeProvider.GetUtcNow(), cancellationToken);
         if ((await repository.ListAccessibleAsync(tenantId, request.InvitationId, timeProvider.GetUtcNow(), cancellationToken))
             .Any(package => package.PackageId == request.PackageId))
             throw new PortalPackageLifecycleConflictException("The source package already has an active share for this invitation.");
         return await transaction.ExecuteAsync(async token =>
         {
-            var package = await repository.CreateAsync(request, tenantId, actorUserId, token);
+            var package = await repository.CreateAsync(
+                request, approvalMetadata, tenantId, actorUserId, timeProvider.GetUtcNow(), token);
             await WriteAuditAsync(package, actorUserId, AuditAction.Created, "Shared portal package was activated.", token);
             return package;
         }, cancellationToken);
@@ -43,6 +44,12 @@ public sealed class PortalPackageLifecycleService(
         DateTimeOffset asOf,
         CancellationToken cancellationToken = default) =>
         repository.ListAccessibleAsync(tenantId, invitationId, asOf, cancellationToken);
+
+    public Task<SharedPortalPackageDto?> FindAsync(
+        Guid sharedPackageId,
+        Guid tenantId,
+        CancellationToken cancellationToken = default) =>
+        repository.FindAsync(sharedPackageId, tenantId, cancellationToken);
 
     public Task<bool> CanAccessAsync(
         Guid sharedPackageId,
@@ -165,11 +172,11 @@ public sealed class PortalPackageLifecycleService(
                 throw new PortalPackageLifecycleException("An archived shared package cannot be reissued.");
             if (existing.ReplacementSharedPackageId is not null)
                 throw new PortalPackageLifecycleConflictException("The shared package already has a replacement version.");
-            await eligibilityValidator.ValidateAsync(
+            var approvalMetadata = await eligibilityValidator.ValidateAsync(
                 request.ReplacementPackageId, existing.InvitationId, tenantId, timeProvider.GetUtcNow(), token);
 
             var package = await repository.ReissueAsync(
-                existing, request, actorUserId, timeProvider.GetUtcNow(), token);
+                existing, request, approvalMetadata, actorUserId, timeProvider.GetUtcNow(), token);
             if (existing.State == SharedPortalPackageState.Active)
             {
                 var superseded = await repository.FindAsync(existing.Id, tenantId, token)
@@ -253,6 +260,10 @@ public sealed class PortalPackageLifecycleService(
         if (request.PackageId == Guid.Empty) throw new PortalPackageLifecycleException("A source package is required.");
         if (request.InvitationId == Guid.Empty) throw new PortalPackageLifecycleException("A portal invitation is required.");
         if (request.ExpiresAt <= now) throw new PortalPackageLifecycleException("Package expiration must be in the future.");
+        if (request.ReviewDueAt is not null && (request.ReviewDueAt <= now || request.ReviewDueAt > request.ExpiresAt))
+            throw new PortalPackageLifecycleException("Review due date must be in the future and cannot exceed package expiration.");
+        if (request.ApprovalReason?.Trim().Length > 1_000)
+            throw new PortalPackageLifecycleException("Approval reason cannot exceed 1,000 characters.");
         if (request.ExpirationReminderDays is < 1 or > 30)
             throw new PortalPackageLifecycleException("Expiration reminder days must be between 1 and 30.");
     }
@@ -262,6 +273,10 @@ public sealed class PortalPackageLifecycleService(
         if (request.ReplacementPackageId == Guid.Empty)
             throw new PortalPackageLifecycleException("A replacement source package is required.");
         if (request.ExpiresAt <= now) throw new PortalPackageLifecycleException("Package expiration must be in the future.");
+        if (request.ReviewDueAt is not null && (request.ReviewDueAt <= now || request.ReviewDueAt > request.ExpiresAt))
+            throw new PortalPackageLifecycleException("Review due date must be in the future and cannot exceed package expiration.");
+        if (request.ApprovalReason?.Trim().Length > 1_000)
+            throw new PortalPackageLifecycleException("Approval reason cannot exceed 1,000 characters.");
         if (request.ExpirationReminderDays is < 1 or > 30)
             throw new PortalPackageLifecycleException("Expiration reminder days must be between 1 and 30.");
     }
@@ -310,7 +325,7 @@ public sealed class PortalPackageLifecycleService(
 
 public interface IPortalPackageShareEligibilityValidator
 {
-    Task ValidateAsync(
+    Task<PortalPackageApprovalMetadataDto> ValidateAsync(
         Guid packageId,
         Guid invitationId,
         Guid tenantId,
@@ -322,7 +337,7 @@ public sealed class PortalPackageShareEligibilityValidator(
     IExternalPortalAccessRepository invitationRepository,
     IPortalPackageRepository packageRepository) : IPortalPackageShareEligibilityValidator
 {
-    public async Task ValidateAsync(
+    public async Task<PortalPackageApprovalMetadataDto> ValidateAsync(
         Guid packageId,
         Guid invitationId,
         Guid tenantId,
@@ -337,25 +352,28 @@ public sealed class PortalPackageShareEligibilityValidator(
             !invitation.PackageIds.Contains(packageId))
             throw new PortalPackageLifecycleException("The portal invitation is unavailable or does not include the source package.");
 
-        var package = await packageRepository.FindPackageAsync(packageId, cancellationToken);
+        var package = await packageRepository.FindPackageAsync(tenantId, packageId, cancellationToken);
         if (package is null ||
             package.TenantId != tenantId ||
             package.Status != PortalPackageStatus.Approved ||
             package.ContainsInternalNotes ||
+            !package.IsExternallySafe ||
             package.Classification is not (ContentClassification.Unclassified or ContentClassification.Fci))
             throw new PortalPackageLifecycleException("The source package is not approved and eligible for No-CUI external sharing.");
+
+        return new PortalPackageApprovalMetadataDto(package.Version, PortalPackageFingerprint.Create(package));
     }
 }
 
 public interface IPortalPackageLifecycleRepository
 {
-    Task<SharedPortalPackageDto> CreateAsync(SharedPortalPackageRequest request, Guid tenantId, Guid actorUserId, CancellationToken cancellationToken = default);
+    Task<SharedPortalPackageDto> CreateAsync(SharedPortalPackageRequest request, PortalPackageApprovalMetadataDto approvalMetadata, Guid tenantId, Guid actorUserId, DateTimeOffset approvedAt, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<SharedPortalPackageDto>> ListAsync(Guid tenantId, CancellationToken cancellationToken = default);
     Task<SharedPortalPackageDto?> FindAsync(Guid sharedPackageId, Guid tenantId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<SharedPortalPackageDto>> ListAccessibleAsync(Guid tenantId, Guid invitationId, DateTimeOffset asOf, CancellationToken cancellationToken = default);
     Task<SharedPortalPackageDto?> SetStateAsync(Guid sharedPackageId, Guid tenantId, SharedPortalPackageState expectedState, SharedPortalPackageState state, string? reason, Guid actorUserId, DateTimeOffset changedAt, CancellationToken cancellationToken = default);
     Task<SharedPortalPackageDto?> SupersedeAsync(Guid sharedPackageId, Guid tenantId, SharedPortalPackageState expectedState, SharedPortalPackageDto replacement, Guid actorUserId, DateTimeOffset changedAt, CancellationToken cancellationToken = default);
-    Task<SharedPortalPackageDto> ReissueAsync(SharedPortalPackageDto existing, ReissueSharedPortalPackageRequest request, Guid actorUserId, DateTimeOffset changedAt, CancellationToken cancellationToken = default);
+    Task<SharedPortalPackageDto> ReissueAsync(SharedPortalPackageDto existing, ReissueSharedPortalPackageRequest request, PortalPackageApprovalMetadataDto approvalMetadata, Guid actorUserId, DateTimeOffset changedAt, CancellationToken cancellationToken = default);
     Task<bool> CanAccessAsync(Guid sharedPackageId, Guid tenantId, Guid invitationId, Guid packageId, DateTimeOffset asOf, CancellationToken cancellationToken = default);
     Task RecordActivityAsync(Guid sharedPackageId, Guid tenantId, PortalPackageActivityType type, Guid actorUserId, string? detail, DateTimeOffset occurredAt, CancellationToken cancellationToken = default);
     Task<PortalPackageActivityReportDto> GenerateActivityReportAsync(Guid tenantId, CancellationToken cancellationToken = default);
@@ -363,8 +381,29 @@ public interface IPortalPackageLifecycleRepository
     Task<bool> MarkReminderSentAsync(Guid sharedPackageId, Guid tenantId, DateTimeOffset sentAt, CancellationToken cancellationToken = default);
 }
 
-public sealed record SharedPortalPackageRequest(Guid PackageId, Guid InvitationId, DateTimeOffset ExpiresAt, int ExpirationReminderDays = 7);
-public sealed record ReissueSharedPortalPackageRequest(Guid ReplacementPackageId, DateTimeOffset ExpiresAt, int ExpirationReminderDays = 7);
+public sealed record SharedPortalPackageRequest(Guid PackageId, Guid InvitationId, DateTimeOffset ExpiresAt,
+    int ExpirationReminderDays = 7, DateTimeOffset? ReviewDueAt = null, string? ApprovalReason = null);
+public sealed record ReissueSharedPortalPackageRequest(Guid ReplacementPackageId, DateTimeOffset ExpiresAt,
+    int ExpirationReminderDays = 7, DateTimeOffset? ReviewDueAt = null, string? ApprovalReason = null);
+public sealed record PortalPackageApprovalMetadataDto(int SourceVersion, string SourceFingerprint);
+
+public static class PortalPackageFingerprint
+{
+    public static string Create(PortalPackageDto package)
+    {
+        var sourceFingerprint = package.SourceIntegrityFingerprint ?? string.Empty;
+        var evidence = string.Join(';', package.EvidenceReferences
+            .OrderBy(reference => reference.Id)
+            .Select(reference => string.Join(',', reference.Id, reference.Name, reference.Type,
+                reference.Classification, reference.ApprovedAt?.ToUniversalTime().ToString("O"),
+                reference.ExpiresAt?.ToString("O"))));
+        var input = string.Join('|', sourceFingerprint, package.Id, package.SourceKind, package.Version,
+            package.Status, package.Classification, package.GeneratedAt.ToUniversalTime().ToString("O"),
+            string.Join(',', package.EvidenceItemIds.Order()), evidence);
+        return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes(input))).ToLowerInvariant();
+    }
+}
 public sealed record RevokeSharedPortalPackageRequest(string Reason);
 public sealed record SupersedeSharedPortalPackageRequest(Guid ReplacementSharedPackageId);
 
@@ -376,6 +415,12 @@ public sealed record SharedPortalPackageDto(
     int Version,
     SharedPortalPackageState State,
     DateTimeOffset ExpiresAt,
+    DateTimeOffset ReviewDueAt,
+    DateTimeOffset ExternalReviewApprovedAt,
+    Guid? ExternalReviewApprovedByUserId,
+    string ExternalReviewApprovalReason,
+    int ApprovedSourceVersion,
+    string ApprovedSourceFingerprint,
     DateTimeOffset ReminderAt,
     DateTimeOffset? ReminderSentAt,
     Guid? SupersedesSharedPackageId,

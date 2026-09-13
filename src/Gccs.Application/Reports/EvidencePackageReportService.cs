@@ -1,4 +1,5 @@
 using Gccs.Application.Audit;
+using Gccs.Application.Ai;
 using Gccs.Application.Common;
 using Gccs.Application.Tenancy;
 using Gccs.Domain.Audit;
@@ -9,7 +10,8 @@ public sealed class EvidencePackageReportService(
     IReportRepository repository,
     IAuditEventWriter auditEventWriter,
     TenantDataHandlingModePolicyService dataHandlingModePolicy,
-    IApplicationTransaction transaction, ContentClassificationPolicy classificationPolicy)
+    IApplicationTransaction transaction, ContentClassificationPolicy classificationPolicy,
+    AiOutputReviewService? aiOutputReview = null)
 {
     public Task<EvidencePackageReportDto> GenerateAsync(
         EvidencePackageGenerateRequest request,
@@ -47,8 +49,14 @@ public sealed class EvidencePackageReportService(
                 ["subcontractorScopeCount"] = report.Manifest.Scope.SubcontractorIds.Count.ToString()
             },
             transactionCancellationToken);
+        if (request.AiOutputId is Guid outputId)
+            await RequiredAiReview().RequireDeliverableLinkAsync(outputId, report.TenantId,
+                AiDeliverableType.Report, report.Id, actorUserId, transactionCancellationToken);
         return report;
     }, cancellationToken);
+
+    private AiOutputReviewService RequiredAiReview() => aiOutputReview ??
+        throw new AiOutputReviewValidationException("aiOutputId", "AI output provenance processing is unavailable.");
 
     public Task<EvidencePackageReportDto?> GetAsync(
         Guid reportId,

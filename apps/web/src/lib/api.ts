@@ -132,7 +132,41 @@ export type GuardedAssistantAnswer = {
   reviewedAt: string | null;
   reviewDecision: string | null;
   reviewNotes: string | null;
+  prompt: string;
+  promptWasRedacted: boolean;
+  promptMetadata: string;
+  modelConfiguration: string;
+  retrievalPolicy: string;
+  classification: string;
+  result: string;
+  reviewState: "Draft" | "NeedsReview" | "Approved" | "Rejected" | "Superseded" | "Archived";
+  rejectionReason: string | null;
+  retainUntil: string;
+  version: number;
 };
+export type AiOutputReviewResult = { answer: GuardedAssistantAnswer; review: { id: string; newState: string; createdAt: string } };
+export type AiOutputReviewHistory = {
+  id: string;
+  tenantId: string;
+  answerId: string;
+  previousState: string;
+  newState: string;
+  reviewerUserId: string | null;
+  note: string | null;
+  rejectionReason: string | null;
+  createdAt: string;
+};
+export type AiDeliverableType = "Report" | "Policy" | "Ssp" | "Poam" | "CustomerDeliverable";
+export type AiOutputUsage = {
+  id: string;
+  tenantId: string;
+  answerId: string;
+  deliverableType: AiDeliverableType;
+  deliverableId: string;
+  linkedByUserId: string;
+  linkedAt: string;
+};
+export type AiOutputExport = { tenantId: string; logCount: number; exportedAt: string; logs: unknown[] };
 export type AssistantDraftAction = {
   id: string;
   tenantId: string;
@@ -189,6 +223,12 @@ export type SharedPortalPackage = {
   version: number;
   state: "Active" | "Superseded" | "Expired" | "Revoked" | "Archived";
   expiresAt: string;
+  reviewDueAt: string;
+  externalReviewApprovedAt: string;
+  externalReviewApprovedByUserId: string | null;
+  externalReviewApprovalReason: string;
+  approvedSourceVersion: number;
+  approvedSourceFingerprint: string;
   reminderAt: string;
   reminderSentAt: string | null;
   supersedesSharedPackageId: string | null;
@@ -213,6 +253,41 @@ export type PortalPackageActivity = {
 export type PortalPackageActivityReport = {
   tenantId: string;
   activities: PortalPackageActivity[];
+};
+
+export type PortalPackageReviewMessage = {
+  id: string;
+  kind: "Comment" | "Question";
+  body: string;
+  createdAt: string;
+};
+
+export type PortalReviewPackage = {
+  sharedPackageId: string;
+  packageId: string;
+  sourceKind: string;
+  title: string;
+  version: number;
+  status: "Approved";
+  classification: "Unclassified" | "Fci";
+  contractId: string | null;
+  evidenceItemIds: string[];
+  evidenceReferences: Array<{
+    id: string;
+    name: string;
+    type: string;
+    classification: "Unclassified" | "Fci";
+    approvedAt: string | null;
+    expiresAt: string | null;
+  }>;
+  generatedAt: string;
+  reviewDueAt: string;
+  externalReviewApprovedAt: string;
+  approvedSourceVersion: number;
+  approvedSourceFingerprint: string;
+  shareState: "Active";
+  downloadAvailable: boolean;
+  reviewerMessages: PortalPackageReviewMessage[];
 };
 
 export type ExternalPortalRole = "PrimeReviewer" | "AuditorReviewer" | "AdvisorReviewer" | "PackageRecipient";
@@ -2429,6 +2504,30 @@ export function getAssistantExpertReviewItems(): Promise<AssistantExpertReviewQu
   return getRequiredJson<AssistantExpertReviewQueueItem[]>("/api/assistant/expert-review-items");
 }
 
+export function reviewAiOutput(answerId: string, state: string, note: string, reason: string | null,
+  expectedVersion: number): Promise<ApiMutationResult<AiOutputReviewResult>> {
+  return postJsonResult<AiOutputReviewResult>(`/api/assistant/outputs/${answerId}/reviews`,
+    { state, note, reason, expectedVersion });
+}
+
+export function getAiOutputs(includeArchived = false): Promise<GuardedAssistantAnswer[]> {
+  return getRequiredJson<GuardedAssistantAnswer[]>(`/api/assistant/outputs?includeArchived=${includeArchived}`);
+}
+
+export function getAiOutputReviewHistory(answerId: string): Promise<AiOutputReviewHistory[]> {
+  return getRequiredJson<AiOutputReviewHistory[]>(`/api/assistant/outputs/${answerId}/reviews`);
+}
+
+export function linkAiOutputToDeliverable(answerId: string, deliverableType: AiDeliverableType,
+  deliverableId: string): Promise<ApiMutationResult<AiOutputUsage>> {
+  return postJsonResult<AiOutputUsage>(`/api/assistant/outputs/${answerId}/deliverable-uses`,
+    { deliverableType, deliverableId });
+}
+
+export function exportAiOutputs(includeArchived = false): Promise<AiOutputExport> {
+  return getRequiredJson<AiOutputExport>(`/api/assistant/outputs/export?includeArchived=${includeArchived}`);
+}
+
 export function resolveExpertReviewItem(
   itemId: string,
   decision: string,
@@ -3433,6 +3532,43 @@ export const getSprReportPackages = () =>
 export const getSharedPortalPackages = () =>
   getRequiredJson<SharedPortalPackage[]>("/api/portal/shared-packages");
 
+export const getPortalReviewPackages = (invitationId: string) =>
+  getRequiredJson<PortalReviewPackage[]>(`/api/external-portal/invitations/${encodeURIComponent(invitationId)}/packages`);
+
+export const createPortalReviewMessage = (
+  invitationId: string,
+  sharedPackageId: string,
+  kind: "Comment" | "Question",
+  body: string
+) => postJsonResult<PortalPackageReviewMessage>(
+  `/api/external-portal/invitations/${encodeURIComponent(invitationId)}/packages/${encodeURIComponent(sharedPackageId)}/messages`,
+  { kind, body }
+);
+
+export async function downloadPortalReviewPackage(
+  invitationId: string,
+  sharedPackageId: string
+): Promise<ApiMutationResult<{ blob: Blob; fileName: string }>> {
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+  try {
+    const path = `/api/external-portal/invitations/${encodeURIComponent(invitationId)}/packages/${encodeURIComponent(sharedPackageId)}/download`;
+    const response = await fetch(`${apiBaseUrl}${path}`, { headers: await getApiHeaders() });
+    if (!response.ok) return { data: null, error: await readErrorMessage(response) };
+    const disposition = response.headers.get("content-disposition") ?? "";
+    const encodedName = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+    const plainName = disposition.match(/filename="?([^";]+)"?/i)?.[1];
+    return {
+      data: {
+        blob: await response.blob(),
+        fileName: decodeURIComponent(encodedName ?? plainName ?? "fedril-portal-package.html")
+      },
+      error: null
+    };
+  } catch {
+    return { data: null, error: "The portal package could not be downloaded." };
+  }
+}
+
 export const getExternalPortalInvitations = () =>
   getRequiredJson<ExternalPortalInvitation[]>("/api/portal/invitations");
 
@@ -3470,9 +3606,11 @@ export const reissueSharedPortalPackage = (
   sharedPackageId: string,
   replacementPackageId: string,
   expiresAt: string,
-  expirationReminderDays = 7
+  expirationReminderDays = 7,
+  reviewDueAt?: string,
+  approvalReason?: string
 ) => postJsonResult<SharedPortalPackage>(`/api/portal/shared-packages/${sharedPackageId}/reissue`,
-  { replacementPackageId, expiresAt, expirationReminderDays });
+  { replacementPackageId, expiresAt, expirationReminderDays, reviewDueAt, approvalReason });
 
 export const archiveSharedPortalPackage = (sharedPackageId: string) =>
   postJsonResult<SharedPortalPackage>(`/api/portal/shared-packages/${sharedPackageId}/archive`, {});

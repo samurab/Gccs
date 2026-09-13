@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using Gccs.Application.Audit;
+using Gccs.Application.Ai;
 using Gccs.Application.Common;
 using Gccs.Application.Security;
 using Gccs.Application.Tenancy;
@@ -17,7 +18,8 @@ public sealed partial class SspNarrativeService(
     ICurrentTenantContext tenantContext,
     ContentClassificationPolicy classificationPolicy,
     IAuditEventWriter auditEventWriter,
-    IApplicationTransaction transaction)
+    IApplicationTransaction transaction,
+    AiOutputReviewService? aiOutputReview = null)
 {
     private const int MaximumSources = 20;
     private const int MaximumNarrativeLength = 20_000;
@@ -67,9 +69,15 @@ public sealed partial class SspNarrativeService(
                 tenantContext.UserId,
                 token);
             await WriteAuditAsync(narrative, AuditAction.Created, "SSP narrative draft was generated.", token);
+            if (request.AiOutputId is Guid aiOutputId)
+                await RequiredAiReview().RequireDeliverableLinkAsync(aiOutputId, narrative.TenantId,
+                    AiDeliverableType.Ssp, narrative.Id, tenantContext.UserId, token);
             return narrative;
         }, cancellationToken);
     }
+
+    private AiOutputReviewService RequiredAiReview() => aiOutputReview ??
+        throw new AiOutputReviewValidationException("aiOutputId", "AI output provenance processing is unavailable.");
 
     public async Task<SspNarrativeDto?> EditAsync(
         Guid sectionId,

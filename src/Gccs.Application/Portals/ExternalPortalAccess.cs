@@ -72,6 +72,20 @@ public sealed class ExternalPortalAccessService
         return new(true, "Access granted.", updated);
     }
 
+    public bool IsInvitationIdentityEligible(
+        ExternalPortalInvitationDto invitation,
+        Guid actorUserId,
+        string? actorEmail,
+        bool strongAuthenticationSatisfied,
+        DateTimeOffset asOf)
+    {
+        if (invitation.PackageIds.Count == 0) return false;
+        var identityProbe = new ExternalPortalAccessRequest(
+            invitation.Id, invitation.PackageIds[0], null, actorUserId, actorEmail,
+            strongAuthenticationSatisfied, asOf);
+        return GetDenialCode(invitation, identityProbe) is null;
+    }
+
     // Compatibility overload for internal portal-review paths that predate authenticated identity binding.
     public Task<ExternalPortalAccessResultDto> ValidateAccessAsync(
         Guid invitationId, Guid packageId, Guid? contractId, DateTimeOffset asOf, Guid actorUserId,

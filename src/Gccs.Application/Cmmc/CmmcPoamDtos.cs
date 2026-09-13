@@ -54,7 +54,8 @@ public sealed record UpsertCmmcPoamItemRequest(
     DateOnly TargetCompletionAt,
     DateOnly? CompletedAt,
     Guid? RemediationTaskId,
-    IReadOnlyList<Guid> EvidenceItemIds);
+    IReadOnlyList<Guid> EvidenceItemIds,
+    Guid? AiOutputId = null);
 
 public interface ICmmcPoamRepository
 {

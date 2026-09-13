@@ -1,4 +1,5 @@
 using Gccs.Application.Audit;
+using Gccs.Application.Ai;
 using Gccs.Application.Common;
 using Gccs.Application.Tenancy;
 using Gccs.Domain.Audit;
@@ -9,11 +10,13 @@ public sealed class ComplianceStatusReportService(
     IReportRepository repository,
     IAuditEventWriter auditEventWriter,
     TenantDataHandlingModePolicyService dataHandlingModePolicy,
-    IApplicationTransaction transaction, ContentClassificationPolicy classificationPolicy)
+    IApplicationTransaction transaction, ContentClassificationPolicy classificationPolicy,
+    AiOutputReviewService? aiOutputReview = null)
 {
     public Task<ComplianceStatusReportDto> GenerateAsync(
         Guid actorUserId,
-        CancellationToken cancellationToken = default, ContentClassificationRequest? classification = null) =>
+        CancellationToken cancellationToken = default, ContentClassificationRequest? classification = null,
+        Guid? aiOutputId = null) =>
         transaction.ExecuteAsync(async transactionCancellationToken =>
     {
         await ClassifiedWorkflowValidation.ConfirmAsync(classificationPolicy, classification, TenantDataHandlingWorkflow.Report, actorUserId, transactionCancellationToken);
@@ -39,6 +42,12 @@ public sealed class ComplianceStatusReportService(
                 ["overdueTasks"] = report.Snapshot.OverdueTasks.ToString()
             },
             transactionCancellationToken);
+        if (aiOutputId is Guid outputId)
+            await RequiredAiReview().RequireDeliverableLinkAsync(outputId, report.TenantId,
+                AiDeliverableType.Report, report.Id, actorUserId, transactionCancellationToken);
         return report;
     }, cancellationToken);
+
+    private AiOutputReviewService RequiredAiReview() => aiOutputReview ??
+        throw new AiOutputReviewValidationException("aiOutputId", "AI output provenance processing is unavailable.");
 }

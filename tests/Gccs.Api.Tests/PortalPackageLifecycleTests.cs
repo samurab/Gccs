@@ -13,6 +13,26 @@ public sealed class PortalPackageLifecycleTests
     private static readonly DateTimeOffset Now = new(2026, 9, 10, 12, 0, 0, TimeSpan.Zero);
 
     [Fact]
+    public async Task Share_captures_immutable_external_approval_metadata_and_distinct_review_due_date()
+    {
+        var ids = StoryIds.Create();
+        var service = CreateService(out _, out _);
+        var reviewDueAt = Now.AddDays(14);
+
+        var shared = await service.ShareAsync(
+            new SharedPortalPackageRequest(ids.PackageId, ids.InvitationId, Now.AddDays(30),
+                ReviewDueAt: reviewDueAt, ApprovalReason: "Approved for the named auditor."),
+            ids.TenantId, ids.ActorUserId);
+
+        Assert.Equal(reviewDueAt, shared.ReviewDueAt);
+        Assert.Equal(Now, shared.ExternalReviewApprovedAt);
+        Assert.Equal(ids.ActorUserId, shared.ExternalReviewApprovedByUserId);
+        Assert.Equal("Approved for the named auditor.", shared.ExternalReviewApprovalReason);
+        Assert.Equal(1, shared.ApprovedSourceVersion);
+        Assert.Equal(new string('a', 64), shared.ApprovedSourceFingerprint);
+    }
+
+    [Fact]
     public async Task TC_34_3_1_Shared_packages_enforce_allowed_lifecycle_states()
     {
         var ids = StoryIds.Create();
@@ -229,8 +249,8 @@ public sealed class PortalPackageLifecycleTests
 
     private sealed class AllowAllEligibilityValidator : IPortalPackageShareEligibilityValidator
     {
-        public Task ValidateAsync(Guid packageId, Guid invitationId, Guid tenantId, DateTimeOffset asOf, CancellationToken cancellationToken = default) =>
-            Task.CompletedTask;
+        public Task<PortalPackageApprovalMetadataDto> ValidateAsync(Guid packageId, Guid invitationId, Guid tenantId, DateTimeOffset asOf, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new PortalPackageApprovalMetadataDto(1, new string('a', 64)));
     }
 
     private sealed class CapturingAuditEventWriter : IAuditEventWriter

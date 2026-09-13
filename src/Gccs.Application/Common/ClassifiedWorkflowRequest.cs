@@ -1,7 +1,7 @@
 using Gccs.Application.Tenancy;
 namespace Gccs.Application.Common;
 
-public sealed record ClassifiedWorkflowRequest(ContentClassificationRequest? Classification);
+public sealed record ClassifiedWorkflowRequest(ContentClassificationRequest? Classification, Guid? AiOutputId = null);
 
 public static class ClassifiedWorkflowValidation
 {

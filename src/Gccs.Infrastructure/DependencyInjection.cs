@@ -148,10 +148,12 @@ public static class DependencyInjection
         services.AddScoped<ILaborComplianceReportRepository>(provider => new EfLaborComplianceReportRepository(
             provider.GetRequiredService<GccsDbContext>(), provider.GetRequiredService<ICurrentTenantContext>()));
         services.AddSingleton<IAiRetrievalSourceRepository, InMemoryAiRetrievalSourceRepository>();
-        services.AddSingleton<IAiOutputReviewRepository, InMemoryAiOutputReviewRepository>();
         services.AddSingleton<IGuardedAssistantRepository, InMemoryGuardedAssistantRepository>();
         services.AddSingleton<IExternalPortalAccessRepository, InMemoryExternalPortalAccessRepository>();
-        services.AddSingleton<IPortalPackageRepository, InMemoryPortalPackageRepository>();
+        services.AddSingleton<InMemoryPortalPackageRepository>();
+        services.AddSingleton<IPortalPackageRepository>(provider =>
+            provider.GetRequiredService<InMemoryPortalPackageRepository>());
+        services.AddSingleton<IPortalReviewPackagePreparationRepository, InMemoryPortalReviewPackagePreparationRepository>();
         services.AddSingleton<ITrustArtifactLibraryRepository, InMemoryTrustArtifactLibraryRepository>();
         services.AddSingleton<InMemorySspSectionRepository>();
         services.AddSingleton<InMemorySspExportPackageRepository>();
@@ -199,12 +201,19 @@ public static class DependencyInjection
         services.AddScoped<LaborClassificationService>();
         services.AddScoped<LaborComplianceReportService>();
         services.AddScoped<AiRetrievalAssistantService>();
+        services.AddSingleton(new AiOutputRetentionPolicy(Math.Clamp(
+            configuration is null ? 365 : ReadInt(configuration, "AiOutputRetentionProcessing:RetentionDays", 365),
+            1,
+            3_650)));
         services.AddScoped<AiOutputReviewService>();
         services.AddScoped<GuardedAssistantExperienceService>();
         services.AddScoped<ExternalPortalAccessService>();
         services.AddScoped<ApprovedPackagePortalReviewService>();
+        services.AddScoped<PortalReviewPackagePreparationService>();
         services.AddScoped<PortalPackageLifecycleService>();
         services.AddScoped<IPortalPackageShareEligibilityValidator, PortalPackageShareEligibilityValidator>();
+        services.AddSingleton(new PortalReviewDownloadPolicy(
+            configuration is not null && ReadBool(configuration, "PortalReview:WatermarkDownloads", true)));
         services.AddScoped<EvidencePackageReportService>();
         services.AddScoped<SubcontractorComplianceReportService>();
         services.AddScoped<SimpleReportExportService>();
@@ -379,13 +388,18 @@ public static class DependencyInjection
         var connectionString = configuration?.GetConnectionString("GccsDatabase");
         if (!string.IsNullOrWhiteSpace(connectionString))
         {
+            services.AddScoped<IAiRetrievalSourceRepository>(provider => new EfAiRetrievalSourceRepository(
+                provider.GetRequiredService<GccsDbContext>(), provider.GetRequiredService<ICurrentTenantContext>()));
             services.AddScoped<IGuardedAssistantRepository, EfGuardedAssistantRepository>();
+            services.AddScoped<IAiOutputRetentionRepository, EfAiOutputRetentionRepository>();
             services.AddScoped<ISyntheticContentApprovalRepository, EfSyntheticContentApprovalRepository>();
             services.AddScoped<IClassifiedNoteRepository, EfClassifiedNoteRepository>();
             services.AddDbContext<GccsDbContext>(options =>
                 options.UseGccsPostgres(connectionString));
             services.AddScoped<IExternalPortalAccessRepository, EfExternalPortalAccessRepository>();
             services.AddScoped<IExternalPortalScopeValidator, EfExternalPortalScopeValidator>();
+            services.AddScoped<IPortalPackageRepository, EfPortalPackageRepository>();
+            services.AddScoped<IPortalReviewPackagePreparationRepository, EfPortalReviewPackagePreparationRepository>();
 
             services.AddScoped<ITenantRepository, EfTenantRepository>();
             services.AddScoped<IPlatformTenantProvisioningRepository, EfPlatformTenantProvisioningRepository>();

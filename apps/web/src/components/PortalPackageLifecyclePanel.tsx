@@ -31,6 +31,8 @@ export function PortalPackageLifecyclePanel({
   const [replacementPackageId, setReplacementPackageId] = useState("");
   const [replacementSharedPackageId, setReplacementSharedPackageId] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
+  const [reviewDueAt, setReviewDueAt] = useState("");
+  const [approvalReason, setApprovalReason] = useState("");
 
   useEffect(() => {
     let mounted = true;
@@ -92,10 +94,12 @@ export function PortalPackageLifecyclePanel({
   async function reissue(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const expiration = new Date(`${expiresAt}T23:59:59Z`).toISOString();
+    const reviewDue = new Date(`${reviewDueAt}T23:59:59Z`).toISOString();
     setActionState("saving");
     setMessage("");
     try {
-      const result = await reissueSharedPortalPackage(selectedId, replacementPackageId, expiration);
+      const result = await reissueSharedPortalPackage(
+        selectedId, replacementPackageId, expiration, 7, reviewDue, approvalReason);
       if (!result.data) {
         setActionState("error");
         setMessage(result.error ?? "The package could not be reissued.");
@@ -113,6 +117,8 @@ export function PortalPackageLifecyclePanel({
       setSelectedAction(null);
       setReplacementPackageId("");
       setExpiresAt("");
+      setReviewDueAt("");
+      setApprovalReason("");
     } catch {
       setActionState("error");
       setMessage("The package could not be reissued.");
@@ -146,6 +152,7 @@ export function PortalPackageLifecyclePanel({
         <strong>Version {item.version} · {item.state}</strong>
         <span>Source package {item.packageId}</span>
         <small>Expires {new Date(item.expiresAt).toLocaleString()} · reminder {item.reminderSentAt ? "sent" : `scheduled ${new Date(item.reminderAt).toLocaleString()}`}</small>
+        <small>Review due {new Date(item.reviewDueAt).toLocaleString()} · approved {new Date(item.externalReviewApprovedAt).toLocaleString()} · source version {item.approvedSourceVersion}</small>
         {item.revocationReason ? <small>Revocation reason: {item.revocationReason}</small> : null}
         {item.replacementSharedPackageId ? <small>Replacement share: {item.replacementSharedPackageId}</small> : null}
         {canManage && item.state === "Active" ? <div className="portal-package-lifecycle__actions">
@@ -156,7 +163,7 @@ export function PortalPackageLifecyclePanel({
           <button onClick={() => { setSelectedId(item.id); setSelectedAction("supersede"); setReplacementSharedPackageId(""); }} type="button">Supersede</button>
         </div> : null}
         {canManage && item.state !== "Archived" ? <div className="portal-package-lifecycle__actions">
-          <button onClick={() => { setSelectedId(item.id); setSelectedAction("reissue"); setReplacementPackageId(""); setExpiresAt(""); }} type="button">Reissue</button>
+          <button onClick={() => { setSelectedId(item.id); setSelectedAction("reissue"); setReplacementPackageId(""); setExpiresAt(""); setReviewDueAt(""); setApprovalReason(""); }} type="button">Reissue</button>
           <button disabled={actionState === "saving"} onClick={() => void runAction(
             () => archiveSharedPortalPackage(item.id), "The shared package was archived."
           )} type="button">Archive</button>
@@ -183,6 +190,8 @@ export function PortalPackageLifecyclePanel({
       <h3>Reissue as a new share version</h3>
       <label>Replacement source package ID<input required value={replacementPackageId} onChange={event => setReplacementPackageId(event.target.value)} /></label>
       <label>New expiration date<input required type="date" value={expiresAt} onChange={event => setExpiresAt(event.target.value)} /></label>
+      <label>Review due date<input required type="date" value={reviewDueAt} onChange={event => setReviewDueAt(event.target.value)} /></label>
+      <label>External-review approval reason<textarea required maxLength={1000} value={approvalReason} onChange={event => setApprovalReason(event.target.value)} /></label>
       <button disabled={actionState === "saving"} type="submit">Confirm reissue</button>
     </form> : null}
     {canViewActivity ? <div>

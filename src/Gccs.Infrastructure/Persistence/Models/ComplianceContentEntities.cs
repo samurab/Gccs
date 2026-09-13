@@ -1,5 +1,6 @@
 using Gccs.Domain.Compliance;
 using Gccs.Domain.Common;
+using NpgsqlTypes;
 
 namespace Gccs.Infrastructure.Persistence.Models;
 
@@ -59,6 +60,7 @@ public sealed class ObligationEntity
     public string Confidence { get; set; } = "unknown";
     public bool RequiresExpertReview { get; set; }
     public ReviewState ReviewState { get; set; } = ReviewState.Draft;
+    public NpgsqlTsVector SearchVector { get; set; } = null!;
 
     public ICollection<ContractClauseObligationEntity> ContractClauses { get; set; } = [];
     public ICollection<EvidenceObligationEntity> EvidenceItems { get; set; } = [];

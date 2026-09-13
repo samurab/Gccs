@@ -3,12 +3,13 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ExpertReviewQueuePanel } from "./ExpertReviewQueuePanel";
 
-const mocks = vi.hoisted(() => ({ list: vi.fn(), candidates: vi.fn(), assign: vi.fn(), resolve: vi.fn() }));
+const mocks = vi.hoisted(() => ({ list: vi.fn(), candidates: vi.fn(), assign: vi.fn(), resolve: vi.fn(), review: vi.fn() }));
 vi.mock("@/lib/api", () => ({
   assignExpertReviewItem: mocks.assign,
   getAssistantExpertReviewItems: mocks.list,
   getObligationAssignmentCandidates: mocks.candidates,
-  resolveExpertReviewItem: mocks.resolve
+  resolveExpertReviewItem: mocks.resolve,
+  reviewAiOutput: mocks.review
 }));
 
 const openItem = {
@@ -26,6 +27,8 @@ describe("ExpertReviewQueuePanel", () => {
     mocks.list.mockResolvedValue([{ reviewItem: openItem, answer: {
       id: "answer-1", draftLabel: "Draft", supportStatus: "SourceSupported", answer: "Bounded answer.",
       humanReviewStatus: "queued",
+      prompt: "Explain the safeguard.", promptWasRedacted: false, classification: "Unclassified",
+      retainUntil: "2027-09-12T10:00:00Z", reviewState: "Draft", version: 0,
       citations: [{ sourceId: "source-1", title: "FAR 52.204-21", excerptPointer: "section", version: "2026.1" }]
     } }]);
     mocks.candidates.mockResolvedValue([{ userId: "expert-1", displayName: "Expert One" }]);
@@ -72,5 +75,22 @@ describe("ExpertReviewQueuePanel", () => {
     window.dispatchEvent(new Event("assistant-expert-review-routed"));
 
     await waitFor(() => expect(mocks.list).toHaveBeenCalledTimes(2));
+  });
+
+  it("records a governed AI output approval with the current version", async () => {
+    mocks.review.mockResolvedValue({ data: { answer: {
+      id: "answer-1", draftLabel: "Draft", supportStatus: "SourceSupported", answer: "Bounded answer.",
+      humanReviewStatus: "Approved", prompt: "Explain the safeguard.", promptWasRedacted: false,
+      classification: "Unclassified", retainUntil: "2027-09-12T10:00:00Z", reviewState: "Approved", version: 1,
+      citations: []
+    }, review: { id: "decision-1", newState: "Approved", createdAt: "2026-09-12T12:00:00Z" } }, error: null });
+    const user = userEvent.setup();
+    render(<ExpertReviewQueuePanel canResolve />);
+    await screen.findByText("Explain the safeguard.");
+    await user.selectOptions(screen.getByLabelText("AI output decision"), "Approved");
+    await user.type(screen.getByLabelText("AI review note"), "Sources verified.");
+    await user.click(screen.getByRole("button", { name: "Save AI output decision" }));
+    await waitFor(() => expect(mocks.review).toHaveBeenCalledWith("answer-1", "Approved", "Sources verified.", null, 0));
+    expect(screen.getByText(/now Approved/)).toBeInTheDocument();
   });
 });

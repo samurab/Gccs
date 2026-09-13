@@ -177,6 +177,11 @@ if (builder.Configuration.GetValue("ObjectCleanupProcessing:Enabled", true) &&
 {
     builder.Services.AddHostedService<ObjectCleanupWorker>();
 }
+if (builder.Configuration.GetValue("AiOutputRetentionProcessing:Enabled", true) &&
+    !string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("GccsDatabase")))
+{
+    builder.Services.AddHostedService<AiOutputRetentionWorker>();
+}
 if (builder.Configuration.GetValue("DueDateReminderProcessing:Enabled", true) &&
     !string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("GccsDatabase")))
 {
@@ -917,6 +922,8 @@ var currentUserApi = api.MapGroup("/me")
 
 api.MapPortalPackageLifecycleEndpoints();
 api.MapExternalPortalAccessEndpoints();
+api.MapApprovedPackagePortalReviewEndpoints();
+api.MapPortalReviewPackagePreparationEndpoints();
 
 api.MapPost("/assistant/questions", async (
     AssistantQuestionApiRequest request,
@@ -932,7 +939,13 @@ api.MapPost("/assistant/questions", async (
     try
     {
         var answer = await service.AskAsync(
-            new AiAssistantQuestionRequest(tenantContext.TenantId, tenantContext.UserId, request.Question, request.WorkflowContext),
+            new AiAssistantQuestionRequest(
+                tenantContext.TenantId,
+                tenantContext.UserId,
+                request.Question,
+                request.WorkflowContext,
+                HasAssistantPermission: true,
+                SourceAccess: AssistantAuthorization.AllowedSources(user)),
             cancellationToken);
         return Results.Ok(answer);
     }
@@ -969,6 +982,105 @@ api.MapGet("/assistant/expert-review-items", async (
     Results.Ok(await service.ListExpertReviewQueueAsync(tenantContext.TenantId, cancellationToken)))
 .RequirePermission(Permission.ViewObligations)
 .WithName("ListAssistantExpertReviewItems");
+
+api.MapGet("/assistant/outputs", async (
+    bool? includeArchived, AiOutputReviewService service, ITenantContext tenantContext, ClaimsPrincipal user,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.ListAsync(
+        tenantContext.TenantId,
+        includeArchived == true,
+        AssistantAuthorization.AllowedWorkflowContexts(user),
+        cancellationToken)))
+.RequireAnyPermission(Permission.ViewObligations, Permission.ViewContracts, Permission.ViewEvidence, Permission.ViewCmmc,
+    Permission.ViewSubcontractors, Permission.ViewReports)
+.WithName("ListAiOutputs");
+
+api.MapGet("/assistant/outputs/{answerId:guid}/reviews", async (
+    Guid answerId, AiOutputReviewService service, GuardedAssistantExperienceService assistant,
+    ITenantContext tenantContext, ClaimsPrincipal user, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    var answer = await assistant.GetAnswerAsync(answerId, tenantContext.TenantId, cancellationToken);
+    if (answer is null || !AssistantAuthorization.CanAsk(user, answer.WorkflowContext))
+        return ApiProblemDetails.Create(httpContext, "Resource not found", "AI output was not found.",
+            StatusCodes.Status404NotFound, "resource_not_found");
+    return Results.Ok(await service.HistoryAsync(answerId, tenantContext.TenantId, cancellationToken));
+})
+.RequireAnyPermission(Permission.ViewObligations, Permission.ViewContracts, Permission.ViewEvidence, Permission.ViewCmmc,
+    Permission.ViewSubcontractors, Permission.ViewReports)
+.WithName("ListAiOutputReviews");
+
+api.MapPost("/assistant/outputs/{answerId:guid}/reviews", async (
+    Guid answerId, AiOutputReviewDecisionRequest request, AiOutputReviewService service,
+    GuardedAssistantExperienceService assistant, ITenantContext tenantContext, ClaimsPrincipal user,
+    HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    var answer = await assistant.GetAnswerAsync(answerId, tenantContext.TenantId, cancellationToken);
+    if (answer is null || !AssistantAuthorization.CanAsk(user, answer.WorkflowContext))
+        return ApiProblemDetails.Create(httpContext, "Resource not found", "AI output was not found.",
+            StatusCodes.Status404NotFound, "resource_not_found");
+    try
+    {
+        var result = await service.ReviewAsync(answerId, tenantContext.TenantId, request,
+            tenantContext.UserId, cancellationToken);
+        return result is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "AI output was not found.",
+                StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(result);
+    }
+    catch (AiOutputReviewValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { [exception.Field] = [exception.Message] },
+            title: "AI output review invalid", statusCode: StatusCodes.Status400BadRequest);
+    }
+    catch (AiOutputReviewConflictException exception)
+    {
+        return ApiProblemDetails.Create(httpContext, "AI output changed", exception.Message,
+            StatusCodes.Status409Conflict, "ai_output_conflict");
+    }
+})
+.RequirePermission(Permission.ManageObligations)
+.WithName("ReviewAiOutput");
+
+api.MapGet("/assistant/outputs/export", async (
+    bool? includeArchived, AiOutputReviewService service, ITenantContext tenantContext, ClaimsPrincipal user,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.ExportAsync(
+        tenantContext.TenantId,
+        includeArchived == true,
+        AssistantAuthorization.AllowedWorkflowContexts(user),
+        cancellationToken)))
+.RequirePermission(Permission.ExportReports)
+.WithName("ExportAiOutputs");
+
+api.MapPost("/assistant/outputs/{answerId:guid}/deliverable-uses", async (
+    Guid answerId, AiOutputUsageRequest request, AiOutputReviewService service,
+    GuardedAssistantExperienceService assistant,
+    ITenantContext tenantContext, ClaimsPrincipal user, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    if (!AssistantAuthorization.CanLinkDeliverable(user, request.DeliverableType))
+        return ApiProblemDetails.Create(httpContext, "Forbidden", "You do not have permission to link AI output to this deliverable type.",
+            StatusCodes.Status403Forbidden, "forbidden");
+    var answer = await assistant.GetAnswerAsync(answerId, tenantContext.TenantId, cancellationToken);
+    if (answer is null || !AssistantAuthorization.CanAsk(user, answer.WorkflowContext))
+        return ApiProblemDetails.Create(httpContext, "Resource not found", "AI output was not found.",
+            StatusCodes.Status404NotFound, "resource_not_found");
+    try
+    {
+        var usage = await service.LinkDeliverableAsync(answerId, tenantContext.TenantId, request,
+            tenantContext.UserId, cancellationToken);
+        return usage is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "AI output was not found.",
+                StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Created($"/api/assistant/outputs/{answerId}/deliverable-uses/{usage.Id}", usage);
+    }
+    catch (AiOutputReviewValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { [exception.Field] = [exception.Message] },
+            title: "AI deliverable use invalid", statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequireAnyPermission(Permission.ManageReports, Permission.ManageObligations, Permission.ManageCmmc)
+.WithName("LinkApprovedAiOutputToDeliverable");
 
 api.MapPost("/assistant/answers/{answerId:guid}/actions", async (
     Guid answerId,
@@ -3977,7 +4089,7 @@ api.MapPost("/reports/compliance-status", async (
     ITenantContext tenantContext,
     CancellationToken cancellationToken) =>
 {
-    var report = await service.GenerateAsync(tenantContext.UserId, cancellationToken, request.Classification);
+    var report = await service.GenerateAsync(tenantContext.UserId, cancellationToken, request.Classification, request.AiOutputId);
     return Results.Created($"/api/reports/{report.Id}", report);
 })
 .RequirePermission(Permission.ManageReports)
@@ -3992,7 +4104,8 @@ api.MapPost("/reports/cmmc-readiness", async (
     CancellationToken cancellationToken) =>
 {
     var includeEvidenceLinks = httpContext.User.HasClaim(ApiSecurityExtensions.PermissionClaimType, Permission.ViewEvidence.ToString());
-    var report = await service.GenerateAsync(assessmentId, tenantContext.UserId, includeEvidenceLinks, cancellationToken, request.Classification);
+    var report = await service.GenerateAsync(assessmentId, tenantContext.UserId, includeEvidenceLinks, cancellationToken,
+        request.Classification, request.AiOutputId);
     return report is null
         ? ApiProblemDetails.Create(
             httpContext,
@@ -4062,7 +4175,7 @@ api.MapPost("/reports/subcontractor-compliance", async (
     ITenantContext tenantContext,
     CancellationToken cancellationToken) =>
 {
-    var report = await service.GenerateAsync(contractId, tenantContext.UserId, cancellationToken, request.Classification);
+    var report = await service.GenerateAsync(contractId, tenantContext.UserId, cancellationToken, request.Classification, request.AiOutputId);
     return Results.Created($"/api/reports/{report.Id}", report);
 })
 .RequirePermission(Permission.ManageReports)
@@ -5972,7 +6085,8 @@ api.MapPost("/cmmc/assessments/{assessmentId:guid}/gaps/{controlId}/poam-item", 
                 request.TargetCompletionAt,
                 null,
                 null,
-                []),
+                [],
+                request.AiOutputId),
             tenantContext.UserId,
             cancellationToken);
         return created is null
@@ -8951,12 +9065,34 @@ internal static class AssistantAuthorization
         return required.HasValue && Has(user, required.Value);
     }
 
+    public static AiRetrievalSourceAccess AllowedSources(ClaimsPrincipal user)
+    {
+        var access = AiRetrievalSourceAccess.ComplianceLibrary;
+        if (Has(user, Permission.ViewContracts)) access |= AiRetrievalSourceAccess.TenantDocument;
+        if (Has(user, Permission.ViewReports)) access |= AiRetrievalSourceAccess.ApprovedReport;
+        if (Has(user, Permission.ViewEvidence)) access |= AiRetrievalSourceAccess.EvidenceMetadata;
+        return access;
+    }
+
+    public static IReadOnlyCollection<string> AllowedWorkflowContexts(ClaimsPrincipal user) =>
+        new[] { "obligation", "contract", "evidence", "cmmc", "ssp", "poam", "labor", "subcontractor" }
+            .Where(context => CanAsk(user, context))
+            .ToArray();
+
     public static bool CanCreateAction(ClaimsPrincipal user, AssistantDraftActionType actionType) => actionType switch
     {
         AssistantDraftActionType.Task => Has(user, Permission.ManageTasks),
         AssistantDraftActionType.EvidenceRequest => Has(user, Permission.ManageEvidence),
         AssistantDraftActionType.Note => Has(user, Permission.ManageEvidence),
         AssistantDraftActionType.ReviewItem => Has(user, Permission.ManageObligations),
+        _ => false
+    };
+
+    public static bool CanLinkDeliverable(ClaimsPrincipal user, AiDeliverableType deliverableType) => deliverableType switch
+    {
+        AiDeliverableType.Report or AiDeliverableType.CustomerDeliverable => Has(user, Permission.ManageReports),
+        AiDeliverableType.Policy => Has(user, Permission.ManageObligations),
+        AiDeliverableType.Ssp or AiDeliverableType.Poam => Has(user, Permission.ManageCmmc),
         _ => false
     };
 

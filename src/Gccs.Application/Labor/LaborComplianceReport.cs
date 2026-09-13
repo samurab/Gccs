@@ -1,4 +1,5 @@
 using Gccs.Application.Audit;
+using Gccs.Application.Ai;
 using Gccs.Application.Common;
 using Gccs.Application.Reports;
 using Gccs.Application.Tenancy;
@@ -12,7 +13,8 @@ public sealed class LaborComplianceReportService(
     IAuditEventWriter auditEventWriter,
     TenantDataHandlingModePolicyService dataHandlingModePolicy,
     ContentClassificationPolicy classificationPolicy,
-    IApplicationTransaction transaction)
+    IApplicationTransaction transaction,
+    AiOutputReviewService? aiOutputReview = null)
 {
     public const string WorkflowDisclaimer =
         "Workflow guidance only. This labor report summarizes source-backed records and review status. " +
@@ -58,8 +60,14 @@ public sealed class LaborComplianceReportService(
                     ["gaps"] = report.Snapshot.Gaps.Count.ToString(),
                     ["includedSensitiveEmployeeData"] = includeSensitiveEmployeeData.ToString()
                 }, transactionCancellationToken);
+            if (request.AiOutputId is Guid outputId)
+                await RequiredAiReview().RequireDeliverableLinkAsync(outputId, report.TenantId,
+                    AiDeliverableType.Report, report.Id, actorUserId, transactionCancellationToken);
             return report;
         }, cancellationToken);
+
+    private AiOutputReviewService RequiredAiReview() => aiOutputReview ??
+        throw new AiOutputReviewValidationException("aiOutputId", "AI output provenance processing is unavailable.");
 
     private static void ValidateRequest(LaborComplianceReportRequest request)
     {
@@ -96,7 +104,7 @@ public sealed record LaborDashboardQuery(Guid? ContractId = null, Guid? Employee
     bool MissingEvidenceOnly = false, DateOnly? AsOfDate = null);
 
 public sealed record LaborComplianceReportRequest(Guid? ContractId, string? ReviewerNotes,
-    LaborDashboardQuery? Filters, ContentClassificationRequest? Classification);
+    LaborDashboardQuery? Filters, ContentClassificationRequest? Classification, Guid? AiOutputId = null);
 
 public sealed record LaborDashboardDto(Guid TenantId, LaborDashboardQuery Filters,
     IReadOnlyList<LaborObligationReportDto> Obligations, IReadOnlyList<LaborCategoryReportDto> Categories,

@@ -1,5 +1,5 @@
 import { type FormEvent, useEffect, useState } from "react";
-import { assignExpertReviewItem, getAssistantExpertReviewItems, getObligationAssignmentCandidates, resolveExpertReviewItem,
+import { assignExpertReviewItem, getAssistantExpertReviewItems, getObligationAssignmentCandidates, resolveExpertReviewItem, reviewAiOutput,
   type ExpertReviewItem, type GuardedAssistantAnswer, type ObligationAssignmentCandidate } from "@/lib/api";
 
 async function loadAssistantReviewQueue(canResolve: boolean) {
@@ -24,6 +24,9 @@ export function ExpertReviewQueuePanel({ canResolve }: { canResolve: boolean }) 
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [assignees, setAssignees] = useState<Record<string, string>>({});
   const [dueDates, setDueDates] = useState<Record<string, string>>({});
+  const [outputDecisions, setOutputDecisions] = useState<Record<string, string>>({});
+  const [outputNotes, setOutputNotes] = useState<Record<string, string>>({});
+  const [rejectionReasons, setRejectionReasons] = useState<Record<string, string>>({});
 
   useEffect(() => {
     let active = true;
@@ -75,6 +78,21 @@ export function ExpertReviewQueuePanel({ canResolve }: { canResolve: boolean }) 
     setMessage(`Expert review item ${item.id} was resolved and retained in review history.`);
   }
 
+  async function reviewOutput(event: FormEvent<HTMLFormElement>, item: ExpertReviewItem) {
+    event.preventDefault();
+    const answer = answers[item.sourceId];
+    if (!answer) return;
+    const state = outputDecisions[item.id] ?? "";
+    const result = await reviewAiOutput(answer.id, state, outputNotes[item.id] ?? "",
+      state === "Rejected" ? rejectionReasons[item.id] ?? "" : null, answer.version);
+    if (!result.data) {
+      setMessage(result.error ?? "The AI output review could not be saved.");
+      return;
+    }
+    setAnswers(current => ({ ...current, [item.sourceId]: result.data!.answer }));
+    setMessage(`AI output ${answer.id} is now ${result.data.answer.reviewState}.`);
+  }
+
   return <section className="route-panel expert-review-queue" aria-labelledby="assistant-review-queue-heading">
     <div className="section-heading">
       <p className="eyebrow">Human review workflow</p>
@@ -91,6 +109,8 @@ export function ExpertReviewQueuePanel({ canResolve }: { canResolve: boolean }) 
       <p>{item.reason}</p>
       {answers[item.sourceId] ? <div className="expert-review-queue__answer">
         <strong>{answers[item.sourceId].draftLabel} · {answers[item.sourceId].supportStatus} · human review {answers[item.sourceId].humanReviewStatus}</strong>
+        <p>Lifecycle: {answers[item.sourceId].reviewState} · classification {answers[item.sourceId].classification} · retain until {new Date(answers[item.sourceId].retainUntil).toLocaleDateString()}</p>
+        <p><strong>Prompt:</strong> {answers[item.sourceId].promptWasRedacted ? "Prompt excluded under prohibited-data policy." : answers[item.sourceId].prompt}</p>
         <p>{answers[item.sourceId].answer}</p>
         <ul>{answers[item.sourceId].citations.map(citation =>
           <li key={citation.sourceId}>{citation.title} · {citation.excerptPointer} · version {citation.version}</li>)}</ul>
@@ -117,6 +137,19 @@ export function ExpertReviewQueuePanel({ canResolve }: { canResolve: boolean }) 
         <label>Resolution notes<textarea required maxLength={1000} value={notes[item.id] ?? ""}
           onChange={event => setNotes(current => ({ ...current, [item.id]: event.target.value }))} /></label>
         <button type="submit">Resolve review item</button>
+      </form> : null}
+      {canResolve && answers[item.sourceId] && answers[item.sourceId].reviewState !== "Archived" ? <form onSubmit={event => void reviewOutput(event, item)}>
+        <label>AI output decision<select required value={outputDecisions[item.id] ?? ""}
+          onChange={event => setOutputDecisions(current => ({ ...current, [item.id]: event.target.value }))}>
+          <option value="">Select lifecycle decision</option>
+          <option value="Approved">Approve</option><option value="Rejected">Reject</option>
+          <option value="Superseded">Supersede</option><option value="Archived">Archive</option>
+        </select></label>
+        <label>AI review note<textarea required maxLength={1000} value={outputNotes[item.id] ?? ""}
+          onChange={event => setOutputNotes(current => ({ ...current, [item.id]: event.target.value }))} /></label>
+        {outputDecisions[item.id] === "Rejected" ? <label>Rejection reason<textarea required maxLength={1000}
+          value={rejectionReasons[item.id] ?? ""} onChange={event => setRejectionReasons(current => ({ ...current, [item.id]: event.target.value }))} /></label> : null}
+        <button type="submit">Save AI output decision</button>
       </form> : null}
       {item.status === "resolved" ? <p>Decision: {item.resolutionDecision}. {item.resolutionNotes}</p> : null}
     </article>)}

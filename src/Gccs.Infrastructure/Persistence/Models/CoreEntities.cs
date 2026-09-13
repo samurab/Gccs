@@ -927,6 +927,7 @@ public sealed class ClauseCandidateEntity
     public string? DecisionNote { get; set; }
     public string? DecisionReason { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
+    public NpgsqlTypes.NpgsqlTsVector SearchVector { get; set; } = null!;
 
     public ExtractionJobEntity? ExtractionJob { get; set; }
     public ContractDocumentEntity? SourceDocument { get; set; }

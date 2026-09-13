@@ -28,6 +28,18 @@ public sealed class GuardedAssistantExperienceTests
     }
 
     [Fact]
+    public async Task Ai_output_retention_uses_the_bounded_deployment_policy()
+    {
+        var ids = StoryIds.Create();
+        var service = CreateService(ids, out _, out _, retentionDays: 30);
+        var earliest = DateTimeOffset.UtcNow.AddDays(30).AddMinutes(-1);
+
+        var answer = await service.AskAsync(Request(ids, "Explain FCI safeguarding."));
+
+        Assert.InRange(answer.RetainUntil, earliest, DateTimeOffset.UtcNow.AddDays(30).AddMinutes(1));
+    }
+
+    [Fact]
     public async Task TC_33_3_2_Boundary_requests_are_blocked_or_redirected()
     {
         var ids = StoryIds.Create();
@@ -213,10 +225,33 @@ public sealed class GuardedAssistantExperienceTests
         Assert.Empty(repository.Feedback);
     }
 
+    [Fact]
+    public async Task Retrieval_audit_failure_prevents_answer_persistence()
+    {
+        var ids = StoryIds.Create();
+        var retrievalRepository = new InMemoryAiRetrievalSourceRepository();
+        retrievalRepository.Seed(new AiRetrievalSourceDto(
+            "library-fci", null, "FAR 52.204-21", "ComplianceLibrary", "https://example.test/far", null,
+            "section-1", "2026.06", new DateOnly(2026, 6, 1), ContentClassification.Fci, true, true,
+            "FCI safeguarding requires basic controls.", ["fci"]));
+        var guardedRepository = new InMemoryGuardedAssistantRepository();
+        var auditWriter = new FailingAuditEventWriter();
+        var transaction = new ImmediateTransaction();
+        var expertQueue = new ExpertReviewQueueService(
+            new InMemoryExpertReviewQueueRepository(), auditWriter, Array.Empty<IAssignmentNotificationRepository>(), transaction);
+        var service = new GuardedAssistantExperienceService(
+            new AiRetrievalAssistantService(retrievalRepository, auditWriter), guardedRepository, auditWriter, transaction, expertQueue);
+
+        await Assert.ThrowsAsync<AuditWriteException>(() => service.AskAsync(Request(ids, "Explain FCI safeguarding.")));
+
+        Assert.Empty(guardedRepository.Answers);
+    }
+
     private static GuardedAssistantExperienceService CreateService(
         StoryIds ids,
         out InMemoryGuardedAssistantRepository guardedRepository,
-        out CapturingAuditEventWriter auditWriter)
+        out CapturingAuditEventWriter auditWriter,
+        int retentionDays = 365)
     {
         auditWriter = new CapturingAuditEventWriter();
         var retrievalRepository = new InMemoryAiRetrievalSourceRepository();
@@ -247,11 +282,13 @@ public sealed class GuardedAssistantExperienceTests
             guardedRepository,
             auditWriter,
             transaction,
-            expertQueue);
+            expertQueue,
+            new AiOutputRetentionPolicy(retentionDays));
     }
 
     private static AiAssistantQuestionRequest Request(StoryIds ids, string question) =>
-        new(ids.TenantId, ids.ActorUserId, question, "obligation");
+        new(ids.TenantId, ids.ActorUserId, question, "obligation", HasAssistantPermission: true,
+            SourceAccess: AiRetrievalSourceAccess.ComplianceLibrary);
 
     private sealed class ImmediateTransaction : IApplicationTransaction
     {
@@ -309,6 +346,20 @@ public sealed class GuardedAssistantExperienceTests
             Events.Add(new CapturedAuditEvent(tenantId, actorUserId, action, entityType, entityId, summary, metadata?.ToDictionary() ?? []));
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class FailingAuditEventWriter : IAuditEventWriter
+    {
+        public Task WriteAsync(
+            Guid tenantId,
+            Guid actorUserId,
+            AuditAction action,
+            string entityType,
+            string entityId,
+            string summary,
+            IReadOnlyDictionary<string, string>? metadata = null,
+            CancellationToken cancellationToken = default) =>
+            throw new AuditWriteException("Synthetic retrieval audit failure.");
     }
 
     private sealed record CapturedAuditEvent(

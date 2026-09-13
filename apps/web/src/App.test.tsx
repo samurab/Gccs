@@ -819,6 +819,11 @@ const {
 }));
 
 vi.mock("@/lib/api", () => ({
+  getAiOutputs: vi.fn().mockResolvedValue([]),
+  getAiOutputReviewHistory: vi.fn().mockResolvedValue([]),
+  reviewAiOutput: vi.fn(),
+  linkAiOutputToDeliverable: vi.fn(),
+  exportAiOutputs: vi.fn().mockResolvedValue({ tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1", logCount: 0, exportedAt: "2026-09-12T00:00:00Z", logs: [] }),
   getAssistantExpertReviewItems: vi.fn().mockResolvedValue([]),
   getGuardedAssistantAnswer: vi.fn(),
   resolveExpertReviewItem: vi.fn(),

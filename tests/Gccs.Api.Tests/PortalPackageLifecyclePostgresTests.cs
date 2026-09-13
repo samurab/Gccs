@@ -115,8 +115,8 @@ public sealed class PortalPackageLifecyclePostgresTests
 
     private sealed class AllowAllEligibilityValidator : IPortalPackageShareEligibilityValidator
     {
-        public Task ValidateAsync(Guid packageId, Guid invitationId, Guid tenantId, DateTimeOffset asOf, CancellationToken cancellationToken = default) =>
-            Task.CompletedTask;
+        public Task<PortalPackageApprovalMetadataDto> ValidateAsync(Guid packageId, Guid invitationId, Guid tenantId, DateTimeOffset asOf, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new PortalPackageApprovalMetadataDto(1, new string('a', 64)));
     }
 
     private sealed class ThrowingAuditWriter : IAuditEventWriter

@@ -167,7 +167,8 @@ public sealed record CmmcReadinessGapDto(
 public sealed record CreatePoamFromGapRequest(
     string OwnerFunction,
     DateOnly TargetCompletionAt,
-    Guid? OwnerUserId = null);
+    Guid? OwnerUserId = null,
+    Guid? AiOutputId = null);
 
 public interface ICmmcAssessmentRepository
 {
