@@ -6,7 +6,7 @@ Record status: approved for solo-controlled pilot launch-candidate tagging and p
 
 Record date: 2026-07-03.
 
-Latest candidate-specific reapproval date: 2026-09-10.
+Latest candidate-specific reapproval date: 2026-09-12.
 
 Record owner: Product owner.
 
@@ -341,6 +341,26 @@ This approval is not independent legal, security, compliance, accessibility, CMM
 | Approval limitation | Solo-controlled No-CUI pilot production deployment only; no broader customer launch, official SPRS submission, certification, assessment determination, government approval, secure CUI storage, legal advice, or independent professional approval is claimed. |
 
 The approval is invalid if the candidate SHA changes, any cited exact-candidate workflow is unsuccessful, staging health regresses, incomplete or unreviewed SPRS rules become usable for calculation, scoring traceability or lifecycle controls weaken, the No-CUI posture changes, or customer-facing language expands beyond the reviewed candidate scope.
+
+## Labor, Guarded Assistant, and External Portal Candidate Reapproval - 2026-09-12
+
+The repository owner and deployment operator, `samurab`, explicitly requested committing and pushing the worktree, deploying it to staging, merging it, creating a launch candidate, and deploying it to production. This records combined-role approval for `launch-candidate-2026-09-12-1` within the existing solo-controlled No-CUI pilot production scope after the exact merge commit passed CI and staging deployment.
+
+This approval is not independent legal, security, compliance, accessibility, CMMC assessor, labor advisor, or separation-of-duties review. It does not authorize broader customer launch, real CUI processing, a labor determination, certification, assessment determination, system authorization, government approval, or government endorsement.
+
+| Approval metadata | Recorded value |
+| --- | --- |
+| Approver | Repository owner and deployment operator `samurab`, acting as the accountable combined-role solo-controlled pilot approver |
+| Approval date | 2026-09-12 |
+| Candidate | `launch-candidate-2026-09-12-1` at `4a3c4437952e4642d17cb8476b25496c276a0212` |
+| Scope | PR #106 adds durable tenant-scoped labor classifications and compliance reporting, guarded draft-only assistant interactions, external portal invitation and package lifecycle workflows, associated audit and authorization controls, additive PostgreSQL migrations, and workflow/navigation refinements. Internal `Gccs.*` compatibility identifiers and the No-CUI product posture remain unchanged. |
+| Exact-candidate automated evidence | PR CI run `34720168027`; exact-branch staging run `34720166907`; main CI run `34720870949`; main staging run `34720870952`; Static Web Apps run `34720870956`. Exact-main CI passed 1,905 backend tests with 4 provider-dependent skips and 0 failures, 245 frontend tests, dependency scans, secret scan, EF migration validation, Terraform validation, extraction evaluation, and the PostgreSQL real-stack report authorization/rollback gate. |
+| Exact-candidate staging evidence | Runs `34720166907` and `34720870952` built and deployed the exact candidate, generated and applied the idempotent migration script, enforced synthetic-only staging and No-CUI guardrails, and passed API and web smoke checks. Main staging artifact `10306531120` contains smoke evidence. Independent verification returned API status `ok`, healthy PostgreSQL, Redis, object storage, and background jobs, plus HTTP 200 from the staging web application. |
+| Security and migration scope | Labor, assistant, and portal data remain server-authorized and tenant-scoped; compliance mutations retain append-only audit coupling; assistant output remains draft-only; external portal access uses server-controlled invitation and package lifecycle rules; and active labor-assignment overlap protection uses a transaction-scoped advisory lock plus a database trigger without privileged PostgreSQL extensions. |
+| Unresolved limitations | Review is solo-controlled rather than independent. No authenticated staging or production tenant workflow smoke identity was supplied. Provider-dependent backend tests remain environment-gated. External identity, email delivery, and HubSpot paths were not exercised end-to-end with a production user. Terraform was validated but not applied or checked against live drift. UI changes passed component tests, lint, build, and hosted smoke checks but do not have screenshot-diff coverage at every viewport. |
+| Approval limitation | Solo-controlled No-CUI pilot production deployment only; no broader customer launch, labor determination, certification, assessment determination, government approval, secure CUI storage, legal advice, or independent professional approval is claimed. |
+
+The approval is invalid if the candidate SHA changes, any cited exact-candidate workflow is unsuccessful, staging health regresses, tenant isolation, RBAC, audit atomicity, draft-only assistant handling, portal access controls, or labor overlap protection weakens, the No-CUI posture changes, or customer-facing language expands beyond the reviewed candidate scope.
 
 ## Evidence Package Reviewed
 
