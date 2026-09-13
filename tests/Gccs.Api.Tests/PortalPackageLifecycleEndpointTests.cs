@@ -130,6 +130,29 @@ public sealed class PortalPackageLifecycleEndpointTests : IClassFixture<WebAppli
             entry.EntityId == created.Id.ToString() && entry.Action == AuditAction.PermissionChanged).ToArrayAsync());
     }
 
+    [Fact]
+    public async Task Package_preparation_requires_manage_reports_and_source_specific_permission()
+    {
+        var ids = TestIds.Create();
+        await using var factory = CreateFactory(nameof(Package_preparation_requires_manage_reports_and_source_specific_permission), ids);
+        using var client = factory.CreateClient();
+        var request = new PreparePortalReviewPackageRequest(
+            PortalReviewPreparationSource.AuditLogExport, null, "Auditor review package",
+            Gccs.Domain.Common.ContentClassification.Unclassified);
+
+        var missingSourcePermission = await client.SendAsync(Request(
+            HttpMethod.Post, "/api/portal/review-packages/prepare", request,
+            ids, ids.TenantId, Permission.ManageReports));
+        Assert.Equal(HttpStatusCode.Forbidden, missingSourcePermission.StatusCode);
+
+        var allowed = await client.SendAsync(Request(
+            HttpMethod.Post, "/api/portal/review-packages/prepare", request,
+            ids, ids.TenantId, Permission.ManageReports, Permission.ViewAuditLog));
+        Assert.Equal(HttpStatusCode.Created, allowed.StatusCode);
+        var package = await allowed.Content.ReadFromJsonAsync<PreparedPortalReviewPackageDto>(JsonOptions);
+        Assert.Equal(PortalReviewPreparationSource.AuditLogExport, package?.SourceType);
+    }
+
     private async Task<SharedPortalPackageDto> CreateShareAsync(HttpClient client, TestIds ids, Guid tenantId)
     {
         var response = await client.SendAsync(Request(
@@ -222,7 +245,7 @@ public sealed class PortalPackageLifecycleEndpointTests : IClassFixture<WebAppli
 
     private sealed class AllowAllEligibilityValidator : IPortalPackageShareEligibilityValidator
     {
-        public Task ValidateAsync(Guid packageId, Guid invitationId, Guid tenantId, DateTimeOffset asOf, CancellationToken cancellationToken = default) =>
-            Task.CompletedTask;
+        public Task<PortalPackageApprovalMetadataDto> ValidateAsync(Guid packageId, Guid invitationId, Guid tenantId, DateTimeOffset asOf, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new PortalPackageApprovalMetadataDto(1, new string('a', 64)));
     }
 }

@@ -7,6 +7,7 @@ const platformTenantAdminPath = "/platform/tenants/new";
 const platformDemoRequestsPath = "/platform/demo-requests";
 const platformCustomersPath = "/platform/customers";
 const invitationAcceptancePath = "/invitations/accept";
+const portalReviewPath = "/portal/review";
 
 export function shouldOfferHubSpotChat(location: Pick<Location, "pathname"> = window.location) {
   return location.pathname === "/" || location.pathname === landingPath || location.pathname === demoPath;
@@ -87,4 +88,15 @@ export function shouldRenderInvitationAcceptancePage(
   location: Pick<Location, "pathname"> = window.location
 ) {
   return location.pathname === invitationAcceptancePath;
+}
+
+export function getPortalReviewInvitationId(
+  location: Pick<Location, "pathname"> = window.location
+): string | null {
+  const match = location.pathname.match(/^\/portal\/review\/([0-9a-f-]{36})$/i);
+  return match?.[1] ?? null;
+}
+
+export function shouldRenderPortalReviewPage(location: Pick<Location, "pathname"> = window.location) {
+  return location.pathname.startsWith(`${portalReviewPath}/`) && getPortalReviewInvitationId(location) !== null;
 }

@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Gccs.Application.Audit;
+using Gccs.Application.Ai;
 using Gccs.Application.Common;
 using Gccs.Application.Security;
 using Gccs.Domain.Audit;
@@ -20,7 +21,8 @@ public sealed class SspExportPackageService(
     ICurrentTenantContext tenantContext,
     IAuditEventWriter auditEventWriter,
     IApplicationTransaction transaction,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    AiOutputReviewService? aiOutputReview = null)
 {
     public const string ReviewOnlyDisclaimer =
         "Draft SSP review package for human review only. FeDril does not provide certification, an assessment determination, system authorization, legal advice, or government approval or endorsement. Source records and conclusions must be independently reviewed by qualified personnel.";
@@ -148,9 +150,15 @@ public sealed class SspExportPackageService(
                     ["draftOnly"] = "true"
                 },
                 transactionToken);
+            if (request.AiOutputId is Guid aiOutputId)
+                await RequiredAiReview().RequireDeliverableLinkAsync(aiOutputId, saved.TenantId,
+                    AiDeliverableType.CustomerDeliverable, saved.Id, actorUserId, transactionToken);
             return saved;
         }, cancellationToken);
     }
+
+    private AiOutputReviewService RequiredAiReview() => aiOutputReview ??
+        throw new AiOutputReviewValidationException("aiOutputId", "AI output provenance processing is unavailable.");
 
     public Task<SspExportPackageDto?> ApproveExternalShareAsync(
         Guid packageId,
@@ -362,7 +370,8 @@ public sealed record CreateSspExportPackageRequest(
     SspExportFormat Format,
     bool ExternalShareRequested,
     Guid[] EvidenceItemIds,
-    Guid[] PoamItemIds);
+    Guid[] PoamItemIds,
+    Guid? AiOutputId = null);
 public sealed record SspExternalShareApprovalRequest(string Reason);
 public sealed record SspExternalShareRequest(string Recipient, string Purpose);
 public sealed record SspExportSourceSnapshot(string TenantName, SspExportEvidenceReferenceDto[] Evidence, SspExportPoamReferenceDto[] PoamItems);

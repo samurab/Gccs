@@ -1,3 +1,4 @@
+using Gccs.Application.Ai;
 using Gccs.Application.Compliance;
 using Gccs.Application.Security;
 using Gccs.Infrastructure.Persistence;
@@ -255,11 +256,27 @@ public sealed class EfExpertReviewQueueRepository(
                 cancellationToken);
             if (answer is not null)
             {
+                var previousState = answer.ReviewState;
+                var nextState = decision switch
+                {
+                    "rejected" => AiOutputReviewState.Rejected,
+                    "revision_required" => AiOutputReviewState.NeedsReview,
+                    _ => AiOutputReviewState.Draft
+                };
                 answer.HumanReviewStatus = decision;
                 answer.ReviewedByUserId = actorUserId;
                 answer.ReviewedAt = now;
                 answer.ReviewDecision = decision;
                 answer.ReviewNotes = notes;
+                answer.RejectionReason = decision == "rejected" ? notes : null;
+                answer.ReviewState = nextState;
+                answer.Version++;
+                dbContext.AssistantOutputReviews.Add(new AssistantOutputReviewEntity
+                {
+                    Id = Guid.NewGuid(), TenantId = tenantId, AnswerId = answer.Id,
+                    PreviousState = previousState, NewState = nextState, ReviewerUserId = actorUserId,
+                    Note = notes, RejectionReason = answer.RejectionReason, CreatedAt = now
+                });
             }
         }
     }

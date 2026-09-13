@@ -5,6 +5,7 @@ namespace Gccs.Application.Reports;
 
 public sealed record EvidencePackageGenerateRequest
 {
+    public Guid? AiOutputId { get; init; }
     public Gccs.Application.Common.ContentClassificationRequest? Classification { get; init; }
     public string Title { get; init; } = string.Empty;
     public IReadOnlyList<string> ObligationIds { get; init; } = [];

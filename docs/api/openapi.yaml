@@ -53,6 +53,8 @@ tags:
     description: Tenant-admin lifecycle controls and activity history for explicitly shared external-review packages.
   - name: Source Library
     description: Reviewed compliance sources and obligation library governance.
+  - name: Assistant
+    description: Source-bounded draft assistance with citations, policy logging, and mandatory human review.
 paths:
   /health:
     get:
@@ -94,6 +96,119 @@ paths:
                 $ref: "#/components/schemas/CurrentUserAccess"
         "401":
           $ref: "#/components/responses/Unauthorized"
+
+  /api/assistant/questions:
+    post:
+      tags:
+        - Assistant
+      summary: Ask a source-bounded compliance question
+      operationId: askGuardedAssistant
+      description: >
+        Evaluates prompt guardrails and searches only server-authorized, approved,
+        tenant-safe retrieval source families. Supported output remains draft guidance
+        requiring human review. Unsupported requests return a review-oriented refusal
+        rather than an uncited compliance answer.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssistantQuestionRequest"
+      responses:
+        "200":
+          description: Source-supported draft, unsupported refusal, or blocked response.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GuardedAssistantAnswer"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/assistant/outputs:
+    get:
+      tags: [Assistant]
+      summary: List tenant AI interaction logs
+      operationId: listAiOutputs
+      parameters:
+        - in: query
+          name: includeArchived
+          schema: { type: boolean, default: false }
+      responses:
+        "200":
+          description: Tenant-scoped AI outputs ordered newest first.
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/GuardedAssistantAnswer" } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/assistant/outputs/{answerId}/reviews:
+    parameters:
+      - in: path
+        name: answerId
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Assistant]
+      summary: List append-only AI output review history
+      operationId: listAiOutputReviews
+      responses:
+        "200": { description: Review history. }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      tags: [Assistant]
+      summary: Record an AI output lifecycle decision
+      operationId: reviewAiOutput
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AiOutputReviewRequest" }
+      responses:
+        "200": { description: Updated output and appended review. }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/assistant/outputs/{answerId}/deliverable-uses:
+    post:
+      tags: [Assistant]
+      summary: Link approved AI output to a governed deliverable
+      description: Requires an existing current-tenant target, an approved unexpired AI output, and the server-side permission for the declared type (ManageReports for reports/customer deliverables, ManageObligations for policies, or ManageCmmc for SSPs/POA&Ms).
+      operationId: linkApprovedAiOutputToDeliverable
+      parameters:
+        - in: path
+          name: answerId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AiOutputUsageRequest" }
+      responses:
+        "201": { description: Approved provenance link created. }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/assistant/outputs/export:
+    get:
+      tags: [Assistant]
+      summary: Export tenant AI interaction logs
+      operationId: exportAiOutputs
+      parameters:
+        - in: query
+          name: includeArchived
+          schema: { type: boolean, default: false }
+      responses:
+        "200": { description: Controlled tenant AI log export. }
+        "403": { $ref: "#/components/responses/Forbidden" }
 
   /api/notification-preferences:
     get:
@@ -1464,7 +1579,7 @@ paths:
         "202": { description: Accepted by a future authorized provider. }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
 
   /api/contracts/{contractId}/documents:
@@ -3353,6 +3468,12 @@ paths:
         - Reports
       summary: Generate a compliance status report
       operationId: generateComplianceStatusReport
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClassifiedWorkflowRequest"
       responses:
         "201":
           description: Compliance status report generated.
@@ -3382,6 +3503,12 @@ paths:
         Generates a tenant-scoped CMMC readiness report snapshot for the selected
         assessment. Evidence links are included only when the caller also has
         evidence-view permission.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClassifiedWorkflowRequest"
       responses:
         "201":
           description: CMMC readiness report generated.
@@ -3453,6 +3580,12 @@ paths:
         Generates a tenant-scoped subcontractor compliance report with optional
         contract filtering, profile status, flow-down status, evidence request
         gaps, overdue items, risk summary, and CSV export content.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClassifiedWorkflowRequest"
       responses:
         "201":
           description: Subcontractor compliance report generated.
@@ -4027,6 +4160,87 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "409": { $ref: "#/components/responses/Conflict" }
 
+  /api/external-portal/invitations/{invitationId}/packages:
+    parameters:
+      - { name: invitationId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Portals]
+      summary: List active approved package projections assigned to the authenticated portal reviewer
+      operationId: listApprovedPortalPackages
+      responses:
+        "200": { description: Safe package dashboard projections with reviewer messages., content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/PortalReviewPackage" } } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/portal/review-packages/prepare:
+    post:
+      tags: [Portals]
+      summary: Prepare an immutable obligation-matrix or audit-log package for a separate external-review approval and share decision
+      operationId: preparePortalReviewPackage
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/PreparePortalReviewPackageRequest" } } }
+      responses:
+        "201": { description: Immutable package prepared., content: { application/json: { schema: { $ref: "#/components/schemas/PreparedPortalReviewPackage" } } } }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/external-portal/invitations/{invitationId}/packages/{sharedPackageId}:
+    parameters:
+      - { name: invitationId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: sharedPackageId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Portals]
+      summary: Get one active approved package projection assigned to the authenticated portal reviewer
+      operationId: getApprovedPortalPackage
+      responses:
+        "200": { description: Safe package review projection., content: { application/json: { schema: { $ref: "#/components/schemas/PortalReviewPackage" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/external-portal/invitations/{invitationId}/packages/{sharedPackageId}/messages:
+    parameters:
+      - { name: invitationId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: sharedPackageId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Portals]
+      summary: Append a reviewer comment or question without changing the source package
+      operationId: createPortalPackageReviewMessage
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/PortalPackageReviewMessageRequest" } } }
+      responses:
+        "201": { description: Reviewer message appended and audit logged., content: { application/json: { schema: { $ref: "#/components/schemas/PortalPackageReviewMessage" } } } }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/external-portal/invitations/{invitationId}/packages/{sharedPackageId}/download:
+    parameters:
+      - { name: invitationId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: sharedPackageId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Portals]
+      summary: Download an eligible immutable package artifact with server-controlled metadata and watermarking
+      operationId: downloadApprovedPortalPackage
+      responses:
+        "200":
+          description: Controlled package artifact. Metadata is included in the artifact and response headers.
+          headers:
+            X-FeDril-Package-Id: { schema: { type: string, format: uuid } }
+            X-FeDril-Package-Version: { schema: { type: integer } }
+            X-FeDril-Watermark-Applied: { schema: { type: boolean } }
+          content:
+            text/html: { schema: { type: string, format: binary } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
   /api/portal/shared-packages:
     get:
       tags: [Portals]
@@ -4297,6 +4511,47 @@ components:
             $ref: "#/components/schemas/ProblemDetails"
 
   schemas:
+    ClassifiedWorkflowRequest:
+      type: object
+      additionalProperties: false
+      required: [classification]
+      properties:
+        classification:
+          $ref: "#/components/schemas/ContentClassificationRequest"
+        aiOutputId:
+          type: [string, "null"]
+          format: uuid
+          description: Optional approved AI output provenance linked atomically to the created deliverable.
+
+    ContentClassificationRequest:
+      type: object
+      additionalProperties: false
+      required: [classification]
+      properties:
+        classification:
+          type: string
+          enum: [Unclassified, Fci, Cui, SyntheticCui, Prohibited, Unknown]
+        source:
+          type: string
+          enum: [UserSelected, SystemSuggested, AdminReviewed, ImportedDemoSeed]
+          default: UserSelected
+        confidence:
+          type: [number, "null"]
+          minimum: 0
+          maximum: 1
+        reviewedByUserId:
+          type: [string, "null"]
+          format: uuid
+        reviewedAt:
+          type: [string, "null"]
+          format: date-time
+        reason:
+          type: [string, "null"]
+          maxLength: 600
+        isApprovedDemoContent:
+          type: boolean
+          default: false
+
     ProblemDetails:
       type: object
       additionalProperties: true
@@ -4318,6 +4573,131 @@ components:
           type: string
         errorCode:
           type: string
+
+    AssistantQuestionRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - question
+        - workflowContext
+      properties:
+        question:
+          type: string
+          minLength: 1
+          maxLength: 4000
+        workflowContext:
+          type: string
+          enum: [obligation, contract, evidence, cmmc, ssp, poam, labor, subcontractor]
+
+    AssistantCitation:
+      type: object
+      additionalProperties: false
+      required:
+        - sourceId
+        - title
+        - sourceType
+        - sourceUrl
+        - tenantRecordReference
+        - excerptPointer
+        - version
+        - lastReviewedAt
+      properties:
+        sourceId: { type: string }
+        title: { type: string }
+        sourceType:
+          type: string
+          enum: [ComplianceLibrary, TenantDocument, ApprovedReport, EvidenceMetadata]
+        sourceUrl: { type: [string, "null"], format: uri }
+        tenantRecordReference: { type: [string, "null"] }
+        excerptPointer: { type: string }
+        version: { type: string }
+        lastReviewedAt: { type: [string, "null"], format: date }
+
+    GuardedAssistantAnswer:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - tenantId
+        - workflowContext
+        - status
+        - answer
+        - citations
+        - supportStatus
+        - draftLabel
+        - requiresReview
+        - escalationRecommended
+        - blockedReason
+        - createdAt
+        - humanReviewStatus
+        - reviewedByUserId
+        - reviewedAt
+        - reviewDecision
+        - reviewNotes
+        - prompt
+        - promptWasRedacted
+        - promptMetadata
+        - modelConfiguration
+        - retrievalPolicy
+        - classification
+        - result
+        - reviewState
+        - rejectionReason
+        - retainUntil
+        - version
+        - actorUserId
+      properties:
+        id: { type: string, format: uuid }
+        tenantId: { type: string, format: uuid }
+        workflowContext: { type: string }
+        status: { type: string, enum: [Draft, NeedsReview, Blocked] }
+        answer: { type: string }
+        citations:
+          type: array
+          maxItems: 8
+          items:
+            $ref: "#/components/schemas/AssistantCitation"
+        supportStatus: { type: string, enum: [SourceSupported, NeedsReview, Unsupported] }
+        draftLabel: { type: string }
+        requiresReview: { type: boolean }
+        escalationRecommended: { type: boolean }
+        blockedReason: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }
+        humanReviewStatus: { type: string }
+        reviewedByUserId: { type: [string, "null"], format: uuid }
+        reviewedAt: { type: [string, "null"], format: date-time }
+        reviewDecision: { type: [string, "null"] }
+        reviewNotes: { type: [string, "null"] }
+        prompt: { type: string, maxLength: 4000 }
+        promptWasRedacted: { type: boolean }
+        promptMetadata: { type: string, description: Server-generated JSON metadata. }
+        modelConfiguration: { type: string, description: Server-generated JSON model or deterministic-engine configuration. }
+        retrievalPolicy: { type: string, description: JSON snapshot of source policy decisions. }
+        classification: { type: string }
+        result: { type: string }
+        reviewState: { type: string, enum: [Draft, NeedsReview, Approved, Rejected, Superseded, Archived] }
+        rejectionReason: { type: [string, "null"], maxLength: 1000 }
+        retainUntil: { type: string, format: date-time }
+        version: { type: integer, format: int64, minimum: 0 }
+        actorUserId: { type: string, format: uuid }
+
+    AiOutputReviewRequest:
+      type: object
+      additionalProperties: false
+      required: [state, note, expectedVersion]
+      properties:
+        state: { type: string, enum: [Approved, Rejected, Superseded, Archived] }
+        note: { type: string, minLength: 1, maxLength: 1000 }
+        reason: { type: [string, "null"], maxLength: 1000 }
+        expectedVersion: { type: integer, format: int64, minimum: 0 }
+
+    AiOutputUsageRequest:
+      type: object
+      additionalProperties: false
+      required: [deliverableType, deliverableId]
+      properties:
+        deliverableType: { type: string, enum: [Report, Policy, Ssp, Poam, CustomerDeliverable] }
+        deliverableId: { type: string, minLength: 1, maxLength: 200 }
 
     PagedResult:
       type: object
@@ -7491,6 +7871,10 @@ components:
         - ownerFunction
         - targetCompletionAt
       properties:
+        aiOutputId:
+          type: [string, "null"]
+          format: uuid
+          description: Optional approved AI output provenance linked atomically to the created POA&M item.
         controlId:
           type: string
         weakness:
@@ -8260,6 +8644,10 @@ components:
           required: [classification]
           properties:
             classification: { type: string, enum: [Unknown, Unclassified, Fci, Cui, SyntheticCui, Prohibited] }
+        aiOutputId:
+          type: [string, "null"]
+          format: uuid
+          description: Optional approved AI output provenance linked atomically to the generated report.
 
     SprsReadinessReport:
       allOf:
@@ -8568,6 +8956,10 @@ components:
         - subcontractorIds
         - includeDraftOrRejectedEvidence
       properties:
+        aiOutputId:
+          type: [string, "null"]
+          format: uuid
+          description: Optional approved AI output provenance. Invalid references roll back report generation.
         title:
           type: string
         obligationIds:
@@ -9469,6 +9861,10 @@ components:
       required: [sources]
       additionalProperties: false
       properties:
+        aiOutputId:
+          type: [string, "null"]
+          format: uuid
+          description: Optional approved AI output provenance linked atomically to the SSP narrative draft.
         sources:
           type: array
           minItems: 1
@@ -9570,6 +9966,10 @@ components:
       additionalProperties: false
       required: [packageVersion, systemBoundary, reviewer, format, externalShareRequested, evidenceItemIds, poamItemIds]
       properties:
+        aiOutputId:
+          type: [string, "null"]
+          format: uuid
+          description: Optional approved AI output provenance linked atomically to the customer deliverable package.
         packageVersion: { type: string, minLength: 1, maxLength: 80 }
         systemBoundary: { type: string, minLength: 1, maxLength: 4000 }
         reviewer: { type: string, minLength: 1, maxLength: 200 }
@@ -9693,6 +10093,46 @@ components:
         resultCode: { type: string }
         occurredAt: { type: string, format: date-time }
 
+    PortalPackageReviewMessageRequest:
+      type: object
+      additionalProperties: false
+      required: [kind, body]
+      properties:
+        kind: { type: string, enum: [Comment, Question] }
+        body: { type: string, minLength: 1, maxLength: 2000 }
+
+    PortalPackageReviewMessage:
+      type: object
+      required: [id, kind, body, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { type: string, enum: [Comment, Question] }
+        body: { type: string, maxLength: 2000 }
+        createdAt: { type: string, format: date-time }
+
+    PortalReviewPackage:
+      type: object
+      required: [sharedPackageId, packageId, sourceKind, title, version, status, classification, evidenceItemIds, evidenceReferences, generatedAt, reviewDueAt, externalReviewApprovedAt, approvedSourceVersion, approvedSourceFingerprint, shareState, downloadAvailable, reviewerMessages]
+      properties:
+        sharedPackageId: { type: string, format: uuid }
+        packageId: { type: string, format: uuid }
+        sourceKind: { type: string }
+        title: { type: string }
+        version: { type: integer, minimum: 1 }
+        status: { type: string, enum: [Approved] }
+        classification: { type: string, enum: [Unclassified, Fci] }
+        contractId: { type: [string, "null"], format: uuid }
+        evidenceItemIds: { type: array, items: { type: string, format: uuid } }
+        evidenceReferences: { type: array, items: { $ref: "#/components/schemas/PortalEvidenceReference" } }
+        generatedAt: { type: string, format: date-time }
+        reviewDueAt: { type: string, format: date-time }
+        externalReviewApprovedAt: { type: string, format: date-time }
+        approvedSourceVersion: { type: integer, minimum: 0 }
+        approvedSourceFingerprint: { type: string, maxLength: 64 }
+        shareState: { type: string, enum: [Active] }
+        downloadAvailable: { type: boolean }
+        reviewerMessages: { type: array, items: { $ref: "#/components/schemas/PortalPackageReviewMessage" } }
+
     SharedPortalPackageRequest:
       type: object
       additionalProperties: false
@@ -9702,6 +10142,41 @@ components:
         invitationId: { type: string, format: uuid }
         expiresAt: { type: string, format: date-time }
         expirationReminderDays: { type: integer, minimum: 1, maximum: 30, default: 7 }
+        reviewDueAt: { type: [string, "null"], format: date-time }
+        approvalReason: { type: [string, "null"], maxLength: 1000 }
+
+    PreparePortalReviewPackageRequest:
+      type: object
+      additionalProperties: false
+      required: [sourceType, title, classification]
+      properties:
+        sourceType: { type: string, enum: [ContractObligationMatrix, AuditLogExport] }
+        contractId: { type: [string, "null"], format: uuid }
+        title: { type: string, minLength: 1, maxLength: 240 }
+        classification: { type: string, enum: [Unclassified, Fci] }
+
+    PreparedPortalReviewPackage:
+      type: object
+      required: [packageId, sourceType, title, classification, evidenceItemIds, generatedAt]
+      properties:
+        packageId: { type: string, format: uuid }
+        sourceType: { type: string, enum: [ContractObligationMatrix, AuditLogExport] }
+        title: { type: string }
+        classification: { type: string, enum: [Unclassified, Fci] }
+        contractId: { type: [string, "null"], format: uuid }
+        evidenceItemIds: { type: array, items: { type: string, format: uuid } }
+        generatedAt: { type: string, format: date-time }
+
+    PortalEvidenceReference:
+      type: object
+      required: [id, name, type, classification]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        type: { type: string }
+        classification: { type: string, enum: [Unclassified, Fci] }
+        approvedAt: { type: [string, "null"], format: date-time }
+        expiresAt: { type: [string, "null"], format: date }
 
     RevokeSharedPortalPackageRequest:
       type: object
@@ -9725,10 +10200,12 @@ components:
         replacementPackageId: { type: string, format: uuid }
         expiresAt: { type: string, format: date-time }
         expirationReminderDays: { type: integer, minimum: 1, maximum: 30, default: 7 }
+        reviewDueAt: { type: [string, "null"], format: date-time }
+        approvalReason: { type: [string, "null"], maxLength: 1000 }
 
     SharedPortalPackage:
       type: object
-      required: [id, tenantId, packageId, invitationId, version, state, expiresAt, reminderAt, createdAt]
+      required: [id, tenantId, packageId, invitationId, version, state, expiresAt, reviewDueAt, externalReviewApprovedAt, externalReviewApprovalReason, approvedSourceVersion, approvedSourceFingerprint, reminderAt, createdAt]
       properties:
         id: { type: string, format: uuid }
         tenantId: { type: string, format: uuid }
@@ -9737,6 +10214,12 @@ components:
         version: { type: integer, minimum: 1 }
         state: { type: string, enum: [Active, Superseded, Expired, Revoked, Archived] }
         expiresAt: { type: string, format: date-time }
+        reviewDueAt: { type: string, format: date-time }
+        externalReviewApprovedAt: { type: string, format: date-time }
+        externalReviewApprovedByUserId: { type: [string, "null"], format: uuid }
+        externalReviewApprovalReason: { type: string }
+        approvedSourceVersion: { type: integer, minimum: 0 }
+        approvedSourceFingerprint: { type: string, maxLength: 64 }
         reminderAt: { type: string, format: date-time }
         reminderSentAt: { type: [string, "null"], format: date-time }
         supersedesSharedPackageId: { type: [string, "null"], format: uuid }

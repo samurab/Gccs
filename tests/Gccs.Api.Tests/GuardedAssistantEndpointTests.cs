@@ -4,11 +4,16 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Gccs.Application.Ai;
 using Gccs.Application.Audit;
+using Gccs.Application.Common;
 using Gccs.Application.Compliance;
 using Gccs.Application.Notifications;
+using Gccs.Application.Reports;
+using Gccs.Application.Tenancy;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Common;
+using Gccs.Domain.Evidence;
 using Gccs.Domain.Identity;
+using Gccs.Domain.Reports;
 using Gccs.Domain.Tenancy;
 using Gccs.Infrastructure.Ai;
 using Gccs.Infrastructure.Audit;
@@ -16,6 +21,8 @@ using Gccs.Infrastructure.Compliance;
 using Gccs.Infrastructure.Notifications;
 using Gccs.Infrastructure.Persistence;
 using Gccs.Infrastructure.Persistence.Models;
+using Gccs.Infrastructure.Reports;
+using Gccs.Infrastructure.Tenancy;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -108,6 +115,29 @@ public sealed class GuardedAssistantEndpointTests : IClassFixture<WebApplication
             new AssistantDraftActionApiRequest(AssistantDraftActionType.EvidenceRequest, "Collect evidence", "Draft request."),
             ids.TenantId, ids.UserId, Permission.ManageTasks));
         Assert.Equal(HttpStatusCode.Forbidden, deniedAction.StatusCode);
+    }
+
+    [Fact]
+    public async Task Source_family_permissions_are_derived_from_server_claims()
+    {
+        var ids = TestIds.Create();
+        await using var factory = CreateFactory(nameof(Source_family_permissions_are_derived_from_server_claims), ids);
+        using var client = factory.CreateClient();
+
+        var allowedResponse = await client.SendAsync(Request(HttpMethod.Post, "/api/assistant/questions",
+            new AssistantQuestionApiRequest("Explain tenant-only evidence marker.", "evidence"), ids.TenantId, ids.UserId,
+            Permission.ViewEvidence));
+        var allowed = await allowedResponse.Content.ReadFromJsonAsync<GuardedAssistantAnswerDto>(JsonOptions);
+        Assert.Equal(HttpStatusCode.OK, allowedResponse.StatusCode);
+        Assert.Contains(allowed!.Citations, citation => citation.SourceType == "EvidenceMetadata");
+
+        var restrictedResponse = await client.SendAsync(Request(HttpMethod.Post, "/api/assistant/questions",
+            new AssistantQuestionApiRequest("Explain tenant-only evidence marker.", "obligation"), ids.TenantId, ids.UserId,
+            Permission.ViewObligations));
+        var restricted = await restrictedResponse.Content.ReadFromJsonAsync<GuardedAssistantAnswerDto>(JsonOptions);
+        Assert.Equal(HttpStatusCode.OK, restrictedResponse.StatusCode);
+        Assert.Equal("NeedsReview", restricted!.Status);
+        Assert.DoesNotContain(restricted.Citations, citation => citation.SourceType == "EvidenceMetadata");
     }
 
     [Fact]
@@ -245,6 +275,109 @@ public sealed class GuardedAssistantEndpointTests : IClassFixture<WebApplication
         Assert.Equal(3, await db.AuditLogEntries.CountAsync(value => value.EntityType == "ExpertReviewItem"));
     }
 
+    [Fact]
+    public async Task Ai_output_review_endpoints_enforce_rbac_tenant_scope_history_export_and_deliverable_gate()
+    {
+        var ids = TestIds.Create();
+        await using var factory = CreateFactory(nameof(Ai_output_review_endpoints_enforce_rbac_tenant_scope_history_export_and_deliverable_gate), ids);
+        using var client = factory.CreateClient();
+        var ask = await client.SendAsync(Request(HttpMethod.Post, "/api/assistant/questions",
+            new AssistantQuestionApiRequest("Explain FCI safeguarding.", "obligation"), ids.TenantId, ids.UserId,
+            Permission.ViewObligations));
+        var answer = await ask.Content.ReadFromJsonAsync<GuardedAssistantAnswerDto>(JsonOptions);
+        var reportId = Guid.NewGuid();
+        var otherTenantReportId = Guid.NewGuid();
+        using (var seedScope = factory.Services.CreateScope())
+        {
+            var seedDb = seedScope.ServiceProvider.GetRequiredService<GccsDbContext>();
+            seedDb.Reports.AddRange(
+                new ReportEntity
+                {
+                    Id = reportId, TenantId = ids.TenantId, Type = ReportType.ComplianceStatus,
+                    Title = "AI provenance target", Status = ReportStatus.Complete, GeneratedAt = DateTimeOffset.UtcNow,
+                    GeneratedByUserId = ids.UserId, SnapshotJson = "{}", ExportHtml = ""
+                },
+                new ReportEntity
+                {
+                    Id = otherTenantReportId, TenantId = ids.OtherTenantId, Type = ReportType.ComplianceStatus,
+                    Title = "Other tenant target", Status = ReportStatus.Complete, GeneratedAt = DateTimeOffset.UtcNow,
+                    GeneratedByUserId = ids.UserId, SnapshotJson = "{}", ExportHtml = ""
+                });
+            await seedDb.SaveChangesAsync();
+        }
+
+        var useDraft = await client.SendAsync(Request(HttpMethod.Post, $"/api/assistant/outputs/{answer!.Id}/deliverable-uses",
+            new AiOutputUsageRequest(AiDeliverableType.Report, reportId.ToString()), ids.TenantId, ids.UserId,
+            Permission.ManageReports, Permission.ViewObligations));
+        var unrelatedWorkflowList = await client.SendAsync(Request<object>(HttpMethod.Get, "/api/assistant/outputs",
+            null!, ids.TenantId, ids.UserId, Permission.ViewEvidence));
+        var unrelatedWorkflowOutputs = await unrelatedWorkflowList.Content.ReadFromJsonAsync<GuardedAssistantAnswerDto[]>(JsonOptions);
+        var unrelatedWorkflowHistory = await client.SendAsync(Request<object>(HttpMethod.Get,
+            $"/api/assistant/outputs/{answer.Id}/reviews", null!, ids.TenantId, ids.UserId, Permission.ViewEvidence));
+        var deniedReview = await client.SendAsync(Request(HttpMethod.Post, $"/api/assistant/outputs/{answer.Id}/reviews",
+            new AiOutputReviewDecisionRequest(AiOutputReviewState.Approved, "Reviewed.", null, 0), ids.TenantId, ids.UserId,
+            Permission.ViewObligations));
+        var unrelatedWorkflowReview = await client.SendAsync(Request(HttpMethod.Post, $"/api/assistant/outputs/{answer.Id}/reviews",
+            new AiOutputReviewDecisionRequest(AiOutputReviewState.Approved, "Reviewed.", null, 0), ids.TenantId, ids.UserId,
+            Permission.ManageObligations, Permission.ViewEvidence));
+        var crossTenant = await client.SendAsync(Request(HttpMethod.Post, $"/api/assistant/outputs/{answer.Id}/reviews",
+            new AiOutputReviewDecisionRequest(AiOutputReviewState.Approved, "Reviewed.", null, 0), ids.OtherTenantId, ids.UserId,
+            Permission.ManageObligations));
+        var approve = await client.SendAsync(Request(HttpMethod.Post, $"/api/assistant/outputs/{answer.Id}/reviews",
+            new AiOutputReviewDecisionRequest(AiOutputReviewState.Approved, "Sources verified by reviewer.", null, 0),
+            ids.TenantId, ids.UserId, Permission.ManageObligations, Permission.ViewObligations));
+        var staleReview = await client.SendAsync(Request(HttpMethod.Post, $"/api/assistant/outputs/{answer.Id}/reviews",
+            new AiOutputReviewDecisionRequest(AiOutputReviewState.Archived, "Stale decision must not win.", null, 0),
+            ids.TenantId, ids.UserId, Permission.ManageObligations, Permission.ViewObligations));
+        var wrongPermission = await client.SendAsync(Request(HttpMethod.Post, $"/api/assistant/outputs/{answer.Id}/deliverable-uses",
+            new AiOutputUsageRequest(AiDeliverableType.Report, reportId.ToString()), ids.TenantId, ids.UserId, Permission.ManageObligations));
+        var crossTenantTarget = await client.SendAsync(Request(HttpMethod.Post, $"/api/assistant/outputs/{answer.Id}/deliverable-uses",
+            new AiOutputUsageRequest(AiDeliverableType.Report, otherTenantReportId.ToString()), ids.TenantId, ids.UserId,
+            Permission.ManageReports, Permission.ViewObligations));
+        var unrelatedWorkflowLink = await client.SendAsync(Request(HttpMethod.Post, $"/api/assistant/outputs/{answer.Id}/deliverable-uses",
+            new AiOutputUsageRequest(AiDeliverableType.Report, reportId.ToString()), ids.TenantId, ids.UserId,
+            Permission.ManageReports, Permission.ViewEvidence));
+        var linked = await client.SendAsync(Request(HttpMethod.Post, $"/api/assistant/outputs/{answer.Id}/deliverable-uses",
+            new AiOutputUsageRequest(AiDeliverableType.Report, reportId.ToString()), ids.TenantId, ids.UserId,
+            Permission.ManageReports, Permission.ViewObligations));
+        var generatedWithProvenance = await client.SendAsync(Request(HttpMethod.Post, "/api/reports/compliance-status",
+            new ClassifiedWorkflowRequest(new ContentClassificationRequest(ContentClassification.Unclassified), answer.Id),
+            ids.TenantId, ids.UserId, Permission.ManageReports));
+        var deniedExport = await client.SendAsync(Request<object>(HttpMethod.Get, "/api/assistant/outputs/export",
+            null!, ids.TenantId, ids.UserId, Permission.ViewObligations));
+        var unrelatedWorkflowExport = await client.SendAsync(Request<object>(HttpMethod.Get, "/api/assistant/outputs/export",
+            null!, ids.TenantId, ids.UserId, Permission.ExportReports, Permission.ViewEvidence));
+        var unrelatedWorkflowExportBody = await unrelatedWorkflowExport.Content.ReadFromJsonAsync<AiOutputExportDto>(JsonOptions);
+        var export = await client.SendAsync(Request<object>(HttpMethod.Get, "/api/assistant/outputs/export",
+            null!, ids.TenantId, ids.UserId, Permission.ExportReports, Permission.ViewObligations));
+        var exportBody = await export.Content.ReadFromJsonAsync<AiOutputExportDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.BadRequest, useDraft.StatusCode);
+        Assert.Empty(unrelatedWorkflowOutputs!);
+        Assert.Equal(HttpStatusCode.NotFound, unrelatedWorkflowHistory.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, deniedReview.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, unrelatedWorkflowReview.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, crossTenant.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, approve.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, staleReview.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, wrongPermission.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, crossTenantTarget.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, unrelatedWorkflowLink.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, linked.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, generatedWithProvenance.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, deniedExport.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, unrelatedWorkflowExport.StatusCode);
+        Assert.Equal(0, unrelatedWorkflowExportBody?.LogCount);
+        Assert.Equal(HttpStatusCode.OK, export.StatusCode);
+        Assert.Equal(1, exportBody?.LogCount);
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Single(await db.AssistantOutputReviews.Where(x => x.TenantId == ids.TenantId && x.AnswerId == answer.Id).ToArrayAsync());
+        Assert.Equal(2, await db.AssistantOutputUsages.CountAsync(x => x.TenantId == ids.TenantId && x.AnswerId == answer.Id));
+        Assert.True(await db.AuditLogEntries.AnyAsync(x => x.EntityType == "AiInteractionLog" && x.EntityId == answer.Id.ToString()));
+        Assert.True(await db.AuditLogEntries.AnyAsync(x => x.EntityType == "AiOutputUsage"));
+    }
+
     private WebApplicationFactory<Program> CreateFactory(string databaseName, TestIds ids) =>
         _factory.WithWebHostBuilder(builder =>
         {
@@ -252,23 +385,55 @@ public sealed class GuardedAssistantEndpointTests : IClassFixture<WebApplication
             builder.UseSetting("ConnectionStrings:GccsDatabase", string.Empty);
             builder.ConfigureServices(services =>
             {
+                services.AddAcknowledgedNoticeFixture();
                 services.RemoveAll<IAiRetrievalSourceRepository>();
                 services.RemoveAll<IGuardedAssistantRepository>();
                 services.RemoveAll<IExpertReviewQueueRepository>();
                 services.RemoveAll<IAssignmentNotificationRepository>();
                 services.RemoveAll<IAuditEventWriter>();
+                services.RemoveAll<IReportRepository>();
+                services.RemoveAll<ITenantRepository>();
                 services.AddDbContext<GccsDbContext>(options => options.UseInMemoryDatabase(databaseName));
-                services.AddSingleton<IAiRetrievalSourceRepository>(new FixedRetrievalSourceRepository());
+                services.AddScoped<IAiRetrievalSourceRepository, EfAiRetrievalSourceRepository>();
                 services.AddScoped<IGuardedAssistantRepository, EfGuardedAssistantRepository>();
                 services.AddScoped<IExpertReviewQueueRepository, EfExpertReviewQueueRepository>();
                 services.AddScoped<IAssignmentNotificationRepository, EfAssignmentNotificationRepository>();
                 services.AddScoped<IAuditEventWriter, EfAuditEventWriter>();
+                services.AddScoped<IReportRepository, EfReportRepository>();
+                services.AddScoped<ITenantRepository, EfTenantRepository>();
                 using var provider = services.BuildServiceProvider();
                 using var scope = provider.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
                 db.Database.EnsureDeleted();
                 db.Database.EnsureCreated();
                 db.Tenants.AddRange(Tenant(ids.TenantId, "Alpha"), Tenant(ids.OtherTenantId, "Bravo"));
+                db.Obligations.Add(new ObligationEntity
+                {
+                    Id = $"library-fci-{databaseName}",
+                    Source = "FAR 52.204-21",
+                    Title = "Basic Safeguarding of Covered Contractor Information Systems",
+                    PlainEnglishSummary = "FCI safeguarding requires basic controls.",
+                    RequiredAction = "Apply the source-backed safeguards to covered information systems.",
+                    SourceName = "Acquisition.gov",
+                    SourceUrl = "https://www.acquisition.gov/far/52.204-21",
+                    SourceLastReviewedAt = new DateOnly(2026, 9, 1),
+                    LastReviewedAt = new DateOnly(2026, 9, 1),
+                    ReviewState = ReviewState.Published
+                });
+                db.EvidenceItems.Add(new EvidenceItemEntity
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = ids.TenantId,
+                    Name = "Tenant-only evidence marker",
+                    Description = "Approved evidence metadata for source-family authorization tests.",
+                    Type = EvidenceType.Policy,
+                    OwnerFunction = "Security",
+                    Status = EvidenceStatus.Approved,
+                    ApprovedByUserId = ids.UserId,
+                    ApprovedAt = DateTimeOffset.UtcNow,
+                    Classification = ContentClassification.Unclassified,
+                    CreatedAt = DateTimeOffset.UtcNow
+                });
                 db.Users.Add(new UserEntity
                 {
                     Id = ids.ExpertUserId, TenantId = ids.TenantId, Email = "expert@example.test", DisplayName = "Expert Reviewer",
@@ -298,16 +463,6 @@ public sealed class GuardedAssistantEndpointTests : IClassFixture<WebApplication
         Id = id, Name = name, Status = TenantStatus.Active, DataPosture = TenantDataPosture.NoCui,
         CreatedAt = DateTimeOffset.UtcNow
     };
-
-    private sealed class FixedRetrievalSourceRepository : IAiRetrievalSourceRepository
-    {
-        public Task<IReadOnlyList<AiRetrievalSourceDto>> ListSourcesAsync(Guid tenantId, CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyList<AiRetrievalSourceDto>>([
-                new("library-fci", null, "FAR 52.204-21", "ComplianceLibrary", "https://acquisition.gov/far/52.204-21",
-                    null, "section", "2026.1", new DateOnly(2026, 9, 1), ContentClassification.Fci, true, true,
-                    "FCI safeguarding requires basic controls.", ["fci", "safeguarding"])
-            ]);
-    }
 
     private sealed record TestIds(Guid TenantId, Guid OtherTenantId, Guid UserId, Guid ExpertUserId)
     {

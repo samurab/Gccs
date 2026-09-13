@@ -10,8 +10,10 @@ public sealed class EfPortalPackageLifecycleRepository(GccsDbContext dbContext) 
 {
     public async Task<SharedPortalPackageDto> CreateAsync(
         SharedPortalPackageRequest request,
+        PortalPackageApprovalMetadataDto approvalMetadata,
         Guid tenantId,
         Guid actorUserId,
+        DateTimeOffset approvedAt,
         CancellationToken cancellationToken = default)
     {
         var version = await dbContext.SharedPortalPackages
@@ -28,6 +30,12 @@ public sealed class EfPortalPackageLifecycleRepository(GccsDbContext dbContext) 
             Version = version,
             State = SharedPortalPackageState.Active,
             ExpiresAt = request.ExpiresAt,
+            ReviewDueAt = request.ReviewDueAt ?? request.ExpiresAt,
+            ExternalReviewApprovedAt = approvedAt,
+            ExternalReviewApprovedByUserId = actorUserId,
+            ExternalReviewApprovalReason = NormalizeApprovalReason(request.ApprovalReason),
+            ApprovedSourceVersion = approvalMetadata.SourceVersion,
+            ApprovedSourceFingerprint = approvalMetadata.SourceFingerprint,
             ReminderAt = request.ExpiresAt.AddDays(-request.ExpirationReminderDays),
             CreatedAt = now,
             CreatedByUserId = actorUserId
@@ -150,6 +158,7 @@ public sealed class EfPortalPackageLifecycleRepository(GccsDbContext dbContext) 
     public async Task<SharedPortalPackageDto> ReissueAsync(
         SharedPortalPackageDto existing,
         ReissueSharedPortalPackageRequest request,
+        PortalPackageApprovalMetadataDto approvalMetadata,
         Guid actorUserId,
         DateTimeOffset changedAt,
         CancellationToken cancellationToken = default)
@@ -170,6 +179,12 @@ public sealed class EfPortalPackageLifecycleRepository(GccsDbContext dbContext) 
             Version = nextVersion,
             State = SharedPortalPackageState.Active,
             ExpiresAt = request.ExpiresAt,
+            ReviewDueAt = request.ReviewDueAt ?? request.ExpiresAt,
+            ExternalReviewApprovedAt = changedAt,
+            ExternalReviewApprovedByUserId = actorUserId,
+            ExternalReviewApprovalReason = NormalizeApprovalReason(request.ApprovalReason),
+            ApprovedSourceVersion = approvalMetadata.SourceVersion,
+            ApprovedSourceFingerprint = approvalMetadata.SourceFingerprint,
             ReminderAt = request.ExpiresAt.AddDays(-request.ExpirationReminderDays),
             SupersedesSharedPackageId = current.Id,
             CreatedAt = changedAt,
@@ -308,9 +323,17 @@ public sealed class EfPortalPackageLifecycleRepository(GccsDbContext dbContext) 
 
     private static SharedPortalPackageDto ToDto(SharedPortalPackageEntity entity) => new(
         entity.Id, entity.TenantId, entity.PackageId, entity.InvitationId, entity.Version, entity.State,
-        entity.ExpiresAt, entity.ReminderAt, entity.ReminderSentAt, entity.SupersedesSharedPackageId,
+        entity.ExpiresAt, entity.ReviewDueAt, entity.ExternalReviewApprovedAt,
+        entity.ExternalReviewApprovedByUserId, entity.ExternalReviewApprovalReason,
+        entity.ApprovedSourceVersion, entity.ApprovedSourceFingerprint,
+        entity.ReminderAt, entity.ReminderSentAt, entity.SupersedesSharedPackageId,
         entity.ReplacementSharedPackageId, entity.ReplacementPackageId, entity.RevocationReason,
         entity.RevokedAt, entity.CreatedAt, entity.UpdatedAt);
+
+    private static string NormalizeApprovalReason(string? reason) =>
+        string.IsNullOrWhiteSpace(reason)
+            ? "Explicitly approved for external portal review when shared."
+            : reason.Trim();
 
     private static PortalPackageActivityType ToActivity(SharedPortalPackageState state) =>
         state switch

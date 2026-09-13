@@ -2,6 +2,8 @@ using Gccs.Application.Audit;
 using Gccs.Application.Common;
 using Gccs.Application.Compliance;
 using Gccs.Domain.Audit;
+using Gccs.Domain.Common;
+using System.Text.Json;
 
 namespace Gccs.Application.Ai;
 
@@ -10,8 +12,10 @@ public sealed class GuardedAssistantExperienceService(
     IGuardedAssistantRepository repository,
     IAuditEventWriter auditEventWriter,
     IApplicationTransaction transaction,
-    ExpertReviewQueueService expertReviewQueue)
+    ExpertReviewQueueService expertReviewQueue,
+    AiOutputRetentionPolicy? retentionPolicy = null)
 {
+    private readonly AiOutputRetentionPolicy _retentionPolicy = retentionPolicy ?? new();
     private static readonly HashSet<string> AllowedWorkflowContexts = new(StringComparer.OrdinalIgnoreCase)
     {
         "obligation", "contract", "evidence", "cmmc", "ssp", "poam", "labor", "subcontractor"
@@ -54,7 +58,8 @@ public sealed class GuardedAssistantExperienceService(
                     [],
                     "Unsupported",
                     "Blocked",
-                    blockedReason);
+                    blockedReason,
+                    []);
                 await repository.SaveAnswerAsync(blockedAnswer, request.ActorUserId, token);
                 await auditEventWriter.WriteAsync(
                     request.TenantId,
@@ -69,6 +74,17 @@ public sealed class GuardedAssistantExperienceService(
                         ["workflowContext"] = request.WorkflowContext
                     },
                     token);
+                await auditEventWriter.WriteAsync(
+                    request.TenantId, request.ActorUserId, AuditAction.Rejected, "AiInteractionLog",
+                    blockedAnswer.Id.ToString(), "AI interaction was retained with prohibited prompt content excluded.",
+                    new Dictionary<string, string>
+                    {
+                        ["workflowContext"] = blockedAnswer.WorkflowContext,
+                        ["state"] = blockedAnswer.ReviewState.ToString(),
+                        ["result"] = blockedAnswer.Result,
+                        ["promptWasRedacted"] = "True",
+                        ["reason"] = blockedReason
+                    }, token);
                 return blockedAnswer;
             }
 
@@ -80,8 +96,25 @@ public sealed class GuardedAssistantExperienceService(
                 response.Citations,
                 response.Citations.Count > 0 ? "SourceSupported" : "NeedsReview",
                 response.Status == "Draft" ? "Draft" : response.Status,
-                null);
+                null,
+                response.PolicyLogs);
             await repository.SaveAnswerAsync(answer, request.ActorUserId, token);
+            await auditEventWriter.WriteAsync(
+                request.TenantId,
+                request.ActorUserId,
+                AuditAction.Created,
+                "AiInteractionLog",
+                answer.Id.ToString(),
+                "AI interaction output was stored for human review.",
+                new Dictionary<string, string>
+                {
+                    ["workflowContext"] = answer.WorkflowContext,
+                    ["state"] = answer.ReviewState.ToString(),
+                    ["result"] = answer.Result,
+                    ["classification"] = answer.Classification.ToString(),
+                    ["retrievedSourceIds"] = string.Join("|", answer.Citations.Select(x => x.SourceId)),
+                    ["promptWasRedacted"] = answer.PromptWasRedacted.ToString()
+                }, token);
             return answer;
         }, cancellationToken);
     }
@@ -211,15 +244,27 @@ public sealed class GuardedAssistantExperienceService(
         return answer;
     }
 
-    private static GuardedAssistantAnswerDto CreateAnswer(
+    private GuardedAssistantAnswerDto CreateAnswer(
         AiAssistantQuestionRequest request, string status, string answer, IReadOnlyList<AiCitationDto> citations,
-        string supportStatus, string draftLabel, string? blockedReason) =>
+        string supportStatus, string draftLabel, string? blockedReason, IReadOnlyList<AiRetrievalPolicyLogDto> policyLogs) =>
         new(
             Guid.NewGuid(), request.TenantId, request.WorkflowContext.Trim().ToLowerInvariant(), status, answer,
             citations, supportStatus, draftLabel, RequiresReview: true,
             EscalationRecommended: blockedReason is not null || citations.Count == 0,
             BlockedReason: blockedReason, CreatedAt: DateTimeOffset.UtcNow,
-            HumanReviewStatus: "pending", ReviewedByUserId: null, ReviewedAt: null, ReviewDecision: null, ReviewNotes: null);
+            HumanReviewStatus: "pending", ReviewedByUserId: null, ReviewedAt: null, ReviewDecision: null, ReviewNotes: null,
+            Prompt: blockedReason is null ? request.Question.Trim() : "[redacted: prohibited or unsupported prompt]",
+            PromptWasRedacted: blockedReason is not null,
+            PromptMetadata: JsonSerializer.Serialize(new { length = request.Question.Length, policyVersion = AiRetrievalAssistantService.PolicyVersion }),
+            ModelConfiguration: JsonSerializer.Serialize(new { provider = "deterministic", model = "approved-source-retrieval", temperature = 0 }),
+            RetrievalPolicy: JsonSerializer.Serialize(policyLogs),
+            Classification: ContentClassification.Unclassified,
+            Result: status,
+            ReviewState: status == "Draft" ? AiOutputReviewState.Draft : AiOutputReviewState.NeedsReview,
+            RejectionReason: null,
+            RetainUntil: DateTimeOffset.UtcNow.AddDays(_retentionPolicy.RetentionDays),
+            Version: 0,
+            ActorUserId: request.ActorUserId);
 
     private static void ValidateQuestion(AiAssistantQuestionRequest request)
     {
@@ -268,6 +313,8 @@ public sealed class GuardedAssistantExperienceService(
     }
 }
 
+public sealed record AiOutputRetentionPolicy(int RetentionDays = 365);
+
 public static class AssistantPromptGuard
 {
     public static string? GetBlockedReason(string question)
@@ -299,13 +346,26 @@ public interface IGuardedAssistantRepository
     Task<IReadOnlyList<GuardedAssistantAnswerDto>> FindAnswersAsync(IReadOnlyCollection<Guid> answerIds, Guid tenantId, CancellationToken cancellationToken = default);
     Task<AssistantDraftActionDto> CreateDraftActionAsync(AssistantDraftActionRequest request, Guid tenantId, Guid actorUserId, CancellationToken cancellationToken = default);
     Task<AssistantFeedbackDto> SubmitFeedbackAsync(AssistantFeedbackRequest request, Guid tenantId, Guid actorUserId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<GuardedAssistantAnswerDto>> ListAnswersAsync(
+        Guid tenantId,
+        bool includeArchived,
+        IReadOnlyCollection<string>? allowedWorkflowContexts = null,
+        CancellationToken cancellationToken = default);
+    Task<AiOutputReviewResultDto?> ReviewAnswerAsync(Guid answerId, Guid tenantId, AiOutputReviewDecisionRequest request, Guid reviewerUserId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<AiOutputReviewHistoryDto>> ListReviewHistoryAsync(Guid answerId, Guid tenantId, CancellationToken cancellationToken = default);
+    Task<AiOutputUsageDto?> LinkDeliverableAsync(Guid answerId, Guid tenantId, AiOutputUsageRequest request, Guid actorUserId, CancellationToken cancellationToken = default);
+    Task<bool> DeliverableExistsAsync(Guid tenantId, AiOutputUsageRequest request, CancellationToken cancellationToken = default);
 }
 
 public sealed record GuardedAssistantAnswerDto(
     Guid Id, Guid TenantId, string WorkflowContext, string Status, string Answer, IReadOnlyList<AiCitationDto> Citations,
     string SupportStatus, string DraftLabel, bool RequiresReview, bool EscalationRecommended, string? BlockedReason,
     DateTimeOffset CreatedAt, string HumanReviewStatus, Guid? ReviewedByUserId, DateTimeOffset? ReviewedAt,
-    string? ReviewDecision, string? ReviewNotes);
+    string? ReviewDecision, string? ReviewNotes,
+    string Prompt = "", bool PromptWasRedacted = false, string PromptMetadata = "{}", string ModelConfiguration = "{}",
+    string RetrievalPolicy = "[]", ContentClassification Classification = ContentClassification.Unclassified,
+    string Result = "", AiOutputReviewState ReviewState = AiOutputReviewState.Draft, string? RejectionReason = null,
+    DateTimeOffset RetainUntil = default, long Version = 0, Guid ActorUserId = default);
 
 public sealed record AssistantQuestionApiRequest(string Question, string WorkflowContext);
 public sealed record AssistantDraftActionApiRequest(AssistantDraftActionType ActionType, string Title, string Body);

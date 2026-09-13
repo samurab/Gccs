@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Threading.RateLimiting;
 using Gccs.Application.Audit;
 using Gccs.Application.Common;
+using Gccs.Application.Ai;
 using Gccs.Application.Identity;
 using Gccs.Application.Security;
 using Gccs.Application.Tenancy;
@@ -684,6 +685,10 @@ public static class ApiSecurityExtensions
                 {
                     ContentRevisionConflictException conflict => (StatusCodes.Status409Conflict,
                         "Content changed", conflict.Message, "content_revision_conflict"),
+                    AiOutputReviewValidationException aiOutput => (StatusCodes.Status400BadRequest,
+                        "AI output provenance invalid", aiOutput.Message, "ai_output_provenance_invalid"),
+                    AiOutputReviewConflictException conflict => (StatusCodes.Status409Conflict,
+                        "AI output conflict", conflict.Message, "ai_output_conflict"),
                     AuditWriteException => (
                         StatusCodes.Status500InternalServerError,
                         "Critical audit failure",

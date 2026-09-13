@@ -2,6 +2,7 @@ using Gccs.Application.Ai;
 using Gccs.Application.Audit;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Common;
+using Gccs.Domain.Tenancy;
 using Gccs.Infrastructure.Ai;
 using Xunit;
 
@@ -9,6 +10,18 @@ namespace Gccs.Api.Tests;
 
 public sealed class AiRetrievalCitationPipelineTests
 {
+    [Fact]
+    public async Task Retrieval_fails_closed_without_server_authorized_permission_context()
+    {
+        var ids = StoryIds.Create();
+        var service = CreateService(ids, out var auditWriter);
+
+        await Assert.ThrowsAsync<AiRetrievalPolicyException>(() => service.AnswerAsync(
+            new AiAssistantQuestionRequest(ids.TenantId, ids.ActorUserId, "Explain FCI.", "obligation")));
+
+        Assert.Empty(auditWriter.Events);
+    }
+
     [Fact]
     public async Task TC_33_1_1_Retrieval_limited_to_current_tenant_and_approved_library_content()
     {
@@ -39,7 +52,11 @@ public sealed class AiRetrievalCitationPipelineTests
             Assert.False(string.IsNullOrWhiteSpace(citation.ExcerptPointer));
             Assert.False(string.IsNullOrWhiteSpace(citation.Version));
         });
-        Assert.Contains("[", response.Answer, StringComparison.Ordinal);
+        Assert.All(response.Answer.Split('\n', StringSplitOptions.RemoveEmptyEntries), statement =>
+        {
+            Assert.StartsWith("- [", statement, StringComparison.Ordinal);
+            Assert.Contains(response.Citations, citation => statement.StartsWith($"- [{citation.SourceId}]", StringComparison.Ordinal));
+        });
     }
 
     [Fact]
@@ -61,13 +78,15 @@ public sealed class AiRetrievalCitationPipelineTests
         var ids = StoryIds.Create();
         var service = CreateService(ids, out _);
 
-        var response = await service.AnswerAsync(CreateRequest(ids, "Tell me about prohibited unknown unapproved CUI source handling."));
+        var response = await service.AnswerAsync(CreateRequest(ids,
+            "handling prohibited unknown unapproved CUI synthetic FCI"));
 
         Assert.DoesNotContain(response.Citations, citation => citation.SourceId is "prohibited-source" or "unknown-source" or "unapproved-source" or "cui-source");
         Assert.Contains(response.PolicyLogs, log => log.SourceId == "prohibited-source" && log.Decision == AiRetrievalPolicyDecision.Excluded);
         Assert.Contains(response.PolicyLogs, log => log.SourceId == "unknown-source" && log.Decision == AiRetrievalPolicyDecision.Excluded);
         Assert.Contains(response.PolicyLogs, log => log.SourceId == "unapproved-source" && log.Decision == AiRetrievalPolicyDecision.Excluded);
-        Assert.Contains(response.PolicyLogs, log => log.SourceId == "other-tenant-source" && log.Reason == "cross-tenant");
+        Assert.Contains(response.PolicyLogs, log => log.SourceId == "[cross-tenant-redacted]" && log.Reason == "cross-tenant");
+        Assert.Contains(response.PolicyLogs, log => log.SourceId == "synthetic-cui-source" && log.Reason == "unsafe-classification");
     }
 
     [Fact]
@@ -88,23 +107,78 @@ public sealed class AiRetrievalCitationPipelineTests
         Assert.Equal("Draft", response.Status);
     }
 
-    private static AiRetrievalAssistantService CreateService(StoryIds ids, out CapturingAuditEventWriter auditWriter)
+    [Fact]
+    public async Task Tenant_source_family_requires_server_derived_source_access()
+    {
+        var ids = StoryIds.Create();
+        var service = CreateService(ids, out _);
+
+        var response = await service.AnswerAsync(new AiAssistantQuestionRequest(
+            ids.TenantId,
+            ids.ActorUserId,
+            "Explain CMMC Level 1.",
+            "obligation",
+            HasAssistantPermission: true,
+            SourceAccess: AiRetrievalSourceAccess.ComplianceLibrary));
+
+        Assert.Equal("NeedsReview", response.Status);
+        Assert.DoesNotContain(response.Citations, citation => citation.SourceId == "tenant-cmmc-l1");
+        Assert.Contains(response.PolicyLogs, log => log.SourceId == "tenant-cmmc-l1" && log.Reason == "rbac-source-family");
+    }
+
+    [Fact]
+    public async Task Audit_metadata_does_not_disclose_cross_tenant_identifiers_or_source_content()
+    {
+        var ids = StoryIds.Create();
+        var service = CreateService(ids, out var auditWriter);
+
+        await service.AnswerAsync(CreateRequest(ids, "Explain FCI safeguards."));
+
+        var audit = Assert.Single(auditWriter.Events);
+        var metadata = string.Join("|", audit.Metadata.Values);
+        Assert.DoesNotContain("other-tenant-source", metadata, StringComparison.Ordinal);
+        Assert.DoesNotContain("Other tenant content", metadata, StringComparison.Ordinal);
+        Assert.Contains("[cross-tenant-redacted]", audit.Metadata["policyDecisions"], StringComparison.Ordinal);
+        Assert.Equal(AiRetrievalAssistantService.PolicyVersion, audit.Metadata["policyVersion"]);
+        Assert.Equal("deterministic-token-minimum-match-v1", audit.Metadata["retrievalStrategy"]);
+        Assert.Equal("NoCui", audit.Metadata["tenantDataPosture"]);
+    }
+
+    [Fact]
+    public async Task Demo_sandbox_excludes_tenant_FCI_that_lacks_demo_safe_provenance()
+    {
+        var ids = StoryIds.Create();
+        var service = CreateService(ids, out _, TenantDataPosture.DemoSandbox);
+
+        var response = await service.AnswerAsync(CreateRequest(ids, "Explain CMMC Level 1."));
+
+        Assert.Equal("NeedsReview", response.Status);
+        Assert.Contains(response.PolicyLogs, log => log.SourceId == "tenant-cmmc-l1" && log.Reason == "tenant-posture");
+    }
+
+    private static AiRetrievalAssistantService CreateService(
+        StoryIds ids,
+        out CapturingAuditEventWriter auditWriter,
+        TenantDataPosture dataPosture = TenantDataPosture.NoCui)
     {
         auditWriter = new CapturingAuditEventWriter();
         var repository = new InMemoryAiRetrievalSourceRepository();
+        repository.DataPosture = dataPosture;
         repository.Seed(
             Source("library-far-52-204-21", null, "FAR 52.204-21", "ComplianceLibrary", ContentClassification.Fci, true, true, "FCI systems require basic safeguarding controls.", ["fci", "far 52.204-21", "safeguards"]),
             Source("tenant-cmmc-l1", ids.TenantId, "Tenant CMMC Level 1 Notes", "TenantDocument", ContentClassification.Fci, true, false, "CMMC Level 1 readiness uses approved tenant notes.", ["cmmc", "level 1"]),
-            Source("other-tenant-source", ids.OtherTenantId, "Other Tenant Evidence", "TenantDocument", ContentClassification.Fci, true, false, "Other tenant content must not be retrieved.", ["fci"]),
-            Source("unapproved-source", ids.TenantId, "Draft Policy", "TenantDocument", ContentClassification.Fci, false, false, "Draft source.", ["unapproved"]),
-            Source("prohibited-source", ids.TenantId, "Prohibited Data", "TenantDocument", ContentClassification.Prohibited, true, false, "Prohibited data.", ["prohibited"]),
-            Source("unknown-source", ids.TenantId, "Unknown Classification", "TenantDocument", ContentClassification.Unknown, true, false, "Unknown data.", ["unknown"]),
-            Source("cui-source", ids.TenantId, "CUI Source", "TenantDocument", ContentClassification.Cui, true, false, "CUI data.", ["cui"]));
+            Source("other-tenant-source", ids.OtherTenantId, "Other Tenant Evidence", "TenantDocument", ContentClassification.Fci, true, false, "Other tenant content must not be retrieved.", ["fci", "safeguards", "handling"]),
+            Source("unapproved-source", ids.TenantId, "Draft Policy", "TenantDocument", ContentClassification.Fci, false, false, "Draft source.", ["unapproved", "handling"]),
+            Source("prohibited-source", ids.TenantId, "Prohibited Data", "TenantDocument", ContentClassification.Prohibited, true, false, "Prohibited data.", ["prohibited", "handling"]),
+            Source("unknown-source", ids.TenantId, "Unknown Classification", "TenantDocument", ContentClassification.Unknown, true, false, "Unknown data.", ["unknown", "handling"]),
+            Source("cui-source", ids.TenantId, "CUI Source", "TenantDocument", ContentClassification.Cui, true, false, "CUI data.", ["cui", "handling"]),
+            Source("synthetic-cui-source", ids.TenantId, "Synthetic CUI Source", "TenantDocument", ContentClassification.SyntheticCui, true, false, "Synthetic CUI data.", ["synthetic", "handling"]));
         return new AiRetrievalAssistantService(repository, auditWriter);
     }
 
     private static AiAssistantQuestionRequest CreateRequest(StoryIds ids, string question) =>
-        new(ids.TenantId, ids.ActorUserId, question, "contract-intake");
+        new(ids.TenantId, ids.ActorUserId, question, "contract-intake", HasAssistantPermission: true,
+            SourceAccess: AiRetrievalSourceAccess.All);
 
     private static AiRetrievalSourceDto Source(
         string id,
@@ -130,7 +204,8 @@ public sealed class AiRetrievalCitationPipelineTests
             approved,
             library,
             summary,
-            keywords);
+            keywords,
+            library ? AiRetrievalSourceKind.ComplianceLibrary : AiRetrievalSourceKind.TenantDocument);
 
     private sealed class CapturingAuditEventWriter : IAuditEventWriter
     {

@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { AuthGate } from "./auth";
 import {
   shouldRenderInvitationAcceptancePage,
+  shouldRenderPortalReviewPage,
   shouldRenderPlatformAdminPage,
   shouldRenderPlatformCustomerDetailPage,
   shouldRenderPlatformCustomersPage,
@@ -16,10 +17,13 @@ const PlatformDemoRequestsPage = lazy(() => import("./PlatformDemoRequestsPage")
 const PlatformTenantAdminPage = lazy(() => import("./PlatformTenantAdminPage").then((module) => ({ default: module.PlatformTenantAdminPage })));
 const PlatformCustomersPage = lazy(() => import("./PlatformCustomersPage").then((module) => ({ default: module.PlatformCustomersPage })));
 const PlatformCustomerDetailPage = lazy(() => import("./PlatformCustomerDetailPage").then((module) => ({ default: module.PlatformCustomerDetailPage })));
+const PortalReviewPage = lazy(() => import("./PortalReviewPage").then((module) => ({ default: module.PortalReviewPage })));
 
 export function AuthenticatedWorkspace() {
   const page = shouldRenderInvitationAcceptancePage() ? (
     <InvitationAcceptancePage />
+  ) : shouldRenderPortalReviewPage() ? (
+    <PortalReviewPage />
   ) : shouldRenderPlatformAdminPage() ? (
     <PlatformAdminHomePage />
   ) : shouldRenderPlatformDemoRequestsPage() ? (

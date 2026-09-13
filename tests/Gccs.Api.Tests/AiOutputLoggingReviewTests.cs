@@ -1,5 +1,6 @@
 using Gccs.Application.Ai;
 using Gccs.Application.Audit;
+using Gccs.Application.Common;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Common;
 using Gccs.Infrastructure.Ai;
@@ -10,150 +11,133 @@ namespace Gccs.Api.Tests;
 public sealed class AiOutputLoggingReviewTests
 {
     [Fact]
-    public async Task TC_33_2_1_AI_interaction_log_stores_metadata_sources_output_actor_tenant_timestamp_and_context()
+    public async Task TC_33_2_1_interaction_metadata_is_retained_in_authoritative_answer()
     {
-        var ids = StoryIds.Create();
-        var service = CreateService(out _);
-
-        var log = await service.LogInteractionAsync(CreateRequest(), ids.TenantId, ids.ActorUserId);
-
-        Assert.Equal(ids.TenantId, log.TenantId);
-        Assert.Equal(ids.ActorUserId, log.ActorUserId);
-        Assert.Equal("prompt-metadata", log.PromptMetadata);
-        Assert.Equal("gpt-test temperature=0", log.ModelConfiguration);
-        Assert.Equal(["library-far-52-204-21"], log.RetrievedSourceIds);
-        Assert.Equal("Draft answer with citation.", log.GeneratedOutput);
-        Assert.Equal("report-draft", log.WorkflowContext);
-        Assert.NotEqual(default, log.CreatedAt);
+        var fixture = await Fixture.CreateAsync();
+        var log = Assert.Single(await fixture.Service.ListAsync(fixture.TenantId, false));
+        Assert.Equal(fixture.ActorId, log.ActorUserId);
+        Assert.Equal("Explain FAR 52.204-21.", log.Prompt);
+        Assert.Equal("{\"provider\":\"deterministic\"}", log.ModelConfiguration);
+        Assert.Equal("source-1", Assert.Single(log.Citations).SourceId);
+        Assert.Equal("report", log.WorkflowContext);
+        Assert.Equal(AiOutputReviewState.Draft, log.ReviewState);
+        Assert.True(log.RetainUntil > log.CreatedAt);
     }
 
     [Fact]
-    public async Task TC_33_2_2_AI_output_remains_draft_until_human_approved_for_deliverables()
+    public async Task TC_33_2_2_deliverable_gate_rejects_draft_and_accepts_current_approved_output()
     {
-        var ids = StoryIds.Create();
-        var service = CreateService(out _);
-        var log = await service.LogInteractionAsync(CreateRequest(), ids.TenantId, ids.ActorUserId);
+        var fixture = await Fixture.CreateAsync();
+        var deliverableId = Guid.NewGuid().ToString();
+        await Assert.ThrowsAsync<AiOutputReviewValidationException>(() => fixture.Service.LinkDeliverableAsync(
+            fixture.Answer.Id, fixture.TenantId, new(AiDeliverableType.Report, deliverableId), fixture.ActorId));
+        await fixture.Service.ReviewAsync(fixture.Answer.Id, fixture.TenantId,
+            new(AiOutputReviewState.Approved, "Qualified reviewer verified the cited source.", null, 0), fixture.ReviewerId);
+        var usage = await fixture.Service.LinkDeliverableAsync(fixture.Answer.Id, fixture.TenantId,
+            new(AiDeliverableType.Report, deliverableId), fixture.ActorId);
+        Assert.Equal(deliverableId, usage?.DeliverableId);
+    }
 
-        await Assert.ThrowsAsync<AiOutputReviewException>(() =>
-            service.EnsureApprovedForDeliverableAsync(log.Id, AiDeliverableType.Report));
-
-        await service.ReviewAsync(log.Id, new AiOutputReviewDecisionRequest(AiOutputReviewState.Approved, "Approved.", null), ids.ReviewerUserId);
-
-        await service.EnsureApprovedForDeliverableAsync(log.Id, AiDeliverableType.Report);
+    [Theory]
+    [InlineData(AiOutputReviewState.Approved, null)]
+    [InlineData(AiOutputReviewState.Rejected, "Citation does not support the conclusion.")]
+    [InlineData(AiOutputReviewState.Superseded, null)]
+    [InlineData(AiOutputReviewState.Archived, null)]
+    public async Task TC_33_2_3_review_decisions_append_history(AiOutputReviewState state, string? reason)
+    {
+        var fixture = await Fixture.CreateAsync();
+        var result = await fixture.Service.ReviewAsync(fixture.Answer.Id, fixture.TenantId,
+            new(state, "Reviewer note retained.", reason, 0), fixture.ReviewerId);
+        Assert.Equal(state, result?.Answer.ReviewState);
+        Assert.Equal(fixture.ReviewerId, result?.Review.ReviewerUserId);
+        Assert.Equal(reason, result?.Review.RejectionReason);
+        Assert.Single(await fixture.Service.HistoryAsync(fixture.Answer.Id, fixture.TenantId));
     }
 
     [Fact]
-    public async Task TC_33_2_3_Approve_reject_supersede_and_archive_retain_reviewer_notes_reason_and_timestamp()
+    public async Task TC_33_2_4_logs_are_tenant_scoped_and_prohibited_review_text_is_rejected()
     {
-        var ids = StoryIds.Create();
-        var service = CreateService(out _);
-        var log = await service.LogInteractionAsync(CreateRequest(), ids.TenantId, ids.ActorUserId);
-
-        var approved = await service.ReviewAsync(log.Id, new AiOutputReviewDecisionRequest(AiOutputReviewState.Approved, "Looks good.", null), ids.ReviewerUserId);
-        var rejected = await service.ReviewAsync(log.Id, new AiOutputReviewDecisionRequest(AiOutputReviewState.Rejected, "Needs rewrite.", "Missing citation."), ids.ReviewerUserId);
-        var superseded = await service.ReviewAsync(log.Id, new AiOutputReviewDecisionRequest(AiOutputReviewState.Superseded, "Newer answer exists.", null), ids.ReviewerUserId);
-        var archived = await service.ReviewAsync(log.Id, new AiOutputReviewDecisionRequest(AiOutputReviewState.Archived, "Retention archive.", null), ids.ReviewerUserId);
-
-        Assert.Equal(AiOutputReviewState.Approved, approved?.State);
-        Assert.Equal(ids.ReviewerUserId, approved?.ReviewerUserId);
-        Assert.NotNull(approved?.ReviewedAt);
-        Assert.Equal("Missing citation.", rejected?.RejectionReason);
-        Assert.Equal(AiOutputReviewState.Superseded, superseded?.State);
-        Assert.Equal(AiOutputReviewState.Archived, archived?.State);
+        var fixture = await Fixture.CreateAsync();
+        Assert.Empty(await fixture.Service.ListAsync(Guid.NewGuid(), false));
+        await Assert.ThrowsAsync<AiOutputReviewValidationException>(() => fixture.Service.ReviewAsync(
+            fixture.Answer.Id, fixture.TenantId,
+            new(AiOutputReviewState.Approved, "Paste CUI here for analysis.", null, 0), fixture.ReviewerId));
+        Assert.Empty(await fixture.Service.HistoryAsync(fixture.Answer.Id, fixture.TenantId));
     }
 
     [Fact]
-    public async Task TC_33_2_4_AI_logs_are_tenant_scoped_rbac_protected_and_follow_retention_and_data_rules()
+    public async Task TC_33_2_5_review_and_deliverable_use_are_audited()
     {
-        var ids = StoryIds.Create();
-        var service = CreateService(out _);
-        await service.LogInteractionAsync(CreateRequest(), ids.TenantId, ids.ActorUserId);
-        await service.LogInteractionAsync(CreateRequest(), ids.OtherTenantId, ids.ActorUserId);
-
-        var currentTenantLogs = await service.ListAsync(ids.TenantId, hasReviewPermission: true);
-        var export = await service.ExportAsync(ids.TenantId, hasReviewPermission: true);
-
-        Assert.Single(currentTenantLogs);
-        Assert.True(export.RetainUntil > DateOnly.FromDateTime(DateTime.UtcNow.Date));
-        await Assert.ThrowsAsync<AiOutputReviewException>(() => service.ListAsync(ids.TenantId, hasReviewPermission: false));
-        await Assert.ThrowsAsync<AiOutputReviewException>(() =>
-            service.LogInteractionAsync(CreateRequest() with { Classification = ContentClassification.Prohibited }, ids.TenantId, ids.ActorUserId));
+        var fixture = await Fixture.CreateAsync();
+        await fixture.Service.ReviewAsync(fixture.Answer.Id, fixture.TenantId,
+            new(AiOutputReviewState.Approved, "Approved after source review.", null, 0), fixture.ReviewerId);
+        await fixture.Service.LinkDeliverableAsync(fixture.Answer.Id, fixture.TenantId,
+            new(AiDeliverableType.Policy, Guid.NewGuid().ToString()), fixture.ActorId);
+        Assert.Contains(fixture.Audit.Events, x => x.EntityType == "AiInteractionLog" && x.Metadata["state"] == "Approved");
+        Assert.Contains(fixture.Audit.Events, x => x.EntityType == "AiOutputUsage");
     }
 
     [Fact]
-    public async Task TC_33_2_5_AI_review_decisions_and_state_changes_are_audit_logged()
+    public async Task Expired_outputs_are_archived_in_bounded_batches_and_audited()
     {
-        var ids = StoryIds.Create();
-        var service = CreateService(out var auditWriter);
-        var log = await service.LogInteractionAsync(CreateRequest(), ids.TenantId, ids.ActorUserId);
-        await service.ReviewAsync(log.Id, new AiOutputReviewDecisionRequest(AiOutputReviewState.Approved, "Approved.", null), ids.ReviewerUserId);
-
-        var events = auditWriter.Events.Where(auditEvent => auditEvent.EntityType == "AiInteractionLog").ToArray();
-        Assert.Equal(2, events.Length);
-        Assert.Equal(AuditAction.Created, events[0].Action);
-        Assert.Equal(AuditAction.Updated, events[1].Action);
-        Assert.Equal("Approved", events[1].Metadata["state"]);
-        Assert.Equal("library-far-52-204-21", events[1].Metadata["retrievedSources"]);
+        var fixture = await Fixture.CreateAsync();
+        var retention = new CapturingRetentionRepository(fixture.TenantId, fixture.Answer.Id);
+        var service = new AiOutputReviewService(fixture.Repository, fixture.Audit,
+            new PassthroughTransaction(), TimeProvider.System, retention);
+        Assert.Equal(1, await service.ArchiveExpiredAsync(100));
+        Assert.Equal(100, retention.BatchSize);
+        Assert.Contains(fixture.Audit.Events, x => x.EntityType == "AiInteractionLog" && x.Metadata["result"] == "retention-archived");
     }
 
-    private static AiOutputReviewService CreateService(out CapturingAuditEventWriter auditWriter)
+    private sealed class Fixture
     {
-        auditWriter = new CapturingAuditEventWriter();
-        return new AiOutputReviewService(new InMemoryAiOutputReviewRepository(), auditWriter);
-    }
+        public Guid TenantId { get; } = Guid.NewGuid();
+        public Guid ActorId { get; } = Guid.NewGuid();
+        public Guid ReviewerId { get; } = Guid.NewGuid();
+        public InMemoryGuardedAssistantRepository Repository { get; } = new();
+        public CapturingAuditWriter Audit { get; } = new();
+        public AiOutputReviewService Service { get; private set; } = null!;
+        public GuardedAssistantAnswerDto Answer { get; private set; } = null!;
 
-    private static AiInteractionLogRequest CreateRequest() =>
-        new(
-            "Explain FAR 52.204-21.",
-            "prompt-metadata",
-            "gpt-test temperature=0",
-            ["library-far-52-204-21"],
-            "Draft answer with citation.",
-            "report-draft",
-            ContentClassification.Fci);
-
-    private sealed class CapturingAuditEventWriter : IAuditEventWriter
-    {
-        public List<CapturedAuditEvent> Events { get; } = [];
-
-        public Task WriteAsync(
-            Guid tenantId,
-            Guid actorUserId,
-            AuditAction action,
-            string entityType,
-            string entityId,
-            string summary,
-            IReadOnlyDictionary<string, string>? metadata = null,
-            CancellationToken cancellationToken = default)
+        public static async Task<Fixture> CreateAsync()
         {
-            Events.Add(new CapturedAuditEvent(
-                tenantId,
-                actorUserId,
-                action,
-                entityType,
-                entityId,
-                summary,
-                metadata?.ToDictionary() ?? []));
-            return Task.CompletedTask;
+            var value = new Fixture();
+            value.Service = new(value.Repository, value.Audit, new PassthroughTransaction(), TimeProvider.System);
+            value.Answer = new(Guid.NewGuid(), value.TenantId, "report", "Draft", "Draft output.",
+                [new("source-1", "FAR source", "ComplianceLibrary", "https://example.test", null, "section", "1", null)],
+                "SourceSupported", "Draft", true, false, null, DateTimeOffset.UtcNow, "pending", null, null, null, null,
+                "Explain FAR 52.204-21.", false, "{\"length\":24}", "{\"provider\":\"deterministic\"}", "[]",
+                ContentClassification.Unclassified, "Draft", AiOutputReviewState.Draft, null, DateTimeOffset.UtcNow.AddDays(365), 0, value.ActorId);
+            await value.Repository.SaveAnswerAsync(value.Answer, value.ActorId);
+            return value;
         }
     }
 
-    private sealed record CapturedAuditEvent(
-        Guid TenantId,
-        Guid ActorUserId,
-        AuditAction Action,
-        string EntityType,
-        string EntityId,
-        string Summary,
-        IReadOnlyDictionary<string, string> Metadata);
-
-    private sealed record StoryIds(Guid TenantId, Guid OtherTenantId, Guid ActorUserId, Guid ReviewerUserId)
+    private sealed class PassthroughTransaction : IApplicationTransaction
     {
-        public static StoryIds Create() =>
-            new(
-                Guid.Parse("33233233-3233-2332-3323-3233233233aa"),
-                Guid.Parse("33233233-3233-2332-3323-3233233233bb"),
-                Guid.Parse("33233233-3233-2332-3323-3233233233cc"),
-                Guid.Parse("33233233-3233-2332-3323-3233233233dd"));
+        public Task<T> ExecuteAsync<T>(Func<CancellationToken, Task<T>> operation, CancellationToken cancellationToken = default) => operation(cancellationToken);
     }
+
+    private sealed class CapturingAuditWriter : IAuditEventWriter
+    {
+        public List<CapturedAudit> Events { get; } = [];
+        public Task WriteAsync(Guid tenantId, Guid actorUserId, AuditAction action, string entityType, string entityId,
+            string summary, IReadOnlyDictionary<string, string>? metadata = null, CancellationToken cancellationToken = default)
+        {
+            Events.Add(new(entityType, metadata ?? new Dictionary<string, string>()));
+            return Task.CompletedTask;
+        }
+    }
+    private sealed class CapturingRetentionRepository(Guid tenantId, Guid answerId) : IAiOutputRetentionRepository
+    {
+        public int BatchSize { get; private set; }
+        public Task<IReadOnlyList<AiOutputRetentionArchiveDto>> ArchiveExpiredAsync(DateTimeOffset now, int batchSize,
+            CancellationToken cancellationToken = default)
+        {
+            BatchSize = batchSize;
+            return Task.FromResult<IReadOnlyList<AiOutputRetentionArchiveDto>>(
+                [new(tenantId, answerId, AiOutputReviewState.Draft)]);
+        }
+    }
+    private sealed record CapturedAudit(string EntityType, IReadOnlyDictionary<string, string> Metadata);
 }

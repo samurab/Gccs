@@ -225,7 +225,8 @@ public sealed record SspSourceReferenceDto(string Source, string SourceUrl, Date
 public sealed record SspSectionHistoryDto(SspSectionStatus Status, Guid ActorUserId, string ActorName, DateTimeOffset ChangedAt, string? Notes);
 public sealed record SspSectionDto(Guid Id, Guid TenantId, SspSectionType SectionType, string Title, string Owner, SspSectionStatus Status, string? Reviewer, DateOnly? ReviewDate, string? ApprovalRationale, bool IsRequired, long Version, SspLinkedRecordDto[] LinkedRecords, SspSourceReferenceDto[] SourceReferences, SspSectionHistoryDto[] History, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);
 public enum SspNarrativeGenerationMode { Deterministic, AiAssisted }
-public sealed record GenerateSspNarrativeDraftRequest(SspNarrativeSourceLinkRequest[] Sources, SspNarrativeGenerationMode GenerationMode = SspNarrativeGenerationMode.Deterministic);
+public sealed record GenerateSspNarrativeDraftRequest(SspNarrativeSourceLinkRequest[] Sources,
+    SspNarrativeGenerationMode GenerationMode = SspNarrativeGenerationMode.Deterministic, Guid? AiOutputId = null);
 public sealed record EditSspNarrativeDraftRequest(string EditedText, string? ReviewerNotes, ContentClassificationRequest? Classification, long ExpectedVersion);
 public sealed record ApproveSspNarrativeRequest(DateOnly? ReviewDate, long ExpectedVersion);
 public sealed record SspNarrativeSourceLinkRequest(SspNarrativeSourceType SourceType, string RecordId);

@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
+using NpgsqlTypes;
 
 #nullable disable
 
@@ -454,6 +455,12 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                         .HasColumnType("jsonb")
                         .HasColumnName("citations_json");
 
+                    b.Property<string>("Classification")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("classification");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -474,9 +481,49 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(64)")
                         .HasColumnName("human_review_status");
 
+                    b.Property<string>("ModelConfigurationJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("model_configuration_json");
+
+                    b.Property<string>("Prompt")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("prompt");
+
+                    b.Property<string>("PromptMetadataJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("prompt_metadata_json");
+
+                    b.Property<bool>("PromptWasRedacted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("prompt_was_redacted");
+
+                    b.Property<string>("RejectionReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("rejection_reason");
+
                     b.Property<bool>("RequiresReview")
                         .HasColumnType("boolean")
                         .HasColumnName("requires_review");
+
+                    b.Property<string>("Result")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("result");
+
+                    b.Property<DateTimeOffset>("RetainUntil")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("retain_until");
+
+                    b.Property<string>("RetrievalPolicyJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("retrieval_policy_json");
 
                     b.Property<string>("ReviewDecision")
                         .HasMaxLength(64)
@@ -487,6 +534,10 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)")
                         .HasColumnName("review_notes");
+
+                    b.Property<int>("ReviewState")
+                        .HasColumnType("integer")
+                        .HasColumnName("review_state");
 
                     b.Property<DateTimeOffset?>("ReviewedAt")
                         .HasColumnType("timestamp with time zone")
@@ -511,6 +562,11 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid")
                         .HasColumnName("tenant_id");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
 
                     b.Property<string>("WorkflowContext")
                         .IsRequired()
@@ -619,6 +675,97 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                     b.HasIndex("TenantId", "AnswerId", "CreatedAt");
 
                     b.ToTable("assistant_feedback", "gccs");
+                });
+
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.AssistantOutputReviewEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AnswerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("answer_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("NewState")
+                        .HasColumnType("integer")
+                        .HasColumnName("new_state");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("note");
+
+                    b.Property<int>("PreviousState")
+                        .HasColumnType("integer")
+                        .HasColumnName("previous_state");
+
+                    b.Property<string>("RejectionReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("rejection_reason");
+
+                    b.Property<Guid?>("ReviewerUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reviewer_user_id");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "AnswerId", "CreatedAt");
+
+                    b.ToTable("assistant_output_reviews", "gccs");
+                });
+
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.AssistantOutputUsageEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AnswerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("answer_id");
+
+                    b.Property<string>("DeliverableId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("deliverable_id");
+
+                    b.Property<int>("DeliverableType")
+                        .HasColumnType("integer")
+                        .HasColumnName("deliverable_type");
+
+                    b.Property<DateTimeOffset>("LinkedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("linked_at");
+
+                    b.Property<Guid>("LinkedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("linked_by_user_id");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "AnswerId");
+
+                    b.HasIndex("TenantId", "DeliverableType", "DeliverableId")
+                        .IsUnique();
+
+                    b.ToTable("assistant_output_usages", "gccs");
                 });
 
             modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.AuditLogEntryEntity", b =>
@@ -970,6 +1117,14 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("reviewed_by_user_id");
 
+                    b.Property<NpgsqlTsVector>("SearchVector")
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("tsvector")
+                        .HasColumnName("search_vector")
+                        .HasAnnotation("Npgsql:TsVectorConfig", "english")
+                        .HasAnnotation("Npgsql:TsVectorProperties", new[] { "NormalizedCitation", "DetectedTitle", "RawExtractedText" });
+
                     b.Property<Guid>("SourceDocumentId")
                         .HasColumnType("uuid")
                         .HasColumnName("source_document_id");
@@ -979,6 +1134,10 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                         .HasColumnName("tenant_id");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("SearchVector");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("SearchVector"), "GIN");
 
                     b.HasIndex("SourceDocumentId");
 
@@ -4083,6 +4242,14 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(120)")
                         .HasColumnName("owner_function");
 
+                    b.Property<NpgsqlTsVector>("SearchVector")
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("tsvector")
+                        .HasColumnName("search_vector")
+                        .HasAnnotation("Npgsql:TsVectorConfig", "english")
+                        .HasAnnotation("Npgsql:TsVectorProperties", new[] { "Name", "Description", "OwnerFunction" });
+
                     b.Property<long?>("SizeBytes")
                         .HasColumnType("bigint")
                         .HasColumnName("size_bytes");
@@ -4130,6 +4297,10 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                         .HasColumnName("use_blocked_at");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("SearchVector");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("SearchVector"), "GIN");
 
                     b.HasIndex("CreatedAt", "UpdatedAt");
 
@@ -7314,6 +7485,14 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(64)")
                         .HasColumnName("risk_level");
 
+                    b.Property<NpgsqlTsVector>("SearchVector")
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("tsvector")
+                        .HasColumnName("search_vector")
+                        .HasAnnotation("Npgsql:TsVectorConfig", "english")
+                        .HasAnnotation("Npgsql:TsVectorProperties", new[] { "Id", "Title", "Source", "SourceName", "PlainEnglishSummary", "RequiredAction" });
+
                     b.Property<string>("Source")
                         .IsRequired()
                         .HasColumnType("text")
@@ -7357,6 +7536,10 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                         .HasColumnName("trigger_condition");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("SearchVector");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("SearchVector"), "GIN");
 
                     b.HasIndex("Source");
 
@@ -7935,6 +8118,60 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                     b.HasIndex("TenantId", "SharedPackageId", "ActivityType");
 
                     b.ToTable("portal_package_activities", "gccs");
+                });
+
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.PortalPackageReviewMessageEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ActorUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("actor_user_id");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("body");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("InvitationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("invitation_id");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("kind");
+
+                    b.Property<Guid>("PackageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("package_id");
+
+                    b.Property<Guid>("SharedPackageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("shared_package_id");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "InvitationId");
+
+                    b.HasIndex("TenantId", "ActorUserId", "CreatedAt");
+
+                    b.HasIndex("TenantId", "SharedPackageId", "CreatedAt");
+
+                    b.ToTable("portal_package_review_messages", "gccs");
                 });
 
             modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.ReadinessApprovalEntity", b =>
@@ -9366,6 +9603,16 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<string>("ApprovedSourceFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("approved_source_fingerprint");
+
+                    b.Property<int>("ApprovedSourceVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("approved_source_version");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -9377,6 +9624,20 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("ExpiresAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("expires_at");
+
+                    b.Property<string>("ExternalReviewApprovalReason")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("external_review_approval_reason");
+
+                    b.Property<DateTimeOffset>("ExternalReviewApprovedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("external_review_approved_at");
+
+                    b.Property<Guid?>("ExternalReviewApprovedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("external_review_approved_by_user_id");
 
                     b.Property<Guid>("InvitationId")
                         .HasColumnType("uuid")
@@ -9401,6 +9662,10 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("ReplacementSharedPackageId")
                         .HasColumnType("uuid")
                         .HasColumnName("replacement_shared_package_id");
+
+                    b.Property<DateTimeOffset>("ReviewDueAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("review_due_at");
 
                     b.Property<string>("RevocationReason")
                         .HasMaxLength(500)
@@ -9718,6 +9983,14 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("reviewer_user_id");
 
+                    b.Property<NpgsqlTsVector>("SearchVector")
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("tsvector")
+                        .HasColumnName("search_vector")
+                        .HasAnnotation("Npgsql:TsVectorConfig", "english")
+                        .HasAnnotation("Npgsql:TsVectorProperties", new[] { "ReportType", "NotSubmittedDisclaimer", "ReviewerName", "ReviewNotes" });
+
                     b.Property<string>("SnapshotJson")
                         .IsRequired()
                         .HasColumnType("jsonb")
@@ -9749,6 +10022,10 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ReviewerUserId");
+
+                    b.HasIndex("SearchVector");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("SearchVector"), "GIN");
 
                     b.HasIndex("CreatedAt", "UpdatedAt");
 
@@ -12234,6 +12511,42 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                     b.Navigation("Answer");
                 });
 
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.AssistantOutputReviewEntity", b =>
+                {
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.TenantEntity", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.AssistantAnswerEntity", "Answer")
+                        .WithMany("Reviews")
+                        .HasForeignKey("TenantId", "AnswerId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Answer");
+                });
+
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.AssistantOutputUsageEntity", b =>
+                {
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.TenantEntity", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.AssistantAnswerEntity", "Answer")
+                        .WithMany("DeliverableUses")
+                        .HasForeignKey("TenantId", "AnswerId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Answer");
+                });
+
             modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.BreakGlassAccessGrantEntity", b =>
                 {
                     b.HasOne("Gccs.Infrastructure.Persistence.Models.TenantEntity", "Tenant")
@@ -13683,6 +13996,33 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                     b.Navigation("SharedPackage");
                 });
 
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.PortalPackageReviewMessageEntity", b =>
+                {
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.TenantEntity", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.ExternalPortalInvitationEntity", "Invitation")
+                        .WithMany()
+                        .HasForeignKey("TenantId", "InvitationId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.SharedPortalPackageEntity", "SharedPackage")
+                        .WithMany()
+                        .HasForeignKey("TenantId", "SharedPackageId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Invitation");
+
+                    b.Navigation("SharedPackage");
+                });
+
             modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.ReadinessApprovalEntity", b =>
                 {
                     b.HasOne("Gccs.Infrastructure.Persistence.Models.TenantEntity", null)
@@ -14616,7 +14956,11 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                 {
                     b.Navigation("Actions");
 
+                    b.Navigation("DeliverableUses");
+
                     b.Navigation("Feedback");
+
+                    b.Navigation("Reviews");
                 });
 
             modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.CompanyProfileEntity", b =>

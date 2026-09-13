@@ -10,8 +10,10 @@ public sealed class InMemoryPortalPackageLifecycleRepository : IPortalPackageLif
 
     public Task<SharedPortalPackageDto> CreateAsync(
         SharedPortalPackageRequest request,
+        PortalPackageApprovalMetadataDto approvalMetadata,
         Guid tenantId,
         Guid actorUserId,
+        DateTimeOffset approvedAt,
         CancellationToken cancellationToken = default)
     {
         lock (_gate)
@@ -25,6 +27,9 @@ public sealed class InMemoryPortalPackageLifecycleRepository : IPortalPackageLif
             var package = new SharedPortalPackageDto(
                 Guid.NewGuid(), tenantId, request.PackageId, request.InvitationId, version,
                 SharedPortalPackageState.Active, request.ExpiresAt,
+                request.ReviewDueAt ?? request.ExpiresAt, approvedAt, actorUserId,
+                NormalizeApprovalReason(request.ApprovalReason), approvalMetadata.SourceVersion,
+                approvalMetadata.SourceFingerprint,
                 request.ExpiresAt.AddDays(-request.ExpirationReminderDays), null,
                 null, null, null, null, null, now, null);
             _packages.Add(package.Id, package);
@@ -125,6 +130,7 @@ public sealed class InMemoryPortalPackageLifecycleRepository : IPortalPackageLif
     public Task<SharedPortalPackageDto> ReissueAsync(
         SharedPortalPackageDto existing,
         ReissueSharedPortalPackageRequest request,
+        PortalPackageApprovalMetadataDto approvalMetadata,
         Guid actorUserId,
         DateTimeOffset changedAt,
         CancellationToken cancellationToken = default)
@@ -144,6 +150,9 @@ public sealed class InMemoryPortalPackageLifecycleRepository : IPortalPackageLif
             var replacement = new SharedPortalPackageDto(
                 Guid.NewGuid(), current.TenantId, request.ReplacementPackageId, current.InvitationId,
                 nextVersion, SharedPortalPackageState.Active, request.ExpiresAt,
+                request.ReviewDueAt ?? request.ExpiresAt, changedAt, actorUserId,
+                NormalizeApprovalReason(request.ApprovalReason), approvalMetadata.SourceVersion,
+                approvalMetadata.SourceFingerprint,
                 request.ExpiresAt.AddDays(-request.ExpirationReminderDays), null,
                 current.Id, null, null, null, null, changedAt, null);
             var oldState = current.State == SharedPortalPackageState.Active
@@ -161,6 +170,11 @@ public sealed class InMemoryPortalPackageLifecycleRepository : IPortalPackageLif
             return Task.FromResult(replacement);
         }
     }
+
+    private static string NormalizeApprovalReason(string? reason) =>
+        string.IsNullOrWhiteSpace(reason)
+            ? "Explicitly approved for external portal review when shared."
+            : reason.Trim();
 
     public Task<bool> CanAccessAsync(
         Guid sharedPackageId,

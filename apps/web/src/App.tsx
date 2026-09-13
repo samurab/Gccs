@@ -41,6 +41,7 @@ import { PortalPackageLifecyclePanel } from "@/components/PortalPackageLifecycle
 import { ExternalPortalInvitationPanel } from "@/components/ExternalPortalInvitationPanel";
 import { GuardedAssistantPanel } from "@/components/GuardedAssistantPanel";
 import { ExpertReviewQueuePanel } from "@/components/ExpertReviewQueuePanel";
+import { AiOutputGovernancePanel } from "@/components/AiOutputGovernancePanel";
 import type { ClassifiedContent } from "@/lib/api";
 import type { AssistantWorkflowContext } from "@/lib/api";
 import { ControlCoverageMeter } from "@/components/ControlCoverageMeter";
@@ -2891,6 +2892,8 @@ export function App() {
             />}
           {activeRoute === "obligations" && access.permissions.includes("ViewObligations") &&
             <ExpertReviewQueuePanel canResolve={access.permissions.includes("ManageObligations")} />}
+          {activeRoute === "obligations" && access.permissions.includes("ViewObligations") &&
+            <AiOutputGovernancePanel permissions={access.permissions} />}
           {activeRoute === "evidence" && access.permissions.includes("ViewEvidence") &&
             <ClassifiedNotesPanel key={`${currentTenant?.id}:${access.userId}:${classificationRefresh}`} canManage={canManageEvidence} />}
         </WorkspaceState>

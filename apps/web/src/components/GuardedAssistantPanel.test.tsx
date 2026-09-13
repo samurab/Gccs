@@ -48,6 +48,19 @@ describe("GuardedAssistantPanel", () => {
     expect(screen.getByText(/added to the operational queue/i)).toBeInTheDocument();
   });
 
+  it("renders an unsupported refusal without citations or draft actions", async () => {
+    mocks.ask.mockResolvedValue({ data: { ...supportedAnswer, status: "NeedsReview", draftLabel: "NeedsReview",
+      supportStatus: "NeedsReview", answer: "I do not have an approved source that supports an answer. Please route this question for human review.",
+      citations: [], escalationRecommended: true }, error: null });
+    const user = userEvent.setup();
+    render(<GuardedAssistantPanel contexts={["evidence"]} permissions={["ManageEvidence"]} />);
+    await user.type(screen.getByLabelText("Question"), "Explain an unsupported requirement.");
+    await user.click(screen.getByRole("button", { name: "Ask assistant" }));
+    expect(await screen.findByText(/do not have an approved source/i)).toBeInTheDocument();
+    expect(screen.getByText(/No approved citation supports this answer/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Save draft" })).not.toBeInTheDocument();
+  });
+
   it("hides action controls when server-provided permissions do not allow creation", async () => {
     const user = userEvent.setup();
     render(<GuardedAssistantPanel contexts={["evidence"]} permissions={["ViewEvidence"]} />);

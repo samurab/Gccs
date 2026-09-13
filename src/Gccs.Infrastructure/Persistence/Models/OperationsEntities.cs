@@ -43,6 +43,7 @@ public sealed class EvidenceItemEntity : AuditedEntity, IClassifiedContentEntity
     public bool ClassificationIsApprovedDemoContent { get; set; }
     public bool IsUseBlocked { get; set; }
     public DateTimeOffset? UseBlockedAt { get; set; }
+    public NpgsqlTypes.NpgsqlTsVector SearchVector { get; set; } = null!;
 
     public ICollection<EvidenceObligationEntity> Obligations { get; set; } = [];
     public ICollection<EvidenceContractEntity> Contracts { get; set; } = [];
@@ -521,6 +522,7 @@ public sealed class SprReportPackageEntity : AuditedEntity
     public DateTimeOffset? ApprovedAt { get; set; }
     public string? ReviewNotes { get; set; }
     public DateTimeOffset GeneratedAt { get; set; }
+    public NpgsqlTypes.NpgsqlTsVector SearchVector { get; set; } = null!;
 
     public ContractEntity? Contract { get; set; }
     public UserEntity? Reviewer { get; set; }
@@ -556,6 +558,12 @@ public sealed class SharedPortalPackageEntity : AuditedEntity
     public int Version { get; set; }
     public SharedPortalPackageState State { get; set; }
     public DateTimeOffset ExpiresAt { get; set; }
+    public DateTimeOffset ReviewDueAt { get; set; }
+    public DateTimeOffset ExternalReviewApprovedAt { get; set; }
+    public Guid? ExternalReviewApprovedByUserId { get; set; }
+    public string ExternalReviewApprovalReason { get; set; } = string.Empty;
+    public int ApprovedSourceVersion { get; set; }
+    public string ApprovedSourceFingerprint { get; set; } = string.Empty;
     public DateTimeOffset ReminderAt { get; set; }
     public DateTimeOffset? ReminderSentAt { get; set; }
     public Guid? SupersedesSharedPackageId { get; set; }
@@ -630,6 +638,22 @@ public sealed class PortalPackageActivityEntity
     public DateTimeOffset OccurredAt { get; set; }
     public string? Detail { get; set; }
 
+    public SharedPortalPackageEntity? SharedPackage { get; set; }
+}
+
+public sealed class PortalPackageReviewMessageEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid InvitationId { get; set; }
+    public Guid SharedPackageId { get; set; }
+    public Guid PackageId { get; set; }
+    public Guid ActorUserId { get; set; }
+    public PortalCommentKind Kind { get; set; }
+    public string Body { get; set; } = string.Empty;
+    public DateTimeOffset CreatedAt { get; set; }
+
+    public ExternalPortalInvitationEntity? Invitation { get; set; }
     public SharedPortalPackageEntity? SharedPackage { get; set; }
 }
 
