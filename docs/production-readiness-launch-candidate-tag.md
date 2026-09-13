@@ -8,16 +8,16 @@ Tag date: 2026-09-12.
 
 Tag owner: Engineering lead.
 
-Launch candidate tag: `launch-candidate-2026-09-12-1`.
+Launch candidate tag: `launch-candidate-2026-09-12-2`.
 
-Tagged commit: `4a3c4437952e4642d17cb8476b25496c276a0212`.
+Tagged commit: `2430eba7fb8f996a689159cfa6935030faabba1d`.
 
 Approved launch candidate manifest: `docs/release/approved-launch-candidate.json`.
 
 Tag command:
 
 ```bash
-git tag launch-candidate-2026-09-12-1 4a3c4437952e4642d17cb8476b25496c276a0212
+git tag launch-candidate-2026-09-12-2 2430eba7fb8f996a689159cfa6935030faabba1d
 ```
 
 This tag is a No-CUI MVP launch candidate marker for solo-controlled pilot testing and project completion. It is not a production deployment approval, production separation-of-duties approval, legal advice, certification evidence, government endorsement, broader customer launch approval, or authorization to accept real CUI.
