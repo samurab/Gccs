@@ -2,15 +2,15 @@
 
 Story: PR-7.1 - Deploy Production Through Approved CI/CD.
 
-Deployment status: current approved candidate deployed successfully through the protected production CI/CD path; historical successful deployment evidence is retained below.
+Deployment status: current approved candidate is awaiting protected production CI/CD execution.
 
-Current candidate execution status: `launch-candidate-2026-09-12-2` deployed successfully in production workflow run `34736579548`.
+Current candidate execution status: `launch-candidate-2026-09-13-1` is approved but not yet deployed.
 
-Latest evidence date: 2026-09-12. Historical evidence dates are retained below.
+Latest evidence date: 2026-09-13. Historical evidence dates are retained below.
 
 Evidence owner: Engineering lead.
 
-Approved launch candidate tag: `launch-candidate-2026-09-12-2`.
+Approved launch candidate tag: `launch-candidate-2026-09-13-1`.
 
 Approved launch candidate manifest: `docs/release/approved-launch-candidate.json`.
 
@@ -36,10 +36,10 @@ The corrected pattern is a dedicated production workflow with a protected `produ
 
 | Requirement | Result | Evidence |
 | --- | --- | --- |
-| Approved launch candidate artifact | Passed | Manifest `docs/release/approved-launch-candidate.json` approves tag `launch-candidate-2026-09-12-2` at `2430eba7fb8f996a689159cfa6935030faabba1d`; see `docs/production-readiness-launch-candidate-tag.md`. |
-| Approved production CI/CD path | Passed | PR #109 CI run `34733833803`, exact-feature staging run `34733836034`, runtime-main CI run `34734465606`, runtime-main staging run `34734465617`, runtime-main Static Web Apps run `34734465636`, approval PR #110 CI run `34735102312`, approval-main CI run `34735798987`, approval-main staging run `34735799044`, approval-main Static Web Apps run `34735799135`, and protected production run `34736579548` passed. Current candidate `launch-candidate-2026-09-12-2` completed protected production workflow execution in run `34736579548`. |
+| Approved launch candidate artifact | Passed | Manifest `docs/release/approved-launch-candidate.json` approves tag `launch-candidate-2026-09-13-1` at `dcd2d44cf2252f81a67158e2cce5e47c015cd145`; see `docs/production-readiness-launch-candidate-tag.md`. |
+| Approved production CI/CD path | Ready; exact-candidate execution pending | PR #109 CI run `34733833803`, exact-feature staging run `34733836034`, runtime-main CI run `34734465606`, runtime-main staging run `34734465617`, runtime-main Static Web Apps run `34734465636`, approval PR #110 CI run `34735102312`, approval-main CI run `34735798987`, approval-main staging run `34735799044`, approval-main Static Web Apps run `34735799135`, and protected production run `34736579548` passed. Current candidate `launch-candidate-2026-09-13-1` still requires protected production workflow execution after this launch-candidate gate merges. |
 | Production environment configuration | Passed | `infra/terraform/environments/production/main.tf` declares the production contract. Post-deployment live App Service settings were `Production` for both environment keys, development auth was explicitly `false`, authentication authority and audience were configured, and no deployment slots were active. |
-| Production secrets source | Passed | Current candidate `launch-candidate-2026-09-12-2` resolved the required production environment secrets in run `34736579548` without exposing their values. The previously exposed Redis credential was invalidated through an alternate-key rotation before deployment. |
+| Production secrets source | Historical path passed; current execution pending | Current candidate `launch-candidate-2026-09-13-1` still requires protected production workflow execution. The previously exposed Redis credential was invalidated through an alternate-key rotation before deployment. |
 | Production No-CUI posture validation | Passed | Run `34736579548` validated the production No-CUI deployment guardrails. |
 | Production migrations | Passed | Run `34736579548` generated and applied the idempotent production migration script through approved CI/CD. |
 | Production storage, cache, queue, and background jobs | Passed | Run `34736579548` production health returned `ok` for PostgreSQL, Redis, object storage, and background jobs after API and web deployment. |

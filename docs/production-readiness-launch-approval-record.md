@@ -6,7 +6,7 @@ Record status: approved for solo-controlled pilot launch-candidate tagging and p
 
 Record date: 2026-07-03.
 
-Latest candidate-specific reapproval date: 2026-09-12.
+Latest candidate-specific reapproval date: 2026-09-13.
 
 Record owner: Product owner.
 
@@ -381,6 +381,25 @@ This approval is not independent legal, security, compliance, accessibility, CMM
 | Approval limitation | Solo-controlled No-CUI pilot production deployment only; no broader customer launch, certification, assessment determination, government approval, secure CUI storage, legal advice, or independent professional approval is claimed. |
 
 The approval is invalid if the candidate SHA changes, any cited exact-candidate workflow is unsuccessful, staging health regresses, tenant isolation, workflow-context RBAC, audit atomicity, draft-only AI handling, portal approval or access controls, migration safety, or source traceability weakens, the No-CUI posture changes, or customer-facing language expands beyond the reviewed candidate scope.
+
+## Staging UI Refresh Candidate Reapproval - 2026-09-13
+
+The repository owner and deployment operator, `samurab`, explicitly requested redeploying staging to refresh the hosted UI, merging the verified main artifact, creating a launch candidate, and deploying it to production. This records combined-role approval for `launch-candidate-2026-09-13-1` within the existing solo-controlled No-CUI pilot production scope after the exact main commit passed the protected staging deployment and smoke checks.
+
+This approval is not independent legal, security, compliance, accessibility, or separation-of-duties review. It does not authorize broader customer launch, real CUI processing, certification, assessment determination, system authorization, government approval, or unsupported customer-facing claims.
+
+| Approval metadata | Recorded value |
+| --- | --- |
+| Approver | Repository owner and deployment operator `samurab`, acting as the accountable combined-role solo-controlled pilot approver |
+| Approval date | 2026-09-13 |
+| Candidate | `launch-candidate-2026-09-13-1` at `dcd2d44cf2252f81a67158e2cce5e47c015cd145` |
+| Scope | Refresh the staging-hosted FeDril web artifact from the verified `main` commit, preserve the No-CUI posture and existing application behavior, and promote the exact verified main artifact through the approved launch-candidate and protected production workflows. No web or API source delta was present in the worktree; the staging refresh addresses deployment freshness rather than feature changes. |
+| Exact-candidate staging evidence | Workflow run `34792088854` built the main artifact, generated and applied idempotent migrations, validated No-CUI and infrastructure guardrails, deployed the API and Static Web App, and passed staging smoke checks. The staging health artifact reports `ok` for PostgreSQL, Redis, object storage, and background jobs; independent checks returned API health `ok` and web HTTP 200. |
+| Exact-candidate automated evidence | Main commit `dcd2d44cf2252f81a67158e2cce5e47c015cd145` had already passed CI run `34737604074`, staging run `34737604063`, and Static Web Apps run `34737604034`; the refresh run `34792088854` independently completed the staging deployment path. |
+| Unresolved limitations | Review is solo-controlled rather than independent. No authenticated staging or production tenant workflow smoke identity was supplied. External identity, email delivery, alerts, and HubSpot paths were not exercised end-to-end with a production user. Terraform was validated but not applied or checked against live drift. |
+| Approval limitation | Solo-controlled No-CUI pilot production deployment only; no broader customer launch, certification, government approval, secure CUI storage, legal advice, or independent professional approval is claimed. |
+
+The approval is invalid if the candidate SHA changes, any cited workflow is unsuccessful, staging health regresses, the No-CUI posture changes, or customer-facing language expands beyond the reviewed scope.
 
 ## Evidence Package Reviewed
 
