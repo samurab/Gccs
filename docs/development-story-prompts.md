@@ -5864,7 +5864,6 @@ This companion prompt is not a new numbered user story. It performs the cross-st
 
 Prompt:
 
-
 Act as a senior SOC 2 readiness advisor, security architect, and evidence reviewer. Perform an evidence-based SOC 2 readiness assessment for the FeDril application and produce a prioritized implementation checklist that is complete for the proposed FeDril scope and the evidence available at the assessment date.
 
 Repository:
