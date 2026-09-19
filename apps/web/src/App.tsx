@@ -587,7 +587,10 @@ function hasAnyPermission(access: CurrentUserAccess, permissions?: string[]) {
 }
 
 function canShowNavigationItem(access: CurrentUserAccess, item: NavigationItem) {
-  if (item.route === "settings" && access.permissions.includes("AuditorReadOnly")) {
+  if (
+    item.route === "settings" &&
+    access.roles.some((role) => role.trim().toLowerCase() === "auditor")
+  ) {
     return false;
   }
 
