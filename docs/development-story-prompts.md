@@ -2,7 +2,7 @@
 
 These prompts are designed to be copied into a fresh implementation thread, one story at a time. Each prompt points back to the source backlog in [development-phase-use-cases.md](development-phase-use-cases.md) and should be executed under the project guidance in [../AGENTS.md](../AGENTS.md).
 
-Phase 0 Stories `0.1` through `0.8` and SOC 2 Stories `39.1` through `39.3` are intentionally excluded from this implementation inventory. They are non-software research, governance, decision, and independent-assurance workflows; use the governed human-evidence prompts in [development-story-test-prompts.md](development-story-test-prompts.md). Do not invoke the software story sequence or add application code merely to satisfy those stories.
+Phase 0 Stories `0.1` through `0.8` remain intentionally excluded from this implementation inventory. SOC 2 Stories `39.1` through `39.3` are included below as governed human-evidence prompts, not executable software implementation work. Do not invoke the software story sequence or add application code merely to satisfy those stories.
 
 ## Evidence-Based Status Reconciliation
 
@@ -5748,5 +5748,111 @@ First, inspect the existing codebase, architecture docs, API contracts, schema/m
 > - Enclave access, export, support, and emergency actions are audit logged.
 
 Implement Story 38.3, "Enclave Access, Export, And Support Controls," from `docs/development-phase-use-cases.md`. Add enclave-specific RBAC permissions for view, upload, download, export, approve, support access, and emergency access, just-in-time support access request workflow with reason, scope, approver, duration, session log, and expiration, export policy controls for allowed package types, recipient restrictions, watermarking, encryption, and approval requirements, and related workflow controls. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, source traceability, review metadata, enterprise identity controls, regulated-environment controls, key-management safety, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+
+## 39. SOC 2 Assurance Program
+
+This section is a governed human-evidence and independent-assurance track. These prompts may create or update documentation, registers, evidence indexes, and decision records, but they must not add application code merely to claim SOC 2 readiness. SOC 2 is a commercial trust and assurance framework; it does not replace CMMC readiness, FedRAMP authorization, government approval, legal advice, customer CUI responsibilities, or authorization to process real CUI.
+
+### Story 39.1: Define SOC 2 Scope And Readiness Decision
+**Status: Planned**
+Prompt:
+You are helping me govern FeDril's SOC 2 scope and readiness decision.
+
+First, inspect the existing codebase, deployment/configuration evidence, architecture docs, security docs, policy docs, data-boundary materials, current trust artifacts, and `docs/development-phase-use-cases.md`. Then summarize the current evidence for Story 39.1 and identify what is verified, unverified, missing, or blocked before drafting or updating any SOC 2 scope document.
+
+> Context:
+>
+> - Epic: SOC 2 Assurance Program
+> - Story type: Governed human-evidence and assurance decision, not executable product code.
+> - User story: As the assurance program owner, I want an auditor-supported scope and readiness decision so that FeDril knows which system boundary, services, criteria, owners, and evidence obligations would be examined before committing to an examination.
+> - Acceptance criteria:
+> - The scope record identifies the system boundary, included services and environments, subprocessors, customer responsibilities, exclusions, applicable criteria, version, owner, and review date.
+> - Every in-scope criterion maps to a control owner and an evidence source or a documented design gap with remediation ownership.
+> - The proceed, defer, or revise decision records approvers, rationale, budget and schedule assumptions, unresolved risks, and next review date.
+> - Qualified reviewer input and conflicts of interest are recorded without representing readiness advice as an issued SOC 2 report, certification, legal conclusion, or authorization to process CUI.
+
+Create or update Story 39.1, "Define SOC 2 Scope And Readiness Decision," from `docs/development-phase-use-cases.md`. Produce a governed FeDril SOC 2 scope and readiness decision record that defines the candidate FeDril SaaS system boundary, in-scope and out-of-scope services, environments, subprocessors, customer responsibilities, exclusions, Trust Services Criteria selection, accountable owners, evidence sources, design gaps, unresolved risks, decision outcome, approvers, budget and schedule assumptions, and next review date.
+
+Use the current FeDril posture unless verified evidence proves otherwise: FeDril is a No-CUI compliance-readiness operations platform. Start with SOC 2 Security as the likely initial Trust Services Criteria category. Consider Availability only if uptime commitments are verified, and consider Confidentiality only if FeDril stores sensitive non-CUI customer documents, evidence metadata, or operational information at meaningful scale. Do not scope all five SOC 2 categories by default.
+
+Instructions:
+
+1. Treat SOC 2 readiness as a governance and assurance program, not a feature implementation.
+2. Validate facts against the actual repository, deployment configuration, policies, tests, and authoritative sources. If evidence is unavailable, mark the item `Requires Verification`.
+3. Preserve the No-CUI product posture and explicitly separate SOC 2 from FedRAMP, CMMC certification, government approval, legal/compliance advice, and permission to process real CUI.
+4. Include out-of-scope items such as customer CUI, customer systems, C3PAO work, MSP-managed infrastructure, and customer legal/compliance determinations unless verified evidence supports a narrower or different exclusion.
+5. Identify likely evidence categories: access reviews, change management, incident response, vulnerability management, backups, logging, vendor management, secure SDLC, and management review.
+6. Record whether the recommended decision is proceed, defer, or revise scope; for FeDril's current stage, do not recommend rushing into a formal SOC 2 Type I or Type II audit unless customer, partner, or procurement evidence supports that timing.
+7. Do not use wording such as `SOC 2 certified`, `SOC 2 compliant`, `audit ready`, `government approved`, `CMMC certified`, `FedRAMP authorized`, or `authorized to store CUI`.
+8. If you create or update files, keep changes limited to governed documentation, registers, evidence indexes, or decision records and summarize every changed file.
+
+#-----------------------------------------
+
+### Story 39.2: Remediate Gaps And Collect Operating Evidence
+**Status: Planned**
+Prompt:
+You are helping me govern FeDril's SOC 2 readiness gap remediation and operating-evidence collection.
+
+First, inspect the existing SOC 2 scope decision record if present, security docs, operations docs, deployment/configuration evidence, policy docs, audit-log behavior, backup/restore materials, incident-response materials, vendor/subprocessor records, change-management evidence, and `docs/development-phase-use-cases.md`. Then summarize the current evidence for Story 39.2 and identify what is verified, unverified, missing, or blocked before drafting or updating any readiness gap register or evidence calendar.
+
+> Context:
+>
+> - Epic: SOC 2 Assurance Program
+> - Story type: Governed human-evidence and assurance decision, not executable product code.
+> - User story: As the assurance program owner, I want control gaps remediated and operating evidence collected over the selected period so that examination readiness is based on governed evidence rather than policy text or application features alone.
+> - Acceptance criteria:
+> - Every readiness gap has severity, accountable owner, target date, disposition, evidence requirement, and immutable decision history.
+> - Each collected evidence item identifies the scoped control, system or process, collection period, source, custodian, reviewer, review result, and retention location without storing secrets or raw customer documents in the backlog.
+> - Exceptions, control failures, significant changes, accepted risks, and corrective actions remain visible with approval and closure evidence.
+> - The final readiness decision identifies the examination type under consideration, proposed period or as-of date, open exceptions, evidence index version, approvers, and proceed or defer outcome.
+
+Create or update Story 39.2, "Remediate Gaps And Collect Operating Evidence," from `docs/development-phase-use-cases.md`. Produce a governed readiness gap register and operating-evidence calendar for the selected SOC 2 scope. The register must identify each gap, severity, owner, target date, remediation plan, evidence requirement, disposition, exception or accepted-risk approval, closure evidence, and decision history. The evidence calendar must identify each scoped control or process, system, owner, collection cadence, collection period, custodian, reviewer, review result, retention location, and secure-storage rule.
+
+Instructions:
+
+1. Base remediation and evidence needs on the approved or proposed Story 39.1 scope. If no scope exists, create a dependency note and mark scope-dependent items `Requires Verification`.
+2. Treat operating evidence as governed human and operational evidence. Do not claim that source code, tests, policies, or UI states alone prove SOC 2 readiness.
+3. Track likely gap areas explicitly: access reviews, incident response, vendor risk, change approvals, audit logs, backup testing, vulnerability management, logging/monitoring, secure SDLC, and management review.
+4. Record exceptions, control failures, significant changes, corrective actions, accepted risks, open questions, approvers, closure evidence, and final readiness decision.
+5. Do not store secrets, raw customer documents, real CUI, credentials, private keys, vulnerability exploit details, or unredacted sensitive evidence in the backlog or readiness documents.
+6. Do not represent readiness artifacts as an issued SOC 2 report, certification, audit result, legal conclusion, FedRAMP authorization, CMMC certification, or permission to process real CUI.
+7. If a formal audit is not yet justified by customers, partners, or procurement blockers, recommend gradual SOC 2-aligned control implementation and evidence collection rather than premature Type I or Type II examination.
+8. If you create or update files, keep changes limited to governed documentation, registers, evidence indexes, or decision records and summarize every changed file.
+
+#-----------------------------------------
+
+### Story 39.3: Govern Independent Examination And Report Distribution
+**Status: Planned**
+Prompt:
+You are helping me govern FeDril's independent SOC 2 examination lifecycle and issued-report distribution.
+
+First, inspect any existing SOC 2 scope decision, readiness gap register, evidence index, procurement/trust artifacts, data-boundary materials, security claims, customer-facing wording, report-distribution process, and `docs/development-phase-use-cases.md`. Then summarize the current evidence for Story 39.3 and identify what is verified, unverified, missing, or blocked before drafting or updating examination or report-distribution records.
+
+> Context:
+>
+> - Epic: SOC 2 Assurance Program
+> - Story type: Governed human-evidence and independent-assurance lifecycle, not executable product code.
+> - User story: As the executive sponsor, I want the independent examination and issued-report lifecycle governed so that procurement communications match the actual report type, system scope, examination period, exceptions, and permitted audience.
+> - Acceptance criteria:
+> - Examination records identify the independent service auditor, examination type, scoped FeDril system, applicable criteria, as-of date or period, management assertion, report status, and issued-report reference when one exists.
+> - No story, readiness artifact, UI state, or internal approval is treated as proof that an independent report was issued; issuance status requires the actual governed report reference and authorized reviewer confirmation.
+> - Every report disclosure records the authorized recipient, purpose, confidentiality condition, approver, report version, sent date, and revocation or supersession status.
+> - Customer-facing wording identifies the actual report type, covered system, and examination period and does not describe FeDril as `SOC 2 certified`, generally `SOC 2 compliant`, government approved, CMMC certified, FedRAMP authorized, audit ready, or authorized to store real CUI.
+> - Renewal planning records the next review period, accountable owners, evidence-calendar changes, prior exceptions, significant changes, and proceed or defer decision.
+
+Create or update Story 39.3, "Govern Independent Examination And Report Distribution," from `docs/development-phase-use-cases.md`. Produce governed examination lifecycle, report-distribution, claims-register, and renewal-decision records for FeDril. These records must identify auditor independence, engagement details, examination type, scoped system, criteria, as-of date or review period, management assertion, delivery status, report reference when issued, auditor requests, management responses, exceptions, remediation commitments, final disposition, authorized report recipients, confidentiality conditions, approvers, report version, sent date, expiration/review date, revocation or supersession status, approved customer-facing wording, and renewal decision.
+
+Instructions:
+
+1. Do not create or imply a SOC 2 report exists unless an actual independent service auditor report reference is present and verified.
+2. Separate readiness artifacts, internal approvals, policy documents, test results, and control evidence from independent examination results.
+3. Maintain a claims register that permits only exact approved wording tied to report type, system scope, criteria, examination period, owner, reviewer, and expiration.
+4. Use conservative current wording if no report exists: `FeDril is a No-CUI compliance-readiness operations platform. We are defining a SOC 2-aligned security control scope for the FeDril SaaS environment and will pursue third-party attestation when customer and partner requirements justify it.`
+5. Prohibit customer-facing claims such as `SOC 2 certified`, `SOC 2 compliant`, `government approved`, `CMMC certified`, `FedRAMP authorized`, `audit ready`, or `authorized to store real CUI` unless the exact claim is supported by governed evidence and legally/assurance-reviewed approval.
+6. Define report access controls: authorized audience, NDA or confidentiality requirement, recipient, purpose, approver, version, sent date, expiration or review date, and revocation history.
+7. Define renewal planning: next review period, accountable owners, evidence-calendar changes, prior exceptions, significant changes, and proceed or defer decision.
+8. If you create or update files, keep changes limited to governed documentation, registers, evidence indexes, claims registers, or decision records and summarize every changed file.
 
 #-----------------------------------------

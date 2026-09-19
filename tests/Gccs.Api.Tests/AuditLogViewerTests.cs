@@ -192,6 +192,7 @@ public sealed class AuditLogViewerTests : IClassFixture<WebApplicationFactory<Pr
         Assert.NotNull(entityTypes);
         Assert.Contains("ContractDeliverable", entityTypes);
         Assert.Contains("CompanyProfile", entityTypes);
+        Assert.Contains("DataHandlingNoticeAcknowledgement", entityTypes);
         Assert.Contains("TenantMembership", entityTypes);
         Assert.DoesNotContain("SensitiveOtherTenantEntity", entityTypes);
         Assert.Equal(entityTypes.Order(StringComparer.Ordinal), entityTypes);

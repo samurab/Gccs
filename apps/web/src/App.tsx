@@ -21,6 +21,7 @@ import {
   SlidersHorizontal,
   UploadCloud,
   UserPlus,
+  UserRoundX,
   UsersRound,
   X
 } from "lucide-react";
@@ -33,6 +34,7 @@ import { ClassifiedNotesPanel } from "@/components/ClassifiedNotesPanel";
 import { ClassificationBadge, ClassificationReviewPanel } from "@/components/ClassificationReviewPanel";
 import { CuiEscalationQueue } from "@/components/CuiEscalationQueue";
 import { EsrsApplicabilityPanel } from "@/components/EsrsApplicabilityPanel";
+import { ApplicabilityFactsPanel } from "@/components/ApplicabilityFactsPanel";
 import { LaborApplicabilityPanel } from "@/components/LaborApplicabilityPanel";
 import { LaborClassificationPanel } from "@/components/LaborClassificationPanel";
 import { EsrsReportDataPanel } from "@/components/EsrsReportDataPanel";
@@ -138,7 +140,7 @@ import {
   getTenantDataHandlingModeHistory,
   getTenantInvitations,
   getTenantMembers,
-  markClauseCandidateNeedsClarification,
+  editClauseCandidate,markClauseCandidateNeedsClarification,
   markNotificationRead,
   runDueDateReminders,
   revokeTenantInvitation,
@@ -160,6 +162,7 @@ import {
   updateNotificationPreferences,
   updateCuiReadyApprovalChecklistItem,
   updateTenantDataHandlingMode,
+  updateTenantMemberStatus,
   updateCmmcAssessment,
   updateContractObligationStatus,
   updateContract,
@@ -170,6 +173,8 @@ import {
   type ApprovedEvidencePackage,
   type AuditLogEntry,
   type CuiAuditExportRequest,
+  type ClauseCandidate,
+  type ClauseCandidateEditRequest,
   type ClauseLibraryItem,
   type ClauseSearchParams,
   type CalendarEvent,
@@ -251,7 +256,7 @@ type WorkspaceRoute =
 
 type LoadState = "loading" | "ready" | "error";
 type AccessLoadState = "loading" | "ready" | "error";
-type ReportArtifact = ComplianceStatusReport | CmmcReadinessReport | SprsReadinessReport | SubcontractorComplianceReport | EvidencePackageReport;
+type ReportArtifact = |ComplianceStatusReport | CmmcReadinessReport | SprsReadinessReport | SubcontractorComplianceReport | EvidencePackageReport;
 type ReportDetailStatus = "idle" | "loading" | "ready" | "failed";
 
 const tenantModeUpdateTimeoutMs = 15000;
@@ -468,10 +473,10 @@ const navigationItems: NavigationItem[] = [
   {
     route: "settings",
     label: "Settings",
-    description: "Tenant access and workspace controls",
+    description: "Personal notifications and tenant workspace controls",
     group: "Administration",
     icon: Settings,
-    permissions: ["ManageTenant", "ManageUsers", "ViewAuditLog"]
+    permissions: ["ManageTenant", "ManageUsers", "ViewAuditLog", "ViewTasks"]
   }
 ];
 
@@ -724,6 +729,14 @@ export function App() {
   const [invitationActionStatus, setInvitationActionStatus] = useState<"idle" | "revoking" | "succeeded" | "failed">("idle");
   const [invitationActionMessage, setInvitationActionMessage] = useState("");
   const [revokingInvitationId, setRevokingInvitationId] = useState<string | null>(null);
+  const [membershipActionStatus, setMembershipActionStatus] = useState<
+    "idle" | "saving" | "saved" | "failed"
+  >("idle");
+  const [membershipActionMessage, setMembershipActionMessage] = useState("");
+  const [deactivationTargetId, setDeactivationTargetId] = useState<
+    string | null
+  >(null);
+  const [deactivationReason, setDeactivationReason] = useState("");
   const [profileStatus, setProfileStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const [profileMessage, setProfileMessage] = useState("");
   const [profileValidationErrors, setProfileValidationErrors] = useState<Record<string, string[]>>({});
@@ -731,6 +744,9 @@ export function App() {
   const [contractMessage, setContractMessage] = useState("");
   const [contractClauseStatus, setContractClauseStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const [contractClauseMessage, setContractClauseMessage] = useState("");
+  const [contractClauseActionId, setContractClauseActionId] = useState<
+    string | null
+  >(null);
   const [clauseSearchStatus, setClauseSearchStatus] = useState<"idle" | "loading" | "ready" | "failed">("idle");
   const [clauseSearchMessage, setClauseSearchMessage] = useState("");
   const [obligationDashboardStatus, setObligationDashboardStatus] = useState<"idle" | "loading" | "ready" | "failed">("idle");
@@ -760,7 +776,7 @@ export function App() {
   const [subcontractorDetailMessage, setSubcontractorDetailMessage] = useState("");
   const [reportStatus, setReportStatus] = useState<"idle" | "loading" | "ready" | "failed">("idle");
   const [reportMessage, setReportMessage] = useState("");
-  const pendingSprsReportRequest = useRef<{ fingerprint: string; idempotencyKey: string } | null>(null);
+  const pendingSprsReportRequest = useRef<{ fingerprint: string; idempotencyKey: string ;} | null>(null);
   const [notificationPreferenceStatus, setNotificationPreferenceStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const [notificationPreferenceMessage, setNotificationPreferenceMessage] = useState("");
   const [tenantModeStatus, setTenantModeStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
@@ -797,7 +813,7 @@ export function App() {
     () => [
       {
         label: "Control coverage",
-        value: <ControlCoverageMeter readinessScore={overview.readinessScore} />,
+        value: (<ControlCoverageMeter readinessScore={overview.readinessScore} />),
         tone: controlCoverageTone(overview.readinessScore.status),
         hint: `${overview.readinessScore.status} · implementation only`
       },
@@ -844,6 +860,17 @@ export function App() {
   const canManageCmmc = access.permissions.includes("ManageCmmc");
   const canManageReports = access.permissions.includes("ManageReports");
   const canArchiveReports = access.permissions.includes("ArchiveReports");
+  const activeAdminCount = useMemo(
+    () =>
+      members.filter(
+        (member) =>
+          member.membershipStatus === "Active" && member.roleName === "Admin",
+      ).length,
+    [members],
+  );
+  const deactivationTarget =
+    members.find((member) => member.membershipId === deactivationTargetId) ??
+    null;
   const canExportReports = access.permissions.includes("ExportReports");
   const canViewAuditLog = access.permissions.includes("ViewAuditLog");
   const canManageTenant = access.permissions.includes("ManageTenant");
@@ -1011,7 +1038,7 @@ export function App() {
 
         if (isMounted) {
           setOverview(nextOverview);
-          setMembers(nextMembers);
+          setMembers(Array.isArray(nextMembers) ? nextMembers : []);
           setInvitations(nextInvitations);
           setObligationAssignmentCandidates(nextObligationAssignmentCandidates);
           setCurrentTenant(nextTenant);
@@ -1189,6 +1216,76 @@ export function App() {
     return false;
   }
 
+  function openMemberDeactivation(member: TenantMember) {
+    const protectedMember =
+      member.roleName === "Owner" ||
+      (member.roleName === "Admin" &&
+        member.membershipStatus === "Active" &&
+        activeAdminCount <= 1);
+    if (member.membershipStatus === "Deactivated" || protectedMember) {
+      return;
+    }
+
+    setMembershipActionStatus("idle");
+    setMembershipActionMessage("");
+    setDeactivationTargetId(member.membershipId);
+    setDeactivationReason("");
+  }
+
+  function closeMemberDeactivation() {
+    if (membershipActionStatus === "saving") {
+      return;
+    }
+
+    setDeactivationTargetId(null);
+    setDeactivationReason("");
+    setMembershipActionMessage("");
+  }
+
+  async function handleMemberDeactivation(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const member = members.find(
+      (candidate) => candidate.membershipId === deactivationTargetId,
+    );
+    const reason = deactivationReason.trim();
+    if (!member || !reason) {
+      setMembershipActionStatus("failed");
+      setMembershipActionMessage(
+        "Enter a reason before deactivating this membership.",
+      );
+      return;
+    }
+
+    setMembershipActionStatus("saving");
+    setMembershipActionMessage("");
+    const result = await updateTenantMemberStatus(
+      member.membershipId,
+      "Deactivated",
+      reason,
+    );
+    if (result.data) {
+      setMembers((currentMembers) =>
+        currentMembers.map((candidate) =>
+          candidate.membershipId === result.data!.membershipId
+            ? result.data!
+            : candidate,
+        ),
+      );
+      setMembershipActionStatus("saved");
+      setMembershipActionMessage(
+        `${member.displayName}'s membership was deactivated.`,
+      );
+      setDeactivationTargetId(null);
+      setDeactivationReason("");
+      return;
+    }
+
+    setMembershipActionStatus("failed");
+    setMembershipActionMessage(
+      result.error ?? "Membership could not be deactivated.",
+    );
+  }
+
   async function handleTenantModeUpdate(request: UpdateTenantDataHandlingModeRequest) {
     if (!currentTenant) {
       setTenantModeStatus("failed");
@@ -1363,7 +1460,7 @@ export function App() {
   ) {
     if (result.data) {
       setCuiReadyChecklists((current) =>
-        current.map((checklist) => (checklist.id === result.data!.id ? result.data! : checklist))
+        current.map((checklist) => checklist.id === result.data!.id ? result.data! : checklist)
       );
       setCuiReadyChecklistStatus("saved");
       setCuiReadyChecklistMessage(successMessage);
@@ -1404,9 +1501,14 @@ export function App() {
     const result = await markNotificationRead(notificationId);
     if (result.data) {
       setNotifications((currentNotifications) =>
-        currentNotifications.map((notification) => (notification.id === notificationId ? result.data! : notification))
-      );
+        currentNotifications.map((notification) => notification.id === notificationId ? result.data! : notification))
+      ;
     }
+  }
+
+  async function handleNotificationCenterOpen() {
+    const refreshedNotifications = await getNotifications();
+    setNotifications(refreshedNotifications);
   }
 
   async function handleCompanyProfileSave(request: UpsertCompanyProfileRequest) {
@@ -1438,7 +1540,7 @@ export function App() {
       setContracts((currentContracts) => {
         const exists = currentContracts.some((contract) => contract.id === savedContract.id);
         return exists
-          ? currentContracts.map((contract) => (contract.id === savedContract.id ? savedContract : contract))
+          ? currentContracts.map((contract) => contract.id === savedContract.id ? savedContract : contract)
           : [savedContract, ...currentContracts];
       });
       setSelectedContractId(savedContract.id);
@@ -1586,7 +1688,7 @@ export function App() {
     setSelectedContractId(contractId);
     setContractMessage("");
     setContractClauseMessage("");
-    setDeliverableMessage("");
+    setContractClauseActionId(null);setDeliverableMessage("");
     setContractDocumentMessage("");
     setExtractionJobsByDocumentId({});
     setExtractionResultsByDocumentId({});
@@ -1611,7 +1713,7 @@ export function App() {
     setContractMessage("");
     setContractClauseMessage("");
 
-    const result = await attachContractClause(contractId, request);
+    setContractClauseActionId(null);const result = await attachContractClause(contractId, request);
     if (result.data) {
       setContractClauses((currentClauses) => [result.data!, ...currentClauses]);
       setContractClauseStatus("saved");
@@ -1627,6 +1729,7 @@ export function App() {
   async function handleContractClauseRemove(contractId: string, contractClauseId: string, reason: string) {
     setContractClauseStatus("saving");
     setContractClauseMessage("");
+    setContractClauseActionId(null);
 
     const result = await removeContractClause(contractId, contractClauseId, { reason });
     if (result.data) {
@@ -1644,16 +1747,26 @@ export function App() {
     setContractClauseStatus("saving");
     setContractClauseMessage("");
 
-    const result = await generateContractClauseObligations(contractId, contractClauseId);
+    setContractClauseActionId(contractClauseId);const result = await generateContractClauseObligations(contractId, contractClauseId);
     if (result.data) {
       const obligationCount = result.data.obligationIds.length;
       const taskCount = result.data.tasksCreated;
-      setContractClauseStatus("saved");
+      const nextObligations = await getContractObligations();
+      setObligationDashboardItems(nextObligations);
+      setObligationDashboardStatus("ready");
+      setObligationDashboardMessage(
+        nextObligations.length > 0
+          ? `${nextObligations.length} tenant-scoped obligation${nextObligations.length === 1 ? "" : "s"} available.`
+          : "No obligations matched.",
+      );setContractClauseStatus("saved");
       setContractClauseMessage(
         obligationCount === 0
           ? "No published obligation mappings are available for this clause."
-          : `${obligationCount} obligation mapping${obligationCount === 1 ? "" : "s"} available; ` +
-              `${taskCount} new task${taskCount === 1 ? "" : "s"} created.`
+          : taskCount > 0
+            ? `${obligationCount} obligation${obligationCount === 1 ? " is" : "s are"} available for this contract; ` +
+              `${taskCount} new task${taskCount === 1 ? " was" : "s were"} created. The Obligations work queue was refreshed.`
+            : `${obligationCount} obligation${obligationCount === 1 ? " is" : "s are"} available for this contract. ` +
+              `No duplicate task${obligationCount === 1 ? " was" : "s were"} created; the Obligations work queue was refreshed.`
       );
       return;
     }
@@ -1679,7 +1792,7 @@ export function App() {
       setContractDeliverables((currentDeliverables) => {
         const exists = currentDeliverables.some((deliverable) => deliverable.id === savedDeliverable.id);
         return exists
-          ? currentDeliverables.map((deliverable) => (deliverable.id === savedDeliverable.id ? savedDeliverable : deliverable))
+          ? currentDeliverables.map((deliverable) => deliverable.id === savedDeliverable.id ? savedDeliverable : deliverable)
           : [savedDeliverable, ...currentDeliverables];
       });
       setDeliverableStatus("saved");
@@ -1873,7 +1986,49 @@ export function App() {
     setContractDocumentMessage(result.error ?? "Candidate review could not be saved.");
   }
 
-  function saveClauseCandidateReview(
+  async function handleClauseCandidateEdit(
+    contractId: string,
+    documentId: string,
+    candidateId: string,
+    request: ClauseCandidateEditRequest,
+  ): Promise<boolean> {
+    setContractDocumentStatus("saving");
+    setContractDocumentMessage("");
+    const result = await editClauseCandidate(
+      contractId,
+      documentId,
+      candidateId,
+      request,
+    );
+
+    if (result.data) {
+      setExtractionResultsByDocumentId((currentResults) => {
+        const documentResults = currentResults[documentId];
+        if (!documentResults) {
+          return currentResults;
+        }
+
+        return {
+          ...currentResults,
+          [documentId]: {
+            ...documentResults,
+            candidates: documentResults.candidates.map((candidate) =>
+              candidate.id === result.data?.id ? result.data : candidate,
+            ),
+          },
+        };
+      });
+      setContractDocumentStatus("saved");
+      setContractDocumentMessage("Candidate edited.");
+      return true;
+    }
+
+    setContractDocumentStatus("failed");
+    setContractDocumentMessage(
+      result.error ?? "Candidate edit could not be saved.",
+    );
+    return false;
+  }function saveClauseCandidateReview(
     contractId: string,
     documentId: string,
     candidateId: string,
@@ -1997,20 +2152,20 @@ export function App() {
   }
 
   function handleClassificationChanged(item: ClassifiedContent) {
-    setClassificationRefresh(value => value + 1);
+    setClassificationRefresh((value )=> value + 1);
     setWorkflowClassification("");
     setSelectedEvidenceFile(null);
     setSelectedReport(null); setGeneratedReports([]); setReportDetailStatus("idle");
     setExtractionJobsByDocumentId({}); setExtractionResultsByDocumentId({});
     if (item.entityType === "EvidenceItem")
-      setEvidenceItems(current => current.map(e => e.id === item.id ? { ...e, classification: item.classification } : e));
+      setEvidenceItems((current )=> current.map((e )=> e.id === item.id ? { ...e, classification: item.classification } : e));
     if (item.entityType === "ContractDocument")
-      setContractDocuments(current => current.map(d => d.id === item.id ? { ...d, classification: item.classification } : d));
+      setContractDocuments((current )=> current.map((d )=> d.id === item.id ? { ...d, classification: item.classification } : d));
     if (item.entityType === "Report") {
-      setRecentReports(current => current.map(r => r.id === item.id ? { ...r, classification: item.classification } : r));
-      setApprovedEvidencePackages(current => current.map(r => r.reportId === item.id ? { ...r, classification: item.classification } : r));
+      setRecentReports((current )=> current.map((r )=> r.id === item.id ? { ...r, classification: item.classification } : r));
+      setApprovedEvidencePackages((current )=> current.map((r )=> r.reportId === item.id ? { ...r, classification: item.classification } : r));
     }
-    setClassificationReviewItems(current => current.flatMap(e => e.entityType !== item.entityType || e.entityId !== item.id ? [e] :
+    setClassificationReviewItems((current )=> current.flatMap((e )=> e.entityType !== item.entityType || e.entityId !== item.id ? [e] :
       ["Unknown", "Cui", "Prohibited"].includes(item.classification.classification) ? [{ ...e, classification: item.classification }] : []));
   }
 
@@ -2031,7 +2186,7 @@ export function App() {
       setCmmcAssessments((currentAssessments) => {
         const exists = currentAssessments.some((assessment) => assessment.id === savedAssessment.id);
         return exists
-          ? currentAssessments.map((assessment) => (assessment.id === savedAssessment.id ? savedAssessment : assessment))
+          ? currentAssessments.map((assessment) => assessment.id === savedAssessment.id ? savedAssessment : assessment)
           : [savedAssessment, ...currentAssessments];
       });
       setSelectedCmmcAssessmentId(savedAssessment.id);
@@ -2266,7 +2421,7 @@ export function App() {
     ruleSetId: string,
     reviewerNotes: string,
     leadershipReviewStatus: "Pending" | "Reviewed" | "NeedsChanges" | null,
-    conditionalDeductionSelections: Array<{ requirementId: string; optionCode: string }>
+    conditionalDeductionSelections: Array<{ requirementId: string; optionCode: string ;}>
   ) {
     if (!workflowClassification) { setReportMessage("Select a workflow classification before report generation."); return; }
     setReportStatus("loading");
@@ -2322,7 +2477,7 @@ export function App() {
   }
 
   function handleGeneratedReportResult(
-    report: ComplianceStatusReport | CmmcReadinessReport | SprsReadinessReport | SubcontractorComplianceReport | null,
+    report: |ComplianceStatusReport | CmmcReadinessReport | SprsReadinessReport | SubcontractorComplianceReport | null,
     error: string | null,
     successMessage: string
   ) {
@@ -2390,7 +2545,7 @@ export function App() {
     const updatedReport = result.data;
     setSelectedReport(updatedReport);
     setGeneratedReports((reports) =>
-      reports.map((report) => (report.id === updatedReport.id ? { ...report, ...updatedReport } : report))
+      reports.map((report) => report.id === updatedReport.id ? { ...report, ...updatedReport } : report)
     );
     setRecentReports((reports) =>
       reports.map((report) =>
@@ -2564,7 +2719,7 @@ export function App() {
       <main id="workspace-content" className="workspace-main" tabIndex={-1}>
         <PageHeader
           eyebrow={`${activeNavigationItem?.group ?? "Command"} / FeDril Compliance Workspace`}
-          title={activeRoute === "dashboard" ? "Dashboard" : activeNavigationItem?.label ?? "Dashboard"}
+          title={activeRoute === "dashboard" ? "Dashboard" : (activeNavigationItem?.label ?? "Dashboard")}
           description={
             activeRoute === "dashboard"
               ? "Operational view of tenant posture, obligations, evidence, and readiness risk."
@@ -2572,7 +2727,8 @@ export function App() {
           }
           actions={
             <div className="tenant-context" aria-label="Current tenant context">
-              <NotificationCenter notifications={notifications} onMarkRead={handleNotificationRead} />
+              <NotificationCenter notifications={notifications} onMarkRead={handleNotificationRead}
+                onOpen={handleNotificationCenterOpen} />
               <span>{activeTenantName}</span>
               <strong>{overview.mvpDataPosture}</strong>
             </div>
@@ -2582,47 +2738,47 @@ export function App() {
         </PageHeader>
         <PostureNotice currentTenant={currentTenant} />
         {currentTenant && activeRoute === "settings" &&
-          <DataHandlingNoticePanel key={`${currentTenant.id}:${currentTenant.dataHandlingMode}:${access.userId}:Onboarding`}
-            tenantId={currentTenant.id} mode={currentTenant.dataHandlingMode} workflowContext="Onboarding" />}
-        {currentTenant && activeRoute === "evidence" && <div className="workflow-notice-grid" aria-label="Evidence and note data handling notices">
+          (<DataHandlingNoticePanel key={`${currentTenant.id}:${currentTenant.dataHandlingMode}:${access.userId}:Onboarding`}
+            tenantId={currentTenant.id} mode={currentTenant.dataHandlingMode} workflowContext="Onboarding" />)}
+        {currentTenant && activeRoute === "evidence" && (<div className="workflow-notice-grid" aria-label="Evidence and note data handling notices">
           <DataHandlingNoticePanel key={`${currentTenant.id}:${currentTenant.dataHandlingMode}:${access.userId}:EvidenceUpload`}
             tenantId={currentTenant.id} mode={currentTenant.dataHandlingMode} workflowContext="EvidenceUpload" />
           <DataHandlingNoticePanel key={`${currentTenant.id}:${currentTenant.dataHandlingMode}:${access.userId}:ClassifiedNote`}
             tenantId={currentTenant.id} mode={currentTenant.dataHandlingMode} workflowContext="ClassifiedNote" />
           <DataHandlingNoticePanel key={`${currentTenant.id}:${currentTenant.dataHandlingMode}:${access.userId}:Support`}
             tenantId={currentTenant.id} mode={currentTenant.dataHandlingMode} workflowContext="Support" />
-        </div>}
-        {currentTenant && activeRoute === "contracts" && <div className="workflow-notice-grid" aria-label="Contract and extraction data handling notices">
+        </div>)}
+        {currentTenant && activeRoute === "contracts" && (<div className="workflow-notice-grid" aria-label="Contract and extraction data handling notices">
           <DataHandlingNoticePanel key={`${currentTenant.id}:${currentTenant.dataHandlingMode}:${access.userId}:ContractUpload`}
             tenantId={currentTenant.id} mode={currentTenant.dataHandlingMode} workflowContext="ContractUpload" />
           <DataHandlingNoticePanel key={`${currentTenant.id}:${currentTenant.dataHandlingMode}:${access.userId}:ExtractionJob`}
             tenantId={currentTenant.id} mode={currentTenant.dataHandlingMode} workflowContext="ExtractionJob" />
           <DataHandlingNoticePanel key={`${currentTenant.id}:${currentTenant.dataHandlingMode}:${access.userId}:Support`}
             tenantId={currentTenant.id} mode={currentTenant.dataHandlingMode} workflowContext="Support" />
-        </div>}
-        {currentTenant && activeRoute === "reports" && <div className="workflow-notice-grid" aria-label="Report and support data handling notices">
+        </div>)}
+        {currentTenant && activeRoute === "reports" && (<div className="workflow-notice-grid" aria-label="Report and support data handling notices">
           <DataHandlingNoticePanel key={`${currentTenant.id}:${currentTenant.dataHandlingMode}:${access.userId}:ReportGeneration`}
             tenantId={currentTenant.id} mode={currentTenant.dataHandlingMode} workflowContext="ReportGeneration" />
           <DataHandlingNoticePanel key={`${currentTenant.id}:${currentTenant.dataHandlingMode}:${access.userId}:Support`}
             tenantId={currentTenant.id} mode={currentTenant.dataHandlingMode} workflowContext="Support" />
-        </div>}
+        </div>)}
 
         <WorkspaceState state={loadState} onRetry={() => window.location.reload()}>
-          {(activeRoute === "reports" || activeRoute === "contracts") && <label className="workflow-classification">
+          {(activeRoute === "reports" || activeRoute === "contracts") && (<label className="workflow-classification">
             Workflow classification
-            <select aria-label="Workflow classification" value={workflowClassification} onChange={event => setWorkflowClassification(event.target.value)}>
+            <select aria-label="Workflow classification" value={workflowClassification} onChange={(event )=> setWorkflowClassification(event.target.value)}>
               <option value="">Select / confirm classification</option>
               <option value="Unclassified">Unclassified</option><option value="Fci">FCI</option><option value="Cui">CUI (approved workflows only)</option>
             </select>
-            {workflowClassification && <ClassificationBadge classification={workflowClassification} />}
+            {workflowClassification && (<ClassificationBadge classification={workflowClassification} />)}
             <small>Required for reports and extraction. Extraction must match the source document. No-CUI restrictions still apply.</small>
-          </label>}
+          </label>)}
           {currentTenant && (activeRoute === "evidence" || activeRoute === "contracts" || activeRoute === "reports") &&
-            <>
+            (<>
               <ClassificationReviewPanel key={`${currentTenant.id}:${access.userId}:${access.permissions.join(",")}:${activeRoute}`}
                 group={activeRoute} tenantId={currentTenant.id} permissions={access.permissions} onChanged={handleClassificationChanged} />
               <CuiEscalationQueue tenantId={currentTenant.id} permissions={access.permissions} />
-            </>}
+            </>)}
           {activeRoute === "dashboard" ? (
             <DashboardView overview={overview} />
           ) : activeRoute === "profile" ? (
@@ -2641,6 +2797,7 @@ export function App() {
               key={`${access.tenantId}:${access.userId}:${selectedContractId}`}
               workflowClassification={workflowClassification}
               canManageContracts={canManageContracts}
+              canViewApplicabilityFacts={access.permissions.includes("ViewObligations")}
               canManageEvidence={canManageEvidence}
               canViewSensitiveEmployeeData={canViewSensitiveEmployeeData}
               canViewReports={access.permissions.includes("ViewReports")}
@@ -2649,9 +2806,10 @@ export function App() {
               companyUei={companyProfile?.uei ?? null}
               canReviewClauses={canReviewClauses}
               clauseResults={clauseResults}
-              contracts={contracts}
+              onEditCandidate={handleClauseCandidateEdit}contracts={contracts}
               contractClauses={contractClauses}
               evidenceItems={evidenceItems}
+              contractClauseActionId={contractClauseActionId}
               contractClauseMessage={contractClauseMessage}
               contractClauseStatus={contractClauseStatus}
               contractDeliverables={contractDeliverables}
@@ -2729,7 +2887,7 @@ export function App() {
               onAcknowledge={handleNoCuiAcknowledgement}
               onFileSelected={setSelectedEvidenceFile}
               onMetadataSave={handleEvidenceMetadataSave}
-              onSelectEvidence={id => { setSelectedEvidenceFile(null); setSelectedEvidenceItemId(id); }}
+              onSelectEvidence={(id )=> { setSelectedEvidenceFile(null); setSelectedEvidenceItemId(id); }}
               onUploadIntentSubmit={handleEvidenceUploadIntentSubmit}
             />
           ) : activeRoute === "calendar" ? (
@@ -2782,7 +2940,7 @@ export function App() {
               onCreateEvidenceRequest={handleSubcontractorEvidenceRequestCreate}
               onSaveFlowDown={handleSubcontractorFlowDownSave}
               onSubcontractorApplied={(updated) =>
-                setSubcontractors((current) => current.map((subcontractor) => (subcontractor.id === updated.id ? updated : subcontractor)))
+                setSubcontractors((current) => current.map((subcontractor) => subcontractor.id === updated.id ? updated : subcontractor))
               }
               status={subcontractorStatus}
               selectedSubcontractorId={selectedSubcontractorId}
@@ -2852,6 +3010,11 @@ export function App() {
               invitationActionStatus={invitationActionStatus}
               invitations={invitations}
               members={members}
+              activeAdminCount={activeAdminCount}
+              deactivationReason={deactivationReason}
+              deactivationTarget={deactivationTarget}
+              membershipActionMessage={membershipActionMessage}
+              membershipActionStatus={membershipActionStatus}
               revokingInvitationId={revokingInvitationId}
               notificationPreference={notificationPreference}
               notificationPreferenceMessage={notificationPreferenceMessage}
@@ -2878,6 +3041,10 @@ export function App() {
               onInviteRoleChange={setInviteRole}
               onInvitationSubmit={handleInvitationSubmit}
               onInvitationRevoke={handleInvitationRevoke}
+              onDeactivationReasonChange={setDeactivationReason}
+              onMemberDeactivation={handleMemberDeactivation}
+              onMemberDeactivationClose={closeMemberDeactivation}
+              onMemberDeactivationOpen={openMemberDeactivation}
               onNotificationPreferenceSave={handleNotificationPreferenceSave}
               onTenantModeUpdate={handleTenantModeUpdate}
             />
@@ -2885,17 +3052,17 @@ export function App() {
             <DashboardView overview={overview} />
           )}
           {assistantContextsForRoute(activeRoute).length > 0 &&
-            <GuardedAssistantPanel
+            (<GuardedAssistantPanel
               key={`${access.tenantId}:${access.userId}:${activeRoute}`}
               contexts={assistantContextsForRoute(activeRoute)}
               permissions={access.permissions}
-            />}
+            />)}
           {activeRoute === "obligations" && access.permissions.includes("ViewObligations") &&
-            <ExpertReviewQueuePanel canResolve={access.permissions.includes("ManageObligations")} />}
+            (<ExpertReviewQueuePanel canResolve={access.permissions.includes("ManageObligations")} />)}
           {activeRoute === "obligations" && access.permissions.includes("ViewObligations") &&
-            <AiOutputGovernancePanel permissions={access.permissions} />}
+            (<AiOutputGovernancePanel permissions={access.permissions} />)}
           {activeRoute === "evidence" && access.permissions.includes("ViewEvidence") &&
-            <ClassifiedNotesPanel key={`${currentTenant?.id}:${access.userId}:${classificationRefresh}`} canManage={canManageEvidence} />}
+            (<ClassifiedNotesPanel key={`${currentTenant?.id}:${access.userId}:${classificationRefresh}`} canManage={canManageEvidence} />)}
         </WorkspaceState>
       </main>
     </div>
@@ -2905,15 +3072,21 @@ export function App() {
 function NotificationCenter({
   notifications,
   onMarkRead
-}: {
+,
+  onOpen}: {
   notifications: NotificationCenterItem[];
   onMarkRead: (notificationId: string) => Promise<void>;
+  onOpen: () => Promise<void>;
 }) {
   const unreadCount = notifications.filter((notification) => !notification.readAt).length;
   const visibleNotifications = notifications.slice(0, 6);
 
   return (
-    <details className="notification-center">
+    <details className="notification-center"onToggle={(event) => {
+        if (event.currentTarget.open) {
+          void onOpen();
+        }
+      }}>
       <summary aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ""}`}>
         <Bell size={17} aria-hidden="true" />
         {unreadCount > 0 ? <span>{unreadCount}</span> : null}
@@ -2933,7 +3106,8 @@ function NotificationCenter({
               <div>
                 <strong>{notification.placeholder}</strong>
                 <small>
-                  {notification.sourceType} · {formatUsDateTime(notification.attemptedAt)}
+                  {notification.sourceType} · {" "}
+                  {formatUsDateTime(notification.attemptedAt)}
                 </small>
               </div>
               <div className="notification-center__actions">
@@ -2956,7 +3130,7 @@ function NotificationCenter({
   );
 }
 
-function WorkspaceState({ children, onRetry, state }: { children: ReactNode; onRetry: () => void; state: LoadState }) {
+function WorkspaceState({ children, onRetry, state }: { children: ReactNode; onRetry: () => void; state: LoadState ;}) {
   if (state === "loading") {
     return (
       <section className="route-state" aria-live="polite">
@@ -3009,19 +3183,7 @@ function CalendarView({
       overdue: events.filter((event) => event.isOverdue).length,
       highRisk: events.filter((event) => event.riskLevel === "High").length,
       months: new Set(events.map((event) => event.date.slice(0, 7))).size
-    }),
-    [events]
-  );
-  const ownerOptions = useMemo(() => {
-    const values = new Set(["Contracts", "IT/security", "ComplianceManager", "Security", "reports", "Subcontractors"]);
-    events.forEach((event) => {
-      if (event.ownerFunction.trim()) {
-        values.add(event.ownerFunction);
-      }
-    });
-
-    return Array.from(values).sort((a, b) => a.localeCompare(b));
-  }, [events]);
+    }), [events]);
   const scrollToCalendarSection = (target: RefObject<HTMLElement | null>) => {
     target.current?.scrollIntoView?.({ behavior: isDemoCaptureMode() ? "auto" : "smooth", block: "start" });
     target.current?.focus?.();
@@ -3082,20 +3244,18 @@ function CalendarView({
         </label>
         <label>
           Owner
-          <input
+          <select
             aria-label="Owner"
-            list="calendar-owner-options"
             value={filters.owner}
             onChange={(event) => onFilterChange({ ...filters, owner: event.target.value })}
-            placeholder="Any owner"
-          />
-          <datalist id="calendar-owner-options">
-            {ownerOptions.map((ownerOption) => (
-              <option key={ownerOption} value={ownerOption}>
-                {formatOwnerLabel(ownerOption)}
+            >
+          <option value="">Any owner</option>
+            {ownerOptionsWith(filters.owner).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
               </option>
             ))}
-          </datalist>
+          </select>
         </label>
         <label ref={statusFilterRef} id="calendar-status-filter" tabIndex={-1}>
           Status
@@ -3527,7 +3687,7 @@ function DashboardView({ overview }: { overview: ComplianceOverview }) {
         </div>
       </section>
 
-      {!demoCaptureMode ? <section className="work-grid" aria-label="Compliance operations">
+      {!demoCaptureMode ? (<section className="work-grid" aria-label="Compliance operations">
         <div>
           <div className="section-heading">
             <p className="eyebrow">MVP modules</p>
@@ -3537,7 +3697,7 @@ function DashboardView({ overview }: { overview: ComplianceOverview }) {
             {hasModules ? (
               overview.modules.map((module, index) => {
                 const Icon = moduleIcons[index % moduleIcons.length];
-                return <ModuleCard key={module.key} module={module} icon={Icon} />;
+                return (<ModuleCard key={module.key} module={module} icon={Icon} />);
               })
             ) : (
               <EmptyState
@@ -3578,7 +3738,7 @@ function DashboardView({ overview }: { overview: ComplianceOverview }) {
             )}
           </div>
         </aside>
-      </section> : null}
+      </section> ): null}
     </>
   );
 }
@@ -3883,21 +4043,19 @@ function ObligationsView({
         </label>
         <label>
           Owner
-          <input
+          <select
             aria-label="Owner"
-            list="obligation-owner-options"
             value={owner}
             onChange={(event) => setOwner(event.target.value)}
-            placeholder="All owners"
             disabled={status === "loading"}
-          />
-          <datalist id="obligation-owner-options">
+          >
+          <option value="">All owners</option>
             {ownerFunctionOptions.map(([value, label]) => (
               <option key={value} value={value}>
                 {label}
               </option>
             ))}
-          </datalist>
+          </select>
         </label>
         <label>
           Status
@@ -4197,7 +4355,8 @@ function ObligationDetailPanel({
             <ul>
               {detail.linkedTasks.map((task) => (
                 <li key={task.id}>
-                  {task.title} - {formatEnumLabel(task.statusCode)} {task.dueAt ? `due ${task.dueAt}` : ""}
+                  {task.title} - {formatEnumLabel(task.statusCode)} {" "}
+                  {task.dueAt ? `due ${task.dueAt}` : ""}
                 </li>
               ))}
             </ul>
@@ -4504,6 +4663,7 @@ function mergeClauseSearchResults(
 function ContractsView({
   workflowClassification,
   canManageContracts,
+  canViewApplicabilityFacts,
   canManageEvidence,
   canViewSensitiveEmployeeData,
   canViewReports,
@@ -4512,8 +4672,9 @@ function ContractsView({
   companyUei,
   canReviewClauses,
   clauseResults,
-  contracts,
+  onEditCandidate,contracts,
   contractClauses,
+  contractClauseActionId,
   evidenceItems,
   contractClauseMessage,
   contractClauseStatus,
@@ -4547,6 +4708,7 @@ function ContractsView({
   onSelectContract
 }: {
   canManageContracts: boolean;
+  canViewApplicabilityFacts: boolean;
   canManageEvidence: boolean;
   canViewSensitiveEmployeeData: boolean;
   canViewReports: boolean;
@@ -4555,8 +4717,14 @@ function ContractsView({
   companyUei: string | null;
   canReviewClauses: boolean;
   clauseResults: ClauseLibraryItem[];
-  contracts: ContractRecord[];
+  onEditCandidate: (
+    contractId: string,
+    documentId: string,
+    candidateId: string,
+    request: ClauseCandidateEditRequest,
+  ) => Promise<boolean>;contracts: ContractRecord[];
   contractClauses: ContractClause[];
+  contractClauseActionId: string | null;
   evidenceItems: EvidenceMetadata[];
   contractClauseMessage: string;
   contractClauseStatus: "idle" | "saving" | "saved" | "failed";
@@ -4612,6 +4780,14 @@ function ContractsView({
   const [documentClassification, setDocumentClassification] = useState("");
   const [documentNoCuiAttestation, setDocumentNoCuiAttestation] = useState(false);
   const [documentInputKey, setDocumentInputKey] = useState(0);
+  const [editingCandidateId, setEditingCandidateId] = useState<string | null>(
+    null,
+  );
+  const [candidateEditDraft, setCandidateEditDraft] =
+    useState<ClauseCandidateEditRequest>({
+      normalizedCitation: "",
+      clauseLibraryId: null,
+    });
   const [clauseDraft, setClauseDraft] = useState<AttachContractClauseRequest>({
     clauseLibraryId: "",
     attachmentReason: "",
@@ -4631,7 +4807,13 @@ function ContractsView({
   const deliverableDisabled = !canManageContracts || !selectedContract || deliverableStatus === "saving";
   const overdueDeliverableCount = contractDeliverables.filter((deliverable) => deliverable.isOverdue).length;
 
-  async function attachClause() {
+  function beginCandidateEdit(candidate: ClauseCandidate) {
+    setEditingCandidateId(candidate.id);
+    setCandidateEditDraft({
+      normalizedCitation: candidate.normalizedCitation,
+      clauseLibraryId: candidate.clauseLibraryId,
+    });
+  }async function attachClause() {
     if (!selectedContract) {
       return;
     }
@@ -4768,7 +4950,7 @@ function ContractsView({
           <section className="contract-detail" aria-label="Contract detail">
             <ScanMeta
               items={[
-                { label: "Status", value: <StatusPill label={formatEnumLabel(selectedContract.status)} tone={statusTone(selectedContract.status)} /> },
+                { label: "Status", value: (<StatusPill label={formatEnumLabel(selectedContract.status)} tone={statusTone(selectedContract.status)} /> )},
                 {
                   label: "Period",
                   value: `${selectedContract.periodOfPerformanceStart} to ${selectedContract.periodOfPerformanceEnd}`
@@ -4785,21 +4967,28 @@ function ContractsView({
           </section>
         ) : null}
 
-        {selectedContract ? <LaborApplicabilityPanel contractId={selectedContract.id} clauses={contractClauses} evidence={evidenceItems} canManage={canManageContracts}
-          canUpload={canManageEvidence && noCuiAcknowledgement.isAcknowledged} /> : null}
-        {selectedContract ? <LaborClassificationPanel contractId={selectedContract.id} canManage={canManageContracts}
-          canViewSensitive={canViewSensitiveEmployeeData} /> : null}
-        {selectedContract ? <EsrsApplicabilityPanel contractId={selectedContract.id} canManage={canManageContracts} /> : null}
-        {selectedContract && canViewReports ?
-          <EsrsReportDataPanel contractId={selectedContract.id} contractNumber={selectedContract.contractNumber}
-            companyUei={companyUei} canManage={canManageReports} /> : null}
-        {selectedContract && canViewReports ?
-          <SprReportPackagesPanel contractId={selectedContract.id} canManage={canManageReports} canExport={canExportReports} /> : null}
+        {selectedContract ? (
+          <ApplicabilityFactsPanel
+            contractId={selectedContract.id}
+            canView={canViewApplicabilityFacts}
+          />
+        ) : null}
 
-        <section className="contract-clauses" aria-label="Attached contract clauses">
+        {selectedContract ? (<LaborApplicabilityPanel contractId={selectedContract.id} clauses={contractClauses} evidence={evidenceItems} canManage={canManageContracts}
+          canUpload={canManageEvidence && noCuiAcknowledgement.isAcknowledged} /> ): null}
+        {selectedContract ? (<LaborClassificationPanel contractId={selectedContract.id} canManage={canManageContracts}
+          canViewSensitive={canViewSensitiveEmployeeData} /> ): null}
+        {selectedContract ? (<EsrsApplicabilityPanel contractId={selectedContract.id} canManage={canManageContracts} /> ): null}
+        {selectedContract && canViewReports ?
+          (<EsrsReportDataPanel contractId={selectedContract.id} contractNumber={selectedContract.contractNumber}
+            companyUei={companyUei} canManage={canManageReports} /> ): null}
+        {selectedContract && canViewReports ?
+          (<SprReportPackagesPanel contractId={selectedContract.id} canManage={canManageReports} canExport={canExportReports} /> ): null}
+
+        <section className="contract-clauses" aria-labelledby="attached-clauses-heading">
           <div className="contract-documents__header">
             <div>
-              <span>Attached clauses</span>
+              <h3 id="attached-clauses-heading">Attached clauses</h3>
               <strong>{contractClauses.length}</strong>
             </div>
           </div>
@@ -4851,11 +5040,11 @@ function ContractsView({
               Attach clause
             </button>
           </form>
-          {contractClauseStatus === "failed" ? (
+          {contractClauseActionId === null &&contractClauseStatus === "failed" ? (
             <Alert title="Clause action failed" tone="danger">
               {contractClauseMessage || "The clause register was not updated."}
             </Alert>
-          ) : contractClauseMessage ? (
+          ) : contractClauseActionId === null &&contractClauseMessage ? (
             <p className="form-status form-status--ok">{contractClauseMessage}</p>
           ) : null}
           <div className="contract-clause-list">
@@ -4899,7 +5088,10 @@ function ContractsView({
                       onClick={() => selectedContract && void onGenerateClauseObligations(selectedContract.id, clause.id)}
                       disabled={clauseDisabled}
                     >
-                      Generate obligations
+                      {contractClauseStatus === "saving" &&
+                      contractClauseActionId === clause.id
+                        ? "Generating obligations..."
+                        : "Generate obligations"}
                     </button>
                     <form
                       className="contract-clause-remove"
@@ -4924,7 +5116,18 @@ function ContractsView({
                         Remove
                       </button>
                     </form>
-                  </div>
+                  {contractClauseActionId === clause.id &&
+                    contractClauseMessage ? (
+                      <p
+                        className={`form-status ${contractClauseStatus === "failed" ? "form-status--error" : "form-status--ok"}`}
+                        role={
+                          contractClauseStatus === "failed" ? "alert" : "status"
+                        }
+                        aria-live="polite"
+                      >
+                        {contractClauseMessage}
+                      </p>
+                    ) : null}</div>
                 </article>
               ))
             ) : (
@@ -4933,10 +5136,10 @@ function ContractsView({
           </div>
         </section>
 
-        <section className="contract-deliverables" aria-label="Contract deliverables">
+        <section className="contract-deliverables" aria-labelledby="contract-deliverables-heading">
           <div className="contract-documents__header">
             <div>
-              <span>Deliverables</span>
+              <h3 id="contract-deliverables-heading">Deliverables</h3>
               <strong>{contractDeliverables.length}</strong>
             </div>
           </div>
@@ -5026,7 +5229,7 @@ function ContractsView({
                     <strong>{deliverable.name}</strong>
                     <div className="scan-pill-row">
                       <StatusPill label={formatEnumLabel(deliverable.status)} tone={statusTone(deliverable.status)} />
-                      {deliverable.isOverdue ? <StatusPill label="Overdue" tone="danger" /> : null}
+                      {deliverable.isOverdue ? (<StatusPill label="Overdue" tone="danger" /> ): null}
                     </div>
                     <ScanMeta
                       items={[
@@ -5035,10 +5238,11 @@ function ContractsView({
                       ]}
                     />
                     <span className="legacy-summary">
-                      {formatOwnerLabel(deliverable.ownerFunction)} · {deliverable.dueAt ?? "No due date"}
+                      {formatOwnerLabel(deliverable.ownerFunction)} · {" "}
+                      {deliverable.dueAt ?? "No due date"}
                       {deliverable.isOverdue ? " · Overdue" : ""}
                     </span>
-                    {deliverable.description ? <p>{deliverable.description}</p> : null}
+                    {deliverable.description ? (<p>{deliverable.description}</p> ): null}
                   </div>
                   <select
                     aria-label={`Status for ${deliverable.name}`}
@@ -5061,10 +5265,10 @@ function ContractsView({
           </div>
         </section>
 
-        <section className="contract-documents" aria-label="Contract documents">
+        <section className="contract-documents" aria-labelledby="contract-documents-heading">
           <div className="contract-documents__header">
             <div>
-              <span>Documents</span>
+              <h3 id="contract-documents-heading">Documents</h3>
               <strong>{contractDocuments.length}</strong>
             </div>
             <label className="contract-documents__field">
@@ -5171,18 +5375,19 @@ function ContractsView({
             {contractDocuments.length > 0 ? (
               contractDocuments.map((document) => (
                 <article className="contract-document-item" key={document.id}>
-                  <div>
+                  <div className="contract-document-item__summary">
                     <strong>{document.fileName}</strong>
-                    <span>{document.type} · {document.validationStatus} · {document.malwareScanStatus}</span>
+                    <span>{document.type} · {document.validationStatus} · {" "}{document.malwareScanStatus}</span>
                     <ClassificationBadge classification={document.classification.classification} />
                     {extractionJobsByDocumentId[document.id] ? (
-                      <small>Extraction {extractionJobsByDocumentId[document.id].status}{" "}
+                      <small>Extraction {" "}{extractionJobsByDocumentId[document.id].status}{" "}
                         <ClassificationBadge classification={extractionJobsByDocumentId[document.id].classification?.classification ?? "Unknown"} /></small>
                     ) : null}
                     {extractionResultsByDocumentId[document.id] ? (
                       <small>
-                        Results {extractionResultsByDocumentId[document.id].latestJobStatus ?? "none"} ·{" "}
-                        {extractionResultsByDocumentId[document.id].candidateCount} candidates
+                        Results {" "}
+                        {extractionResultsByDocumentId[document.id].latestJobStatus ?? "none"}{" "} ·{" "}
+                        {extractionResultsByDocumentId[document.id].candidateCount}{" "} candidates
                         {" "}<ClassificationBadge classification={extractionResultsByDocumentId[document.id].latestJobClassification?.classification ?? "Unknown"} />
                         {extractionResultsByDocumentId[document.id].failureReason
                           ? ` · ${extractionResultsByDocumentId[document.id].failureReason}`
@@ -5202,29 +5407,46 @@ function ContractsView({
                       Boolean(document.storageUri) &&
                       !document.storageUri?.startsWith("pending://");
 
-                    return (
-                      <>
+                    const extractionDisabledReason = !canManageContracts
+                      ? "Manage Contracts permission is required to start extraction."
+                      : contractDocumentStatus === "saving"
+                        ? "The document workflow is still saving."
+                        : isRunning
+                          ? "Extraction is already in progress."
+                          : !isStoredText
+                            ? "Extraction requires a stored, malware-scanned .txt document."
+                            : !workflowClassification
+                              ? "Select and confirm the workflow classification above before starting extraction."
+                              : workflowClassification !==
+                                  document.classification.classification
+                                ? `Workflow classification must match this document's ${document.classification.classification} classification.`
+                                : null;return (
+                      <div className="contract-extraction-actions">
                         <button
                           type="button"
                           onClick={() => selectedContract && void onStartExtraction(selectedContract.id, document.id)}
-                          disabled={!canManageContracts || contractDocumentStatus === "saving" || isRunning || !isStoredText ||
-                            workflowClassification !== document.classification.classification || !workflowClassification}
+                          disabled={Boolean(extractionDisabledReason)}
                           title={
-                            isStoredText
-                              ? "Queue tenant-scoped clause extraction."
-                              : "Extraction requires a stored, malware-scanned plain-text document."
+                            extractionDisabledReason ??
+                            "Queue tenant-scoped clause extraction."
+                          }
+                          aria-describedby={
+                            extractionDisabledReason
+                              ? `contract-extraction-status-${document.id}`
+                              : undefined
                           }
                         >
                           {isRunning ? "Extraction in progress" : isStoredText ? "Start extraction" : "Extraction unavailable"}
                         </button>
-                        {!isStoredText ? (
-                          <small>Extraction requires a stored, malware-scanned .txt document.</small>
+                        {extractionDisabledReason ? (
+                          <small id={`contract-extraction-status-${document.id}`}
+                            className="contract-extraction-disabled-reason">{extractionDisabledReason}</small>
                         ) : null}
-                      </>
+                      </div>
                     );
                   })()}
                   <button
-                    type="button"
+                    className="contract-document-item__delete" type="button"
                     onClick={() => selectedContract && void onDeleteDocument(selectedContract.id, document.id)}
                     disabled={!canManageContracts || contractDocumentStatus === "saving"}
                   >
@@ -5234,14 +5456,116 @@ function ContractsView({
                     <div className="contract-extraction-results">
                       {extractionResultsByDocumentId[document.id].candidates.map((candidate) => (
                         <div className="contract-extraction-result" key={candidate.id}>
-                          <div>
+                          {editingCandidateId === candidate.id ? (
+                            <form
+                              className="contract-candidate-editor"
+                              onSubmit={(event) => {
+                                event.preventDefault();
+                                if (!selectedContract) return;
+                                void onEditCandidate(
+                                  selectedContract.id,
+                                  document.id,
+                                  candidate.id,
+                                  {
+                                    normalizedCitation:
+                                      candidateEditDraft.normalizedCitation.trim(),
+                                    clauseLibraryId:
+                                      candidateEditDraft.clauseLibraryId ||
+                                      null,
+                                  },
+                                ).then((saved) => {
+                                  if (saved) setEditingCandidateId(null);
+                                });
+                              }}
+                            >
+                              <label>
+                                Normalized citation
+                                <input
+                                  aria-label={`Normalized citation for ${candidate.normalizedCitation}`}
+                                  value={candidateEditDraft.normalizedCitation}
+                                  onChange={(event) =>
+                                    setCandidateEditDraft((current) => ({
+                                      ...current,
+                                      normalizedCitation: event.target.value,
+                                    }))
+                                  }
+                                  maxLength={120}
+                                  required
+                                />
+                              </label>
+                              <label>
+                                Clause library match
+                                <select
+                                  aria-label={`Clause library match for ${candidate.normalizedCitation}`}
+                                  value={
+                                    candidateEditDraft.clauseLibraryId ?? ""
+                                  }
+                                  onChange={(event) =>
+                                    setCandidateEditDraft((current) => ({
+                                      ...current,
+                                      clauseLibraryId:
+                                        event.target.value || null,
+                                    }))
+                                  }
+                                >
+                                  <option value="">No library match</option>
+                                  {candidate.clauseLibraryId &&
+                                  !clauseResults.some(
+                                    (clause) =>
+                                      clause.id === candidate.clauseLibraryId,
+                                  ) ? (
+                                    <option value={candidate.clauseLibraryId}>
+                                      {candidate.clauseLibraryId} (current)
+                                    </option>
+                                  ) : null}
+                                  {clauseResults.map((clause) => (
+                                    <option key={clause.id} value={clause.id}>
+                                      {clause.number} - {clause.title}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                              <div className="contract-candidate-editor__actions">
+                                <button
+                                  type="submit"
+                                  disabled={
+                                    !canReviewClauses ||
+                                    contractDocumentStatus === "saving"
+                                  }
+                                >
+                                  Save candidate
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingCandidateId(null)}
+                                  disabled={contractDocumentStatus === "saving"}
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </form>
+                          ) : (<div>
                             <strong>{candidate.normalizedCitation}</strong>
                             <span>
-                              {(candidate.confidence * 100).toFixed(0)}% · {candidate.matchMethod} · {candidate.reviewStatus} ·{" "}
+                              {(candidate.confidence * 100).toFixed(0)}% · {" "}
+                                {candidate.matchMethod} · {" "}{candidate.reviewStatus} ·{" "}
                               {candidate.locationMetadata}
                             </span>
                             <small>{candidate.rawExtractedText}</small>
                           </div>
+                          )}
+                          {editingCandidateId !== candidate.id ? (
+                            <div className="contract-extraction-result__actions">
+                              <button
+                                type="button"
+                                onClick={() => beginCandidateEdit(candidate)}
+                                disabled={
+                                  !canReviewClauses ||
+                                  contractDocumentStatus === "saving"
+                                }
+                              >
+                                Edit
+                              </button>
                           <button
                             type="button"
                             onClick={() =>
@@ -5295,6 +5619,7 @@ function ContractsView({
                             Supersede
                           </button>
                         </div>
+                          ) : null}</div>
                       ))}
                     </div>
                   ) : null}
@@ -5351,6 +5676,11 @@ function ContractEditor({
         void save();
       }}
     >
+      {selectedContract ? (
+        <p className="contract-form__identifier">
+          <span>Contract ID:</span> <code>{selectedContract.id}</code>
+        </p>
+      ) : null}
       <fieldset disabled={!canManageContracts || contractStatus === "saving"}>
         <div className="form-grid">
           <label>
@@ -5431,7 +5761,7 @@ function ContractEditor({
               }}
               required
             />
-            {periodEndError ? <span className="field-error">Period of performance end must be on or after the start date.</span> : null}
+            {periodEndError ? (<span className="field-error">Period of performance end must be on or after the start date.</span> ): null}
           </label>
           <label>
             <span>FCI/CUI posture</span>
@@ -5443,7 +5773,7 @@ function ContractEditor({
               <option value="ExportControlled" disabled={!isCuiReady}>Export-controlled</option>
             </select>
           </label>
-          {realCuiModeMessage ? <p className="form-status form-status--error span-2">{realCuiModeMessage}</p> : null}
+          {realCuiModeMessage ? (<p className="form-status form-status--error span-2">{realCuiModeMessage}</p> ): null}
           <label className="span-2">
             <span>Place of performance</span>
             <input value={form.placeOfPerformance} onChange={(event) => updateField("placeOfPerformance", event.target.value)} required />
@@ -5486,7 +5816,7 @@ function ProfileView({
   const [lookupStatus, setLookupStatus] = useState<"idle" | "searching" | "applying" | "failed" | "applied">("idle");
   const [lookupMessage, setLookupMessage] = useState("");
   const visibleValidationErrors =
-    Object.keys(profileValidationErrors).length > 0 ? profileValidationErrors : profile?.validationErrors ?? {};
+    Object.keys(profileValidationErrors).length > 0 ? profileValidationErrors : (profile?.validationErrors ?? {});
 
   function validationId(field: string) {
     return `profile-validation-${field.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`;
@@ -5664,6 +5994,7 @@ function ProfileView({
       ) : null}
 
       <section className="profile-form" aria-label="SAM.gov entity lookup">
+        <h3 className="profile-form__heading">SAM.gov entity lookup</h3>
         <div className="form-grid">
           <label>
             <span>SAM UEI</span>
@@ -5690,17 +6021,19 @@ function ProfileView({
             {lookupResults.map((result) => (
               <div key={`${result.uei}-${result.retrievedAt}`}>
                 <p>
-                  <strong>{result.legalBusinessName}</strong> {result.uei} {result.cageCode ? `CAGE ${result.cageCode}` : ""}
+                  <strong>{result.legalBusinessName}</strong> {result.uei} {" "}
+                  {result.cageCode ? `CAGE ${result.cageCode}` : ""}
                 </p>
                 <p>
-                  {result.source} retrieved {formatUsDateTime(result.retrievedAt)} · {result.registrationStatus ?? "Status unknown"} · SAM expires{" "}
+                  {result.source} retrieved {" "}
+                  {formatUsDateTime(result.retrievedAt)} · {" "}{result.registrationStatus ?? "Status unknown"} · SAM expires{" "}
                   {result.samRegistrationExpiresAt ?? "unknown"}
                 </p>
                 <p>
                   {result.address
                     ? `${result.address.street1}, ${result.address.city}, ${result.address.stateOrProvince} ${result.address.postalCode}`
                     : "No address returned"}{" "}
-                  · NAICS {result.naicsCodes.map((naics) => naics.code).join(", ") || "unknown"}
+                  · NAICS {" "}{result.naicsCodes.map((naics) => naics.code).join(", ") || "unknown"}
                 </p>
                 <div className="form-actions">
                   <button type="button" onClick={() => applySamGovResult(result, false)} disabled={!canManageCompanyProfile || lookupStatus === "applying"}>
@@ -5770,9 +6103,9 @@ function ProfileView({
               </select>
               {fieldValidation("contractorRole")}
             </label>
-            <div className="naics-editor span-2">
+            <div className="naics-editor span-2"aria-labelledby="naics-codes-heading">
               <div className="naics-editor__header">
-                <span>NAICS codes</span>
+                <h3 id="naics-codes-heading">NAICS codes</h3>
                 <button type="button" onClick={() => addNaicsRow()} disabled={!canManageCompanyProfile || profileStatus === "saving"}>
                   Add NAICS
                 </button>
@@ -5832,9 +6165,9 @@ function ProfileView({
               <span>Agency customers</span>
               <input value={form.agencyCustomers} onChange={(event) => updateField("agencyCustomers", event.target.value)} />
             </label>
-            <div className="certification-editor span-2">
+            <div className="certification-editor span-2"aria-labelledby="certifications-heading">
               <div className="certification-editor__header">
-                <span>Certifications</span>
+                <h3 id="certifications-heading">Certifications</h3>
                 <button
                   type="button"
                   onClick={() => addCertificationRow()}
@@ -6377,7 +6710,7 @@ function CmmcView({
             <span>{status === "saving" ? "Saving" : selectedAssessment ? "Save assessment" : "Create assessment"}</span>
           </button>
         </div>
-        {!canManageCmmc ? <p className="form-status">ManageCmmc permission is required to create assessments.</p> : null}
+        {!canManageCmmc ? (<p className="form-status">ManageCmmc permission is required to create assessments.</p> ): null}
         {status === "failed" ? (
           <Alert title="Assessment action failed" tone="danger">
             {message || "The CMMC assessment was not created."}
@@ -6400,8 +6733,8 @@ function CmmcView({
                   <>
                     <StatusPill label={formatCmmcLevel(assessment.level)} tone="info" />
                     <StatusPill label={formatEnumLabel(assessment.status)} tone={statusTone(assessment.status)} />
-                    {assessment.id === selectedAssessmentId ? <StatusPill label="Selected" tone="success" /> : null}
-                    {assessment.overduePoamItemCount > 0 ? <StatusPill label={`${assessment.overduePoamItemCount} overdue POA&M`} tone="danger" /> : null}
+                    {assessment.id === selectedAssessmentId ? (<StatusPill label="Selected" tone="success" /> ): null}
+                    {assessment.overduePoamItemCount > 0 ? (<StatusPill label={`${assessment.overduePoamItemCount} overdue POA&M`} tone="danger" /> ): null}
                   </>
                 }
                 className={assessment.id === selectedAssessmentId ? "ui-task-card--selected" : undefined}
@@ -6417,7 +6750,7 @@ function CmmcView({
                 title={assessment.name}
               >
                 <span className="legacy-summary">
-                  POA&M {assessment.openPoamItemCount} open · {assessment.overduePoamItemCount} overdue
+                  POA&M {assessment.openPoamItemCount} open · {" "}{assessment.overduePoamItemCount} overdue
                 </span>
               </TaskCard>
             ))}
@@ -6502,9 +6835,9 @@ function CmmcView({
                 </fieldset>
               )}
             </form>
-            {!canManageCmmc ? <p className="form-status">ManageCmmc permission is required to calculate a score.</p> : null}
-            {sprsStatus === "failed" ? <Alert title="Calculation failed" tone="danger">{sprsMessage}</Alert> : null}
-            {sprsStatus === "saved" ? <p className="form-status form-status--ok">{sprsMessage}</p> : null}
+            {!canManageCmmc ? (<p className="form-status">ManageCmmc permission is required to calculate a score.</p> ): null}
+            {sprsStatus === "failed" ? (<Alert title="Calculation failed" tone="danger">{sprsMessage}</Alert> ): null}
+            {sprsStatus === "saved" ? (<p className="form-status form-status--ok">{sprsMessage}</p> ): null}
 
             {sprsCurrent ? (
               <div className="sprs-result" aria-label="Current draft SPRS calculation">
@@ -6515,9 +6848,10 @@ function CmmcView({
                   { label: "Unresolved gaps", value: sprsCurrent.unresolvedGaps.length, tone: sprsCurrent.unresolvedGaps.length > 0 ? "warning" : "success" }
                 ]} />
                 <p className="section-summary">
-                  Rule {sprsCurrent.ruleSetVersion} · generated {formatUsDateTime(sprsCurrent.generatedAt)}
+                  Rule {sprsCurrent.ruleSetVersion} · generated {" "}
+                  {formatUsDateTime(sprsCurrent.generatedAt)}
                 </p>
-                {sprsCurrent.manualNotes ? <p><strong>Reviewer notes:</strong> {sprsCurrent.manualNotes}</p> : null}
+                {sprsCurrent.manualNotes ? (<p><strong>Reviewer notes:</strong> {sprsCurrent.manualNotes}</p> ): null}
                 {sprsCurrent.lineItems.filter((item) => item.appliedDeduction > 0).length > 0 ? (
                   <div className="evidence-list">
                     {sprsCurrent.lineItems.filter((item) => item.appliedDeduction > 0).map((item) => (
@@ -6534,7 +6868,7 @@ function CmmcView({
                       />
                     ))}
                   </div>
-                ) : <EmptyState title="No deductions" body="The selected calculation has no rule-derived deductions." />}
+                ) : (<EmptyState title="No deductions" body="The selected calculation has no rule-derived deductions." />)}
               </div>
             ) : null}
 
@@ -6594,25 +6928,26 @@ function CmmcView({
                   title={`${control.controlId} · ${control.title}`}
                 >
                   <span className="legacy-summary">
-                    {control.status} · {control.result} · {control.sourceName} reviewed {control.sourceLastReviewedAt}
+                    {control.status} · {control.result} · {control.sourceName} {" "}reviewed {control.sourceLastReviewedAt}
                   </span>
                   <span>{control.requirement}</span>
                   {linkedEvidence.length > 0 ? (
                     <span className="legacy-summary">
-                      Evidence: {linkedEvidence.map((item) => `${item.title} (${formatEnumLabel(item.reviewStatus)})`).join("; ")}
+                      Evidence: {" "}{linkedEvidence.map((item) => `${item.title} (${formatEnumLabel(item.reviewStatus)})`).join("; ")}
                     </span>
                   ) : (
                     <span className="legacy-summary">Evidence: none linked</span>
                   )}
                   {openPoams.length > 0 ? (
                     <span className="legacy-summary">
-                      Open POA&M: {openPoams.map((item) => `${item.title} (${formatEnumLabel(item.status)}, due ${item.dueDate})`).join("; ")}
+                      Open POA&M: {" "}
+                      {openPoams.map((item) => `${item.title} (${formatEnumLabel(item.status)}, due ${item.dueDate})`).join("; ")}
                     </span>
                   ) : (
                     <span className="legacy-summary">Open POA&M: none</span>
                   )}
                   <span className="legacy-summary">
-                    Tasks {control.taskIds.length} · Assets {control.assetIds.length}
+                    Tasks {control.taskIds.length} · Assets {" "}{control.assetIds.length}
                   </span>
                   <DataQualityWarnings warnings={cmmcControlQualityWarnings(control)} />
                 </TaskCard>
@@ -6729,7 +7064,7 @@ function CmmcView({
                   <>
                     <RiskBadge level={item.riskLevel} />
                     <StatusPill label={formatEnumLabel(item.status)} tone={statusTone(item.status)} />
-                    {item.isOverdue ? <StatusPill label="Overdue" tone="danger" /> : null}
+                    {item.isOverdue ? (<StatusPill label="Overdue" tone="danger" /> ): null}
                   </>
                 }
                 key={item.id}
@@ -7178,13 +7513,14 @@ function SubcontractorsView({
               {lookupResults.map((result) => (
                 <div key={`${result.uei}-${result.retrievedAt}`}>
                   <p>
-                    <strong>{result.legalBusinessName}</strong> {result.uei} {result.cageCode ? `CAGE ${result.cageCode}` : ""}
+                    <strong>{result.legalBusinessName}</strong> {result.uei} {" "}
+                    {result.cageCode ? `CAGE ${result.cageCode}` : ""}
                   </p>
                   <p>
-                  {result.source} retrieved {formatUsDateTime(result.retrievedAt)} · {result.registrationStatus ?? "Status unknown"} · SAM expires{" "}
-                    {result.samRegistrationExpiresAt ?? "unknown"} · {result.exclusionStatus ?? "Exclusions unknown"}
+                  {result.source} retrieved {" "}
+                    {formatUsDateTime(result.retrievedAt)} · {" "}{result.registrationStatus ?? "Status unknown"} · SAM expires{result.samRegistrationExpiresAt ?? "unknown"} · {" "}{result.exclusionStatus ?? "Exclusions unknown"}
                   </p>
-                  <p>NAICS {result.naicsCodes.map((naics) => naics.code).join(", ") || "unknown"}</p>
+                  <p>NAICS {" "}{result.naicsCodes.map((naics) => naics.code).join(", ") || "unknown"}</p>
                   <div className="form-actions">
                     <button type="button" onClick={() => applySelectedSubcontractorResult(result)} disabled={lookupStatus === "applying"}>
                       Apply selected fields
@@ -7209,8 +7545,8 @@ function SubcontractorsView({
                 <strong>{subcontractor.name}</strong>
                 <div className="scan-pill-row">
                   <StatusPill label={formatEnumLabel(subcontractor.status)} tone={statusTone(subcontractor.status)} />
-                  {subcontractor.hasCuiAccess ? <StatusPill label="CUI access" tone="warning" /> : null}
-                  {subcontractor.hasExportControlledAccess ? <StatusPill label="Export-control" tone="danger" /> : null}
+                  {subcontractor.hasCuiAccess ? (<StatusPill label="CUI access" tone="warning" /> ): null}
+                  {subcontractor.hasExportControlledAccess ? (<StatusPill label="Export-control" tone="danger" /> ): null}
                 </div>
                 <ScanMeta
                   items={[
@@ -7318,7 +7654,7 @@ function SubcontractorDetailPanel({
   }
 
   if (!subcontractor) {
-    return <EmptyState title="Select a subcontractor" body="Choose a supplier to manage flow-downs and evidence requests." />;
+    return (<EmptyState title="Select a subcontractor" body="Choose a supplier to manage flow-downs and evidence requests." />);
   }
 
   function saveFlowDown(event: FormEvent<HTMLFormElement>) {
@@ -7373,13 +7709,14 @@ function SubcontractorDetailPanel({
           <p className="eyebrow">Supplier detail</p>
           <h3>Selected subcontractor</h3>
           <p className="section-summary">
-            {subcontractor.roleDescription} Contact {subcontractor.contactName ?? "not set"} · {subcontractor.contactEmail ?? "no email"}
+            {subcontractor.roleDescription} Contact {" "}
+            {subcontractor.contactName ?? "not set"} · {" "}{subcontractor.contactEmail ?? "no email"}
           </p>
         </div>
         <div className="scan-pill-row">
           <StatusPill label={formatEnumLabel(subcontractor.status)} tone={statusTone(subcontractor.status)} />
-          {subcontractor.hasCuiAccess ? <StatusPill label="CUI access" tone="warning" /> : null}
-          {subcontractor.hasExportControlledAccess ? <StatusPill label="Export-control" tone="danger" /> : null}
+          {subcontractor.hasCuiAccess ? (<StatusPill label="CUI access" tone="warning" /> ): null}
+          {subcontractor.hasExportControlledAccess ? (<StatusPill label="Export-control" tone="danger" /> ): null}
         </div>
       </div>
       {detailStatus === "failed" ? (
@@ -7632,7 +7969,7 @@ function SubcontractorDetailPanel({
                   <strong>{request.requestedItem}</strong>
                   <div className="scan-pill-row">
                     <StatusPill label={formatEnumLabel(request.status)} tone={statusTone(request.status)} />
-                    {request.isOverdue ? <StatusPill label="Overdue" tone="danger" /> : null}
+                    {request.isOverdue ? (<StatusPill label="Overdue" tone="danger" /> ): null}
                     {request.receivedEvidenceItemId ? (
                       <StatusPill label="Received" tone="success" />
                     ) : (
@@ -7710,7 +8047,7 @@ function ReportsView({
     ruleSetId: string,
     reviewerNotes: string,
     leadershipReviewStatus: "Pending" | "Reviewed" | "NeedsChanges" | null,
-    conditionalDeductionSelections: Array<{ requirementId: string; optionCode: string }>
+    conditionalDeductionSelections: Array<{ requirementId: string; optionCode: string ;}>
   ) => Promise<void>;
   onComplianceReportGenerate: () => Promise<void>;
   onEvidencePackageGenerate: (request: EvidencePackageGenerateRequest) => Promise<void>;
@@ -7776,7 +8113,7 @@ function ReportsView({
           Your role can view existing reports but cannot generate new reports or evidence packages.
         </div>
       ) : null}
-      {message ? <p className={`form-status ${status === "failed" ? "form-status--error" : "form-status--ok"}`}>{message}</p> : null}
+      {message ? (<p className={`form-status ${status === "failed" ? "form-status--error" : "form-status--ok"}`}>{message}</p> ): null}
       {canManageReports ? (
         <>
           <div className="report-action-grid report-generation-grid">
@@ -8016,7 +8353,8 @@ function ReportsView({
                   <strong>{report.title}</strong>
                   <ClassificationBadge classification={report.classification?.classification ?? "Unknown"} />
                   <span>
-                    {report.type} · {report.status} · {formatUsDateTime(report.generatedAt)}
+                    {report.type} · {report.status} · {" "}
+                    {formatUsDateTime(report.generatedAt)}
                   </span>
                   <span>{reportCardSummary(report)}</span>
                   <span className="report-artifact-card__disclaimer">{report.disclaimer}</span>
@@ -8056,7 +8394,7 @@ function ReportsView({
           )}
         </section>
       </div>
-      {reportDetailStatus === "loading" ? <LoadingState label="Loading report detail" /> : null}
+      {reportDetailStatus === "loading" ? (<LoadingState label="Loading report detail" /> ): null}
       {reportDetailStatus === "failed" ? (
         <Alert title="Report detail did not load" tone="danger">
           {reportDetailMessage}
@@ -8076,7 +8414,7 @@ function ReportsView({
 }
 
 function reportHistoryItem(
-  report: ComplianceStatusReport | CmmcReadinessReport | SprsReadinessReport | SubcontractorComplianceReport
+  report: |ComplianceStatusReport | CmmcReadinessReport | SprsReadinessReport | SubcontractorComplianceReport
 ): ReportHistoryItem {
   return {
     id: report.id,
@@ -8097,16 +8435,18 @@ function reportCardSummary(report: ReportArtifact | ReportHistoryItem) {
 
 function renderReportSummary(report: ReportArtifact) {
   if ("manifest" in report) {
-    return `${report.manifest.items.length} evidence items · scope ${Object.values(report.manifest.scope)
-      .filter((value) => Array.isArray(value) && value.length > 0)
-      .length} dimensions`;
+    return `${report.manifest.items.length} evidence items · scope ${
+      Object.values(report.manifest.scope).filter(
+        (value) => Array.isArray(value) && value.length > 0,
+      ).length
+    } dimensions`;
   }
 
   const snapshot = report.snapshot;
   const totalSubcontractors = typeof snapshot.totalSubcontractors === "number" ? `${snapshot.totalSubcontractors} subcontractors` : null;
   const openGaps = Array.isArray(snapshot.openGaps) ? `${snapshot.openGaps.length} CMMC gaps` : null;
   const highRisk = Array.isArray(snapshot.highRiskItems) ? `${snapshot.highRiskItems.length} high-risk items` : null;
-  return [totalSubcontractors, openGaps, highRisk].filter(Boolean).join(" · ") || "Snapshot complete";
+  return ([totalSubcontractors, openGaps, highRisk].filter(Boolean).join(" · ") || "Snapshot complete");
 }
 
 function ReportDetailPanel({
@@ -8254,8 +8594,7 @@ function ReportDetailPanel({
           <h3>{report.title}</h3>
           <ClassificationBadge classification={report.classification?.classification ?? "Unknown"} />
           <p>
-            {formatEnumLabel(report.type)} · {formatEnumLabel(report.status)} · generated{" "}
-            {formatUsDateTime(report.generatedAt)}
+            {formatEnumLabel(report.type)} · {formatEnumLabel(report.status)} · generated{formatUsDateTime(report.generatedAt)}
           </p>
         </div>
         <Button icon={<X size={16} aria-hidden="true" />} onClick={onClose} variant="secondary">
@@ -8287,7 +8626,7 @@ function ReportDetailPanel({
           </Button>
         </div>
       ) : null}
-      {exportMessage ? <p className="form-status" role="status">{exportMessage}</p> : null}
+      {exportMessage ? (<p className="form-status" role="status">{exportMessage}</p> ): null}
 
       {isArchived && "archiveReason" in report && report.archiveReason ? (
         <Alert title="Archived report" tone="warning">
@@ -8617,7 +8956,7 @@ function NotificationPreferencesPanel({
               <span>Save preferences</span>
             </button>
           </div>
-          {message ? <p className={`form-status ${status === "failed" ? "form-status--error" : "form-status--ok"}`}>{message}</p> : null}
+          {message ? (<p className={`form-status ${status === "failed" ? "form-status--error" : "form-status--ok"}`}>{message}</p> ): null}
         </form>
         <section className="evidence-metadata">
           <h3>Due-date reminder run</h3>
@@ -8887,7 +9226,7 @@ function NoCuiAcknowledgementPanel({
   return (
     <div className={`notice-panel${acknowledgement.isAcknowledged ? " notice-panel--acknowledged" : ""}`}>
       <span className="notice-panel__icon" aria-hidden="true">
-        {acknowledgement.isAcknowledged ? <CheckCircle2 size={22} /> : <AlertTriangle size={22} />}
+        {acknowledgement.isAcknowledged ? (<CheckCircle2 size={22} /> ): (<AlertTriangle size={22} />)}
       </span>
       <div>
         <div className="notice-panel__header">
@@ -8973,7 +9312,7 @@ function NoCuiAcknowledgementPanel({
         ) : (
           <p className="form-status form-status--ok">Acknowledgement already saved. No additional action is required.</p>
         )}
-        {!canAcknowledge ? <p className="form-status">Required permission is missing for acknowledgement.</p> : null}
+        {!canAcknowledge ? (<p className="form-status">Required permission is missing for acknowledgement.</p> ): null}
         {acknowledgementStatus === "saved" ? (
           <p className="form-status form-status--ok">{acknowledgementMessage || "Acknowledgement saved."}</p>
         ) : null}
@@ -9240,7 +9579,7 @@ function EvidenceMetadataPanel({
                 <span>Classification</span>
                 <select aria-label="Classification" required disabled={Boolean(selectedEvidence)} value={form.classification} onChange={(event) => updateField("classification", event.target.value)}>
                   <option value="">Select classification</option>
-                  {selectedEvidence && form.classification === "SyntheticCui" && <option value="SyntheticCui">Synthetic demo data (imported)</option>}
+                  {selectedEvidence && form.classification === "SyntheticCui" && (<option value="SyntheticCui">Synthetic demo data (imported)</option>)}
                   <option value="Unclassified">Unclassified</option>
                   <option value="Fci">FCI</option>
                   <option value="Cui">CUI</option>
@@ -9262,7 +9601,9 @@ function EvidenceMetadataPanel({
             <button type="submit" disabled={!canManageEvidence || !form.classification || status === "saving" || Boolean(evidenceDateError)}>
               {selectedEvidence ? "Update metadata" : "Create metadata"}
             </button>
-            {selectedEvidence && <p>Use Classification review and history above to review this item's classification.</p>}
+            {selectedEvidence && (<p>Use Classification review and history above to review this item's classification.
+              </p>
+            )}
           </div>
           {status === "failed" ? (
             <Alert title="Evidence metadata action failed" tone="danger">
@@ -9277,7 +9618,9 @@ function EvidenceMetadataPanel({
   );
 }
 
-function evidenceToMetadataForm(evidence: EvidenceMetadata | null): EvidenceMetadataFormState {
+function evidenceToMetadataForm(
+  evidence: EvidenceMetadata | null,
+): EvidenceMetadataFormState {
   if (!evidence) {
     return defaultEvidenceMetadataForm;
   }
@@ -9293,14 +9636,16 @@ function evidenceToMetadataForm(evidence: EvidenceMetadata | null): EvidenceMeta
     obligationIds: evidence.obligationIds.join(", "),
     controlIds: evidence.controlIds.join(", "),
     classification: evidence.classification.classification,
-    classificationReason: evidence.classification.reason ?? "Reviewer confirmed evidence classification.",
-    description: evidence.description
+    classificationReason:
+      evidence.classification.reason ??
+      "Reviewer confirmed evidence classification.",
+    description: evidence.description,
   };
 }
 
 function evidenceMetadataFormToRequest(
   form: EvidenceMetadataFormState,
-  evidence: EvidenceMetadata | null
+  evidence: EvidenceMetadata | null,
 ): UpsertEvidenceMetadataRequest {
   return {
     title: form.title.trim(),
@@ -9325,8 +9670,8 @@ function evidenceMetadataFormToRequest(
       reviewedByUserId: null,
       reviewedAt: null,
       reason: form.classificationReason,
-      isApprovedDemoContent: false
-    }
+      isApprovedDemoContent: false,
+    },
   };
 }
 
@@ -9346,7 +9691,7 @@ function CuiReadyChecklistPanel({
   onCreate,
   onItemUpdate,
   onReview,
-  status
+  status,
 }: {
   checklists: CuiReadyApprovalChecklist[];
   currentTenant: Tenant | null;
@@ -9354,21 +9699,36 @@ function CuiReadyChecklistPanel({
   matrix: SharedResponsibilityMatrix | null;
   message: string;
   onCreate: () => Promise<void>;
-  onItemUpdate: (checklistId: string, itemKey: string, request: UpdateCuiReadyChecklistItemRequest) => Promise<void>;
-  onReview: (checklistId: string, action: "submit" | "approve" | "reject" | "supersede", reason: string | null) => Promise<void>;
+  onItemUpdate: (
+    checklistId: string,
+    itemKey: string,
+    request: UpdateCuiReadyChecklistItemRequest,
+  ) => Promise<void>;
+  onReview: (
+    checklistId: string,
+    action: "submit" | "approve" | "reject" | "supersede",
+    reason: string | null,
+  ) => Promise<void>;
   status: "idle" | "saving" | "saved" | "failed";
 }) {
   const [reviewReason, setReviewReason] = useState("");
   const latest = checklists[0] ?? null;
-  const completedCount = latest?.items.filter((item) => item.status === "Complete").length ?? 0;
+  const completedCount =
+    latest?.items.filter((item) => item.status === "Complete").length ?? 0;
 
   return (
-    <section className="members-section" aria-label="CUI-ready approval checklist">
+    <section
+      className="members-section"
+      aria-label="CUI-ready approval checklist"
+    >
       <div className="section-heading section-heading--split">
         <div>
           <p className="eyebrow">CUI-ready approval</p>
           <h2>Approval checklist</h2>
-          <p className="section-summary">Required readiness records must be complete and approved before enabling CUI-ready mode.</p>
+          <p className="section-summary">
+            Required readiness records must be complete and approved before
+            enabling CUI-ready mode.
+          </p>
         </div>
         <Button
           disabled={!currentTenant || status === "saving"}
@@ -9382,65 +9742,133 @@ function CuiReadyChecklistPanel({
         </Button>
       </div>
       {message ? (
-        <p className={`form-status ${status === "failed" ? "form-status--error" : "form-status--ok"}`}>{message}</p>
+        <p
+          className={`form-status ${status === "failed" ? "form-status--error" : "form-status--ok"}`}
+        >
+          {message}
+        </p>
       ) : null}
       {latest ? (
         <ReadinessEvidencePanel key={`${currentTenant?.id}:${currentUserId}`}>
-        {(sources, canApprove) => (
-        <div className="approval-checklist">
-          <div className="section-heading--split">
-            <div>
-              <h3>Version {latest.version}</h3>
-              <p>{completedCount} of {latest.items.length} items complete</p>
-            </div>
-            <span className={`status status--${latest.state.toLowerCase()}`}>{latest.state}</span>
-          </div>
-          {matrix ? (
-            <p className="section-summary">
-              Shared responsibility matrix {matrix.version} · {matrix.state} · {matrix.reviewOwner}
-            </p>
-          ) : null}
-          <div className="evidence-list">
-            {latest.items.map((item) => (
-              <article className="evidence-list__item approval-checklist__item" key={item.id}>
-                <strong>{item.section}</strong>
-                <span>{item.description}</span>
-                <span className="approval-checklist__item-meta">
-                  Status: {formatEnumLabel(item.status)} · Owner: {item.owner ?? "No owner"} · Review date: {item.reviewedAt ?? "No review date"}
+          {(sources, canApprove) => (
+            <div className="approval-checklist">
+              <div className="section-heading--split">
+                <div>
+                  <h3>Version {latest.version}</h3>
+                  <p>
+                    {completedCount} of {latest.items.length} items complete
+                  </p>
+                </div>
+                <span
+                  className={`status status--${latest.state.toLowerCase()}`}
+                >
+                  {latest.state}
                 </span>
-                <ReadinessItemEditor key={`${item.id}:${latest.version}`} item={item} sources={sources} userId={currentUserId}
-                  disabled={status === "saving" || ["Rejected", "Superseded"].includes(latest.state)}
-                  onSave={request => void onItemUpdate(latest.id, item.itemKey, request)} />
-              </article>
-            ))}
-          </div>
-          <form className="invite-form" onSubmit={(event) => event.preventDefault()}>
-            <label>
-              <span>Review reason</span>
-              <input value={reviewReason} onChange={(event) => setReviewReason(event.target.value)} />
-            </label>
-            <button type="button" onClick={() => void onReview(latest.id, "submit", null)} disabled={status === "saving" || latest.state !== "Draft"}>
-              Submit
-            </button>
-            <button type="button" onClick={() => void onReview(latest.id, "approve", reviewReason)} disabled={status === "saving" || !canApprove || latest.state !== "InReview" || !reviewReason.trim()}>
-              Approve
-            </button>
-            <button type="button" onClick={() => void onReview(latest.id, "reject", reviewReason)} disabled={status === "saving"}>
-              Reject
-            </button>
-            <button type="button" onClick={() => void onReview(latest.id, "supersede", reviewReason)} disabled={status === "saving"}>
-              Supersede
-            </button>
-          </form>
-          {latest.state === "Approved" && !isDemoCaptureMode() ? (
-            <p className="form-status form-status--ok">Approved checklist ID: {latest.id}</p>
-          ) : null}
-          {latest.rejectionReason ? <p className="form-status form-status--error">{latest.rejectionReason}</p> : null}
-        </div>
-        )}
+              </div>
+              {matrix ? (
+                <p className="section-summary">
+                  Shared responsibility matrix {matrix.version} · {matrix.state}{" "}
+                  · {matrix.reviewOwner}
+                </p>
+              ) : null}
+              <div className="evidence-list">
+                {latest.items.map((item) => (
+                  <article
+                    className="evidence-list__item approval-checklist__item"
+                    key={item.id}
+                  >
+                    <strong>{item.section}</strong>
+                    <span>{item.description}</span>
+                    <span className="approval-checklist__item-meta">
+                      Status: {formatEnumLabel(item.status)} · Owner:{" "}
+                      {item.owner ?? "No owner"} · Review date:{" "}
+                      {item.reviewedAt ?? "No review date"}
+                    </span>
+                    <ReadinessItemEditor
+                      key={`${item.id}:${latest.version}`}
+                      item={item}
+                      sources={sources}
+                      userId={currentUserId}
+                      disabled={
+                        status === "saving" ||
+                        ["Rejected", "Superseded"].includes(latest.state)
+                      }
+                      onSave={(request) =>
+                        void onItemUpdate(latest.id, item.itemKey, request)
+                      }
+                    />
+                  </article>
+                ))}
+              </div>
+              <form
+                className="invite-form"
+                onSubmit={(event) => event.preventDefault()}
+              >
+                <label>
+                  <span>Review reason</span>
+                  <input
+                    value={reviewReason}
+                    onChange={(event) => setReviewReason(event.target.value)}
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => void onReview(latest.id, "submit", null)}
+                  disabled={status === "saving" || latest.state !== "Draft"}
+                >
+                  Submit
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    void onReview(latest.id, "approve", reviewReason)
+                  }
+                  disabled={
+                    status === "saving" ||
+                    !canApprove ||
+                    latest.state !== "InReview" ||
+                    !reviewReason.trim()
+                  }
+                >
+                  Approve
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    void onReview(latest.id, "reject", reviewReason)
+                  }
+                  disabled={status === "saving"}
+                >
+                  Reject
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    void onReview(latest.id, "supersede", reviewReason)
+                  }
+                  disabled={status === "saving"}
+                >
+                  Supersede
+                </button>
+              </form>
+              {latest.state === "Approved" && !isDemoCaptureMode() ? (
+                <p className="form-status form-status--ok">
+                  Approved checklist ID: {latest.id}
+                </p>
+              ) : null}
+              {latest.rejectionReason ? (
+                <p className="form-status form-status--error">
+                  {latest.rejectionReason}
+                </p>
+              ) : null}
+            </div>
+          )}
         </ReadinessEvidencePanel>
       ) : (
-        <EmptyState title="No CUI-ready checklist" body="Create a checklist before requesting CUI-ready tenant mode." />
+        <EmptyState
+          title="No CUI-ready checklist"
+          body="Create a checklist before requesting CUI-ready tenant mode."
+        />
       )}
     </section>
   );
@@ -9451,7 +9879,7 @@ function SharedResponsibilityMatrixPanel({
   matrix,
   message,
   onAcknowledge,
-  status
+  status,
 }: {
   acknowledgements: SharedResponsibilityMatrixAcknowledgement[];
   matrix: SharedResponsibilityMatrix | null;
@@ -9464,36 +9892,54 @@ function SharedResponsibilityMatrixPanel({
         (acknowledgement) =>
           acknowledgement.matrixId === matrix.matrixId &&
           acknowledgement.matrixVersion === matrix.version &&
-          acknowledgement.status === "Current"
+          acknowledgement.status === "Current",
       )
     : null;
 
   return (
-    <section className="members-section" aria-label="Shared responsibility matrix">
+    <section
+      className="members-section"
+      aria-label="Shared responsibility matrix"
+    >
       <div className="section-heading section-heading--split">
         <div>
           <p className="eyebrow">Shared responsibility baseline</p>
           <h2>Shared responsibility matrix</h2>
           <p className="section-summary">
-            Published ownership baseline for platform controls, customer decisions, support obligations, and third-party dependencies.
+            Published ownership baseline for platform controls, customer
+            decisions, support obligations, and third-party dependencies.
           </p>
         </div>
         <div className="button-row">
-          {matrix ? <span className={`status status--${matrix.state.toLowerCase()}`}>{matrix.state}</span> : null}
+          {matrix ? (
+            <span className={`status status--${matrix.state.toLowerCase()}`}>
+              {matrix.state}
+            </span>
+          ) : null}
           <Button
             type="button"
             onClick={() => void onAcknowledge()}
-            disabled={!matrix || Boolean(currentAcknowledgement) || status === "saving"}
+            disabled={
+              !matrix || Boolean(currentAcknowledgement) || status === "saving"
+            }
             icon={<CheckCircle2 size={16} />}
             size="sm"
             variant="secondary"
           >
-            {status === "saving" ? "Saving" : currentAcknowledgement ? "Acknowledged" : "Acknowledge"}
+            {status === "saving"
+              ? "Saving"
+              : currentAcknowledgement
+                ? "Acknowledged"
+                : "Acknowledge"}
           </Button>
         </div>
       </div>
       {message ? (
-        <p className={`form-status ${status === "failed" ? "form-status--error" : "form-status--ok"}`}>{message}</p>
+        <p
+          className={`form-status ${status === "failed" ? "form-status--error" : "form-status--ok"}`}
+        >
+          {message}
+        </p>
       ) : null}
       {matrix ? (
         <>
@@ -9522,9 +9968,16 @@ function SharedResponsibilityMatrixPanel({
           <div className="table-section">
             <div className="table-section__header">
               <h3>Responsibility rows</h3>
-              <p>Control ownership and review accountability for the active shared responsibility baseline.</p>
+              <p>
+                Control ownership and review accountability for the active
+                shared responsibility baseline.
+              </p>
             </div>
-            <div className="member-table member-table--matrix" role="table" aria-label="Shared responsibility matrix rows">
+            <div
+              className="member-table member-table--matrix"
+              role="table"
+              aria-label="Shared responsibility matrix rows"
+            >
               <div className="member-row member-row--header" role="row">
                 <span role="columnheader">Category</span>
                 <span role="columnheader">Owner</span>
@@ -9533,10 +9986,14 @@ function SharedResponsibilityMatrixPanel({
               </div>
               {matrix.rows.map((row) => (
                 <article className="member-row" role="row" key={row.category}>
-                  <span role="cell">{formatResponsibilityCategory(row.category)}</span>
+                  <span role="cell">
+                    {formatResponsibilityCategory(row.category)}
+                  </span>
                   <span role="cell">{row.responsibility}</span>
                   <span role="cell">{row.notes}</span>
-                  <span role="cell">{row.reviewOwner} · {row.effectiveAt}</span>
+                  <span role="cell">
+                    {row.reviewOwner} · {row.effectiveAt}
+                  </span>
                 </article>
               ))}
             </div>
@@ -9545,9 +10002,16 @@ function SharedResponsibilityMatrixPanel({
             <div className="table-section">
               <div className="table-section__header">
                 <h3>Acknowledgement history</h3>
-                <p>Users who acknowledged the published matrix version for this tenant.</p>
+                <p>
+                  Users who acknowledged the published matrix version for this
+                  tenant.
+                </p>
               </div>
-              <div className="member-table member-table--acknowledgements" role="table" aria-label="Shared responsibility matrix acknowledgement history">
+              <div
+                className="member-table member-table--acknowledgements"
+                role="table"
+                aria-label="Shared responsibility matrix acknowledgement history"
+              >
                 <div className="member-row member-row--header" role="row">
                   <span role="columnheader">Version</span>
                   <span role="columnheader">Status</span>
@@ -9555,24 +10019,40 @@ function SharedResponsibilityMatrixPanel({
                   <span role="columnheader">User</span>
                 </div>
                 {acknowledgements.map((acknowledgement) => (
-                  <article className="member-row" role="row" key={acknowledgement.id}>
+                  <article
+                    className="member-row"
+                    role="row"
+                    key={acknowledgement.id}
+                  >
                     <span role="cell">{acknowledgement.matrixVersion}</span>
                     <span role="cell">{acknowledgement.status}</span>
-                    <span role="cell">{formatUsDateTime(acknowledgement.acknowledgedAt)}</span>
-                    <span role="cell">{acknowledgement.acknowledgedByUserId}</span>
+                    <span role="cell">
+                      {formatUsDateTime(acknowledgement.acknowledgedAt)}
+                    </span>
+                    <span role="cell">
+                      {acknowledgement.acknowledgedByUserId}
+                    </span>
                   </article>
                 ))}
               </div>
             </div>
           ) : (
-            <p className="form-status form-status--error">Current matrix acknowledgement is required before CUI-ready approval.</p>
+            <p className="form-status form-status--error">
+              Current matrix acknowledgement is required before CUI-ready
+              approval.
+            </p>
           )}
           {currentAcknowledgement ? (
-            <p className="form-status form-status--ok">Matrix acknowledgement status is Current.</p>
+            <p className="form-status form-status--ok">
+              Matrix acknowledgement status is Current.
+            </p>
           ) : null}
         </>
       ) : (
-        <EmptyState title="No published matrix" body="Publish a governed shared responsibility matrix before CUI-ready approval review." />
+        <EmptyState
+          title="No published matrix"
+          body="Publish a governed shared responsibility matrix before CUI-ready approval review."
+        />
       )}
     </section>
   );
@@ -9590,7 +10070,7 @@ function TenantModePanel({
   history,
   message,
   onUpdate,
-  status
+  status,
 }: {
   currentTenant: Tenant | null;
   history: TenantDataHandlingModeHistory[];
@@ -9609,7 +10089,7 @@ function TenantModePanel({
     await onUpdate({
       dataHandlingMode: mode,
       reason: reason.trim(),
-      approvalRecordReference: approvalRecordReference.trim() || null
+      approvalRecordReference: approvalRecordReference.trim() || null,
     });
   }
 
@@ -9620,10 +10100,13 @@ function TenantModePanel({
           <p className="eyebrow">Active tenant mode</p>
           <h2>Data handling mode</h2>
           <p className="section-summary">
-            The active tenant mode is the server-side source of truth for upload, evidence, report, note, and extraction controls.
+            The active tenant mode is the server-side source of truth for
+            upload, evidence, report, note, and extraction controls.
           </p>
         </div>
-        <span className={`status status--${(currentTenant?.dataHandlingMode ?? "unknown").toLowerCase()}`}>
+        <span
+          className={`status status--${(currentTenant?.dataHandlingMode ?? "unknown").toLowerCase()}`}
+        >
           {currentTenant?.dataHandlingMode ?? "Unknown"}
         </span>
       </div>
@@ -9646,7 +10129,10 @@ function TenantModePanel({
       <form className="invite-form" onSubmit={submit}>
         <label>
           <span>Mode</span>
-          <select value={mode} onChange={(event) => setSelectedMode(event.target.value)}>
+          <select
+            value={mode}
+            onChange={(event) => setSelectedMode(event.target.value)}
+          >
             <option value="DemoSandbox">DemoSandbox</option>
             <option value="NoCui">NoCui</option>
             <option value="CuiReady">CuiReady</option>
@@ -9672,7 +10158,11 @@ function TenantModePanel({
             value={approvalRecordReference}
             onChange={(event) => setApprovalRecordReference(event.target.value)}
             maxLength={160}
-            placeholder={mode === "CuiReady" ? "Paste the approved checklist ID" : "Not required unless switching to CuiReady"}
+            placeholder={
+              mode === "CuiReady"
+                ? "Paste the approved checklist ID"
+                : "Not required unless switching to CuiReady"
+            }
             required={mode === "CuiReady"}
           />
         </label>
@@ -9683,19 +10173,31 @@ function TenantModePanel({
       </form>
       {!currentTenant ? (
         <p className="form-status form-status--error">
-          Tenant context has not loaded yet. The mode cannot be updated until the active tenant is available.
+          Tenant context has not loaded yet. The mode cannot be updated until
+          the active tenant is available.
         </p>
       ) : null}
       {message ? (
-        <p className={`form-status ${status === "failed" ? "form-status--error" : "form-status--ok"}`}>{message}</p>
+        <p
+          className={`form-status ${status === "failed" ? "form-status--error" : "form-status--ok"}`}
+        >
+          {message}
+        </p>
       ) : null}
       {history.length > 0 ? (
         <div className="table-section">
           <div className="table-section__header">
             <h3>Mode change history</h3>
-            <p>Server-recorded tenant mode changes used to verify upload and report posture changes.</p>
+            <p>
+              Server-recorded tenant mode changes used to verify upload and
+              report posture changes.
+            </p>
           </div>
-          <div className="member-table member-table--mode-history" role="table" aria-label="Tenant data handling mode history">
+          <div
+            className="member-table member-table--mode-history"
+            role="table"
+            aria-label="Tenant data handling mode history"
+          >
             <div className="member-row member-row--header" role="row">
               <span role="columnheader">Changed</span>
               <span role="columnheader">Previous</span>
@@ -9713,7 +10215,10 @@ function TenantModePanel({
           </div>
         </div>
       ) : (
-        <EmptyState title="No mode history yet" body="Tenant mode changes will appear here after the first recorded event." />
+        <EmptyState
+          title="No mode history yet"
+          body="Tenant mode changes will appear here after the first recorded event."
+        />
       )}
     </section>
   );
@@ -9724,7 +10229,7 @@ function DemoSandboxSeedPanel({
   currentTenant,
   message,
   onSeed,
-  status
+  status,
 }: {
   canSeedDemoDataset: boolean;
   currentTenant: Tenant | null;
@@ -9741,11 +10246,14 @@ function DemoSandboxSeedPanel({
           <p className="eyebrow">Synthetic dataset</p>
           <h2>Demo sandbox seed</h2>
           <p className="section-summary">
-            Load the approved synthetic CUI demo records for UAT. This action is available only when the active tenant mode is DemoSandbox.
+            Load the approved synthetic CUI demo records for UAT. This action is
+            available only when the active tenant mode is DemoSandbox.
           </p>
         </div>
         <Button
-          disabled={!isDemoSandbox || !canSeedDemoDataset || status === "saving"}
+          disabled={
+            !isDemoSandbox || !canSeedDemoDataset || status === "saving"
+          }
           icon={<FolderKanban size={16} />}
           onClick={() => void onSeed()}
           size="sm"
@@ -9770,13 +10278,22 @@ function DemoSandboxSeedPanel({
         </div>
       </div>
       {!isDemoSandbox ? (
-        <p className="form-status form-status--error">Switch Data handling mode to DemoSandbox before seeding synthetic demo data.</p>
+        <p className="form-status form-status--error">
+          Switch Data handling mode to DemoSandbox before seeding synthetic demo
+          data.
+        </p>
       ) : null}
       {isDemoSandbox && !canSeedDemoDataset ? (
-        <p className="form-status form-status--error">Seed synthetic data requires obligation-management permission.</p>
+        <p className="form-status form-status--error">
+          Seed synthetic data requires obligation-management permission.
+        </p>
       ) : null}
       {message ? (
-        <p className={`form-status ${status === "failed" ? "form-status--error" : "form-status--ok"}`}>{message}</p>
+        <p
+          className={`form-status ${status === "failed" ? "form-status--error" : "form-status--ok"}`}
+        >
+          {message}
+        </p>
       ) : null}
     </section>
   );
@@ -9786,16 +10303,21 @@ function InvitationListItem({
   invitation,
   isBusy,
   isRevoking,
-  onRevoke
+  onRevoke,
 }: {
   invitation: TenantInvitation;
   isBusy: boolean;
   isRevoking: boolean;
-  onRevoke: (invitationId: string, request: RevokeTenantInvitationRequest) => Promise<boolean>;
+  onRevoke: (
+    invitationId: string,
+    request: RevokeTenantInvitationRequest,
+  ) => Promise<boolean>;
 }) {
   const [isConfirming, setIsConfirming] = useState(false);
   const [reason, setReason] = useState("");
-  const invitationLabel = isDemoCaptureMode() ? "Pending invitation" : invitation.email;
+  const invitationLabel = isDemoCaptureMode()
+    ? "Pending invitation"
+    : invitation.email;
 
   async function handleRevoke(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -9818,7 +10340,9 @@ function InvitationListItem({
         </span>
       </div>
       <div className="invitation-item__status">
-        <span className={`status status--${invitation.status.toLowerCase()}`}>{invitation.status}</span>
+        <span className={`status status--${invitation.status.toLowerCase()}`}>
+          {invitation.status}
+        </span>
         {invitation.status === "Pending" ? (
           <Button
             aria-label={`Revoke invitation for ${invitationLabel}`}
@@ -9832,8 +10356,14 @@ function InvitationListItem({
           </Button>
         ) : null}
       </div>
-      <span className="invitation-date">Expires {formatUsDateOnly(invitation.expiresAt)}</span>
-      {!isDemoCaptureMode() ? <small className="notification-placeholder">{invitation.notificationPlaceholder}</small> : null}
+      <span className="invitation-date">
+        Expires {formatUsDateOnly(invitation.expiresAt)}
+      </span>
+      {!isDemoCaptureMode() ? (
+        <small className="notification-placeholder">
+          {invitation.notificationPlaceholder}
+        </small>
+      ) : null}
       {isConfirming ? (
         <form className="invitation-revoke-form" onSubmit={handleRevoke}>
           <label>
@@ -9851,7 +10381,12 @@ function InvitationListItem({
             <Button disabled={isBusy} type="submit" variant="danger">
               {isRevoking ? "Revoking" : "Confirm revoke"}
             </Button>
-            <Button disabled={isBusy} onClick={() => setIsConfirming(false)} type="button" variant="ghost">
+            <Button
+              disabled={isBusy}
+              onClick={() => setIsConfirming(false)}
+              type="button"
+              variant="ghost"
+            >
               Cancel
             </Button>
           </div>
@@ -9891,6 +10426,11 @@ function SettingsView({
   invitationActionStatus,
   invitations,
   members,
+  activeAdminCount,
+  deactivationReason,
+  deactivationTarget,
+  membershipActionMessage,
+  membershipActionStatus,
   revokingInvitationId,
   notificationPreference,
   notificationPreferenceMessage,
@@ -9916,9 +10456,13 @@ function SettingsView({
   onInviteRoleChange,
   onInvitationSubmit,
   onInvitationRevoke,
+  onDeactivationReasonChange,
+  onMemberDeactivation,
+  onMemberDeactivationClose,
+  onMemberDeactivationOpen,
   onNotificationPreferenceSave,
   onSharedResponsibilityMatrixAcknowledge,
-  onTenantModeUpdate
+  onTenantModeUpdate,
 }: {
   auditExportMessage: string;
   auditExportStatus: "idle" | "exporting" | "ready" | "failed";
@@ -9949,6 +10493,11 @@ function SettingsView({
   invitationActionStatus: "idle" | "revoking" | "succeeded" | "failed";
   invitations: TenantInvitation[];
   members: TenantMember[];
+  activeAdminCount: number;
+  deactivationReason: string;
+  deactivationTarget: TenantMember | null;
+  membershipActionMessage: string;
+  membershipActionStatus: "idle" | "saving" | "saved" | "failed";
   revokingInvitationId: string | null;
   notificationPreference: NotificationPreference | null;
   notificationPreferenceMessage: string;
@@ -9957,7 +10506,11 @@ function SettingsView({
   sharedResponsibilityMatrix: SharedResponsibilityMatrix | null;
   sharedResponsibilityMatrixAcknowledgements: SharedResponsibilityMatrixAcknowledgement[];
   sharedResponsibilityMatrixAcknowledgementMessage: string;
-  sharedResponsibilityMatrixAcknowledgementStatus: "idle" | "saving" | "saved" | "failed";
+  sharedResponsibilityMatrixAcknowledgementStatus:
+    | "idle"
+    | "saving"
+    | "saved"
+    | "failed";
   tenantModeHistory: TenantDataHandlingModeHistory[];
   tenantModeMessage: string;
   tenantModeStatus: "idle" | "saving" | "saved" | "failed";
@@ -9969,12 +10522,12 @@ function SettingsView({
   onCuiReadyChecklistItemUpdate: (
     checklistId: string,
     itemKey: string,
-    request: UpdateCuiReadyChecklistItemRequest
+    request: UpdateCuiReadyChecklistItemRequest,
   ) => Promise<void>;
   onCuiReadyChecklistReview: (
     checklistId: string,
     action: "submit" | "approve" | "reject" | "supersede",
-    reason: string | null
+    reason: string | null,
   ) => Promise<void>;
   onDemoTenantSeed: () => Promise<void>;
   onDueDateReminderRun: (leadTimeDays: number) => Promise<void>;
@@ -9983,23 +10536,44 @@ function SettingsView({
   onInvitationSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onInvitationRevoke: (
     invitationId: string,
-    request: RevokeTenantInvitationRequest
+    request: RevokeTenantInvitationRequest,
   ) => Promise<boolean>;
-  onNotificationPreferenceSave: (request: NotificationPreferenceUpdateRequest) => Promise<void>;
+  onDeactivationReasonChange: (reason: string) => void;
+  onMemberDeactivation: (event: FormEvent<HTMLFormElement>) => Promise<void>;
+  onMemberDeactivationClose: () => void;
+  onMemberDeactivationOpen: (member: TenantMember) => void;
+  onNotificationPreferenceSave: (
+    request: NotificationPreferenceUpdateRequest,
+  ) => Promise<void>;
   onSharedResponsibilityMatrixAcknowledge: () => Promise<void>;
-  onTenantModeUpdate: (request: UpdateTenantDataHandlingModeRequest) => Promise<void>;
+  onTenantModeUpdate: (
+    request: UpdateTenantDataHandlingModeRequest,
+  ) => Promise<void>;
 }) {
   const currentAuditEntityLabels = useMemo(
     () =>
       new Map<string, string>([
-        ...cmmcAssessments.map((assessment) => [`CmmcAssessment:${assessment.id}`, assessment.name] as const),
-        ...cmmcPoamItems.map((item) => [`CmmcPoamItem:${item.id}`, item.weakness] as const),
-        ...evidenceItems.map((evidence) => [`EvidenceItem:${evidence.id}`, evidence.title] as const)
+        ...cmmcAssessments.map(
+          (assessment) =>
+            [`CmmcAssessment:${assessment.id}`, assessment.name] as const,
+        ),
+        ...cmmcPoamItems.map(
+          (item) => [`CmmcPoamItem:${item.id}`, item.weakness] as const,
+        ),
+        ...evidenceItems.map(
+          (evidence) =>
+            [`EvidenceItem:${evidence.id}`, evidence.title] as const,
+        ),
       ]),
-    [cmmcAssessments, cmmcPoamItems, evidenceItems]
+    [cmmcAssessments, cmmcPoamItems, evidenceItems],
   );
 
-  if (!canManageTenant && !canManageUsers && !canViewAuditLog && !notificationPreference) {
+  if (
+    !canManageTenant &&
+    !canManageUsers &&
+    !canViewAuditLog &&
+    !notificationPreference
+  ) {
     return (
       <section className="route-panel">
         <EmptyState
@@ -10062,57 +10636,246 @@ function SettingsView({
       {canManageUsers ? (
         <>
           <ExternalPortalInvitationPanel />
-          <PortalPackageLifecyclePanel canManage={canManageUsers} canViewActivity={canViewAuditLog} />
+          <PortalPackageLifecyclePanel
+            canManage={canManageUsers}
+            canViewActivity={canViewAuditLog}
+          />
           <section className="members-section" aria-label="Tenant team members">
             <div className="section-heading">
               <p className="eyebrow">Tenant access</p>
               <h2>Team members</h2>
               <p className="section-summary">
-                Roles connect each person to the FeDril business goal: know what applies, assign the work, collect evidence,
-                and keep the tenant ready for reviews without giving more access than needed.
+                Roles connect each person to the FeDril business goal: know what
+                applies, assign the work, collect evidence, and keep the tenant
+                ready for reviews without giving more access than needed.
               </p>
             </div>
             {members.length > 0 ? (
               <div className="table-section">
                 <div className="table-section__header">
                   <h3>Current members</h3>
-                  <p>People with active tenant access and their assigned role posture.</p>
+                  <p>
+                    People with tenant access and their assigned role posture.
+                  </p>
                 </div>
-                <div className="member-table member-table--members" role="table" aria-label="Current tenant members">
+                {membershipActionMessage ? (
+                  <p
+                    className={`form-message form-message--${membershipActionStatus === "failed" ? "error" : "success"}`}
+                    role="status"
+                  >
+                    {membershipActionMessage}
+                  </p>
+                ) : null}
+                <div
+                  className="member-table member-table--members"
+                  role="table"
+                  aria-label="Current tenant members"
+                >
                   <div className="member-row member-row--header" role="row">
                     <span role="columnheader">Member</span>
                     <span role="columnheader">Role</span>
                     <span role="columnheader">Status</span>
                     <span role="columnheader">MFA</span>
+                    <span role="columnheader">Actions</span>
                   </div>
-                  {members.map((member) => (
-                    <article className="member-row" role="row" key={member.membershipId}>
-                      <span className="member-person" role="cell">
-                        <span className="icon-box icon-box--small" aria-hidden="true">
-                          <UsersRound size={17} />
-                        </span>
-                        <span>
-                          <strong>{member.displayName}</strong>
-                          {!isDemoCaptureMode() ? <small>{member.email}</small> : null}
-                        </span>
-                      </span>
-                      <span role="cell">{member.roleName}</span>
-                      <span role="cell">
-                        <span className={`status status--${member.membershipStatus.toLowerCase()}`}>
-                          {member.membershipStatus}
-                        </span>
-                      </span>
-                      <span role="cell">{member.mfaEnabled ? "Enabled" : "Not enabled"}</span>
-                    </article>
-                  ))}
+                  {members.map((member) =>
+                    (() => {
+                      const isProtected =
+                        member.roleName === "Owner" ||
+                        (member.roleName === "Admin" &&
+                          member.membershipStatus === "Active" &&
+                          activeAdminCount <= 1);
+                      const protectionReason =
+                        member.roleName === "Owner"
+                          ? "Owner membership cannot be deactivated."
+                          : "Last active Admin membership cannot be deactivated.";
+
+                      return (
+                        <article
+                          className="member-row"
+                          role="row"
+                          key={member.membershipId}
+                        >
+                          <span className="member-person" role="cell">
+                            <span
+                              className="icon-box icon-box--small"
+                              aria-hidden="true"
+                            >
+                              <UsersRound size={17} />
+                            </span>
+                            <span>
+                              <strong>{member.displayName}</strong>
+                              {!isDemoCaptureMode() ? (
+                                <small>{member.email}</small>
+                              ) : null}
+                            </span>
+                          </span>
+                          <span role="cell">{member.roleName}</span>
+                          <span role="cell">
+                            <span
+                              className={`status status--${member.membershipStatus.toLowerCase()}`}
+                            >
+                              {member.membershipStatus}
+                            </span>
+                          </span>
+                          <span role="cell">
+                            {member.mfaEnabled ? "Enabled" : "Not enabled"}
+                          </span>
+                          <span
+                            className="member-membership-action"
+                            role="cell"
+                          >
+                            {member.membershipStatus === "Deactivated" ? (
+                              <span className="member-action-note">
+                                Deactivated
+                              </span>
+                            ) : isProtected ? (
+                              <span
+                                className="member-action-note"
+                                title={protectionReason}
+                              >
+                                {protectionReason}
+                              </span>
+                            ) : (
+                              <Button
+                                aria-label={`Deactivate membership for ${member.displayName}`}
+                                disabled={membershipActionStatus === "saving"}
+                                icon={
+                                  <UserRoundX aria-hidden="true" size={15} />
+                                }
+                                onClick={() => onMemberDeactivationOpen(member)}
+                                size="sm"
+                                variant="danger"
+                              >
+                                Deactivate
+                              </Button>
+                            )}
+                          </span>
+                        </article>
+                      );
+                    })(),
+                  )}
                 </div>
               </div>
             ) : (
-              <EmptyState title="No tenant members available" body="Team membership is loaded from the active tenant context." />
+              <EmptyState
+                title="No tenant members available"
+                body="Team membership is loaded from the active tenant context."
+              />
             )}
           </section>
 
-          <section className="invitation-section" aria-label="Tenant invitations">
+          {deactivationTarget ? (
+            <div
+              className="membership-dialog-backdrop"
+              onMouseDown={(event) => {
+                if (event.target === event.currentTarget) {
+                  onMemberDeactivationClose();
+                }
+              }}
+            >
+              <section
+                aria-describedby="member-deactivation-description"
+                aria-labelledby="member-deactivation-title"
+                aria-modal="true"
+                className="membership-dialog"
+                role="dialog"
+              >
+                <div className="membership-dialog__header">
+                  <div>
+                    <p className="eyebrow">Tenant access</p>
+                    <h2 id="member-deactivation-title">
+                      Deactivate membership
+                    </h2>
+                    <p id="member-deactivation-description">
+                      This removes {deactivationTarget.displayName}'s access to
+                      the current tenant. Their audit history remains available.
+                    </p>
+                  </div>
+                  <button
+                    aria-label="Close deactivation dialog"
+                    className="membership-dialog__close"
+                    onClick={onMemberDeactivationClose}
+                    type="button"
+                  >
+                    <X aria-hidden="true" size={20} />
+                  </button>
+                </div>
+                <dl className="membership-dialog__summary">
+                  <div>
+                    <dt>Member</dt>
+                    <dd>{deactivationTarget.displayName}</dd>
+                  </div>
+                  <div>
+                    <dt>Email</dt>
+                    <dd>{deactivationTarget.email}</dd>
+                  </div>
+                  <div>
+                    <dt>Role</dt>
+                    <dd>{deactivationTarget.roleName}</dd>
+                  </div>
+                  <div>
+                    <dt>Tenant</dt>
+                    <dd>{currentTenant?.displayName ?? "Tenant not loaded"}</dd>
+                  </div>
+                </dl>
+                <form
+                  className="membership-dialog__form"
+                  onSubmit={onMemberDeactivation}
+                >
+                  <label>
+                    <span>
+                      Deactivation reason <b aria-hidden="true">*</b>
+                    </span>
+                    <textarea
+                      aria-describedby="member-deactivation-reason-help"
+                      aria-label="Deactivation reason"
+                      maxLength={1000}
+                      onChange={(event) =>
+                        onDeactivationReasonChange(event.target.value)
+                      }
+                      required
+                      rows={4}
+                      value={deactivationReason}
+                    />
+                  </label>
+                  <small id="member-deactivation-reason-help">
+                    Record why this person no longer needs access.
+                  </small>
+                  {membershipActionStatus === "failed" &&
+                  membershipActionMessage ? (
+                    <p className="form-message form-message--error" role="alert">
+                      {membershipActionMessage}
+                    </p>
+                  ) : null}
+                  <div className="membership-dialog__actions">
+                    <Button
+                      disabled={membershipActionStatus === "saving"}
+                      onClick={onMemberDeactivationClose}
+                      variant="secondary"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      disabled={membershipActionStatus === "saving"}
+                      icon={<UserRoundX aria-hidden="true" size={16} />}
+                      type="submit"
+                      variant="danger"
+                    >
+                      {membershipActionStatus === "saving"
+                        ? "Deactivating..."
+                        : "Deactivate membership"}
+                    </Button>
+                  </div>
+                </form>
+              </section>
+            </div>
+          ) : null}
+
+          <section
+            className="invitation-section"
+            aria-label="Tenant invitations"
+          >
             <div className="section-heading section-heading--split">
               <div>
                 <p className="eyebrow">Controlled onboarding</p>
@@ -10124,14 +10887,18 @@ function SettingsView({
                   <input
                     type="email"
                     value={inviteEmail}
-                    onChange={(event) => onInviteEmailChange(event.target.value)}
+                    onChange={(event) =>
+                      onInviteEmailChange(event.target.value)
+                    }
                     required
                     maxLength={320}
-                  />
-                </label>
-                <label>
-                  <span>Role</span>
-                  <select value={inviteRole} onChange={(event) => onInviteRoleChange(event.target.value)}>
+                  /></label>
+              <label>
+                <span>Role</span>
+                  <select
+                    value={inviteRole}
+                    onChange={(event) => onInviteRoleChange(event.target.value)}
+                  >
                     <option>Admin</option>
                     <option>Compliance Manager</option>
                     <option>Contributor</option>
@@ -10140,8 +10907,14 @@ function SettingsView({
                   </select>
                 </label>
                 <button type="submit" disabled={inviteStatus === "sending"}>
-                  {inviteStatus === "sending" ? <Send size={16} /> : <UserPlus size={16} />}
-                  <span>{inviteStatus === "sending" ? "Sending" : "Invite"}</span>
+                  {inviteStatus === "sending" ? (
+                    <Send size={16} />
+                  ) : (
+                    <UserPlus size={16} />
+                  )}
+                  <span>
+                    {inviteStatus === "sending" ? "Sending" : "Invite"}
+                  </span>
                 </button>
               </form>
             </div>
@@ -10157,14 +10930,18 @@ function SettingsView({
               ))}
             </div>
             {inviteMessage ? (
-              <p className={`form-status ${inviteStatus === "failed" ? "form-status--error" : "form-status--ok"}`}>
+              <p
+                className={`form-status ${inviteStatus === "failed" ? "form-status--error" : "form-status--ok"}`}
+              >
                 {inviteMessage}
               </p>
             ) : null}
             {invitationActionMessage ? (
               <p
                 className={`form-status ${
-                  invitationActionStatus === "failed" ? "form-status--error" : "form-status--ok"
+                  invitationActionStatus === "failed"
+                    ? "form-status--error"
+                    : "form-status--ok"
                 }`}
               >
                 {invitationActionMessage}
@@ -10176,14 +10953,19 @@ function SettingsView({
                   <InvitationListItem
                     invitation={invitation}
                     isBusy={invitationActionStatus === "revoking"}
-                    isRevoking={revokingInvitationId === invitation.invitationId}
+                    isRevoking={
+                      revokingInvitationId === invitation.invitationId
+                    }
                     key={invitation.invitationId}
                     onRevoke={onInvitationRevoke}
                   />
                 ))}
               </div>
             ) : (
-              <EmptyState title="No invitations available" body="Invitation state is loaded from the active tenant context." />
+              <EmptyState
+                title="No invitations available"
+                body="Invitation state is loaded from the active tenant context."
+              />
             )}
           </section>
         </>
@@ -10196,37 +10978,47 @@ function SettingsView({
               <p className="eyebrow">Audit trail</p>
               <h2>Audit log</h2>
               <p className="section-summary">
-                Filter normalized CUI audit events by event, handling context, actor, entity, result, or date. Export applies the same filters to every matching record.
+                Filter normalized CUI audit events by event, handling context,
+                actor, entity, result, or date. Export applies the same filters
+                to every matching record.
               </p>
             </div>
-            <form className="audit-filter-form" onSubmit={onAuditLogFilterSubmit}>
+            <form
+              className="audit-filter-form"
+              onSubmit={onAuditLogFilterSubmit}
+            >
               {!isDemoCaptureMode() ? (
                 <label>
                   <span>Actor ID</span>
-                  <input
-                    value={auditLogFilters.actorUserId}
-                    onChange={(event) => onAuditLogFilterChange({ ...auditLogFilters, actorUserId: event.target.value })}
-                  />
-                </label>
-              ) : null}
-              <label>
+                <input
+                  value={auditLogFilters.actorUserId
+                  }
+                  onChange={(event) => onAuditLogFilterChange({ ...auditLogFilters, actorUserId: event.target.value })}
+                />
+              </label>
+              ) : null}<label>
                 <span>Event type</span>
                 <select
-                  value={auditLogFilters.eventType}
+                  value={auditLogFilters.eventType
+                  }
                   onChange={(event) => onAuditLogFilterChange({ ...auditLogFilters, eventType: event.target.value })}
                 >
                   <option value="">Any</option>
                   {cuiAuditEventTypes.map((eventType) => (
-                    <option key={eventType} value={eventType}>{eventType}</option>
+                    <option key={eventType} value={eventType}>
+                      {eventType}
+                    </option>
                   ))}
                 </select>
               </label>
               <label>
-                <span>Action</span>
+                  <span>Action</span>
                 <select
-                  value={auditLogFilters.action}
-                  onChange={(event) => onAuditLogFilterChange({ ...auditLogFilters, action: event.target.value })}
-                >
+                  value={auditLogFilters.action} onChange={(event) =>
+                    onAuditLogFilterChange({
+                      ...auditLogFilters,
+                      action: event.target.value,
+                    })}>
                   <option value="">Any</option>
                   <option value="Created">Created</option>
                   <option value="Viewed">Viewed</option>
@@ -10245,10 +11037,15 @@ function SettingsView({
                 </select>
               </label>
               <label>
-                <span>Classification</span>
+                  <span>Classification</span>
                 <select
                   value={auditLogFilters.classification}
-                  onChange={(event) => onAuditLogFilterChange({ ...auditLogFilters, classification: event.target.value })}
+                  onChange={(event) =>
+                    onAuditLogFilterChange({
+                      ...auditLogFilters,
+                      classification: event.target.value,
+                    })
+                  }
                 >
                   <option value="">Any</option>
                   <option value="Unknown">Unknown</option>
@@ -10257,13 +11054,18 @@ function SettingsView({
                   <option value="Cui">CUI</option>
                   <option value="SyntheticCui">Synthetic CUI</option>
                   <option value="Prohibited">Prohibited</option>
-                </select>
-              </label>
-              <label>
-                <span>Mode</span>
-                <select
+              </select>
+            </label>
+          <label>
+                  <span >Mode</span>
+                  <select
                   value={auditLogFilters.mode}
-                  onChange={(event) => onAuditLogFilterChange({ ...auditLogFilters, mode: event.target.value })}
+                  onChange={(event) =>
+                    onAuditLogFilterChange({
+                      ...auditLogFilters,
+                      mode: event.target.value,
+                    })
+                  }
                 >
                   <option value="">Any</option>
                   <option value="NoCui">No-CUI</option>
@@ -10272,12 +11074,15 @@ function SettingsView({
                 </select>
               </label>
               <label>
-                <span>Result</span>
-                <select
+                <span >Result</span>
+                  <select
                   value={auditLogFilters.result}
-                  onChange={(event) => onAuditLogFilterChange({ ...auditLogFilters, result: event.target.value })}
-                >
-                  <option value="">Any</option>
+                  onChange={(event) =>
+                    onAuditLogFilterChange({
+                      ...auditLogFilters,
+                      result: event.target.value,
+                    })
+                  }><option value="">Any</option>
                   <option value="succeeded">Succeeded</option>
                   <option value="acknowledged">Acknowledged</option>
                   <option value="renewed">Renewed</option>
@@ -10287,22 +11092,23 @@ function SettingsView({
                 </select>
               </label>
               <label>
-                <span>Entity</span>
-                <select
+                  <span >Entity</span>
+                  <select
                   value={auditLogFilters.entityType}
-                  onChange={(event) => onAuditLogFilterChange({ ...auditLogFilters, entityType: event.target.value })}
-                >
-                  <option value="">Any</option>
-                  {auditLogEntityTypes.map((entityType) => (
+                  onChange={(event) =>
+                    onAuditLogFilterChange({
+                      ...auditLogFilters,
+                      entityType: event.target.value,
+                    })
+                  }><option value="">Any</option>
+                {auditLogEntityTypes.map((entityType) =>  (
                     <option key={entityType} value={entityType}>
-                      {entityType}
-                    </option>
-                  ))}
-                </select>
-                {auditLogEntityTypeStatus === "failed" ? (
-                  <small role="status">Entity choices could not be loaded. Reload the workspace and try again.</small>
-                ) : auditLogEntityTypeStatus === "ready" && auditLogEntityTypes.length === 0 ? (
-                  <small>No entity types exist in this tenant's audit history yet.</small>
+                      {entityType}</option>))}</select>
+                      {auditLogEntityTypeStatus === "failed" ? (<small role="status">Entity choices could not be loaded.Reload the workspace and
+                    try again.</small>
+                      ) : auditLogEntityTypeStatus === "ready" &&
+                  auditLogEntityTypes.length === 0 ? (<small >No entity types exist in this tenant's audit history yet.
+                  </small>
                 ) : null}
               </label>
               <label>
@@ -10315,7 +11121,12 @@ function SettingsView({
                       ? "Optional date filter."
                       : "Optional. Leave blank for UAT-22 unless you need to narrow the date range."
                   }
-                  onChange={(event) => onAuditLogFilterChange({ ...auditLogFilters, from: event.target.value })}
+                  onChange={(event) =>
+                    onAuditLogFilterChange({
+                      ...auditLogFilters,
+                      from: event.target.value,
+                    })
+                  }
                 />
               </label>
               <label>
@@ -10328,23 +11139,49 @@ function SettingsView({
                       ? "Optional date filter."
                       : "Optional. Leave blank for UAT-22 unless you need to narrow the date range."
                   }
-                  onChange={(event) => onAuditLogFilterChange({ ...auditLogFilters, to: event.target.value })}
+                  onChange={(event) =>
+                    onAuditLogFilterChange({
+                      ...auditLogFilters,
+                      to: event.target.value,
+                    })
+                  }
                 />
               </label>
-              <div className="audit-filter-actions" role="group" aria-label="Audit log actions">
-                <button className="audit-filter-actions__filter" type="submit" disabled={auditLogStatus === "loading"}>
+              <div
+                className="audit-filter-actions"
+                role="group"
+                aria-label="Audit log actions"
+              >
+                <button
+                  className="audit-filter-actions__filter"
+                  type="submit"
+                  disabled={auditLogStatus === "loading"}
+                >
                   <SlidersHorizontal size={16} aria-hidden="true" />
-                  <span>{auditLogStatus === "loading" ? "Filtering" : "Filter"}</span>
+                  <span>
+                    {auditLogStatus === "loading" ? "Filtering" : "Filter"}
+                  </span>
                 </button>
-                <button type="button" disabled={auditExportStatus === "exporting"} onClick={onAuditExport}>
+                <button
+                  type="button"
+                  disabled={auditExportStatus === "exporting"}
+                  onClick={onAuditExport}
+                >
                   <FileDown size={16} aria-hidden="true" />
-                  <span>{auditExportStatus === "exporting" ? "Exporting" : "Export matching events"}</span>
+                  <span>
+                    {auditExportStatus === "exporting"
+                      ? "Exporting"
+                      : "Export matching events"}
+                  </span>
                 </button>
               </div>
             </form>
           </div>
           {auditExportMessage ? (
-            <p className={`form-status ${auditExportStatus === "failed" ? "form-status--error" : "form-status--ok"}`} role="status">
+            <p
+              className={`form-status ${auditExportStatus === "failed" ? "form-status--error" : "form-status--ok"}`}
+              role="status"
+            >
               {auditExportMessage}
             </p>
           ) : null}
@@ -10352,9 +11189,16 @@ function SettingsView({
             <div className="table-section">
               <div className="table-section__header">
                 <h3>Tenant audit events</h3>
-                <p>Filtered audit records for compliance-relevant tenant activity.</p>
+                <p>
+                  Filtered audit records for compliance-relevant tenant
+                  activity.
+                </p>
               </div>
-              <div className="member-table member-table--audit-log" role="table" aria-label="Tenant audit logs">
+              <div
+                className="member-table member-table--audit-log"
+                role="table"
+                aria-label="Tenant audit logs"
+              >
                 <div className="member-row member-row--header" role="row">
                   <span role="columnheader">Date</span>
                   <span role="columnheader">Actor</span>
@@ -10363,20 +11207,39 @@ function SettingsView({
                   <span role="columnheader">Summary</span>
                 </div>
                 {auditLogs.items.map((entry) => {
-                  const currentEntityLabel = currentAuditEntityLabels.get(`${entry.entityType}:${entry.entityId}`);
+                  const currentEntityLabel = currentAuditEntityLabels.get(
+                    `${entry.entityType}:${entry.entityId}`,
+                  );
 
                   return (
-                    <article className="member-row" data-testid="audit-row" role="row" key={entry.id}>
-                      <span role="cell">{formatUsDateTime(entry.occurredAt)}</span>
-                      <span role="cell">{isDemoCaptureMode() && entry.actorUserId ? "Tenant user" : (entry.actorUserId ?? "System")}</span>
+                    <article
+                      className="member-row"
+                      data-testid="audit-row"
+                      role="row"
+                      key={entry.id}
+                    >
+                      <span role="cell">
+                        {formatUsDateTime(entry.occurredAt)}
+                      </span>
+                      <span role="cell">
+                        {isDemoCaptureMode() && entry.actorUserId
+                          ? "Tenant user"
+                          : (entry.actorUserId ?? "System")}
+                      </span>
                       <span role="cell">
                         {entry.eventType}
-                        <small className="audit-current-entity-label">{entry.action} · {entry.result}</small>
+                        <small className="audit-current-entity-label">
+                          {entry.action} · {entry.result}
+                        </small>
                       </span>
                       <span role="cell">{entry.entityType}</span>
                       <span role="cell">
                         {entry.summary}
-                        {currentEntityLabel ? <small className="audit-current-entity-label">Current record: {currentEntityLabel}</small> : null}
+                        {currentEntityLabel ? (
+                          <small className="audit-current-entity-label">
+                            Current record: {currentEntityLabel}
+                          </small>
+                        ) : null}
                       </span>
                     </article>
                   );
@@ -10384,16 +11247,36 @@ function SettingsView({
               </div>
             </div>
           ) : (
-            <EmptyState title="No audit events match" body="Audit events are tenant-scoped and filtered by the controls above." />
+            <EmptyState
+              title="No audit events match"
+              body="Audit events are tenant-scoped and filtered by the controls above."
+            />
           )}
           <div className="form-status">
-            Page {auditLogs.page} of {Math.max(1, Math.ceil(auditLogs.totalCount / Math.max(1, auditLogs.pageSize)))} · {auditLogs.totalCount} events
+            Page {auditLogs.page} of{" "}
+            {Math.max(
+              1,
+              Math.ceil(auditLogs.totalCount / Math.max(1, auditLogs.pageSize)),
+            )}{" "}
+            · {auditLogs.totalCount} events
           </div>
           <div className="form-status button-row">
-            <Button size="sm" type="button" variant="secondary" disabled={!auditLogs.hasPreviousPage} onClick={() => onAuditLogPageChange(auditLogs.page - 1)}>
+            <Button
+              size="sm"
+              type="button"
+              variant="secondary"
+              disabled={!auditLogs.hasPreviousPage}
+              onClick={() => onAuditLogPageChange(auditLogs.page - 1)}
+            >
               Previous
             </Button>
-            <Button size="sm" type="button" variant="secondary" disabled={!auditLogs.hasNextPage} onClick={() => onAuditLogPageChange(auditLogs.page + 1)}>
+            <Button
+              size="sm"
+              type="button"
+              variant="secondary"
+              disabled={!auditLogs.hasNextPage}
+              onClick={() => onAuditLogPageChange(auditLogs.page + 1)}
+            >
               Next
             </Button>
           </div>

@@ -103,11 +103,11 @@ export function ExpertReviewQueuePanel({ canResolve }: { canResolve: boolean }) 
     {state === "error" ? <p role="alert">{message}</p> : null}
     {state === "ready" && items.length === 0 ? <p>No assistant answers are currently routed for expert review.</p> : null}
     {items.map(item => <article className="expert-review-queue__item" key={item.id}>
-      <div className="guarded-assistant__status">
+      <div className="governance-status-list">
         <strong>{item.status}</strong><span>{item.priority} priority</span><span>{item.topic}</span>
       </div>
-      <p>{item.reason}</p>
-      {answers[item.sourceId] ? <div className="expert-review-queue__answer">
+      <p className="expert-review-queue__reason">{item.reason}</p>
+      {answers[item.sourceId] ? <div className="governance-subsection expert-review-queue__answer">
         <strong>{answers[item.sourceId].draftLabel} · {answers[item.sourceId].supportStatus} · human review {answers[item.sourceId].humanReviewStatus}</strong>
         <p>Lifecycle: {answers[item.sourceId].reviewState} · classification {answers[item.sourceId].classification} · retain until {new Date(answers[item.sourceId].retainUntil).toLocaleDateString()}</p>
         <p><strong>Prompt:</strong> {answers[item.sourceId].promptWasRedacted ? "Prompt excluded under prohibited-data policy." : answers[item.sourceId].prompt}</p>
@@ -116,40 +116,49 @@ export function ExpertReviewQueuePanel({ canResolve }: { canResolve: boolean }) 
           <li key={citation.sourceId}>{citation.title} · {citation.excerptPointer} · version {citation.version}</li>)}</ul>
       </div> : <p>Answer detail is unavailable. Do not resolve this item without reviewing its supporting record.</p>}
       <small>Answer {item.sourceId} · created {new Date(item.createdAt).toLocaleString()}</small>
-      {item.status === "open" && canResolve ? <form onSubmit={event => void assign(event, item)}>
-        <label>Assigned expert<select required value={assignees[item.id] ?? item.assignedExpertUserId ?? ""}
-          onChange={event => setAssignees(current => ({ ...current, [item.id]: event.target.value }))}>
-          <option value="">Select an active tenant member</option>
-          {candidates.map(candidate => <option key={candidate.userId} value={candidate.userId}>{candidate.displayName}</option>)}
-        </select></label>
-        <label>Due date<input type="date" value={dueDates[item.id] ?? item.dueAt ?? ""}
-          onChange={event => setDueDates(current => ({ ...current, [item.id]: event.target.value }))} /></label>
-        <button type="submit">Assign expert</button>
+      {item.status === "open" && canResolve ? <form className="governance-form governance-form--section" onSubmit={event => void assign(event, item)}>
+        <h3>Assign reviewer</h3>
+        <div className="governance-form__grid governance-form__grid--two">
+          <label className="governance-field">Assigned expert<select required value={assignees[item.id] ?? item.assignedExpertUserId ?? ""}
+            onChange={event => setAssignees(current => ({ ...current, [item.id]: event.target.value }))}>
+            <option value="">Select an active tenant member</option>
+            {candidates.map(candidate => <option key={candidate.userId} value={candidate.userId}>{candidate.displayName}</option>)}
+          </select></label>
+          <label className="governance-field">Due date<input type="date" value={dueDates[item.id] ?? item.dueAt ?? ""}
+            onChange={event => setDueDates(current => ({ ...current, [item.id]: event.target.value }))} /></label>
+        </div>
+        <div className="governance-form__actions"><button className="primary-action" type="submit">Assign expert</button></div>
       </form> : null}
-      {item.status === "open" && canResolve ? <form onSubmit={event => void resolve(event, item)}>
-        <label>Decision<select required value={decision[item.id] ?? ""}
-          onChange={event => setDecision(current => ({ ...current, [item.id]: event.target.value }))}>
-          <option value="">Select a governed disposition</option>
-          <option value="accepted_as_reviewed_draft">Accept as reviewed draft</option>
-          <option value="revision_required">Revision required</option>
-          <option value="rejected">Reject</option>
-        </select></label>
-        <label>Resolution notes<textarea required maxLength={1000} value={notes[item.id] ?? ""}
-          onChange={event => setNotes(current => ({ ...current, [item.id]: event.target.value }))} /></label>
-        <button type="submit">Resolve review item</button>
+      {item.status === "open" && canResolve ? <form className="governance-form governance-form--section" onSubmit={event => void resolve(event, item)}>
+        <h3>Resolve review item</h3>
+        <div className="governance-form__grid governance-form__grid--two">
+          <label className="governance-field">Decision<select required value={decision[item.id] ?? ""}
+            onChange={event => setDecision(current => ({ ...current, [item.id]: event.target.value }))}>
+            <option value="">Select a governed disposition</option>
+            <option value="accepted_as_reviewed_draft">Accept as reviewed draft</option>
+            <option value="revision_required">Revision required</option>
+            <option value="rejected">Reject</option>
+          </select></label>
+          <label className="governance-field governance-field--wide">Resolution notes<textarea required maxLength={1000} value={notes[item.id] ?? ""}
+            onChange={event => setNotes(current => ({ ...current, [item.id]: event.target.value }))} /></label>
+        </div>
+        <div className="governance-form__actions"><button className="primary-action" type="submit">Resolve review item</button></div>
       </form> : null}
-      {canResolve && answers[item.sourceId] && answers[item.sourceId].reviewState !== "Archived" ? <form onSubmit={event => void reviewOutput(event, item)}>
-        <label>AI output decision<select required value={outputDecisions[item.id] ?? ""}
-          onChange={event => setOutputDecisions(current => ({ ...current, [item.id]: event.target.value }))}>
-          <option value="">Select lifecycle decision</option>
-          <option value="Approved">Approve</option><option value="Rejected">Reject</option>
-          <option value="Superseded">Supersede</option><option value="Archived">Archive</option>
-        </select></label>
-        <label>AI review note<textarea required maxLength={1000} value={outputNotes[item.id] ?? ""}
-          onChange={event => setOutputNotes(current => ({ ...current, [item.id]: event.target.value }))} /></label>
-        {outputDecisions[item.id] === "Rejected" ? <label>Rejection reason<textarea required maxLength={1000}
-          value={rejectionReasons[item.id] ?? ""} onChange={event => setRejectionReasons(current => ({ ...current, [item.id]: event.target.value }))} /></label> : null}
-        <button type="submit">Save AI output decision</button>
+      {canResolve && answers[item.sourceId] && answers[item.sourceId].reviewState !== "Archived" ? <form className="governance-form governance-form--section" onSubmit={event => void reviewOutput(event, item)}>
+        <h3>Review AI output</h3>
+        <div className="governance-form__grid governance-form__grid--two">
+          <label className="governance-field">AI output decision<select required value={outputDecisions[item.id] ?? ""}
+            onChange={event => setOutputDecisions(current => ({ ...current, [item.id]: event.target.value }))}>
+            <option value="">Select lifecycle decision</option>
+            <option value="Approved">Approve</option><option value="Rejected">Reject</option>
+            <option value="Superseded">Supersede</option><option value="Archived">Archive</option>
+          </select></label>
+          <label className="governance-field">AI review note<textarea required maxLength={1000} value={outputNotes[item.id] ?? ""}
+            onChange={event => setOutputNotes(current => ({ ...current, [item.id]: event.target.value }))} /></label>
+          {outputDecisions[item.id] === "Rejected" ? <label className="governance-field governance-field--wide">Rejection reason<textarea required maxLength={1000}
+            value={rejectionReasons[item.id] ?? ""} onChange={event => setRejectionReasons(current => ({ ...current, [item.id]: event.target.value }))} /></label> : null}
+        </div>
+        <div className="governance-form__actions"><button className="primary-action" type="submit">Save AI output decision</button></div>
       </form> : null}
       {item.status === "resolved" ? <p>Decision: {item.resolutionDecision}. {item.resolutionNotes}</p> : null}
     </article>)}

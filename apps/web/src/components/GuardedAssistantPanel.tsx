@@ -111,30 +111,34 @@ export function GuardedAssistantPanel({
       <p>Draft guidance only. Do not enter CUI, classified, export-controlled, another tenant&apos;s, or other prohibited data. A qualified person must review all output before use.</p>
     </div>
 
-    <form className="guarded-assistant__question" onSubmit={ask}>
-      <label>Workflow context
+    <form className="governance-form guarded-assistant__question" onSubmit={ask}>
+      <div className="governance-form__grid governance-form__grid--question">
+      <label className="governance-field">Workflow context
         <select value={context} onChange={event => { setContext(event.target.value as AssistantWorkflowContext); setAnswer(null); setMessage(""); }}>
           {contexts.map(item => <option key={item} value={item}>{contextLabels[item]}</option>)}
         </select>
       </label>
-      <label>Question
+      <label className="governance-field governance-field--wide">Question
         <textarea required maxLength={4000} value={question} onChange={event => setQuestion(event.target.value)}
           placeholder="Ask a question that can be answered from approved sources…" />
       </label>
-      <button disabled={state === "asking"} type="submit">{state === "asking" ? "Checking sources…" : "Ask assistant"}</button>
+      </div>
+      <div className="governance-form__actions">
+        <button className="primary-action" disabled={state === "asking"} type="submit">{state === "asking" ? "Checking sources…" : "Ask assistant"}</button>
+      </div>
     </form>
 
     {state === "error" ? <p role="alert">{message}</p> : null}
     {state === "asking" ? <p role="status">Checking prompt boundaries and approved sources…</p> : null}
     {answer ? <article className={`guarded-assistant__answer${answer.status === "Blocked" ? " guarded-assistant__answer--blocked" : ""}`} aria-label="Assistant answer">
-      <div className="guarded-assistant__status">
+      <div className="governance-status-list">
         <strong>{answer.draftLabel}</strong>
         <span>{answer.supportStatus}</span>
         <span>{answer.requiresReview ? "Human review required" : "Review status unavailable"}</span>
       </div>
       <p>{answer.answer}</p>
       {answer.blockedReason ? <p role="alert">Blocked category: {answer.blockedReason}. The prompt text was not written to the audit log.</p> : null}
-      <div>
+      <div className="governance-subsection">
         <h3>Citations</h3>
         {answer.citations.length === 0 ? <p>No approved citation supports this answer. Do not rely on it.</p> : <ol>
           {answer.citations.map(citation => <li key={citation.sourceId}>
@@ -146,27 +150,31 @@ export function GuardedAssistantPanel({
         </ol>}
       </div>
 
-      {answer.supportStatus === "SourceSupported" && allowedActions.length > 0 ? <form className="guarded-assistant__action" onSubmit={createAction}>
+      {answer.supportStatus === "SourceSupported" && allowedActions.length > 0 ? <form className="governance-form governance-form--section guarded-assistant__action" onSubmit={createAction}>
         <h3>Create a reviewable draft</h3>
-        <label>Draft type<select value={actionType} onChange={event => setActionType(event.target.value as AssistantDraftActionType)}>
-          {allowedActions.map(item => <option key={item} value={item}>{item.replace(/([A-Z])/g, " $1").trim()}</option>)}
-        </select></label>
-        <label>Title<input required maxLength={240} value={actionTitle} onChange={event => setActionTitle(event.target.value)} /></label>
-        <label>Draft content<textarea required maxLength={4000} value={actionBody} onChange={event => setActionBody(event.target.value)} /></label>
-        <button type="submit">Save draft</button>
+        <div className="governance-form__grid governance-form__grid--two">
+          <label className="governance-field">Draft type<select value={actionType} onChange={event => setActionType(event.target.value as AssistantDraftActionType)}>
+            {allowedActions.map(item => <option key={item} value={item}>{item.replace(/([A-Z])/g, " $1").trim()}</option>)}
+          </select></label>
+          <label className="governance-field">Title<input required maxLength={240} value={actionTitle} onChange={event => setActionTitle(event.target.value)} /></label>
+          <label className="governance-field governance-field--wide">Draft content<textarea required maxLength={4000} value={actionBody} onChange={event => setActionBody(event.target.value)} /></label>
+        </div>
+        <div className="governance-form__actions"><button className="primary-action" type="submit">Save draft</button></div>
       </form> : answer.supportStatus === "SourceSupported" ? <p>You can review this answer, but your role cannot create assistant drafts.</p> : null}
 
-      <form className="guarded-assistant__feedback" onSubmit={sendFeedback}>
+      <form className="governance-form governance-form--section guarded-assistant__feedback" onSubmit={sendFeedback}>
         <h3>Feedback and escalation</h3>
-        <label>Feedback<select value={feedbackType} onChange={event => setFeedbackType(event.target.value as AssistantFeedbackType)}>
-          <option value="Helpful">Helpful</option>
-          <option value="Incorrect">Incorrect</option>
-          <option value="MissingSource">Missing source</option>
-          <option value="NeedsExpertReview">Needs expert review</option>
-        </select></label>
-        <label>Reason<textarea required maxLength={1000} value={feedbackReason} onChange={event => setFeedbackReason(event.target.value)} /></label>
-        <div><button type="submit">Submit feedback</button>{permissions.includes("ManageObligations")
-          ? <button type="button" onClick={() => void routeForReview()}>Route for expert review</button>
+        <div className="governance-form__grid governance-form__grid--two">
+          <label className="governance-field">Feedback<select value={feedbackType} onChange={event => setFeedbackType(event.target.value as AssistantFeedbackType)}>
+            <option value="Helpful">Helpful</option>
+            <option value="Incorrect">Incorrect</option>
+            <option value="MissingSource">Missing source</option>
+            <option value="NeedsExpertReview">Needs expert review</option>
+          </select></label>
+          <label className="governance-field governance-field--wide">Reason<textarea required maxLength={1000} value={feedbackReason} onChange={event => setFeedbackReason(event.target.value)} /></label>
+        </div>
+        <div className="governance-form__actions"><button className="primary-action" type="submit">Submit feedback</button>{permissions.includes("ManageObligations")
+          ? <button className="secondary-action" type="button" onClick={() => void routeForReview()}>Route for expert review</button>
           : null}</div>
       </form>
       {message ? <p role="status">{message}</p> : null}

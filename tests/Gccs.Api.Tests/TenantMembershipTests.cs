@@ -184,7 +184,7 @@ public sealed class TenantMembershipTests : IClassFixture<WebApplicationFactory<
         using var deactivateRequest = CreateRequest(
             HttpMethod.Patch,
             $"/api/tenant-members/{createdMember.MembershipId}/status",
-            new UpdateTenantMembershipStatusRequest(MembershipStatus.Deactivated),
+            new UpdateTenantMembershipStatusRequest(MembershipStatus.Deactivated, "The synthetic user no longer needs access."),
             tenantId,
             actorUserId,
             Permission.ManageUsers);
@@ -214,6 +214,132 @@ public sealed class TenantMembershipTests : IClassFixture<WebApplicationFactory<
     }
 
     [Fact]
+    public async Task Owner_and_last_active_admin_cannot_be_deactivated()
+    {
+        var tenantId = Guid.Parse("66666666-6666-6666-6666-6666666666a1");
+        var ownerUserId = Guid.Parse("66666666-6666-6666-6666-6666666666b1");
+        var adminUserId = Guid.Parse("66666666-6666-6666-6666-6666666666b2");
+        var actorUserId = Guid.Parse("66666666-6666-6666-6666-6666666666b3");
+        var ownerMembershipId = Guid.Parse("66666666-6666-6666-6666-6666666666c1");
+        var adminMembershipId = Guid.Parse("66666666-6666-6666-6666-6666666666c2");
+        await using var factory = CreateFactory("membership-protection", dbContext =>
+        {
+            dbContext.Tenants.Add(CreateTenant(tenantId, "Membership protection tenant"));
+            dbContext.Users.AddRange(
+                CreateUser(ownerUserId, tenantId, "owner.membership@example.com", "Tenant Owner"),
+                CreateUser(adminUserId, tenantId, "admin.membership@example.com", "Tenant Admin"));
+            dbContext.TenantMemberships.AddRange(
+                CreateMembership(ownerMembershipId, tenantId, ownerUserId, RoleCatalog.Owner),
+                CreateMembership(adminMembershipId, tenantId, adminUserId, RoleCatalog.Admin));
+            dbContext.SaveChanges();
+        });
+        using var client = factory.CreateClient();
+
+        using var ownerRequest = CreateRequest(
+            HttpMethod.Patch,
+            $"/api/tenant-members/{ownerMembershipId}/status",
+            new UpdateTenantMembershipStatusRequest(MembershipStatus.Deactivated, "Owner offboarding test."),
+            tenantId,
+            actorUserId,
+            Permission.ManageUsers);
+        using var adminRequest = CreateRequest(
+            HttpMethod.Patch,
+            $"/api/tenant-members/{adminMembershipId}/status",
+            new UpdateTenantMembershipStatusRequest(MembershipStatus.Deactivated, "Last admin offboarding test."),
+            tenantId,
+            actorUserId,
+            Permission.ManageUsers);
+
+        var ownerResponse = await client.SendAsync(ownerRequest);
+        var adminResponse = await client.SendAsync(adminRequest);
+        var ownerBody = await ownerResponse.Content.ReadAsStringAsync();
+        var adminBody = await adminResponse.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.Conflict, ownerResponse.StatusCode);
+        Assert.Contains("Owner membership cannot be deactivated", ownerBody, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(HttpStatusCode.Conflict, adminResponse.StatusCode);
+        Assert.Contains("last active Admin", adminBody, StringComparison.OrdinalIgnoreCase);
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.All(
+            await dbContext.TenantMemberships.Where(candidate => candidate.TenantId == tenantId).ToListAsync(),
+            membership => Assert.Equal(MembershipStatus.Active, membership.Status));
+    }
+
+    [Fact]
+    public async Task Deactivation_requires_a_reason()
+    {
+        var tenantId = Guid.Parse("77777777-7777-7777-7777-7777777777a1");
+        var adminUserId = Guid.Parse("77777777-7777-7777-7777-7777777777b1");
+        var contributorUserId = Guid.Parse("77777777-7777-7777-7777-7777777777b2");
+        var membershipId = Guid.Parse("77777777-7777-7777-7777-7777777777c2");
+        await using var factory = CreateFactory("membership-reason", dbContext =>
+        {
+            dbContext.Tenants.Add(CreateTenant(tenantId, "Membership reason tenant"));
+            dbContext.Users.AddRange(
+                CreateUser(adminUserId, tenantId, "reason.admin@example.com", "Reason Admin"),
+                CreateUser(contributorUserId, tenantId, "reason.contributor@example.com", "Reason Contributor"));
+            dbContext.TenantMemberships.AddRange(
+                CreateMembership(Guid.Parse("77777777-7777-7777-7777-7777777777c1"), tenantId, adminUserId, RoleCatalog.Admin),
+                CreateMembership(membershipId, tenantId, contributorUserId, RoleCatalog.Contributor));
+            dbContext.SaveChanges();
+        });
+        using var client = factory.CreateClient();
+        using var request = CreateRequest(
+            HttpMethod.Patch,
+            $"/api/tenant-members/{membershipId}/status",
+            new UpdateTenantMembershipStatusRequest(MembershipStatus.Deactivated),
+            tenantId,
+            adminUserId,
+            Permission.ManageUsers);
+
+        var response = await client.SendAsync(request);
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("reason", body, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("required", body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Deactivation_cannot_target_a_membership_from_another_tenant()
+    {
+        var tenantAId = Guid.Parse("88888888-8888-8888-8888-8888888888a1");
+        var tenantBId = Guid.Parse("88888888-8888-8888-8888-8888888888a2");
+        var actorUserId = Guid.Parse("88888888-8888-8888-8888-8888888888b1");
+        var targetUserId = Guid.Parse("88888888-8888-8888-8888-8888888888b2");
+        var targetMembershipId = Guid.Parse("88888888-8888-8888-8888-8888888888c2");
+        await using var factory = CreateFactory("membership-tenant-scope", dbContext =>
+        {
+            SeedTenants(dbContext, tenantAId, tenantBId);
+            dbContext.Users.AddRange(
+                CreateUser(actorUserId, tenantAId, "scope.admin@example.com", "Scope Admin"),
+                CreateUser(targetUserId, tenantBId, "scope.contributor@example.com", "Scope Contributor"));
+            dbContext.TenantMemberships.AddRange(
+                CreateMembership(Guid.Parse("88888888-8888-8888-8888-8888888888c1"), tenantAId, actorUserId, RoleCatalog.Admin),
+                CreateMembership(targetMembershipId, tenantBId, targetUserId, RoleCatalog.Contributor));
+            dbContext.SaveChanges();
+        });
+        using var client = factory.CreateClient();
+        using var request = CreateRequest(
+            HttpMethod.Patch,
+            $"/api/tenant-members/{targetMembershipId}/status",
+            new UpdateTenantMembershipStatusRequest(MembershipStatus.Deactivated, "Cross-tenant scope test."),
+            tenantAId,
+            actorUserId,
+            Permission.ManageUsers);
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        var targetMembership = await dbContext.TenantMemberships.SingleAsync(candidate => candidate.Id == targetMembershipId);
+        Assert.Equal(MembershipStatus.Active, targetMembership.Status);
+    }
+
+    [Fact]
     public async Task Tenant_membership_actions_require_manage_users_permission()
     {
         var tenantId = Guid.Parse("55555555-5555-5555-5555-5555555555a1");
@@ -232,12 +358,21 @@ public sealed class TenantMembershipTests : IClassFixture<WebApplicationFactory<
             tenantId,
             Guid.NewGuid(),
             Permission.AuditorReadOnly);
+        using var deactivateRequest = CreateRequest(
+            HttpMethod.Patch,
+            $"/api/tenant-members/{Guid.NewGuid()}/status",
+            new UpdateTenantMembershipStatusRequest(MembershipStatus.Deactivated, "Unauthorized deactivation test."),
+            tenantId,
+            Guid.NewGuid(),
+            Permission.AuditorReadOnly);
 
         var listResponse = await client.SendAsync(listRequest);
         var createResponse = await client.SendAsync(createRequest);
+        var deactivateResponse = await client.SendAsync(deactivateRequest);
 
         Assert.Equal(HttpStatusCode.Forbidden, listResponse.StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, createResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, deactivateResponse.StatusCode);
     }
 
     private WebApplicationFactory<Program> CreateFactory(

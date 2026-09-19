@@ -1,4 +1,5 @@
 using Gccs.Application.Audit;
+using Gccs.Application.Common;
 using Gccs.Application.Security;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Common;
@@ -9,7 +10,8 @@ namespace Gccs.Application.Identity;
 public sealed class TenantMembershipService(
     ITenantMembershipRepository membershipRepository,
     ICurrentTenantContext tenantContext,
-    IAuditEventWriter auditEventWriter)
+    IAuditEventWriter auditEventWriter,
+    IApplicationTransaction transaction)
 {
     public Task<IReadOnlyList<TenantMemberDto>> ListCurrentTenantMembersAsync(
         CancellationToken cancellationToken = default) =>
@@ -79,33 +81,58 @@ public sealed class TenantMembershipService(
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
-        var member = await membershipRepository.UpdateStatusInCurrentTenantScopeAsync(
-            membershipId,
-            request.Status,
-            actorUserId,
-            cancellationToken);
+        ValidateStatusChange(request);
+        var reason = request.Reason?.Trim() ?? string.Empty;
 
-        if (member is null)
+        return await transaction.ExecuteSerializableAsync(async token =>
         {
-            return null;
+            var member = await membershipRepository.UpdateStatusInCurrentTenantScopeAsync(
+                membershipId,
+                request.Status,
+                actorUserId,
+                token);
+
+            if (member is null)
+            {
+                return null;
+            }
+
+            await auditEventWriter.WriteAsync(
+                tenantContext.TenantId,
+                actorUserId,
+                AuditAction.Updated,
+                "TenantMembership",
+                member.MembershipId.ToString(),
+                $"User '{member.Email}' membership status changed to {member.MembershipStatus}.",
+                new Dictionary<string, string>
+                {
+                    ["userId"] = member.UserId.ToString(),
+                    ["membershipStatus"] = member.MembershipStatus.ToString(),
+                    ["roleName"] = member.RoleName,
+                    ["reason"] = reason
+                },
+                token);
+
+            return member;
+        }, cancellationToken);
+    }
+
+    private static void ValidateStatusChange(UpdateTenantMembershipStatusRequest request)
+    {
+        if (request.Status is not MembershipStatus.Deactivated)
+        {
+            return;
         }
 
-        await auditEventWriter.WriteAsync(
-            tenantContext.TenantId,
-            actorUserId,
-            AuditAction.Updated,
-            "TenantMembership",
-            member.MembershipId.ToString(),
-            $"User '{member.Email}' membership status changed to {member.MembershipStatus}.",
-            new Dictionary<string, string>
-            {
-                ["userId"] = member.UserId.ToString(),
-                ["membershipStatus"] = member.MembershipStatus.ToString(),
-                ["roleName"] = member.RoleName
-            },
-            cancellationToken);
+        if (string.IsNullOrWhiteSpace(request.Reason))
+        {
+            throw new ArgumentException("A reason is required when deactivating a tenant membership.", nameof(request));
+        }
 
-        return member;
+        if (request.Reason.Trim().Length > 1000)
+        {
+            throw new ArgumentException("The deactivation reason must be 1000 characters or fewer.", nameof(request));
+        }
     }
 
     private static void ValidateRequest(AssignTenantMemberRequest request)

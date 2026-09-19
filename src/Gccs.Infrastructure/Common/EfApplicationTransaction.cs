@@ -1,3 +1,4 @@
+using System.Data;
 using Gccs.Application.Common;
 using Gccs.Domain.Audit;
 using Gccs.Infrastructure.Persistence.Models;
@@ -12,6 +13,17 @@ public sealed class EfApplicationTransaction(IServiceProvider serviceProvider) :
     public async Task<T> ExecuteAsync<T>(
         Func<CancellationToken, Task<T>> operation,
         CancellationToken cancellationToken = default)
+        => await ExecuteCoreAsync(operation, null, cancellationToken);
+
+    public async Task<T> ExecuteSerializableAsync<T>(
+        Func<CancellationToken, Task<T>> operation,
+        CancellationToken cancellationToken = default)
+        => await ExecuteCoreAsync(operation, IsolationLevel.Serializable, cancellationToken);
+
+    private async Task<T> ExecuteCoreAsync<T>(
+        Func<CancellationToken, Task<T>> operation,
+        IsolationLevel? isolationLevel,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(operation);
         var dbContext = serviceProvider.GetService<GccsDbContext>();
@@ -26,7 +38,9 @@ public sealed class EfApplicationTransaction(IServiceProvider serviceProvider) :
         var preexistingAuditIds = dbContext.ChangeTracker.Entries<AuditLogEntryEntity>()
             .Select(entry => entry.Entity.Id)
             .ToHashSet();
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await using var transaction = isolationLevel.HasValue
+            ? await dbContext.Database.BeginTransactionAsync(isolationLevel.Value, cancellationToken)
+            : await dbContext.Database.BeginTransactionAsync(cancellationToken);
         try
         {
             var result = await operation(cancellationToken);

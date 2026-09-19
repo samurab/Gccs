@@ -49,8 +49,10 @@ export function DevelopmentTestingContextSelector({
             (persona) => persona.tenantId === selectedTenantId && persona.userId === storedUserId
           ) ?? availablePersonas.find((persona) => persona.tenantId === selectedTenantId);
         const selectedRole = getSelectedDevelopmentRole();
-        const normalizedRole = selectedPersona?.roleName ??
-          (context.roles.includes(selectedRole) ? selectedRole : (context.roles[0] ?? ""));
+        const hasStoredPersonaContext = Boolean(storedUserId && storedTenantId === selectedTenantId);
+        const normalizedRole = hasStoredPersonaContext && context.roles.includes(selectedRole)
+          ? selectedRole
+          : selectedPersona?.roleName ?? (context.roles.includes(selectedRole) ? selectedRole : (context.roles[0] ?? ""));
 
         if (storedTenantId && !storedTenant?.isSelectable && fallbackTenant && normalizedRole) {
           const fallbackPersona = availablePersonas.find((persona) => persona.tenantId === fallbackTenant.tenantId);
@@ -160,7 +162,7 @@ export function DevelopmentTestingContextSelector({
         {personas
           .filter((persona) => persona.tenantId === tenantId)
           .map((persona) => (
-            <option key={persona.userId} value={persona.userId}>
+            <option key={`${persona.tenantId}:${persona.userId}:${persona.roleName}`} value={persona.userId}>
               {persona.displayName} ({persona.roleName})
             </option>
           ))}

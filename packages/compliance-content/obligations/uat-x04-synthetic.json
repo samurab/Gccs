@@ -1,0 +1,30 @@
+{
+  "id": "uat-x04-synthetic-2026-09-18",
+  "source": "Synthetic UAT Compliance Source",
+  "title": "Synthetic access review obligation",
+  "trigger_condition": "Synthetic contract includes an access-review requirement.",
+  "applies_to": ["prime"],
+  "contract_types": ["federal contract"],
+  "data_types": ["FCI"],
+  "required_actions": [
+    "Complete a synthetic annual access review.",
+    "Retain the synthetic review record."
+  ],
+  "evidence_examples": [
+    "Synthetic annual access review record",
+    "Synthetic reviewer sign-off"
+  ],
+  "reporting_deadline": null,
+  "flow_down_requirement": "Flow down only when required by the synthetic contract.",
+  "risk_level": "medium",
+  "source_url": "https://example.invalid/gccs/uat-x04/2026-09-18",
+  "effective_at": "2026-09-18",
+  "clause_text_version": "uat-x04-r1",
+  "source_hash": "uat-x04-hash-r1",
+  "last_reviewed_at": "2026-09-18",
+  "confidence": "high",
+  "requires_expert_review": true,
+  "review_owner": "synthetic-content-reviewer",
+  "review_state": "draft",
+  "superseded_by": null
+}

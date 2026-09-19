@@ -87,7 +87,7 @@ export function LaborApplicabilityPanel({ contractId, clauses, evidence, canMana
   }
 
   return <section className="contract-esrs workflow-control-surface" aria-labelledby="labor-applicability-heading">
-    <div className="contract-documents__header"><div><span>Labor applicability</span><strong id="labor-applicability-heading">{items.length}</strong></div></div>
+    <div className="contract-documents__header"><div><h3 id="labor-applicability-heading">Labor applicability</h3><strong aria-label={`${items.length} labor applicability records`}>{items.length}</strong></div></div>
     <p>Track source-backed SCA, DBA, and other FAR Part 22 decisions. FeDril organizes review work and does not provide a legal labor determination.</p>
     {state === "loading" ? <p role="status">Loading labor applicability…</p> : null}
     {state === "error" ? <p role="alert">{message}</p> : message ? <p role="status">{message}</p> : null}

@@ -158,6 +158,30 @@ public sealed class EfTenantMembershipRepository(
             return null;
         }
 
+        if (status is MembershipStatus.Deactivated && membership.Status is not MembershipStatus.Deactivated)
+        {
+            if (string.Equals(membership.RoleName, RoleCatalog.Owner, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new TenantMembershipStatusChangeDeniedException(
+                    "The Owner membership cannot be deactivated.");
+            }
+
+            if (string.Equals(membership.RoleName, RoleCatalog.Admin, StringComparison.OrdinalIgnoreCase))
+            {
+                var activeAdminCount = await dbContext.TenantMemberships.CountAsync(
+                    candidate => candidate.TenantId == tenantContext.TenantId &&
+                        candidate.Status == MembershipStatus.Active &&
+                        candidate.RoleName == RoleCatalog.Admin,
+                    cancellationToken);
+
+                if (activeAdminCount <= 1)
+                {
+                    throw new TenantMembershipStatusChangeDeniedException(
+                        "The last active Admin membership cannot be deactivated. Assign another active Admin first.");
+                }
+            }
+        }
+
         membership.Status = status;
         membership.UpdatedAt = DateTimeOffset.UtcNow;
         membership.UpdatedByUserId = actorUserId;
