@@ -62,11 +62,11 @@ public sealed class StagingEnvironmentTests
         var runbook = File.ReadAllText(Path.Combine(root, "docs", "staging-environment.md"));
 
         Assert.Contains("/health", workflow);
-        Assert.Contains("\"service\":\"gccs-api\"", workflow);
-        Assert.Contains("\"name\":\"postgresql\"", workflow);
-        Assert.Contains("\"name\":\"redis\"", workflow);
-        Assert.Contains("\"name\":\"object-storage\"", workflow);
-        Assert.Contains("\"name\":\"background-jobs\"", workflow);
+        Assert.Contains(".status == \"ok\"", workflow);
+        Assert.Contains(".service == \"gccs-api\"", workflow);
+        Assert.Contains(".dataPosture == \"No-CUI / compliance management only\"", workflow);
+        Assert.Contains("[\"background-jobs\", \"object-storage\", \"postgresql\", \"redis\"]", workflow);
+        Assert.Contains("select(.status == \"ok\")", workflow);
         Assert.Contains("CheckBackgroundJobsAsync", healthService);
         Assert.Contains("Background job queue coordination is reachable through Redis.", healthService);
 
