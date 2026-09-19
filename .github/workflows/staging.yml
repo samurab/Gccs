@@ -309,29 +309,40 @@ jobs:
         run: |
           set -o pipefail
           test -n "$STAGING_API_BASE_URL"
-          for attempt in {1..12}; do
-            if curl --fail --show-error --silent "$STAGING_API_BASE_URL/health" | tee "$RUNNER_TEMP/staging-health.json"; then
+          test -n "$STAGING_WEB_BASE_URL"
+          for attempt in {1..30}; do
+            if curl --fail --show-error --silent "$STAGING_API_BASE_URL/health" | tee "$RUNNER_TEMP/staging-health.json" >/dev/null &&
+              jq -e \
+                --arg version "$RELEASE_VERSION" \
+                --arg commitSha "$COMMIT_SHA" \
+                '
+                  .status == "ok" and
+                  .service == "gccs-api" and
+                  .dataPosture == "No-CUI / compliance management only" and
+                  .version == $version and
+                  .commitSha == $commitSha and
+                  ([.dependencies[] | select(.status == "ok") | .name] | sort) ==
+                    (["background-jobs", "object-storage", "postgresql", "redis"] | sort)
+                ' "$RUNNER_TEMP/staging-health.json" >/dev/null &&
+              curl --fail --show-error --silent "$STAGING_WEB_BASE_URL/runtime-config.js" | tee "$RUNNER_TEMP/staging-runtime-config.js" >/dev/null &&
+              grep -Fq "\"appVersion\":\"$RELEASE_VERSION\"" "$RUNNER_TEMP/staging-runtime-config.js" &&
+              grep -Fq "\"commitSha\":\"$COMMIT_SHA\"" "$RUNNER_TEMP/staging-runtime-config.js" &&
+              grep -Fq "\"apiBaseUrl\":\"$STAGING_API_BASE_URL\"" "$RUNNER_TEMP/staging-runtime-config.js" &&
+              { [ -z "$CANDIDATE_TAG" ] || grep -Fq "\"candidateTag\":\"$CANDIDATE_TAG\"" "$RUNNER_TEMP/staging-runtime-config.js"; }; then
+              cat "$RUNNER_TEMP/staging-health.json"
+              cat "$RUNNER_TEMP/staging-runtime-config.js"
               break
             fi
 
-            if [ "$attempt" -eq 12 ]; then
+            if [ "$attempt" -eq 30 ]; then
+              echo "Staging did not converge to release $RELEASE_VERSION at commit $COMMIT_SHA within five minutes."
+              test ! -f "$RUNNER_TEMP/staging-health.json" || cat "$RUNNER_TEMP/staging-health.json"
+              test ! -f "$RUNNER_TEMP/staging-runtime-config.js" || cat "$RUNNER_TEMP/staging-runtime-config.js"
               exit 1
             fi
 
             sleep 10
           done
-          grep '"service":"gccs-api"' "$RUNNER_TEMP/staging-health.json"
-          grep '"dataPosture":"No-CUI / compliance management only"' "$RUNNER_TEMP/staging-health.json"
-          grep "\"version\":\"$RELEASE_VERSION\"" "$RUNNER_TEMP/staging-health.json"
-          grep "\"commitSha\":\"$COMMIT_SHA\"" "$RUNNER_TEMP/staging-health.json"
-          grep '"name":"postgresql"' "$RUNNER_TEMP/staging-health.json"
-          grep '"name":"redis"' "$RUNNER_TEMP/staging-health.json"
-          grep '"name":"object-storage"' "$RUNNER_TEMP/staging-health.json"
-          grep '"name":"background-jobs"' "$RUNNER_TEMP/staging-health.json"
-          curl --fail --show-error --silent "$STAGING_WEB_BASE_URL/runtime-config.js" | tee "$RUNNER_TEMP/staging-runtime-config.js"
-          grep -F "\"appVersion\":\"$RELEASE_VERSION\"" "$RUNNER_TEMP/staging-runtime-config.js"
-          grep -F "\"commitSha\":\"$COMMIT_SHA\"" "$RUNNER_TEMP/staging-runtime-config.js"
-          grep -F "\"apiBaseUrl\":\"$STAGING_API_BASE_URL\"" "$RUNNER_TEMP/staging-runtime-config.js"
 
       - name: Upload staging smoke test results
         if: always()

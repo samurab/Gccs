@@ -62,11 +62,11 @@ public sealed class StagingEnvironmentTests
         var runbook = File.ReadAllText(Path.Combine(root, "docs", "staging-environment.md"));
 
         Assert.Contains("/health", workflow);
-        Assert.Contains("\"service\":\"gccs-api\"", workflow);
-        Assert.Contains("\"name\":\"postgresql\"", workflow);
-        Assert.Contains("\"name\":\"redis\"", workflow);
-        Assert.Contains("\"name\":\"object-storage\"", workflow);
-        Assert.Contains("\"name\":\"background-jobs\"", workflow);
+        Assert.Contains(".status == \"ok\"", workflow);
+        Assert.Contains(".service == \"gccs-api\"", workflow);
+        Assert.Contains(".dataPosture == \"No-CUI / compliance management only\"", workflow);
+        Assert.Contains("[\"background-jobs\", \"object-storage\", \"postgresql\", \"redis\"]", workflow);
+        Assert.Contains("select(.status == \"ok\")", workflow);
         Assert.Contains("CheckBackgroundJobsAsync", healthService);
         Assert.Contains("Background job queue coordination is reachable through Redis.", healthService);
 
@@ -86,6 +86,11 @@ public sealed class StagingEnvironmentTests
         Assert.Contains("Run staging smoke tests", workflow);
         Assert.Contains("curl --fail --show-error --silent \"$STAGING_API_BASE_URL/health\"", workflow);
         Assert.Contains("tee \"$RUNNER_TEMP/staging-health.json\"", workflow);
+        Assert.Contains("for attempt in {1..30}", workflow);
+        Assert.Contains(".commitSha == $commitSha", workflow);
+        Assert.Contains("select(.status == \"ok\")", workflow);
+        Assert.Contains("curl --fail --show-error --silent \"$STAGING_WEB_BASE_URL/runtime-config.js\"", workflow);
+        Assert.Contains("Staging did not converge to release", workflow);
         Assert.Contains("Upload staging smoke test results", workflow);
         Assert.Contains("if: always()", workflow);
         Assert.Contains("staging-smoke-test-results", workflow);
