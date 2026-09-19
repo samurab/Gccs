@@ -86,6 +86,11 @@ public sealed class StagingEnvironmentTests
         Assert.Contains("Run staging smoke tests", workflow);
         Assert.Contains("curl --fail --show-error --silent \"$STAGING_API_BASE_URL/health\"", workflow);
         Assert.Contains("tee \"$RUNNER_TEMP/staging-health.json\"", workflow);
+        Assert.Contains("for attempt in {1..30}", workflow);
+        Assert.Contains(".commitSha == $commitSha", workflow);
+        Assert.Contains("select(.status == \"ok\")", workflow);
+        Assert.Contains("curl --fail --show-error --silent \"$STAGING_WEB_BASE_URL/runtime-config.js\"", workflow);
+        Assert.Contains("Staging did not converge to release", workflow);
         Assert.Contains("Upload staging smoke test results", workflow);
         Assert.Contains("if: always()", workflow);
         Assert.Contains("staging-smoke-test-results", workflow);
