@@ -1593,8 +1593,24 @@ public sealed class ProductionReadinessChecklistTests
         using var approvedRelease = JsonDocument.Parse(ReadText("docs", "release", "approved-release.json"));
 
         Assert.Equal(2, approvedRelease.RootElement.GetProperty("schemaVersion").GetInt32());
-        Assert.Equal("legacy-import", approvedRelease.RootElement.GetProperty("status").GetString());
-        Assert.Equal("legacy-source-rebuild", approvedRelease.RootElement.GetProperty("artifacts").GetProperty("mode").GetString());
+        var releaseStatus = approvedRelease.RootElement.GetProperty("status").GetString();
+        Assert.Contains(releaseStatus, new[] { "legacy-import", "approved" });
+        var releaseArtifacts = approvedRelease.RootElement.GetProperty("artifacts");
+        if (releaseStatus == "legacy-import")
+        {
+            Assert.Equal("legacy-source-rebuild", releaseArtifacts.GetProperty("mode").GetString());
+        }
+        else
+        {
+            Assert.Equal("immutable-promotion", releaseArtifacts.GetProperty("mode").GetString());
+            Assert.Equal(
+                approvedRelease.RootElement.GetProperty("candidateTag").GetString(),
+                releaseArtifacts.GetProperty("releaseAssetTag").GetString());
+            foreach (var artifactName in new[] { "api", "web", "migration", "sbom", "metadata" })
+            {
+                Assert.Matches("^[0-9a-f]{64}$", releaseArtifacts.GetProperty(artifactName).GetProperty("sha256").GetString());
+            }
+        }
 
         Assert.Contains("release/version.json", stagingWorkflow);
         Assert.Contains("release-control.mjs candidate", stagingWorkflow);
