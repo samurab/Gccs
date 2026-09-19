@@ -1650,6 +1650,20 @@ public sealed class ProductionReadinessChecklistTests
     }
 
     [Fact]
+    public void Production_drift_workflow_fails_closed_when_remote_state_is_not_approved()
+    {
+        var workflow = ReadText(".github", "workflows", "production-infrastructure-drift.yml");
+
+        Assert.DoesNotContain("if: vars.PRODUCTION_TERRAFORM_STATE_READY == 'true'", workflow);
+        Assert.Contains("Require approved production state baseline", workflow);
+        Assert.Contains("PRODUCTION_TERRAFORM_STATE_READY", workflow);
+        Assert.Contains("Production drift detection is blocked", workflow);
+        Assert.Contains("Required production drift variable $variable is not configured", workflow);
+        Assert.Contains("terraform_version: \"1.9.8\"", workflow);
+        Assert.Contains("-detailed-exitcode", workflow);
+    }
+
+    [Fact]
     public void TC_PR_7_1_Deployment_record_preserves_no_cui_and_verifies_production_controls()
     {
         var deployment = ReadText("docs", "production-readiness-production-deployment-evidence.md");

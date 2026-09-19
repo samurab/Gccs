@@ -15,7 +15,6 @@ concurrency:
 
 jobs:
   plan:
-    if: vars.PRODUCTION_TERRAFORM_STATE_READY == 'true'
     runs-on: ubuntu-latest
     environment: production
     env:
@@ -26,7 +25,35 @@ jobs:
       TF_VAR_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
       TF_VAR_alert_email_address: ${{ vars.PRODUCTION_ALERT_EMAIL_ADDRESS }}
       TF_VAR_production_service_plan_id: ${{ vars.PRODUCTION_SERVICE_PLAN_ID }}
+      PRODUCTION_TF_STATE_RESOURCE_GROUP: ${{ vars.PRODUCTION_TF_STATE_RESOURCE_GROUP }}
+      PRODUCTION_TF_STATE_STORAGE_ACCOUNT: ${{ vars.PRODUCTION_TF_STATE_STORAGE_ACCOUNT }}
+      PRODUCTION_TF_STATE_CONTAINER: ${{ vars.PRODUCTION_TF_STATE_CONTAINER }}
+      PRODUCTION_TF_STATE_KEY: ${{ vars.PRODUCTION_TF_STATE_KEY }}
     steps:
+      - name: Require approved production state baseline
+        env:
+          PRODUCTION_TERRAFORM_STATE_READY: ${{ vars.PRODUCTION_TERRAFORM_STATE_READY }}
+        run: |
+          if [ "$PRODUCTION_TERRAFORM_STATE_READY" != "true" ]; then
+            echo "::error::Production drift detection is blocked until the remote state import and zero-drift baseline are reviewed and PRODUCTION_TERRAFORM_STATE_READY is true."
+            exit 1
+          fi
+          for variable in \
+            ARM_CLIENT_ID \
+            ARM_TENANT_ID \
+            ARM_SUBSCRIPTION_ID \
+            TF_VAR_alert_email_address \
+            TF_VAR_production_service_plan_id \
+            PRODUCTION_TF_STATE_RESOURCE_GROUP \
+            PRODUCTION_TF_STATE_STORAGE_ACCOUNT \
+            PRODUCTION_TF_STATE_CONTAINER \
+            PRODUCTION_TF_STATE_KEY; do
+            if [ -z "${!variable}" ]; then
+              echo "::error::Required production drift variable $variable is not configured."
+              exit 1
+            fi
+          done
+
       - uses: actions/checkout@v7
 
       - uses: hashicorp/setup-terraform@v4
@@ -42,15 +69,11 @@ jobs:
 
       - name: Initialize restricted remote state
         run: |
-          test -n "${{ vars.PRODUCTION_TF_STATE_RESOURCE_GROUP }}"
-          test -n "${{ vars.PRODUCTION_TF_STATE_STORAGE_ACCOUNT }}"
-          test -n "${{ vars.PRODUCTION_TF_STATE_CONTAINER }}"
-          test -n "${{ vars.PRODUCTION_TF_STATE_KEY }}"
           terraform -chdir=infra/terraform/environments/production init \
-            -backend-config="resource_group_name=${{ vars.PRODUCTION_TF_STATE_RESOURCE_GROUP }}" \
-            -backend-config="storage_account_name=${{ vars.PRODUCTION_TF_STATE_STORAGE_ACCOUNT }}" \
-            -backend-config="container_name=${{ vars.PRODUCTION_TF_STATE_CONTAINER }}" \
-            -backend-config="key=${{ vars.PRODUCTION_TF_STATE_KEY }}" \
+            -backend-config="resource_group_name=$PRODUCTION_TF_STATE_RESOURCE_GROUP" \
+            -backend-config="storage_account_name=$PRODUCTION_TF_STATE_STORAGE_ACCOUNT" \
+            -backend-config="container_name=$PRODUCTION_TF_STATE_CONTAINER" \
+            -backend-config="key=$PRODUCTION_TF_STATE_KEY" \
             -backend-config="use_azuread_auth=true"
 
       - name: Fail on configuration drift
