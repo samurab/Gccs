@@ -586,6 +586,14 @@ function hasAnyPermission(access: CurrentUserAccess, permissions?: string[]) {
   return permissions.some((permission) => access.permissions.includes(permission));
 }
 
+function canShowNavigationItem(access: CurrentUserAccess, item: NavigationItem) {
+  if (item.route === "settings" && access.permissions.includes("AuditorReadOnly")) {
+    return false;
+  }
+
+  return hasAnyPermission(access, item.permissions);
+}
+
 function assistantContextsForRoute(route: WorkspaceRoute): AssistantWorkflowContext[] {
   switch (route) {
     case "obligations": return ["obligation"];
@@ -791,7 +799,7 @@ export function App() {
   const visibleNavigation = useMemo(
     () =>
       accessLoadState === "ready"
-        ? navigationItems.filter((item) => hasAnyPermission(access, item.permissions))
+        ? navigationItems.filter((item) => canShowNavigationItem(access, item))
         : [],
     [access, accessLoadState]
   );
@@ -897,7 +905,7 @@ export function App() {
         return;
       }
 
-      if (!hasAnyPermission(access, nextItem.permissions)) {
+      if (!canShowNavigationItem(access, nextItem)) {
         setActiveRoute("dashboard");
         window.history.replaceState(null, "", "#/dashboard");
         return;
