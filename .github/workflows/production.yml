@@ -1,10 +1,10 @@
-name: Production deployment
+name: Production rollback (legacy launch-candidate)
 
 on:
   workflow_dispatch:
     inputs:
       launch_candidate_tag:
-        description: Approved launch candidate tag from docs/release/approved-launch-candidate.json.
+        description: Historical launch-candidate tag for rollback only. New releases use Production deployment.
         required: true
         default: launch-candidate-2026-09-13-1
         type: string
@@ -33,6 +33,7 @@ jobs:
       PRODUCTION_WEB_BASE_URL: ${{ vars.PRODUCTION_WEB_BASE_URL }}
       PRODUCTION_CUSTOMER_DATA_MODE: no-cui-only
       APPROVED_LAUNCH_CANDIDATE_MANIFEST: docs/release/approved-launch-candidate.json
+      LEGACY_ROLLBACK_TAG: launch-candidate-2026-09-13-1
       DEMO_REQUESTS_ENDPOINT: ${{ vars.DEMO_REQUESTS_ENDPOINT }}
       DEMO_REQUESTS_SENDER_ADDRESS: ${{ vars.DEMO_REQUESTS_SENDER_ADDRESS }}
       DEMO_REQUESTS_RECIPIENT_ADDRESS: ${{ vars.DEMO_REQUESTS_RECIPIENT_ADDRESS }}
@@ -56,6 +57,7 @@ jobs:
           test -n "$approved_sha"
           test "$approved_sha" != "null"
           test "${{ github.event.inputs.launch_candidate_tag }}" = "$approved_tag"
+          test "$approved_tag" = "$LEGACY_ROLLBACK_TAG"
           git fetch --force --tags
           test "$(git rev-list -n 1 "$approved_tag")" = "$approved_sha"
 

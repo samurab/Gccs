@@ -2,8 +2,13 @@ name: Staging deployment
 
 on:
   workflow_dispatch:
+    inputs:
+      candidate_tag:
+        description: Optional protected SemVer candidate tag, for example v0.2.0-rc.1.
+        required: false
+        type: string
   push:
-    branches: ["main", "release/**"]
+    branches: ["main"]
 
 permissions:
   contents: read
@@ -19,6 +24,11 @@ jobs:
     environment:
       name: staging
       url: ${{ vars.STAGING_WEB_BASE_URL }}
+    outputs:
+      candidate_tag: ${{ steps.release_identity.outputs.candidate_tag }}
+      commit_sha: ${{ steps.release_identity.outputs.commit_sha }}
+      release_version: ${{ steps.release_identity.outputs.release_version }}
+      bundle_name: ${{ steps.release_identity.outputs.bundle_name }}
     env:
       DOTNET_ENVIRONMENT: Staging
       ASPNETCORE_ENVIRONMENT: Staging
@@ -34,9 +44,58 @@ jobs:
       DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY: ${{ secrets.DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY }}
       TASK_SEARCH_CURSOR_SIGNING_KEY: ${{ secrets.TASK_SEARCH_CURSOR_SIGNING_KEY }}
       TASK_SEARCH_PREVIOUS_CURSOR_SIGNING_KEY: ${{ secrets.TASK_SEARCH_PREVIOUS_CURSOR_SIGNING_KEY }}
+      CANDIDATE_TAG: ${{ github.event.inputs.candidate_tag }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Resolve and validate release identity
+        id: release_identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          commit_sha="$(git rev-parse HEAD)"
+          candidate_tag="$CANDIDATE_TAG"
+          if [[ -n "$candidate_tag" ]]; then
+            [[ "$candidate_tag" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-rc\.[1-9][0-9]*$ ]]
+            git fetch origin main --tags
+            commit_sha="$(git rev-list -n 1 "$candidate_tag")"
+            release_version="$(git show "$commit_sha:release/version.json" | jq -r '.version')"
+            node tools/release/release-control.mjs candidate "$candidate_tag" "$commit_sha" "$release_version"
+            git merge-base --is-ancestor "$commit_sha" origin/main
+            ruleset_id="$(gh api "repos/${GITHUB_REPOSITORY}/rulesets" --jq '.[] | select(.name == "Immutable semantic release tags" and .target == "tag" and .enforcement == "active") | .id' | head -n 1)"
+            test -n "$ruleset_id"
+            ruleset="$(gh api "repos/${GITHUB_REPOSITORY}/rulesets/${ruleset_id}")"
+            jq -e '.conditions.ref_name.include | index("refs/tags/v*") != null' <<<"$ruleset" >/dev/null
+            jq -e '([.rules[].type] | index("deletion") != null) and ([.rules[].type] | index("non_fast_forward") != null)' <<<"$ruleset" >/dev/null
+            tag_ref="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${candidate_tag}")"
+            test "$(jq -r '.object.type' <<<"$tag_ref")" = "commit"
+            test "$(jq -r '.object.sha' <<<"$tag_ref")" = "$commit_sha"
+            gh api "repos/${GITHUB_REPOSITORY}/commits/${commit_sha}" --jq '.commit.verification.verified' | grep -Fx true
+            git checkout --detach "$commit_sha"
+            bundle_name="fedril-${candidate_tag}"
+          else
+            release_version="$(jq -r '.version' release/version.json)"
+            bundle_name="fedril-staging-${commit_sha}"
+          fi
+          echo "RELEASE_VERSION=$release_version" >> "$GITHUB_ENV"
+          echo "COMMIT_SHA=$commit_sha" >> "$GITHUB_ENV"
+          echo "BUNDLE_NAME=$bundle_name" >> "$GITHUB_ENV"
+          echo "release_version=$release_version" >> "$GITHUB_OUTPUT"
+          echo "commit_sha=$commit_sha" >> "$GITHUB_OUTPUT"
+          echo "candidate_tag=$candidate_tag" >> "$GITHUB_OUTPUT"
+          echo "bundle_name=$bundle_name" >> "$GITHUB_OUTPUT"
+
+      - name: Enforce expand-only candidate migrations
+        run: |
+          migration_base_ref="$(jq -r '.rollback.sourceTag' docs/release/approved-release.json)"
+          git rev-parse --verify "${migration_base_ref}^{commit}"
+          git diff --unified=0 "${migration_base_ref}...${COMMIT_SHA}" -- \
+            'src/Gccs.Infrastructure/Persistence/Migrations/*.cs' \
+            'infra/database/*.sql' | \
+            node tools/release/release-control.mjs migration-diff
 
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v6
@@ -54,19 +113,13 @@ jobs:
           dotnet restore Gccs.slnx
           npm ci
 
-      - name: Build staging artifacts
-        env:
-          VITE_API_BASE_URL: ${{ env.STAGING_API_BASE_URL }}
-          VITE_MSAL_CLIENT_ID: 8df0cbe5-60ee-4356-9386-41f300e82718
-          VITE_MSAL_TENANT_ID: 8c934636-0c37-4a8f-9134-323bef993ef2
-          VITE_MSAL_API_SCOPE: api://ad0a64ee-ab9a-4dcf-b330-b3ab36214426/access_as_user
-          VITE_CUSTOMER_MSAL_CLIENT_ID: 60771465-6a29-44e0-b8cc-ea30fa3cf83f
-          VITE_CUSTOMER_MSAL_TENANT_ID: f1922ab8-830a-4517-afec-6a9ce8f6113e
-          VITE_CUSTOMER_MSAL_TENANT_SUBDOMAIN: fedrilcustomersstaging
-          VITE_CUSTOMER_MSAL_API_SCOPE: api://293510cf-aec0-48ac-b074-55edeba2caf8/access_as_customer
+      - name: Build staging artifacts (environment-neutral)
         run: |
-          test -n "$VITE_API_BASE_URL"
-          dotnet publish apps/api/Gccs.Api.csproj --configuration Release --output "$RUNNER_TEMP/gccs-api-staging"
+          dotnet publish apps/api/Gccs.Api.csproj \
+            --configuration Release \
+            --output "$RUNNER_TEMP/gccs-api-staging" \
+            -p:Version="$RELEASE_VERSION" \
+            -p:InformationalVersion="$RELEASE_VERSION+$COMMIT_SHA"
           npm run build:web
           if grep -R "http://localhost:5062" apps/web/dist; then exit 1; fi
           if grep -R "Local test context" apps/web/dist; then exit 1; fi
@@ -80,6 +133,38 @@ jobs:
             --startup-project apps/api/Gccs.Api.csproj \
             --context GccsDbContext \
             --output "$RUNNER_TEMP/gccs-staging-migrations.sql"
+
+      - name: Generate release SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: spdx-json
+          output-file: ${{ runner.temp }}/fedril-sbom.spdx.json
+          upload-artifact: false
+
+      - name: Package immutable deployment artifacts
+        run: |
+          mkdir -p "$RUNNER_TEMP/release-bundle"
+          (cd "$RUNNER_TEMP/gccs-api-staging" && zip -X -q -r "$RUNNER_TEMP/release-bundle/fedril-api.zip" .)
+          (cd apps/web/dist && zip -X -q -r "$RUNNER_TEMP/release-bundle/fedril-web.zip" .)
+          mkdir -p "$RUNNER_TEMP/release-migrations"
+          cp infra/database/predeploy-compliance-task-search-index.sql "$RUNNER_TEMP/release-migrations/001-predeploy-compliance-task-search-index.sql"
+          cp "$RUNNER_TEMP/gccs-staging-migrations.sql" "$RUNNER_TEMP/release-migrations/002-ef-core-migrations.sql"
+          (cd "$RUNNER_TEMP/release-migrations" && zip -X -q -r "$RUNNER_TEMP/release-bundle/fedril-migrations.zip" .)
+          cp "$RUNNER_TEMP/fedril-sbom.spdx.json" "$RUNNER_TEMP/release-bundle/fedril-sbom.spdx.json"
+          if [[ -n "$CANDIDATE_TAG" ]]; then
+            RELEASE_VERSION="$RELEASE_VERSION" \
+            CANDIDATE_TAG="$CANDIDATE_TAG" \
+            COMMIT_SHA="$COMMIT_SHA" \
+            STAGING_RUN_ID="$GITHUB_RUN_ID" \
+            API_ARTIFACT="$RUNNER_TEMP/release-bundle/fedril-api.zip" \
+            WEB_ARTIFACT="$RUNNER_TEMP/release-bundle/fedril-web.zip" \
+            MIGRATION_ARTIFACT="$RUNNER_TEMP/release-bundle/fedril-migrations.zip" \
+            SBOM_ARTIFACT="$RUNNER_TEMP/release-bundle/fedril-sbom.spdx.json" \
+            METADATA_OUTPUT="$RUNNER_TEMP/release-bundle/release-metadata.json" \
+              node tools/release/release-control.mjs metadata
+          fi
+          (cd "$RUNNER_TEMP/release-bundle" && sha256sum * > SHA256SUMS)
 
       - name: Validate staging No-CUI and no production data guardrails
         run: |
@@ -162,6 +247,10 @@ jobs:
               DemoRequests__RetentionDays=365 \
               TaskSearch__CursorSigningKey="$TASK_SEARCH_CURSOR_SIGNING_KEY" \
               TaskSearch__PreviousCursorSigningKey="$TASK_SEARCH_PREVIOUS_CURSOR_SIGNING_KEY" \
+              Gccs__Release__Version="$RELEASE_VERSION" \
+              Gccs__Release__CandidateTag="$CANDIDATE_TAG" \
+              Gccs__Release__CommitSha="$COMMIT_SHA" \
+              Gccs__Release__BuildId="$GITHUB_RUN_ID" \
             --output none
 
           invitation_delivery_enabled="$(az webapp config appsettings list \
@@ -183,17 +272,24 @@ jobs:
           app-name: ${{ env.STAGING_API_APP_NAME }}
           package: ${{ runner.temp }}/gccs-api-staging
 
+      - name: Write staging runtime configuration
+        env:
+          FEDRIL_API_BASE_URL: ${{ env.STAGING_API_BASE_URL }}
+          FEDRIL_WORKFORCE_CLIENT_ID: 8df0cbe5-60ee-4356-9386-41f300e82718
+          FEDRIL_WORKFORCE_TENANT_ID: 8c934636-0c37-4a8f-9134-323bef993ef2
+          FEDRIL_WORKFORCE_API_SCOPE: api://ad0a64ee-ab9a-4dcf-b330-b3ab36214426/access_as_user
+          FEDRIL_CUSTOMER_CLIENT_ID: 60771465-6a29-44e0-b8cc-ea30fa3cf83f
+          FEDRIL_CUSTOMER_TENANT_ID: f1922ab8-830a-4517-afec-6a9ce8f6113e
+          FEDRIL_CUSTOMER_TENANT_SUBDOMAIN: fedrilcustomersstaging
+          FEDRIL_CUSTOMER_API_SCOPE: api://293510cf-aec0-48ac-b074-55edeba2caf8/access_as_customer
+          FEDRIL_APP_VERSION: ${{ env.RELEASE_VERSION }}
+          FEDRIL_CANDIDATE_TAG: ${{ env.CANDIDATE_TAG }}
+          FEDRIL_COMMIT_SHA: ${{ env.COMMIT_SHA }}
+          FEDRIL_BUILD_ID: ${{ github.run_id }}
+        run: node tools/release/write-runtime-config.mjs apps/web/dist/runtime-config.js
+
       - name: Deploy staging Static Web App
         uses: Azure/static-web-apps-deploy@v1
-        env:
-          VITE_API_BASE_URL: ${{ env.STAGING_API_BASE_URL }}
-          VITE_MSAL_CLIENT_ID: 8df0cbe5-60ee-4356-9386-41f300e82718
-          VITE_MSAL_TENANT_ID: 8c934636-0c37-4a8f-9134-323bef993ef2
-          VITE_MSAL_API_SCOPE: api://ad0a64ee-ab9a-4dcf-b330-b3ab36214426/access_as_user
-          VITE_CUSTOMER_MSAL_CLIENT_ID: 60771465-6a29-44e0-b8cc-ea30fa3cf83f
-          VITE_CUSTOMER_MSAL_TENANT_ID: f1922ab8-830a-4517-afec-6a9ce8f6113e
-          VITE_CUSTOMER_MSAL_TENANT_SUBDOMAIN: fedrilcustomersstaging
-          VITE_CUSTOMER_MSAL_API_SCOPE: api://293510cf-aec0-48ac-b074-55edeba2caf8/access_as_customer
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_MANGO_ROCK_016FF040F }}
           action: upload
@@ -226,10 +322,16 @@ jobs:
           done
           grep '"service":"gccs-api"' "$RUNNER_TEMP/staging-health.json"
           grep '"dataPosture":"No-CUI / compliance management only"' "$RUNNER_TEMP/staging-health.json"
+          grep "\"version\":\"$RELEASE_VERSION\"" "$RUNNER_TEMP/staging-health.json"
+          grep "\"commitSha\":\"$COMMIT_SHA\"" "$RUNNER_TEMP/staging-health.json"
           grep '"name":"postgresql"' "$RUNNER_TEMP/staging-health.json"
           grep '"name":"redis"' "$RUNNER_TEMP/staging-health.json"
           grep '"name":"object-storage"' "$RUNNER_TEMP/staging-health.json"
           grep '"name":"background-jobs"' "$RUNNER_TEMP/staging-health.json"
+          curl --fail --show-error --silent "$STAGING_WEB_BASE_URL/runtime-config.js" | tee "$RUNNER_TEMP/staging-runtime-config.js"
+          grep -F "\"appVersion\":\"$RELEASE_VERSION\"" "$RUNNER_TEMP/staging-runtime-config.js"
+          grep -F "\"commitSha\":\"$COMMIT_SHA\"" "$RUNNER_TEMP/staging-runtime-config.js"
+          grep -F "\"apiBaseUrl\":\"$STAGING_API_BASE_URL\"" "$RUNNER_TEMP/staging-runtime-config.js"
 
       - name: Upload staging smoke test results
         if: always()
@@ -238,4 +340,60 @@ jobs:
           name: staging-smoke-test-results
           path: |
             ${{ runner.temp }}/staging-health.json
+            ${{ runner.temp }}/staging-runtime-config.js
             ${{ runner.temp }}/gccs-staging-migrations.sql
+
+      - name: Upload immutable staging bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.BUNDLE_NAME }}
+          path: ${{ runner.temp }}/release-bundle
+          compression-level: 0
+
+  publish-candidate:
+    name: Publish immutable release candidate
+    if: github.event_name == 'workflow_dispatch' && inputs.candidate_tag != '' && needs.staging-deploy.result == 'success'
+    needs: staging-deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - name: Download verified staging bundle
+        uses: actions/download-artifact@v7
+        with:
+          name: ${{ needs.staging-deploy.outputs.bundle_name }}
+          path: ${{ runner.temp }}/release-bundle
+
+      - name: Verify bundle checksums
+        run: cd "$RUNNER_TEMP/release-bundle" && sha256sum --check SHA256SUMS
+
+      - name: Attest candidate build provenance
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: ${{ runner.temp }}/release-bundle/*
+
+      - name: Publish immutable GitHub prerelease assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_TAG: ${{ needs.staging-deploy.outputs.candidate_tag }}
+          RELEASE_VERSION: ${{ needs.staging-deploy.outputs.release_version }}
+        run: |
+          if gh release view "$CANDIDATE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            test "$(gh release view "$CANDIDATE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft')" = "true"
+            mkdir -p "$RUNNER_TEMP/existing-draft"
+            gh release download "$CANDIDATE_TAG" --repo "$GITHUB_REPOSITORY" --dir "$RUNNER_TEMP/existing-draft"
+            cmp "$RUNNER_TEMP/release-bundle/SHA256SUMS" "$RUNNER_TEMP/existing-draft/SHA256SUMS"
+            (cd "$RUNNER_TEMP/existing-draft" && sha256sum --check SHA256SUMS)
+          else
+            gh release create "$CANDIDATE_TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --verify-tag \
+              --draft \
+              --prerelease \
+              --title "FeDril $RELEASE_VERSION release candidate" \
+              --notes "Immutable No-CUI release candidate validated in staging workflow run $GITHUB_RUN_ID." \
+              "$RUNNER_TEMP"/release-bundle/*
+          fi
+          gh release edit "$CANDIDATE_TAG" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease

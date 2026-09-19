@@ -1,10 +1,14 @@
 # GCCS Production Deployment Runbook
 
-This document explains how to deploy GCCS to production from GitHub to Azure. It is written for a new operator who has never deployed this application before.
+Operational status: **Legacy rollback only**.
+
+For every new release, use `docs/release/versioning-and-promotion.md` and `.github/workflows/production-release.yml`. That path uses SemVer tags, an attested approved-release manifest, staged artifact digests, and build-once promotion. The launch-candidate procedure retained below exists only to roll back to the historically approved `launch-candidate-2026-09-13-1`; do not use it to create or approve a new release.
+
+This document preserves the historical launch-candidate deployment path from GitHub to Azure so a new operator can understand or execute that one rollback target.
 
 Production is limited to the GCCS No-CUI MVP posture: **No-CUI / compliance management only**. Do not use this process to store, upload, process, report on, extract, export, or support real customer CUI, classified information, export-controlled data, ITAR data, sensitive government-furnished information, credentials, payroll, SSNs, bank or tax records, health or disability records, unrestricted security logs, or sensitive incident details.
 
-## Architecture Assessment
+## Legacy Architecture Assessment
 
 The deployment process is not only a GitHub Actions button. It is a controlled release path across approvals, a launch candidate tag, GitHub protected environments, Azure runtime configuration, database migrations, API deployment, web deployment, dependency health checks, production smoke tests, alert evidence, and rollback readiness.
 
@@ -14,7 +18,7 @@ Three ways a simpler approach fails:
 - A successful API or web artifact upload can still fail at runtime when production App Service settings, database connectivity, Redis, object storage, authentication, CORS, managed identity, or malware scanner settings are missing.
 - A green `/health` check alone does not prove login, tenant isolation, RBAC denial, No-CUI upload guardrails, report generation, audit logging, alert routing, or scanner-backed evidence upload.
 
-The correct pattern is a gated production workflow:
+The historical rollback pattern is a gated production workflow. It is superseded for new releases by the immutable promotion workflow:
 
 1. Complete production-readiness evidence and approval records.
 2. Deploy only an approved launch candidate tag.
@@ -26,7 +30,7 @@ The correct pattern is a gated production workflow:
 8. Run authenticated production smoke tests with synthetic or non-sensitive data only.
 9. Record evidence and keep rollback/support paths ready.
 
-## Current Production Names
+## Legacy Rollback Production Names
 
 Verify these values before every deployment. They reflect the production readiness evidence available when this runbook was written.
 

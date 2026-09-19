@@ -1585,6 +1585,55 @@ public sealed class ProductionReadinessChecklistTests
     }
 
     [Fact]
+    public void Semantic_release_workflow_promotes_staged_artifacts_without_rebuilding()
+    {
+        var stagingWorkflow = ReadText(".github", "workflows", "staging.yml");
+        var productionWorkflow = ReadText(".github", "workflows", "production-release.yml");
+        var legacyWorkflow = ReadText(".github", "workflows", "production.yml");
+        using var approvedRelease = JsonDocument.Parse(ReadText("docs", "release", "approved-release.json"));
+
+        Assert.Equal(2, approvedRelease.RootElement.GetProperty("schemaVersion").GetInt32());
+        Assert.Equal("legacy-import", approvedRelease.RootElement.GetProperty("status").GetString());
+        Assert.Equal("legacy-source-rebuild", approvedRelease.RootElement.GetProperty("artifacts").GetProperty("mode").GetString());
+
+        Assert.Contains("release/version.json", stagingWorkflow);
+        Assert.Contains("release-control.mjs candidate", stagingWorkflow);
+        Assert.Contains("release-control.mjs metadata", stagingWorkflow);
+        Assert.Contains("fedril-api.zip", stagingWorkflow);
+        Assert.Contains("fedril-web.zip", stagingWorkflow);
+        Assert.Contains("fedril-migrations.zip", stagingWorkflow);
+        Assert.Contains("fedril-sbom.spdx.json", stagingWorkflow);
+        Assert.Contains("actions/attest-build-provenance", stagingWorkflow);
+        Assert.Contains("runtime-config.js", stagingWorkflow);
+        Assert.Contains("--draft", stagingWorkflow);
+        Assert.Contains("--draft=false", stagingWorkflow);
+        Assert.Contains("Immutable semantic release tags", stagingWorkflow);
+        Assert.Contains("release-control.mjs migration-diff", stagingWorkflow);
+        Assert.Contains(".commit.verification.verified", stagingWorkflow);
+
+        Assert.Contains("APPROVED_RELEASE_MANIFEST: docs/release/approved-release.json", productionWorkflow);
+        Assert.Contains("release-control.mjs production", productionWorkflow);
+        Assert.Contains("release-control.mjs bundle", productionWorkflow);
+        Assert.Contains("gh attestation verify", productionWorkflow);
+        Assert.Contains("gh release download", productionWorkflow);
+        Assert.Contains("Promote approved immutable release", productionWorkflow);
+        Assert.Contains("Gccs__Release__ReleaseTag", productionWorkflow);
+        Assert.Contains("runtime-config.js", productionWorkflow);
+        Assert.Contains("Immutable semantic release tags", productionWorkflow);
+        Assert.Contains(".commit.verification.verified", productionWorkflow);
+        Assert.Contains("Verify live production point-in-time recovery window", productionWorkflow);
+        Assert.Contains("production-postgres-recovery.json", productionWorkflow);
+        Assert.DoesNotContain("dotnet publish", productionWorkflow);
+        Assert.DoesNotContain("npm run build:web", productionWorkflow);
+
+        Assert.Contains("legacy launch-candidate", legacyWorkflow);
+        Assert.Contains("LEGACY_ROLLBACK_TAG: launch-candidate-2026-09-13-1", legacyWorkflow);
+        Assert.Contains(
+            "subject-path: docs/release/approved-release.json",
+            ReadText(".github", "workflows", "approved-release-attestation.yml"));
+    }
+
+    [Fact]
     public void TC_PR_7_1_Deployment_record_preserves_no_cui_and_verifies_production_controls()
     {
         var deployment = ReadText("docs", "production-readiness-production-deployment-evidence.md");

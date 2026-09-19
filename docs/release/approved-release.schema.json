@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fedril.example/schemas/approved-release.schema.json",
+  "title": "FeDril approved release",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "status",
+    "version",
+    "candidateTag",
+    "releaseTag",
+    "commitSha",
+    "approvedAt",
+    "approvalScope",
+    "dataPosture",
+    "staging",
+    "artifacts",
+    "approvals",
+    "rollback"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "status": { "enum": ["legacy-import", "approved"] },
+    "version": { "type": "string" },
+    "candidateTag": { "type": "string" },
+    "releaseTag": { "type": ["string", "null"] },
+    "commitSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "approvedAt": { "type": "string", "format": "date" },
+    "approvalScope": { "type": "string", "minLength": 1 },
+    "dataPosture": { "const": "no-cui-only" },
+    "staging": {
+      "type": "object",
+      "required": ["environment", "runId", "evidenceUrl"],
+      "properties": {
+        "environment": { "const": "staging" },
+        "runId": { "type": "integer", "minimum": 1 },
+        "evidenceUrl": { "type": "string", "format": "uri" }
+      },
+      "additionalProperties": false
+    },
+    "artifacts": {
+      "type": "object",
+      "required": ["mode"],
+      "properties": {
+        "mode": { "enum": ["legacy-source-rebuild", "immutable-promotion"] },
+        "releaseAssetTag": { "type": "string" },
+        "api": { "$ref": "#/$defs/artifact" },
+        "web": { "$ref": "#/$defs/artifact" },
+        "migration": { "$ref": "#/$defs/artifact" },
+        "sbom": { "$ref": "#/$defs/artifact" },
+        "metadata": { "$ref": "#/$defs/artifact" }
+      },
+      "additionalProperties": false
+    },
+    "approvals": {
+      "type": "object",
+      "required": ["engineering", "security", "product"],
+      "properties": {
+        "engineering": { "type": "boolean" },
+        "security": { "type": "boolean" },
+        "product": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "rollback": {
+      "type": "object",
+      "required": ["sourceTag"],
+      "properties": {
+        "sourceTag": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "required": ["name", "sha256"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

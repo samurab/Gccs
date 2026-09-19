@@ -42,6 +42,14 @@ var builder = WebApplication.CreateBuilder(args);
 
 LocalDependencyOptions.ValidateRequiredConfiguration(builder.Configuration);
 
+var releaseVersion = builder.Configuration["Gccs:Release:Version"]
+    ?? typeof(Program).Assembly.GetName().Version?.ToString(3)
+    ?? "development";
+var releaseCandidateTag = builder.Configuration["Gccs:Release:CandidateTag"];
+var releaseTag = builder.Configuration["Gccs:Release:ReleaseTag"];
+var releaseCommitSha = builder.Configuration["Gccs:Release:CommitSha"];
+var releaseBuildId = builder.Configuration["Gccs:Release:BuildId"];
+
 var invitationDeliveryEnabled = builder.Configuration.GetValue("InvitationDelivery:Enabled", false);
 if (invitationDeliveryEnabled)
 {
@@ -234,6 +242,11 @@ app.MapGet("/health", async (LocalDependencyHealthService healthService, Cancell
     {
         status = localDependencies.IsHealthy ? "ok" : "degraded",
         service = "gccs-api",
+        version = releaseVersion,
+        candidateTag = releaseCandidateTag,
+        releaseTag,
+        commitSha = releaseCommitSha,
+        buildId = releaseBuildId,
         dataPosture = "No-CUI / compliance management only",
         checkedAt = DateTimeOffset.UtcNow,
         dependencies = localDependencies.Dependencies

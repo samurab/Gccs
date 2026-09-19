@@ -31,6 +31,11 @@ public sealed class SecurityBoundaryTests : IClassFixture<WebApplicationFactory<
         {
             builder.UseSetting("LocalDependencies:Enabled", "false");
             builder.UseSetting("ConnectionStrings:GccsDatabase", string.Empty);
+            builder.UseSetting("Gccs:Release:Version", "9.8.7");
+            builder.UseSetting("Gccs:Release:CandidateTag", "v9.8.7-rc.2");
+            builder.UseSetting("Gccs:Release:ReleaseTag", "v9.8.7");
+            builder.UseSetting("Gccs:Release:CommitSha", "0123456789012345678901234567890123456789");
+            builder.UseSetting("Gccs:Release:BuildId", "test-build-42");
         });
     }
 
@@ -40,12 +45,20 @@ public sealed class SecurityBoundaryTests : IClassFixture<WebApplicationFactory<
         using var client = _factory.CreateClient();
 
         var response = await client.GetAsync("/health");
+        using var payload = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
 
         Assert.NotEqual(HttpStatusCode.Unauthorized, response.StatusCode);
         Assert.NotEqual(HttpStatusCode.Forbidden, response.StatusCode);
         Assert.Contains(
             response.StatusCode,
             new[] { HttpStatusCode.OK, HttpStatusCode.ServiceUnavailable });
+        Assert.Equal("gccs-api", payload.RootElement.GetProperty("service").GetString());
+        Assert.Equal("No-CUI / compliance management only", payload.RootElement.GetProperty("dataPosture").GetString());
+        Assert.Equal("9.8.7", payload.RootElement.GetProperty("version").GetString());
+        Assert.Equal("v9.8.7-rc.2", payload.RootElement.GetProperty("candidateTag").GetString());
+        Assert.Equal("v9.8.7", payload.RootElement.GetProperty("releaseTag").GetString());
+        Assert.Equal("0123456789012345678901234567890123456789", payload.RootElement.GetProperty("commitSha").GetString());
+        Assert.Equal("test-build-42", payload.RootElement.GetProperty("buildId").GetString());
     }
 
     [Fact]
