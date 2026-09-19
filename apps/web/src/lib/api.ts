@@ -1,4 +1,5 @@
 import { getFreshAccessToken, isAuthenticationSessionChanging, isMsalConfigured } from "../authSession";
+import { getApiBaseUrl } from "../runtimeConfig";
 
 const selectedTenantStorageKey = "gccs.selectedTenantId";
 const developmentRoleStorageKey = "gccs.developmentRole";
@@ -2584,7 +2585,7 @@ export async function provisionPlatformTenant(
   idempotencyKey: string
 ): Promise<ApiMutationResult<PlatformTenantProvisioningResult>> {
   const path = "/api/platform/tenants";
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+  const apiBaseUrl = getApiBaseUrl();
 
   try {
     const apiHeaders = await getApiHeaders();
@@ -3199,7 +3200,7 @@ export async function createSubcontractorEvidenceRequest(
 }
 
 export async function getCompanyProfile(): Promise<CompanyProfile | null> {
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+  const apiBaseUrl = getApiBaseUrl();
 
   try {
     const response = await fetch(`${apiBaseUrl}/api/company-profile`, {
@@ -3278,7 +3279,7 @@ export async function updateContractObligationStatus(
   obligationId: string,
   status: string
 ): Promise<ApiMutationResult<ContractObligationDetail>> {
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+  const apiBaseUrl = getApiBaseUrl();
 
   try {
     const apiHeaders = await getApiHeaders();
@@ -3309,7 +3310,7 @@ export async function assignContractObligationOwner(
   obligationId: string,
   request: { userId?: string | null; roleName?: string | null; notify?: boolean }
 ): Promise<ApiMutationResult<ContractObligationDetail>> {
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+  const apiBaseUrl = getApiBaseUrl();
 
   try {
     const apiHeaders = await getApiHeaders();
@@ -3367,7 +3368,7 @@ export async function searchClauseLibrary(params: ClauseSearchParams = {}): Prom
 }
 
 export async function getContract(contractId: string): Promise<ContractRecord | null> {
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+  const apiBaseUrl = getApiBaseUrl();
 
   try {
     const response = await fetch(`${apiBaseUrl}/api/contracts/${contractId}`, {
@@ -3507,7 +3508,7 @@ export const importSubcontractingPlanReportDataCsv = (csvContent: string) =>
   postJsonResult<SubcontractingReportDataRow[]>("/api/subcontracting-plan-reports/report-data/import", { csvContent });
 
 export async function downloadEsrsReportDataTemplate(): Promise<ApiMutationResult<{ blob: Blob; fileName: string }>> {
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+  const apiBaseUrl = getApiBaseUrl();
   try {
     const response = await fetch(`${apiBaseUrl}/api/esrs/report-data/import-template`, { headers: await getApiHeaders() });
     if (!response.ok) return { data: null, error: await readErrorMessage(response) };
@@ -3516,7 +3517,7 @@ export async function downloadEsrsReportDataTemplate(): Promise<ApiMutationResul
 }
 
 export async function downloadSubcontractingPlanReportDataTemplate(): Promise<ApiMutationResult<{ blob: Blob; fileName: string }>> {
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+  const apiBaseUrl = getApiBaseUrl();
   try {
     const response = await fetch(`${apiBaseUrl}/api/subcontracting-plan-reports/report-data/import-template`, { headers: await getApiHeaders() });
     if (!response.ok) return { data: null, error: await readErrorMessage(response) };
@@ -3549,7 +3550,7 @@ export async function downloadPortalReviewPackage(
   invitationId: string,
   sharedPackageId: string
 ): Promise<ApiMutationResult<{ blob: Blob; fileName: string }>> {
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+  const apiBaseUrl = getApiBaseUrl();
   try {
     const path = `/api/external-portal/invitations/${encodeURIComponent(invitationId)}/packages/${encodeURIComponent(sharedPackageId)}/download`;
     const response = await fetch(`${apiBaseUrl}${path}`, { headers: await getApiHeaders() });
@@ -3637,7 +3638,7 @@ export const createSprManualSubmissionReceipt = (packageId: string, request: {
 
 export async function downloadSprReportPackage(packageId: string, format: "Html" | "Json"):
   Promise<ApiMutationResult<{ blob: Blob; fileName: string }>> {
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+  const apiBaseUrl = getApiBaseUrl();
   try {
     const response = await fetch(`${apiBaseUrl}/api/subcontracting-plan-reports/packages/${packageId}/export?format=${format}`,
       { headers: await getApiHeaders() });
@@ -3753,7 +3754,7 @@ export async function supersedeClauseCandidate(
 }
 
 export async function deleteContractDocument(contractId: string, documentId: string): Promise<ApiMutationResult<null>> {
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+  const apiBaseUrl = getApiBaseUrl();
 
   try {
     const response = await fetch(`${apiBaseUrl}/api/contracts/${contractId}/documents/${documentId}`, {
@@ -3808,7 +3809,7 @@ export async function removeContractClause(
   contractClauseId: string,
   request: RemoveContractClauseRequest
 ): Promise<ApiMutationResult<ContractClause>> {
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+  const apiBaseUrl = getApiBaseUrl();
 
   try {
     const apiHeaders = await getApiHeaders();
@@ -3922,7 +3923,7 @@ export async function getReportExport(exportId: string): Promise<ReportExport> {
 
 export async function downloadReportExport(exportId: string): Promise<{ blob: Blob; fileName: string }> {
   const path = `/api/report-exports/${exportId}/content`;
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+  const apiBaseUrl = getApiBaseUrl();
   let response: Response;
   try {
     response = await fetch(`${apiBaseUrl}${path}`, { headers: await getApiHeaders() });
@@ -4202,7 +4203,7 @@ async function postJsonResult<T>(
   body: unknown,
   additionalHeaders: Record<string, string> = {}
 ): Promise<ApiMutationResult<T>> {
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+  const apiBaseUrl = getApiBaseUrl();
 
   try {
     const apiHeaders = await getApiHeaders();
@@ -4227,7 +4228,7 @@ async function postJsonResult<T>(
 }
 
 async function postFormResult<T>(path: string, body: FormData): Promise<ApiMutationResult<T>> {
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+  const apiBaseUrl = getApiBaseUrl();
 
   try {
     const response = await fetch(`${apiBaseUrl}${path}`, {
@@ -4247,7 +4248,7 @@ async function postFormResult<T>(path: string, body: FormData): Promise<ApiMutat
 }
 
 async function putJsonResult<T>(path: string, body: unknown): Promise<ApiMutationResult<T>> {
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+  const apiBaseUrl = getApiBaseUrl();
 
   try {
     const apiHeaders = await getApiHeaders();
@@ -4271,7 +4272,7 @@ async function putJsonResult<T>(path: string, body: unknown): Promise<ApiMutatio
 }
 
 async function patchJsonResult<T>(path: string, body: unknown): Promise<ApiMutationResult<T>> {
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+  const apiBaseUrl = getApiBaseUrl();
 
   try {
     const apiHeaders = await getApiHeaders();
@@ -4295,7 +4296,7 @@ async function patchJsonResult<T>(path: string, body: unknown): Promise<ApiMutat
 }
 
 async function deleteJsonResult<T>(path: string): Promise<ApiMutationResult<T>> {
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+  const apiBaseUrl = getApiBaseUrl();
 
   try {
     const response = await fetch(`${apiBaseUrl}${path}`, {
@@ -4325,7 +4326,7 @@ export class ApiRequestError extends Error {
 }
 
 async function getRequiredJson<T>(path: string): Promise<T> {
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+  const apiBaseUrl = getApiBaseUrl();
 
   try {
     const response = await fetch(`${apiBaseUrl}${path}`, { headers: await getApiHeaders() });
@@ -4357,7 +4358,7 @@ async function getJson<T>(path: string, fallback: T): Promise<T> {
 }
 
 async function getText(path: string, fallback: string): Promise<string> {
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+  const apiBaseUrl = getApiBaseUrl();
 
   try {
     const response = await fetch(`${apiBaseUrl}${path}`, { headers: await getApiHeaders() });

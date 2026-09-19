@@ -7,10 +7,12 @@ import {
   type AccountInfo
 } from "@azure/msal-browser";
 import { getPlatformAuthenticationUrl, getWorkspaceUrl, shouldRenderInvitationAcceptancePage } from "./routing";
+import { getAuthenticationRuntimeConfig } from "./runtimeConfig";
 
 export type AuthenticationPlane = "workforce" | "customer";
 
-const accessTokenStorageKey = import.meta.env.VITE_GCCS_ACCESS_TOKEN_STORAGE_KEY ?? "gccs.accessToken";
+const authenticationRuntimeConfig = getAuthenticationRuntimeConfig();
+const accessTokenStorageKey = authenticationRuntimeConfig.accessTokenStorageKey;
 const legacyAccessTokenStorageKey = "access_token";
 const postLogoutStateStorageKey = "gccs.auth.postLogoutState";
 const postLogoutStateLifetimeMs = 10 * 60 * 1000;
@@ -29,13 +31,13 @@ type PostLogoutState = {
 
 let completedPostLogoutState = consumePostLogoutState();
 
-const workforceClientId = import.meta.env.VITE_MSAL_CLIENT_ID;
-const workforceTenantId = import.meta.env.VITE_MSAL_TENANT_ID;
-const workforceApiScope = import.meta.env.VITE_MSAL_API_SCOPE;
-const customerClientId = import.meta.env.VITE_CUSTOMER_MSAL_CLIENT_ID;
-const customerTenantId = import.meta.env.VITE_CUSTOMER_MSAL_TENANT_ID;
-const customerTenantSubdomain = import.meta.env.VITE_CUSTOMER_MSAL_TENANT_SUBDOMAIN;
-const customerApiScope = import.meta.env.VITE_CUSTOMER_MSAL_API_SCOPE;
+const workforceClientId = authenticationRuntimeConfig.workforceClientId;
+const workforceTenantId = authenticationRuntimeConfig.workforceTenantId;
+const workforceApiScope = authenticationRuntimeConfig.workforceApiScope;
+const customerClientId = authenticationRuntimeConfig.customerClientId;
+const customerTenantId = authenticationRuntimeConfig.customerTenantId;
+const customerTenantSubdomain = authenticationRuntimeConfig.customerTenantSubdomain;
+const customerApiScope = authenticationRuntimeConfig.customerApiScope;
 const customerAuthenticationConfigured = Boolean(
   customerClientId &&
   customerTenantId &&
@@ -268,7 +270,7 @@ function getStoredAccessToken(): string | null {
     return null;
   }
 
-  const configuredKey = import.meta.env.VITE_GCCS_ACCESS_TOKEN_STORAGE_KEY;
+  const configuredKey = authenticationRuntimeConfig.accessTokenStorageKey;
   const storageKeys = [
     configuredKey,
     accessTokenStorageKey,

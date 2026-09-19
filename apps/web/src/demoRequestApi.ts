@@ -1,3 +1,5 @@
+import { getApiBaseUrl } from "./runtimeConfig";
+
 export type DemoRequestSubmission = {
   firstName: string;
   lastName: string;
@@ -46,7 +48,7 @@ export type DemoFollowUpResult<T> =
   | { data: null; error: string; fieldErrors: Record<string, string[]> };
 
 export async function submitDemoRequest(request: DemoRequestSubmission): Promise<DemoRequestResult> {
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+  const apiBaseUrl = getApiBaseUrl();
   try {
     const response = await fetch(`${apiBaseUrl}/api/public/demo-requests`, {
       method: "POST",
@@ -68,7 +70,7 @@ export async function submitDemoRequest(request: DemoRequestSubmission): Promise
 }
 
 async function postDemoFollowUp<T>(path: string, body: unknown): Promise<DemoFollowUpResult<T>> {
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+  const apiBaseUrl = getApiBaseUrl();
   try {
     const response = await fetch(`${apiBaseUrl}${path}`, {
       method: "POST",

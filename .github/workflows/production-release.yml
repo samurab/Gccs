@@ -1,0 +1,355 @@
+name: Production deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Protected final SemVer tag from docs/release/approved-release.json, for example v0.2.0.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  attestations: read
+
+concurrency:
+  group: production-release-${{ github.event.inputs.release_tag }}
+  cancel-in-progress: false
+
+jobs:
+  production-deploy:
+    name: Promote approved immutable release
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ vars.PRODUCTION_WEB_BASE_URL }}
+    env:
+      APPROVED_RELEASE_MANIFEST: docs/release/approved-release.json
+      DOTNET_ENVIRONMENT: Production
+      ASPNETCORE_ENVIRONMENT: Production
+      Gccs__DataPosture: No-CUI / compliance management only
+      PRODUCTION_API_APP_NAME: ${{ vars.PRODUCTION_API_APP_NAME }}
+      PRODUCTION_RESOURCE_GROUP: ${{ vars.PRODUCTION_RESOURCE_GROUP }}
+      PRODUCTION_POSTGRES_SERVER_NAME: gccs-postgres-production
+      PRODUCTION_API_BASE_URL: ${{ vars.PRODUCTION_API_BASE_URL }}
+      PRODUCTION_WEB_BASE_URL: ${{ vars.PRODUCTION_WEB_BASE_URL }}
+      PRODUCTION_CUSTOMER_DATA_MODE: no-cui-only
+      PRODUCTION_MSAL_CLIENT_ID: ${{ vars.PRODUCTION_MSAL_CLIENT_ID }}
+      PRODUCTION_MSAL_TENANT_ID: ${{ vars.PRODUCTION_MSAL_TENANT_ID }}
+      PRODUCTION_MSAL_API_SCOPE: ${{ vars.PRODUCTION_MSAL_API_SCOPE }}
+      PRODUCTION_CUSTOMER_MSAL_CLIENT_ID: ${{ vars.PRODUCTION_CUSTOMER_MSAL_CLIENT_ID }}
+      PRODUCTION_CUSTOMER_MSAL_TENANT_ID: ${{ vars.PRODUCTION_CUSTOMER_MSAL_TENANT_ID }}
+      PRODUCTION_CUSTOMER_MSAL_TENANT_SUBDOMAIN: ${{ vars.PRODUCTION_CUSTOMER_MSAL_TENANT_SUBDOMAIN }}
+      PRODUCTION_CUSTOMER_MSAL_API_SCOPE: ${{ vars.PRODUCTION_CUSTOMER_MSAL_API_SCOPE }}
+      DEMO_REQUESTS_ENDPOINT: ${{ vars.DEMO_REQUESTS_ENDPOINT }}
+      DEMO_REQUESTS_SENDER_ADDRESS: ${{ vars.DEMO_REQUESTS_SENDER_ADDRESS }}
+      DEMO_REQUESTS_RECIPIENT_ADDRESS: ${{ vars.DEMO_REQUESTS_RECIPIENT_ADDRESS }}
+      DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY: ${{ secrets.DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY }}
+      HUBSPOT_PRIVATE_APP_TOKEN: ${{ secrets.HUBSPOT_PRIVATE_APP_TOKEN }}
+      TASK_SEARCH_CURSOR_SIGNING_KEY: ${{ secrets.TASK_SEARCH_CURSOR_SIGNING_KEY }}
+      TASK_SEARCH_PREVIOUS_CURSOR_SIGNING_KEY: ${{ secrets.TASK_SEARCH_PREVIOUS_CURSOR_SIGNING_KEY }}
+    steps:
+      - name: Checkout production deployment controls
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js for release validation
+        uses: actions/setup-node@v7
+        with:
+          node-version: "25"
+
+      - name: Validate approved immutable release
+        env:
+          RELEASE_TAG_INPUT: ${{ github.event.inputs.release_tag }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node tools/release/release-control.mjs production "$APPROVED_RELEASE_MANIFEST" "$RELEASE_TAG_INPUT"
+          gh attestation verify "$APPROVED_RELEASE_MANIFEST" --repo "$GITHUB_REPOSITORY"
+          release_version="$(jq -r '.version' "$APPROVED_RELEASE_MANIFEST")"
+          candidate_tag="$(jq -r '.candidateTag' "$APPROVED_RELEASE_MANIFEST")"
+          release_tag="$(jq -r '.releaseTag' "$APPROVED_RELEASE_MANIFEST")"
+          commit_sha="$(jq -r '.commitSha' "$APPROVED_RELEASE_MANIFEST")"
+          staging_run_id="$(jq -r '.staging.runId' "$APPROVED_RELEASE_MANIFEST")"
+          release_asset_tag="$(jq -r '.artifacts.releaseAssetTag' "$APPROVED_RELEASE_MANIFEST")"
+          git fetch --force --tags
+          ruleset_id="$(gh api "repos/${GITHUB_REPOSITORY}/rulesets" --jq '.[] | select(.name == "Immutable semantic release tags" and .target == "tag" and .enforcement == "active") | .id' | head -n 1)"
+          test -n "$ruleset_id"
+          ruleset="$(gh api "repos/${GITHUB_REPOSITORY}/rulesets/${ruleset_id}")"
+          jq -e '.conditions.ref_name.include | index("refs/tags/v*") != null' <<<"$ruleset" >/dev/null
+          jq -e '([.rules[].type] | index("deletion") != null) and ([.rules[].type] | index("non_fast_forward") != null)' <<<"$ruleset" >/dev/null
+          test "$(git rev-list -n 1 "$candidate_tag")" = "$commit_sha"
+          test "$(git rev-list -n 1 "$release_tag")" = "$commit_sha"
+          for tag in "$candidate_tag" "$release_tag"; do
+            tag_ref="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${tag}")"
+            test "$(jq -r '.object.type' <<<"$tag_ref")" = "commit"
+            test "$(jq -r '.object.sha' <<<"$tag_ref")" = "$commit_sha"
+          done
+          gh api "repos/${GITHUB_REPOSITORY}/commits/${commit_sha}" --jq '.commit.verification.verified' | grep -Fx true
+          git merge-base --is-ancestor "$commit_sha" origin/main
+          test "$release_asset_tag" = "$candidate_tag"
+          echo "RELEASE_VERSION=$release_version" >> "$GITHUB_ENV"
+          echo "CANDIDATE_TAG=$candidate_tag" >> "$GITHUB_ENV"
+          echo "RELEASE_TAG=$release_tag" >> "$GITHUB_ENV"
+          echo "COMMIT_SHA=$commit_sha" >> "$GITHUB_ENV"
+          echo "STAGING_RUN_ID=$staging_run_id" >> "$GITHUB_ENV"
+          echo "RELEASE_ASSET_TAG=$release_asset_tag" >> "$GITHUB_ENV"
+
+      - name: Download staged release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/release-bundle"
+          gh release download "$RELEASE_ASSET_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --dir "$RUNNER_TEMP/release-bundle"
+          node tools/release/release-control.mjs bundle "$APPROVED_RELEASE_MANIFEST" "$RUNNER_TEMP/release-bundle"
+          for artifact in $(jq -r '.artifacts | [.api.name, .web.name, .migration.name, .sbom.name, .metadata.name] | .[]' "$APPROVED_RELEASE_MANIFEST"); do
+            gh attestation verify "$RUNNER_TEMP/release-bundle/$artifact" --repo "$GITHUB_REPOSITORY"
+          done
+
+      - name: Extract approved deployment artifacts
+        run: |
+          mkdir -p "$RUNNER_TEMP/gccs-api-production" "$GITHUB_WORKSPACE/.release/web" "$RUNNER_TEMP/gccs-migrations-production"
+          unzip -q "$RUNNER_TEMP/release-bundle/$(jq -r '.artifacts.api.name' "$APPROVED_RELEASE_MANIFEST")" -d "$RUNNER_TEMP/gccs-api-production"
+          unzip -q "$RUNNER_TEMP/release-bundle/$(jq -r '.artifacts.web.name' "$APPROVED_RELEASE_MANIFEST")" -d "$GITHUB_WORKSPACE/.release/web"
+          unzip -q "$RUNNER_TEMP/release-bundle/$(jq -r '.artifacts.migration.name' "$APPROVED_RELEASE_MANIFEST")" -d "$RUNNER_TEMP/gccs-migrations-production"
+
+      - name: Validate production CI/CD and No-CUI deployment guardrails
+        run: |
+          test "$PRODUCTION_CUSTOMER_DATA_MODE" = "no-cui-only"
+          test "$Gccs__DataPosture" = "No-CUI / compliance management only"
+          test -n "$PRODUCTION_API_APP_NAME"
+          test -n "$PRODUCTION_RESOURCE_GROUP"
+          test -n "$PRODUCTION_API_BASE_URL"
+          test -n "$PRODUCTION_WEB_BASE_URL"
+          test -n "$PRODUCTION_MSAL_CLIENT_ID"
+          test -n "$PRODUCTION_MSAL_TENANT_ID"
+          test -n "$PRODUCTION_MSAL_API_SCOPE"
+          test -n "$DEMO_REQUESTS_ENDPOINT"
+          test -n "$DEMO_REQUESTS_SENDER_ADDRESS"
+          test -n "$DEMO_REQUESTS_RECIPIENT_ADDRESS"
+          test -n "$DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY"
+          test "${#DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY}" -ge 32
+          test -n "$HUBSPOT_PRIVATE_APP_TOKEN"
+          test -n "$TASK_SEARCH_CURSOR_SIGNING_KEY"
+          test "$(printf %s "$TASK_SEARCH_CURSOR_SIGNING_KEY" | base64 --decode | wc -c)" -ge 32
+          if [[ -n "$TASK_SEARCH_PREVIOUS_CURSOR_SIGNING_KEY" ]]; then
+            test "$(printf %s "$TASK_SEARCH_PREVIOUS_CURSOR_SIGNING_KEY" | base64 --decode | wc -c)" -ge 32
+          fi
+          test -f infra/terraform/environments/production/main.tf
+          test -f infra/terraform/environments/production/imports.tf
+          test -f infra/terraform/environments/production/.terraform.lock.hcl
+          grep -F "No-CUI / compliance management only" infra/terraform/environments/production/main.tf
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "1.9.8"
+
+      - name: Verify production Terraform without live changes
+        run: |
+          terraform -chdir=infra/terraform/environments/production fmt -check
+          terraform -chdir=infra/terraform/environments/production init -backend=false
+          terraform -chdir=infra/terraform/environments/production validate
+
+      - name: Login to Azure production subscription
+        uses: azure/login@v3
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS_GCCS_PRODUCTION }}
+
+      - name: Verify live production point-in-time recovery window
+        run: |
+          az postgres flexible-server show \
+            --resource-group "$PRODUCTION_RESOURCE_GROUP" \
+            --name "$PRODUCTION_POSTGRES_SERVER_NAME" \
+            --output json > "$RUNNER_TEMP/production-postgres-recovery.json"
+          jq -e '
+            ((.backup.backupRetentionDays // .backupRetentionDays) | tonumber) >= 7 and
+            ((.backup.earliestRestoreDate // .earliestRestoreDate // "") | length) > 0
+          ' "$RUNNER_TEMP/production-postgres-recovery.json"
+
+      - name: Apply the staged migration artifact
+        env:
+          PRODUCTION_DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: |
+          test -n "$PRODUCTION_DATABASE_URL"
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+          psql "$PRODUCTION_DATABASE_URL" --set ON_ERROR_STOP=on --file "$RUNNER_TEMP/gccs-migrations-production/001-predeploy-compliance-task-search-index.sql"
+          psql "$PRODUCTION_DATABASE_URL" --set ON_ERROR_STOP=on --file "$RUNNER_TEMP/gccs-migrations-production/002-ef-core-migrations.sql"
+
+      - name: Configure production services and release identity
+        run: |
+          application_insights_connection_string="$(az monitor app-insights component show \
+            --app gccs-api-production \
+            --resource-group "$PRODUCTION_RESOURCE_GROUP" \
+            --query connectionString \
+            --output tsv)"
+          test -n "$application_insights_connection_string"
+          az webapp config appsettings set \
+            --resource-group "$PRODUCTION_RESOURCE_GROUP" \
+            --name "$PRODUCTION_API_APP_NAME" \
+            --settings \
+              InvitationDelivery__Enabled=true \
+              InvitationDelivery__Provider=AzureCommunicationServices \
+              InvitationDelivery__PublicWebBaseUrl="$PRODUCTION_WEB_BASE_URL" \
+              InvitationDelivery__Endpoint="$DEMO_REQUESTS_ENDPOINT" \
+              InvitationDelivery__UseManagedIdentity=true \
+              InvitationDelivery__SenderAddress="$DEMO_REQUESTS_SENDER_ADDRESS" \
+              InvitationDelivery__PollIntervalSeconds=5 \
+              InvitationDelivery__LeaseMinutes=5 \
+              InvitationDelivery__MaximumAttempts=5 \
+              DemoRequests__Enabled=true \
+              DemoRequests__Provider=AzureCommunicationServices \
+              DemoRequests__Endpoint="$DEMO_REQUESTS_ENDPOINT" \
+              DemoRequests__UseManagedIdentity=true \
+              DemoRequests__SenderAddress="$DEMO_REQUESTS_SENDER_ADDRESS" \
+              DemoRequests__RecipientAddress="$DEMO_REQUESTS_RECIPIENT_ADDRESS" \
+              DemoRequests__PublicWebBaseUrl="$PRODUCTION_WEB_BASE_URL" \
+              DemoRequests__FollowUpTokenSigningKey="$DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY" \
+              DemoRequests__FollowUpTokenLifetimeHours=72 \
+              DemoRequests__PollIntervalSeconds=5 \
+              DemoRequests__LeaseMinutes=5 \
+              DemoRequests__MaximumAttempts=5 \
+              DemoRequests__HubSpot__Enabled=true \
+              DemoRequests__HubSpot__BaseUrl=https://api.hubapi.com \
+              DemoRequests__HubSpot__PrivateAppToken="$HUBSPOT_PRIVATE_APP_TOKEN" \
+              DemoRequests__RetentionDays=365 \
+              TaskSearch__CursorSigningKey="$TASK_SEARCH_CURSOR_SIGNING_KEY" \
+              TaskSearch__PreviousCursorSigningKey="$TASK_SEARCH_PREVIOUS_CURSOR_SIGNING_KEY" \
+              Gccs__Release__Version="$RELEASE_VERSION" \
+              Gccs__Release__CandidateTag="$CANDIDATE_TAG" \
+              Gccs__Release__ReleaseTag="$RELEASE_TAG" \
+              Gccs__Release__CommitSha="$COMMIT_SHA" \
+              Gccs__Release__BuildId="$GITHUB_RUN_ID" \
+              APPLICATIONINSIGHTS_CONNECTION_STRING="$application_insights_connection_string" \
+            --output none
+
+      - name: Write production runtime configuration overlay
+        env:
+          FEDRIL_API_BASE_URL: ${{ env.PRODUCTION_API_BASE_URL }}
+          FEDRIL_WORKFORCE_CLIENT_ID: ${{ env.PRODUCTION_MSAL_CLIENT_ID }}
+          FEDRIL_WORKFORCE_TENANT_ID: ${{ env.PRODUCTION_MSAL_TENANT_ID }}
+          FEDRIL_WORKFORCE_API_SCOPE: ${{ env.PRODUCTION_MSAL_API_SCOPE }}
+          FEDRIL_CUSTOMER_CLIENT_ID: ${{ env.PRODUCTION_CUSTOMER_MSAL_CLIENT_ID }}
+          FEDRIL_CUSTOMER_TENANT_ID: ${{ env.PRODUCTION_CUSTOMER_MSAL_TENANT_ID }}
+          FEDRIL_CUSTOMER_TENANT_SUBDOMAIN: ${{ env.PRODUCTION_CUSTOMER_MSAL_TENANT_SUBDOMAIN }}
+          FEDRIL_CUSTOMER_API_SCOPE: ${{ env.PRODUCTION_CUSTOMER_MSAL_API_SCOPE }}
+          FEDRIL_APP_VERSION: ${{ env.RELEASE_VERSION }}
+          FEDRIL_CANDIDATE_TAG: ${{ env.CANDIDATE_TAG }}
+          FEDRIL_RELEASE_TAG: ${{ env.RELEASE_TAG }}
+          FEDRIL_COMMIT_SHA: ${{ env.COMMIT_SHA }}
+          FEDRIL_BUILD_ID: ${{ github.run_id }}
+        run: node tools/release/write-runtime-config.mjs "$GITHUB_WORKSPACE/.release/web/runtime-config.js"
+
+      - name: Deploy the staged API artifact
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.PRODUCTION_API_APP_NAME }}
+          package: ${{ runner.temp }}/gccs-api-production
+
+      - name: Deploy the staged web artifact
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_GCCS_PRODUCTION }}
+          action: upload
+          app_location: .release/web
+          api_location: ""
+          output_location: ""
+          skip_app_build: true
+
+      - name: Verify production release identity and health
+        run: |
+          set -o pipefail
+          for attempt in {1..12}; do
+            if curl --fail --show-error --silent "$PRODUCTION_API_BASE_URL/health" | tee "$RUNNER_TEMP/production-health.json"; then
+              break
+            fi
+            if [[ "$attempt" -eq 12 ]]; then exit 1; fi
+            sleep 10
+          done
+          jq -e --arg version "$RELEASE_VERSION" --arg candidate "$CANDIDATE_TAG" --arg release "$RELEASE_TAG" --arg sha "$COMMIT_SHA" '
+            .status == "ok" and
+            .service == "gccs-api" and
+            .dataPosture == "No-CUI / compliance management only" and
+            .version == $version and
+            .candidateTag == $candidate and
+            .releaseTag == $release and
+            .commitSha == $sha and
+            ([.dependencies[].name] | index("postgresql") != null) and
+            ([.dependencies[].name] | index("redis") != null) and
+            ([.dependencies[].name] | index("object-storage") != null) and
+            ([.dependencies[].name] | index("background-jobs") != null)
+          ' "$RUNNER_TEMP/production-health.json"
+          curl --fail --show-error --silent "$PRODUCTION_WEB_BASE_URL/runtime-config.js" | tee "$RUNNER_TEMP/production-runtime-config.js"
+          grep -F "\"appVersion\":\"$RELEASE_VERSION\"" "$RUNNER_TEMP/production-runtime-config.js"
+          grep -F "\"candidateTag\":\"$CANDIDATE_TAG\"" "$RUNNER_TEMP/production-runtime-config.js"
+          grep -F "\"releaseTag\":\"$RELEASE_TAG\"" "$RUNNER_TEMP/production-runtime-config.js"
+          grep -F "\"commitSha\":\"$COMMIT_SHA\"" "$RUNNER_TEMP/production-runtime-config.js"
+          grep -F "\"apiBaseUrl\":\"$PRODUCTION_API_BASE_URL\"" "$RUNNER_TEMP/production-runtime-config.js"
+
+      - name: Record production promotion evidence
+        run: |
+          {
+            echo "deployment_time_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "version=$RELEASE_VERSION"
+            echo "candidate_tag=$CANDIDATE_TAG"
+            echo "release_tag=$RELEASE_TAG"
+            echo "commit_sha=$COMMIT_SHA"
+            echo "staging_run_id=$STAGING_RUN_ID"
+            echo "operator=${{ github.actor }}"
+            echo "environment=production"
+            echo "run_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo "data_posture=$Gccs__DataPosture"
+            echo "artifact_mode=immutable-promotion"
+            echo "result=deployment-and-health-checks-passed"
+          } | tee "$RUNNER_TEMP/production-release-evidence.txt"
+
+      - name: Upload production promotion evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: production-release-evidence-${{ github.event.inputs.release_tag }}
+          path: |
+            ${{ runner.temp }}/production-release-evidence.txt
+            ${{ runner.temp }}/production-health.json
+            ${{ runner.temp }}/production-runtime-config.js
+            ${{ runner.temp }}/production-postgres-recovery.json
+            ${{ runner.temp }}/release-bundle
+            docs/release/approved-release.json
+
+  publish-release-record:
+    name: Publish final GitHub release record
+    if: needs.production-deploy.result == 'success'
+    needs: production-deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout approved release record
+        uses: actions/checkout@v7
+
+      - name: Publish immutable final release record
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.inputs.release_tag }}
+        run: |
+          candidate_tag="$(jq -r '.candidateTag' docs/release/approved-release.json)"
+          version="$(jq -r '.version' docs/release/approved-release.json)"
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            is_draft="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft')"
+            if [[ "$is_draft" = "false" ]]; then exit 0; fi
+            mkdir -p "$RUNNER_TEMP/existing-final-draft"
+            gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --dir "$RUNNER_TEMP/existing-final-draft"
+            cmp docs/release/approved-release.json "$RUNNER_TEMP/existing-final-draft/approved-release.json"
+          else
+            gh release create "$RELEASE_TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --verify-tag \
+              --draft \
+              --title "FeDril $version" \
+              --notes "Promoted from immutable candidate $candidate_tag after protected production deployment run $GITHUB_RUN_ID." \
+              docs/release/approved-release.json
+          fi
+          gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --draft=false

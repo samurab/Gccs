@@ -1,4 +1,12 @@
 {
+  "routes": [
+    {
+      "route": "/runtime-config.js",
+      "headers": {
+        "Cache-Control": "no-store, no-cache, must-revalidate"
+      }
+    }
+  ],
   "navigationFallback": {
     "rewrite": "/index.html",
     "exclude": [

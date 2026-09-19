@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 2,
+  "status": "legacy-import",
+  "version": "0.0.0-legacy.20260913.1",
+  "candidateTag": "launch-candidate-2026-09-13-1",
+  "releaseTag": null,
+  "commitSha": "dcd2d44cf2252f81a67158e2cce5e47c015cd145",
+  "approvedAt": "2026-09-13",
+  "approvalScope": "Historical solo-controlled No-CUI pilot production deployment",
+  "dataPosture": "no-cui-only",
+  "staging": {
+    "environment": "staging",
+    "runId": 34792088854,
+    "evidenceUrl": "https://github.com/samurab/Gccs/actions/runs/34792088854"
+  },
+  "artifacts": {
+    "mode": "legacy-source-rebuild"
+  },
+  "approvals": {
+    "engineering": true,
+    "security": true,
+    "product": true
+  },
+  "rollback": {
+    "sourceTag": "launch-candidate-2026-09-13-1"
+  }
+}

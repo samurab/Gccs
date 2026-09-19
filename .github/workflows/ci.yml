@@ -30,6 +30,11 @@ jobs:
       - name: Validate approved launch candidate synchronization
         run: npm run check:launch-candidate
 
+      - name: Validate SemVer release and promotion controls
+        run: |
+          npm run check:release-control
+          npm run test:release-control
+
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v6
         with:

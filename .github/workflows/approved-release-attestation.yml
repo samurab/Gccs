@@ -1,0 +1,50 @@
+name: Approved release attestation
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - docs/release/approved-release.json
+      - tools/release/release-control.mjs
+      - .github/workflows/approved-release-attestation.yml
+
+permissions:
+  contents: read
+  id-token: write
+  attestations: write
+
+jobs:
+  attest-approved-release:
+    name: Attest approved release manifest
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "25"
+
+      - name: Determine manifest status
+        id: manifest
+        run: |
+          npm run check:release-control
+          status="$(jq -r '.status' docs/release/approved-release.json)"
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+
+      - name: Validate production-approved manifest
+        if: steps.manifest.outputs.status == 'approved'
+        run: |
+          release_tag="$(jq -r '.releaseTag' docs/release/approved-release.json)"
+          node tools/release/release-control.mjs production docs/release/approved-release.json "$release_tag"
+
+      - name: Attest approved manifest
+        if: steps.manifest.outputs.status == 'approved'
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: docs/release/approved-release.json
+
+      - name: Preserve legacy import as unsigned rollback evidence
+        if: steps.manifest.outputs.status == 'legacy-import'
+        run: echo "Legacy import is rollback evidence only; immutable production promotion remains disabled."
