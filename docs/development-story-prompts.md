@@ -2,7 +2,7 @@
 
 These prompts are designed to be copied into a fresh implementation thread, one story at a time. Each prompt points back to the source backlog in [development-phase-use-cases.md](development-phase-use-cases.md) and should be executed under the project guidance in [../AGENTS.md](../AGENTS.md).
 
-Phase 0 Stories `0.1` through `0.8` remain intentionally excluded from this implementation inventory. SOC 2 Stories `39.1` through `39.3` are included below as governed human-evidence prompts, not executable software implementation work. Do not invoke the software story sequence or add application code merely to satisfy those stories.
+Phase 0 Stories `0.1` through `0.8` remain intentionally excluded from this implementation inventory. SOC 2 Stories `39.1` through `39.23` form the consolidated, manually gated program below: original governance parents 39.1–39.3 plus scoped engineering, operations and independent-assurance delivery stories. Do not invoke the automatic software story sequence for this section or treat code/templates as SOC 2 completion.
 
 ## Evidence-Based Status Reconciliation
 
@@ -5753,114 +5753,1030 @@ Implement Story 38.3, "Enclave Access, Export, And Support Controls," from `docs
 
 ## 39. SOC 2 Assurance Program
 
-This section is a governed human-evidence and independent-assurance track. These prompts may create or update documentation, registers, evidence indexes, and decision records, but they must not add application code merely to claim SOC 2 readiness. SOC 2 is a commercial trust and assurance framework; it does not replace CMMC readiness, FedRAMP authorization, government approval, legal advice, customer CUI responsibilities, or authorization to process real CUI.
+Revision: 2026-09-19. This is the consolidated execution backlog for the SOC 2 program, not evidence that the work has been completed. It expands the original governed Stories 39.1–39.3 in [development-phase-use-cases.md](development-phase-use-cases.md). Stories 39.4–39.23 are new delivery stories defined here; do not assume they already exist in that source backlog or its test inventory. Preserve the original three IDs and titles. Do not register this section with the automatic software story sequence: some tasks require management, legal, cloud-administrator, or independent CPA action.
+
+The [2026-09-19 assessment](soc2-readiness-assessment.md) is the starting evidence snapshot, not a current production-state guarantee. Its 36 checklist items and 15 gap IDs are mapped below. Its proposed story additions are incorporated here. Preserve that historical assessment; record subsequent evidence, decisions, and remediation separately.
+
+### Execution Order And Stage Gates
+
+Run the setup portions of 39.1, 39.2, and 39.3 first, then follow 39.4–39.23 in numeric order. **Exception: begin 39.4 exposure triage immediately if exposure is still plausible; do not wait for governance paperwork.** Stories 39.1–39.3 are parent workflows: their setup gates permit child work; their final closure requires child evidence. Do not create a circular dependency by demanding their final closure before starting the children.
+
+| Order | Story | Work and gate | When |
+| --- | --- | --- | --- |
+| 1 | 39.1 | Scope, system description, baseline inventory; approve candidate scope | Now |
+| 2 | 39.2 | Gap/task register, protected evidence store and calendar setup | Now; maintained throughout |
+| 3 | 39.3 | Examination/claims governance setup; no engagement or report implied | Now; maintained throughout |
+| 4 | 39.4 | Potential public-data exposure investigation and authorized containment | Immediate triage |
+| 5 | 39.5 | Governance, risk assessment, policies and oversight | Before readiness gate |
+| 6 | 39.6 | Workforce lifecycle, MFA, endpoints, privileged access and training | Before readiness gate; recurring |
+| 7 | 39.7 | Verify application access, tenant isolation, sessions and No-CUI boundaries | Before readiness gate |
+| 8 | 39.8 | Secure SDLC, change approvals and separation of duties | Before readiness gate; per change |
+| 9 | 39.9 | Production network baseline and drift detection | Before readiness gate; recurring |
+| 10 | 39.10 | Secrets, encryption and key lifecycle | Before readiness gate; recurring |
+| 11 | 39.11 | Vulnerability, patch and security-testing program | Before readiness gate; recurring |
+| 12 | 39.12 | Audit integrity, telemetry and alert response | Before readiness gate; continuous |
+| 13 | 39.13 | Incident response, spill handling and exercises | Before readiness gate; recurring |
+| 14 | 39.14 | Backup, restoration, continuity and recovery | Before readiness gate; recurring |
+| 15 | 39.15 | Vendors, subprocessors and inherited controls | Before readiness gate; recurring |
+| 16 | 39.16 | Data classification, retention and secure disposal | Before readiness gate; recurring |
+| 17 | 39.17 | Additional-category decision and conditional controls | Before scope freeze; or defer with reasons |
+| 18 | 39.18 | Integrated design/implementation and Type I readiness gate | Before examination decision |
+| 19 | 39.19 | Optional Type I examination and actual-report handling | Only after approved business decision |
+| 20 | 39.20 | Type II period, populations and evidence readiness gate | Before proposed review period |
+| 21 | 39.21 | Repeated control operation and management review | Throughout agreed Type II period |
+| 22 | 39.22 | Type II examination, exceptions and actual-report handling | After sufficient period evidence |
+| 23 | 39.23 | Controlled disclosure, continuous readiness and renewal | After issuance and ongoing |
+
+Independent control work in 39.5–39.17 may run in parallel after the scope and evidence setup gates, provided each story's dependencies are satisfied. Capture genuine evidence from the first operation; do not wait for a formal period to begin collecting it. Material failures require reassessment, not silent continuation.
+
+Type I concerns the system description and suitability of control design at an as-of date; readiness also requires controls to be placed in operation. Type II additionally addresses operating effectiveness over the specified period. An issued Type I report is not an automatic prerequisite for Type II; record the selected route with the service auditor. A Type I report does not establish sustained operation. Do not invent a mandatory three-, six-, or twelve-month period or treat an annual cadence, scan product, or penetration-test frequency as a universal SOC 2 mandate. FeDril must approve risk-based controls and confirm scope, evidence sufficiency, and period with its CPA.
+
+### Shared Execution Contract — Required For Every Story
+
+Copy this contract together with the selected story, or have the executing agent read this entire section before acting.
+
+1. Read `AGENTS.md`, the selected story, its prerequisites, the assessment, and relevant code/configuration/evidence. Record date/time zone, exact commit, environment, evidence cutoff, reviewer role, available sources, and limitations. Verify previous findings; absence from Git is not proof that a human or cloud control is absent.
+2. Assign actual named accountable owner, operator/evidence custodian, reviewer and approver. Role names below are proposals, not appointments. Missing people, access, funding, policies or approvals are explicit blockers with an owner and next action; never fabricate approval.
+3. Maintain stable IDs `SOC2-39.n-T01` onward for the numbered task checkboxes, and link each to its parent, criterion/control ID, risk, assessment gap, priority, dependency, due date, required evidence and acceptance test. Use P0 blocker, P1 foundation, P2 material remediation, P3 operating consistency, P4 enhancement, adjusted for verified risk. Do not mistake a later sequence number for low security urgency.
+4. Track task status separately as Planned / In Progress / Blocked / Ready For Review / Accepted / Deferred / Not Applicable. These story labels do not certify existing controls. For each control separately record Design (adequate/gap/unverified), Implementation (verified/partial/not implemented/unverified), and Operating Evidence (sufficient for stated period/partial/unavailable/unverified). Every conclusion needs evidence and a limitation; N/A or deferral needs rationale, approver, revisit date, and criteria impact.
+5. Create or reuse a protected SOC 2 workspace and index. Public Git may contain sanitized templates, task IDs and non-sensitive summaries only. Do not commit reports, personnel records, access exports, detailed vulnerability findings, customer documents, credentials, sensitive system descriptions or raw evidence. Record evidence ID, control, source, environment, date/period, full population or sampling basis, collector, reviewer, result, freshness, integrity/version reference, retention, access restriction and location. Verify completeness and accuracy of system-produced evidence; redact without destroying necessary traceability. Never backdate evidence.
+6. Technical stories permit only explicitly requested, bounded code/IaC/test changes when that story is executed. First prove a gap; reuse working controls rather than rebuilding them or adding a SOC 2 UI. Apply high-risk verification from `AGENTS.md` to security boundaries. Document baseline, affected contracts, implementation, tests, rollout and rollback. Production deployments, account/permission changes, destructive deletion/history rewrites, secret rotation, external scans, purchases and communications require separate authorization and change approval; stop at that boundary with a runbook.
+7. Governance stories create drafts, registers, templates and supported decision records; an agent cannot sign management assertions, perform an independent CPA examination, appoint itself approver, execute a recurring human review merely by documenting it, or claim a report was issued.
+8. Preserve No-CUI, server-side RBAC, tenant isolation, audit atomicity, safe error handling and evidence traceability. SOC 2 does not authorize CUI processing or substitute for CMMC, FedRAMP, legal advice or government approval. Never use “SOC 2 certified”; prefer exact reviewed report wording. No checklist guarantees a favorable opinion or eliminates residual risk.
+9. Close a gap only after an authorized reviewer validates the specific design, implementation or operating deficiency and retest evidence. Record failures, interim safeguards, risk acceptance, reviewer conflicts, deadline, escalation and remaining risk. Acceptance does not erase historical failures or bind the auditor's opinion.
+10. Every execution must end with tasks completed/not completed, changed files/configurations, evidence references, exact verification commands/results, skipped checks, human actions/approvals still required, residual risks, updated register entries and the next unblocked story/task. Draft documentation alone is never completion of an operating control.
+
+Proposed artifact names below are logical names in the protected workspace established by 39.2, not instructions to publish them in this repository. Reuse existing records wherever possible. The only document changed by this backlog-authoring task is `docs/development-story-prompts.md`.
 
 ### Story 39.1: Define SOC 2 Scope And Readiness Decision
 **Status: Planned**
-Prompt:
-You are helping me govern FeDril's SOC 2 scope and readiness decision.
 
-First, inspect the existing codebase, deployment/configuration evidence, architecture docs, security docs, policy docs, data-boundary materials, current trust artifacts, and `docs/development-phase-use-cases.md`. Then summarize the current evidence for Story 39.1 and identify what is verified, unverified, missing, or blocked before drafting or updating any SOC 2 scope document.
+**Work type:** Governance; parent of the scope and readiness track  
+**Proposed accountable role:** Executive sponsor and SOC 2 owner  
+**Dependencies:** None; trigger 39.4 triage immediately for plausible exposure  
+**Type I / Type II relevance:** Both  
+**Required deliverables:** scope-decision, system-description, control-matrix, customer-demand-register
+
+Prompt:
+
+You are helping FeDril establish an evidence-backed, reviewer-supported scope and a measurable proceed/defer decision before committing to an examination. Execute Story 39.1, "Define SOC 2 Scope And Readiness Decision," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
 
 > Context:
 >
 > - Epic: SOC 2 Assurance Program
-> - Story type: Governed human-evidence and assurance decision, not executable product code.
-> - User story: As the assurance program owner, I want an auditor-supported scope and readiness decision so that FeDril knows which system boundary, services, criteria, owners, and evidence obligations would be examined before committing to an examination.
-> - Acceptance criteria:
-> - The scope record identifies the system boundary, included services and environments, subprocessors, customer responsibilities, exclusions, applicable criteria, version, owner, and review date.
-> - Every in-scope criterion maps to a control owner and an evidence source or a documented design gap with remediation ownership.
-> - The proceed, defer, or revise decision records approvers, rationale, budget and schedule assumptions, unresolved risks, and next review date.
-> - Qualified reviewer input and conflicts of interest are recorded without representing readiness advice as an issued SOC 2 report, certification, legal conclusion, or authorization to process CUI.
+> - Parent traceability: Original Story 39.1 in `docs/development-phase-use-cases.md`; retain its original governance purpose.
+> - User story: As the accountable executive sponsor and soc 2 owner, I want to establish an evidence-backed, reviewer-supported scope and a measurable proceed/defer decision before committing to an examination.
+> - Acceptance criteria: Setup gate: candidate boundary, accountable sponsor, criteria decision and versioned draft matrix exist; unanswered facts are explicit. Final acceptance: authorized scope approval, qualified review, complete scoped mapping and measurable gates are recorded. No report or readiness claim follows from this story alone.
 
-Create or update Story 39.1, "Define SOC 2 Scope And Readiness Decision," from `docs/development-phase-use-cases.md`. Produce a governed FeDril SOC 2 scope and readiness decision record that defines the candidate FeDril SaaS system boundary, in-scope and out-of-scope services, environments, subprocessors, customer responsibilities, exclusions, Trust Services Criteria selection, accountable owners, evidence sources, design gaps, unresolved risks, decision outcome, approvers, budget and schedule assumptions, and next review date.
+Tasks (stable IDs are `SOC2-39.1-T01` onward):
 
-Use the current FeDril posture unless verified evidence proves otherwise: FeDril is a No-CUI compliance-readiness operations platform. Start with SOC 2 Security as the likely initial Trust Services Criteria category. Consider Availability only if uptime commitments are verified, and consider Confidentiality only if FeDril stores sensitive non-CUI customer documents, evidence metadata, or operational information at meaningful scale. Do not scope all five SOC 2 categories by default.
+- [ ] `SOC2-39.1-T01` — Record the assessment metadata and reconcile the historical assessment with current architecture, production configuration, tests, existing governance evidence and customer commitments. Inventory what is verified versus unavailable.
+- [ ] `SOC2-39.1-T02` — Define FeDril SaaS services, infrastructure, software, people, procedures, data flows, locations, environments, production-support systems, assets, subprocessors, customer responsibilities and exclusions. Include source control/CI/CD and supporting workforce controls even where not customer-facing. Record service commitments and system requirements.
+- [ ] `SOC2-39.1-T03` — Use Security/common criteria as the baseline; assess Availability, Confidentiality, Processing Integrity and Privacy applicability separately through 39.17. Preserve No-CUI and document boundaries with customer enclaves, MSP-managed systems and C3PAO work. Exclusions must not remove FeDril's own dependencies or commitments.
+- [ ] `SOC2-39.1-T04` — Obtain current authorized AICPA Trust Services Criteria and Description Criteria through appropriate access; map every scoped criterion at summary level to risks, controls, owners, evidence, frequencies and gaps. Do not copy proprietary criteria text or pretend the licensed mapping was reviewed when unavailable.
+- [ ] `SOC2-39.1-T05` — Build a current-state matrix distinguishing control design, implementation and period evidence. Include evidence freshness, source reliability, known limitations, repository exposure and live-configuration verification needs.
+- [ ] `SOC2-39.1-T06` — Define objective Type I and Type II proceed/defer gates, budget assumptions, verified customer/partner/procurement triggers and qualified reviewer input/conflicts. Record a Type I-first or direct-Type II route, scope version, approvers and review date.
+- [ ] `SOC2-39.1-T07` — Reconcile the scope after 39.5–39.17; supply the approved description and mapping to 39.18/39.20 and record all subsequent significant changes.
 
 Instructions:
 
-1. Treat SOC 2 readiness as a governance and assurance program, not a feature implementation.
-2. Validate facts against the actual repository, deployment configuration, policies, tests, and authoritative sources. If evidence is unavailable, mark the item `Requires Verification`.
-3. Preserve the No-CUI product posture and explicitly separate SOC 2 from FedRAMP, CMMC certification, government approval, legal/compliance advice, and permission to process real CUI.
-4. Include out-of-scope items such as customer CUI, customer systems, C3PAO work, MSP-managed infrastructure, and customer legal/compliance determinations unless verified evidence supports a narrower or different exclusion.
-5. Identify likely evidence categories: access reviews, change management, incident response, vulnerability management, backups, logging, vendor management, secure SDLC, and management review.
-6. Record whether the recommended decision is proceed, defer, or revise scope; for FeDril's current stage, do not recommend rushing into a formal SOC 2 Type I or Type II audit unless customer, partner, or procurement evidence supports that timing.
-7. Do not use wording such as `SOC 2 certified`, `SOC 2 compliant`, `audit ready`, `government approved`, `CMMC certified`, `FedRAMP authorized`, or `authorized to store CUI`.
-8. If you create or update files, keep changes limited to governed documentation, registers, evidence indexes, or decision records and summarize every changed file.
+1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
+2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
+3. Apply the shared safety and change boundaries. Implement only verified, authorized gaps; preserve working controls and document remaining external or recurring work.
+4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
 
 #-----------------------------------------
 
 ### Story 39.2: Remediate Gaps And Collect Operating Evidence
 **Status: Planned**
-Prompt:
-You are helping me govern FeDril's SOC 2 readiness gap remediation and operating-evidence collection.
 
-First, inspect the existing SOC 2 scope decision record if present, security docs, operations docs, deployment/configuration evidence, policy docs, audit-log behavior, backup/restore materials, incident-response materials, vendor/subprocessor records, change-management evidence, and `docs/development-phase-use-cases.md`. Then summarize the current evidence for Story 39.2 and identify what is verified, unverified, missing, or blocked before drafting or updating any readiness gap register or evidence calendar.
+**Work type:** Governance and evidence operations; parent of 39.4–39.22  
+**Proposed accountable role:** SOC 2 owner with control owners and independent reviewers  
+**Dependencies:** 39.1 candidate scope; permits provisional setup while scope approval is pending  
+**Type I / Type II relevance:** Both; operating evidence especially Type II  
+**Required deliverables:** gap-register, task-register, evidence-index, evidence-calendar, exception-register
+
+Prompt:
+
+You are helping FeDril coordinate every remediation and evidence obligation without losing failed controls, overdue tasks or traceability. Execute Story 39.2, "Remediate Gaps And Collect Operating Evidence," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
 
 > Context:
 >
 > - Epic: SOC 2 Assurance Program
-> - Story type: Governed human-evidence and assurance decision, not executable product code.
-> - User story: As the assurance program owner, I want control gaps remediated and operating evidence collected over the selected period so that examination readiness is based on governed evidence rather than policy text or application features alone.
-> - Acceptance criteria:
-> - Every readiness gap has severity, accountable owner, target date, disposition, evidence requirement, and immutable decision history.
-> - Each collected evidence item identifies the scoped control, system or process, collection period, source, custodian, reviewer, review result, and retention location without storing secrets or raw customer documents in the backlog.
-> - Exceptions, control failures, significant changes, accepted risks, and corrective actions remain visible with approval and closure evidence.
-> - The final readiness decision identifies the examination type under consideration, proposed period or as-of date, open exceptions, evidence index version, approvers, and proceed or defer outcome.
+> - Parent traceability: Original Story 39.2 in `docs/development-phase-use-cases.md`; retain its original governance purpose.
+> - User story: As the accountable soc 2 owner with control owners and independent reviewers, I want to coordinate every remediation and evidence obligation without losing failed controls, overdue tasks or traceability.
+> - Acceptance criteria: Setup gate: protected storage, populated task/gap register and owned calendar are usable. Final period acceptance: every scoped control and gap has a reviewed disposition, evidence traceability and signed readiness decision; stale/missing evidence blocks affected conclusions.
 
-Create or update Story 39.2, "Remediate Gaps And Collect Operating Evidence," from `docs/development-phase-use-cases.md`. Produce a governed readiness gap register and operating-evidence calendar for the selected SOC 2 scope. The register must identify each gap, severity, owner, target date, remediation plan, evidence requirement, disposition, exception or accepted-risk approval, closure evidence, and decision history. The evidence calendar must identify each scoped control or process, system, owner, collection cadence, collection period, custodian, reviewer, review result, retention location, and secure-storage rule.
+Tasks (stable IDs are `SOC2-39.2-T01` onward):
+
+- [ ] `SOC2-39.2-T01` — Seed the task/gap register with all 36 assessment checklist rows, all SOC2-GAP-001 through SOC2-GAP-015 entries and every task in this section. Preserve original findings as dated history; map current verification and new gaps rather than silently overwriting.
+- [ ] `SOC2-39.2-T02` — For each task record risk/severity, why it matters, named owner/reviewer, dependency, target date, interim safeguard, evidence requirement, Type I/II impact, closure test and residual risk. Propose timing, obtain approval and distinguish commitments from estimates.
+- [ ] `SOC2-39.2-T03` — Establish a protected evidence repository with least privilege, MFA, access reviews, encryption, version/integrity protection, backup, approved retention and reviewer access. Verify a save/read/deny/recover sample. Keep sensitive material and reports out of public Git.
+- [ ] `SOC2-39.2-T04` — Build the per-control operating calendar: event-driven or periodic cadence, complete population, evidence source, collector, reviewer, collection deadline, review deadline, absence/failure alert and escalation. Include no-event periods without inventing events.
+- [ ] `SOC2-39.2-T05` — Require evidence quality review: source authenticity, completeness/accuracy, population/sample basis, timestamp/period, environment, freshness, reviewer, rejection reason and corrective action. Passing tests cannot stand in for a human review.
+- [ ] `SOC2-39.2-T06` — Govern exceptions, failures and significant changes with severity, escalation, expiring risk acceptance, corrective action and independent retest. Distinguish design closure, implementation closure and demonstrated period effectiveness; retain failures in the audit trail.
+- [ ] `SOC2-39.2-T07` — Run readiness reviews at 39.18 and 39.22, preserve dated evidence-index snapshots, actual approvers and decisions, and maintain the program during 39.21/39.23.
 
 Instructions:
 
-1. Base remediation and evidence needs on the approved or proposed Story 39.1 scope. If no scope exists, create a dependency note and mark scope-dependent items `Requires Verification`.
-2. Treat operating evidence as governed human and operational evidence. Do not claim that source code, tests, policies, or UI states alone prove SOC 2 readiness.
-3. Track likely gap areas explicitly: access reviews, incident response, vendor risk, change approvals, audit logs, backup testing, vulnerability management, logging/monitoring, secure SDLC, and management review.
-4. Record exceptions, control failures, significant changes, corrective actions, accepted risks, open questions, approvers, closure evidence, and final readiness decision.
-5. Do not store secrets, raw customer documents, real CUI, credentials, private keys, vulnerability exploit details, or unredacted sensitive evidence in the backlog or readiness documents.
-6. Do not represent readiness artifacts as an issued SOC 2 report, certification, audit result, legal conclusion, FedRAMP authorization, CMMC certification, or permission to process real CUI.
-7. If a formal audit is not yet justified by customers, partners, or procurement blockers, recommend gradual SOC 2-aligned control implementation and evidence collection rather than premature Type I or Type II examination.
-8. If you create or update files, keep changes limited to governed documentation, registers, evidence indexes, or decision records and summarize every changed file.
+1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
+2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
+3. Apply the shared safety and change boundaries. Implement only verified, authorized gaps; preserve working controls and document remaining external or recurring work.
+4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
 
 #-----------------------------------------
 
 ### Story 39.3: Govern Independent Examination And Report Distribution
 **Status: Planned**
-Prompt:
-You are helping me govern FeDril's independent SOC 2 examination lifecycle and issued-report distribution.
 
-First, inspect any existing SOC 2 scope decision, readiness gap register, evidence index, procurement/trust artifacts, data-boundary materials, security claims, customer-facing wording, report-distribution process, and `docs/development-phase-use-cases.md`. Then summarize the current evidence for Story 39.3 and identify what is verified, unverified, missing, or blocked before drafting or updating examination or report-distribution records.
+**Work type:** Governance and independent-assurance coordination; parent of 39.19/39.22/39.23  
+**Proposed accountable role:** Executive sponsor, legal/contract owner and SOC 2 owner  
+**Dependencies:** 39.1/39.2 setup; formal examination requires later readiness gates  
+**Type I / Type II relevance:** Both  
+**Required deliverables:** examination-register, auditor-due-diligence, claims-register, report-distribution-register
+
+Prompt:
+
+You are helping FeDril govern independent examinations and restricted report use without treating internal artifacts as assurance reports. Execute Story 39.3, "Govern Independent Examination And Report Distribution," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
 
 > Context:
 >
 > - Epic: SOC 2 Assurance Program
-> - Story type: Governed human-evidence and independent-assurance lifecycle, not executable product code.
-> - User story: As the executive sponsor, I want the independent examination and issued-report lifecycle governed so that procurement communications match the actual report type, system scope, examination period, exceptions, and permitted audience.
-> - Acceptance criteria:
-> - Examination records identify the independent service auditor, examination type, scoped FeDril system, applicable criteria, as-of date or period, management assertion, report status, and issued-report reference when one exists.
-> - No story, readiness artifact, UI state, or internal approval is treated as proof that an independent report was issued; issuance status requires the actual governed report reference and authorized reviewer confirmation.
-> - Every report disclosure records the authorized recipient, purpose, confidentiality condition, approver, report version, sent date, and revocation or supersession status.
-> - Customer-facing wording identifies the actual report type, covered system, and examination period and does not describe FeDril as `SOC 2 certified`, generally `SOC 2 compliant`, government approved, CMMC certified, FedRAMP authorized, audit ready, or authorized to store real CUI.
-> - Renewal planning records the next review period, accountable owners, evidence-calendar changes, prior exceptions, significant changes, and proceed or defer decision.
+> - Parent traceability: Original Story 39.3 in `docs/development-phase-use-cases.md`; retain its original governance purpose.
+> - User story: As the accountable executive sponsor, legal/contract owner and soc 2 owner, I want to govern independent examinations and restricted report use without treating internal artifacts as assurance reports.
+> - Acceptance criteria: Setup gate: governance templates, claims restrictions and engagement gates exist. Type-specific final acceptance requires the actual independent report reference and authorized review, or an explicit defer decision. A report cannot be manufactured by story completion.
 
-Create or update Story 39.3, "Govern Independent Examination And Report Distribution," from `docs/development-phase-use-cases.md`. Produce governed examination lifecycle, report-distribution, claims-register, and renewal-decision records for FeDril. These records must identify auditor independence, engagement details, examination type, scoped system, criteria, as-of date or review period, management assertion, delivery status, report reference when issued, auditor requests, management responses, exceptions, remediation commitments, final disposition, authorized report recipients, confidentiality conditions, approvers, report version, sent date, expiration/review date, revocation or supersession status, approved customer-facing wording, and renewal decision.
+Tasks (stable IDs are `SOC2-39.3-T01` onward):
+
+- [ ] `SOC2-39.3-T01` — Create lifecycle records for not engaged, readiness consultation, engagement approved, examination in progress, report issued, superseded and renewal pending. Record proposed type, criteria, system, dates/period, business justification and budget without implying engagement occurred.
+- [ ] `SOC2-39.3-T02` — Define the pre-engagement gate: stable scope, material gaps dispositioned, assertion preparation, reviewed evidence index, named management authority, customer demand and approved resources. Permit early CPA scoping consultation; it is not a formal examination.
+- [ ] `SOC2-39.3-T03` — Before selecting a firm, verify current CPA licensing, relevant competence, peer-review standing where applicable, independence, conflicts and relationships with readiness/tool vendors. Management retains control ownership and decisions; do not assume the same advisor can independently attest all its work.
+- [ ] `SOC2-39.3-T04` — Prepare engagement terms, confidentiality, secure auditor access, examination type/period, subservice treatment, requested populations, milestones, fees and escalation. Only authorized people execute agreements and management assertions.
+- [ ] `SOC2-39.3-T05` — Create an auditor-request tracker with request ID, control, population, due date, owner, supplied version, reviewer and response. Preserve sampling integrity; do not select only successful examples or coach evidence fabrication.
+- [ ] `SOC2-39.3-T06` — Implement a claims register with exact approved wording, source/report reference, actual scope/type/period, owner, approver, use channel and review date. Without a report, allow only truthful supported readiness wording. Do not describe FeDril as SOC 2 certified, government approved or authorized for CUI.
+- [ ] `SOC2-39.3-T07` — Define restricted-use report storage/distribution by intended audience and report terms: recipient, purpose, confidentiality/NDA requirement where appropriate, approver, version, sent date, access expiry and revocation/supersession. Verify an actual issued report before activating report-specific claims; record renewal decisions.
 
 Instructions:
 
-1. Do not create or imply a SOC 2 report exists unless an actual independent service auditor report reference is present and verified.
-2. Separate readiness artifacts, internal approvals, policy documents, test results, and control evidence from independent examination results.
-3. Maintain a claims register that permits only exact approved wording tied to report type, system scope, criteria, examination period, owner, reviewer, and expiration.
-4. Use conservative current wording if no report exists: `FeDril is a No-CUI compliance-readiness operations platform. We are defining a SOC 2-aligned security control scope for the FeDril SaaS environment and will pursue third-party attestation when customer and partner requirements justify it.`
-5. Prohibit customer-facing claims such as `SOC 2 certified`, `SOC 2 compliant`, `government approved`, `CMMC certified`, `FedRAMP authorized`, `audit ready`, or `authorized to store real CUI` unless the exact claim is supported by governed evidence and legally/assurance-reviewed approval.
-6. Define report access controls: authorized audience, NDA or confidentiality requirement, recipient, purpose, approver, version, sent date, expiration or review date, and revocation history.
-7. Define renewal planning: next review period, accountable owners, evidence-calendar changes, prior exceptions, significant changes, and proceed or defer decision.
-8. If you create or update files, keep changes limited to governed documentation, registers, evidence indexes, claims registers, or decision records and summarize every changed file.
+1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
+2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
+3. Apply the shared safety and change boundaries. Implement only verified, authorized gaps; preserve working controls and document remaining external or recurring work.
+4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
+
+#-----------------------------------------
+
+### Story 39.4: Investigate Repository Exposure And Govern Containment
+**Status: Planned**
+
+**Work type:** Security investigation and separately authorized remediation  
+**Proposed accountable role:** Security lead and engineering lead  
+**Dependencies:** None for immediate triage; use provisional incident tracking until 39.2 exists  
+**Type I / Type II relevance:** Both; P0 pending verification  
+**Required deliverables:** restricted-exposure-investigation, containment-plan, public-information-boundary
+
+Prompt:
+
+You are helping FeDril resolve the suspected public-repository data exposure and prevent recurrence without spreading sensitive content. Execute Story 39.4, "Investigate Repository Exposure And Govern Containment," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
+
+> Context:
+>
+> - Epic: SOC 2 Assurance Program
+> - Parent traceability: New delivery story under Stories 39.1 and 39.2; defined in this consolidated execution backlog.
+> - User story: As the accountable security lead and engineering lead, I want to resolve the suspected public-repository data exposure and prevent recurrence without spreading sensitive content.
+> - Acceptance criteria: Authorized investigation/disposition, containment verification and recurrence checks are recorded; all residual exposure is owned. An uninspected dump cannot be marked safe, and a draft cleanup plan cannot close the finding.
+
+Tasks (stable IDs are `SOC2-39.4-T01` onward):
+
+- [ ] `SOC2-39.4-T01` — Reverify repository visibility and the database dump identified in SOC2-GAP-001 using metadata and provenance first. Inventory relevant history, releases, artifacts and operational documents without printing database contents or secrets. A public repository is not itself a SOC 2 failure.
+- [ ] `SOC2-39.4-T02` — Have an authorized custodian determine whether the dump is synthetic, contains personal/customer data or secrets, and whether CUI exposure is plausible. Record only sanitized findings in Git; unknown provenance remains a blocker, not a clean result.
+- [ ] `SOC2-39.4-T03` — Preserve restricted incident evidence and obtain a security/legal decision on severity, containment, notification duties and investigation. If spill is suspected, use 39.13 and stop unnecessary processing or redistribution.
+- [ ] `SOC2-39.4-T04` — Prepare exact-target removal/history-remediation and credential-rotation runbooks where justified, including downstream clones/forks/caches, dependency impact, backups and coordination. Execute only under separate explicit authorization; deletion of a current file does not erase past exposure.
+- [ ] `SOC2-39.4-T05` — Approve a public-information boundary and repository visibility decision. Add scoped ignore/pre-commit/CI secret and prohibited-artifact checks, with synthetic fixtures and false-positive handling; ignore rules do not remove already tracked files.
+- [ ] `SOC2-39.4-T06` — Validate approved containment, affected credential invalidation where applicable, prevention tests and incident disposition. Record unremovable-copy risk and unresolved actions.
+
+Instructions:
+
+1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
+2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
+3. Apply the shared safety and change boundaries. Implement only verified, authorized gaps; preserve working controls and document remaining external or recurring work.
+4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
+
+#-----------------------------------------
+
+### Story 39.5: Establish Governance Risk Policies And Management Oversight
+**Status: Planned**
+
+**Work type:** Organizational governance  
+**Proposed accountable role:** Executive sponsor and security lead  
+**Dependencies:** 39.1/39.2 setup; 39.4 risk information  
+**Type I / Type II relevance:** Both  
+**Required deliverables:** risk-register, policy-register, accountability-matrix, management-review-record
+
+Prompt:
+
+You are helping FeDril establish accountable organizational controls and a risk-based security program. Execute Story 39.5, "Establish Governance Risk Policies And Management Oversight," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
+
+> Context:
+>
+> - Epic: SOC 2 Assurance Program
+> - Parent traceability: New delivery story under Stories 39.1 and 39.2; defined in this consolidated execution backlog.
+> - User story: As the accountable executive sponsor and security lead, I want to establish accountable organizational controls and a risk-based security program.
+> - Acceptance criteria: Named accountable people, approved risk treatment, communicated policies and an actual reviewed management record exist. Material residual risks have authorized disposition; missing approvals remain blockers.
+
+Tasks (stable IDs are `SOC2-39.5-T01` onward):
+
+- [ ] `SOC2-39.5-T01` — Appoint sponsor, program owner, control owners, reviewers and deputies; record competence, capacity, reporting paths, conflicts and founder-stage concentration risk. Use independent review or documented compensating safeguards for unavoidable conflicts.
+- [ ] `SOC2-39.5-T02` — Perform an enterprise risk assessment covering threats, likelihood, impact, fraud, workforce, remote work, vendors, software supply chain, data boundary, continuity and significant change. Map risk treatment to controls, owners, deadlines and residual risk.
+- [ ] `SOC2-39.5-T03` — Approve and communicate a proportionate policy baseline: information security, access/JML, acceptable use, endpoints/remote work, secure development/change, vulnerabilities, incidents, vendors, classification/retention, encryption/secrets, logging, backup/continuity and evidence handling.
+- [ ] `SOC2-39.5-T04` — Set policy ownership, version, approval, effective date, review cycle and workforce acknowledgement. Draft policies are not approved or operating controls; exceptions require expiry and authority.
+- [ ] `SOC2-39.5-T05` — Define internal/external security communications, confidential concern reporting, ethics/disciplinary handling, objectives and escalation. Obtain qualified legal/HR review where applicable.
+- [ ] `SOC2-39.5-T06` — Run an initial management review of risks, gap priorities, funding and staffing; set risk-based review cadence and significant-change triggers. Track corrective actions and reassessments.
+
+Instructions:
+
+1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
+2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
+3. Apply the shared safety and change boundaries. Implement only verified, authorized gaps; preserve working controls and document remaining external or recurring work.
+4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
+
+#-----------------------------------------
+
+### Story 39.6: Implement Workforce Access Device Security And Training
+**Status: Planned**
+
+**Work type:** Workforce operations and identity/device configuration  
+**Proposed accountable role:** IT/security and workforce/contractor manager  
+**Dependencies:** 39.5 policy baseline; 39.2 evidence storage  
+**Type I / Type II relevance:** Both; repeated reviews in Type II  
+**Required deliverables:** identity-inventory, JML-procedure, access-review, device-register, training-register
+
+Prompt:
+
+You are helping FeDril control employee, contractor, privileged and service access throughout the workforce lifecycle. Execute Story 39.6, "Implement Workforce Access Device Security And Training," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
+
+> Context:
+>
+> - Epic: SOC 2 Assurance Program
+> - Parent traceability: New delivery story under Stories 39.1 and 39.2; defined in this consolidated execution backlog.
+> - User story: As the accountable it/security and workforce/contractor manager, I want to control employee, contractor, privileged and service access throughout the workforce lifecycle.
+> - Acceptance criteria: Live identity/device evidence, lifecycle test, completed access review with removals and training/acknowledgement records are reviewed; unverified systems and exceptions remain explicit.
+
+Tasks (stable IDs are `SOC2-39.6-T01` onward):
+
+- [ ] `SOC2-39.6-T01` — Inventory all human/service identities and privileges in identity provider, Azure, GitHub, databases, storage, monitoring, support, HubSpot and evidence systems where in scope. Record owner, purpose, authentication, expiry and access dependency.
+- [ ] `SOC2-39.6-T02` — Design and verify MFA and appropriate conditional-access enforcement for workforce/privileged access, governed break-glass accounts, secure recovery and service/workload identity treatment. Export sanitized live policy evidence; application JWT validation alone does not prove workforce MFA.
+- [ ] `SOC2-39.6-T03` — Implement joiner/mover/leaver requests, manager authorization, least privilege, access expiry, prompt termination/revocation including sessions/tokens, asset return and evidence. Approve risk-based termination targets and test a synthetic lifecycle.
+- [ ] `SOC2-39.6-T04` — Perform a complete initial access review against authoritative populations, including dormant accounts, administrators, bypass rights, external collaborators and support access. Record reviewer decisions and verify removals; schedule recurrence.
+- [ ] `SOC2-39.6-T05` — Inventory endpoints and approved BYOD/remote-work arrangements; verify encryption, screen lock, patching, endpoint protection, secure disposal and lost-device response. Document home/office physical safeguards and inherited data-center controls.
+- [ ] `SOC2-39.6-T06` — Obtain appropriate confidentiality/acceptable-use agreements, role-appropriate screening where lawful and justified, onboarding and recurring security training. Cover phishing, credential safety, No-CUI handling, incident reporting and privileged responsibilities.
+- [ ] `SOC2-39.6-T07` — Record independent review or compensating oversight for founder-managed privileges; validate denied access after revocation and retain actual training completions, not attendance templates.
+
+Instructions:
+
+1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
+2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
+3. Apply the shared safety and change boundaries. Implement only verified, authorized gaps; preserve working controls and document remaining external or recurring work.
+4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
+
+#-----------------------------------------
+
+### Story 39.7: Verify Application Security And Tenant Data Boundaries
+**Status: Planned**
+
+**Work type:** Engineering verification and bounded remediation  
+**Proposed accountable role:** Engineering lead and security reviewer  
+**Dependencies:** 39.1 inventory, 39.2 tracking, 39.5 policies  
+**Type I / Type II relevance:** Both  
+**Required deliverables:** application-control-matrix, focused-test-evidence, remediation-links
+
+Prompt:
+
+You are helping FeDril prove the existing FeDril security boundaries and remediate actual gaps without duplicating implemented features. Execute Story 39.7, "Verify Application Security And Tenant Data Boundaries," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
+
+> Context:
+>
+> - Epic: SOC 2 Assurance Program
+> - Parent traceability: New delivery story under Stories 39.1 and 39.2; defined in this consolidated execution backlog.
+> - User story: As the accountable engineering lead and security reviewer, I want to prove the existing FeDril security boundaries and remediate actual gaps without duplicating implemented features.
+> - Acceptance criteria: Complete affected-path coverage, negative/isolation tests and reviewer-validated fixes are recorded. Tests demonstrate their stated scope, not universal production effectiveness.
+
+Tasks (stable IDs are `SOC2-39.7-T01` onward):
+
+- [ ] `SOC2-39.7-T01` — Inventory API, browser, export, reporting, search, background-job, storage and support paths; map existing authorization and tenant enforcement to controls and tests.
+- [ ] `SOC2-39.7-T02` — Verify authentication/session lifecycle: issuer/audience/signature validation, session/token expiry/revocation, recovery, rate limits, CSRF/CORS protections where applicable, secure cookies/headers and explicit disabling of dev-auth bypasses in production.
+- [ ] `SOC2-39.7-T03` — Exercise allowed/denied role and tenant matrices including cross-tenant IDs, empty results, indirect references, concurrent/repeated requests and admin/support paths. Permissions must remain server-authoritative and fail closed.
+- [ ] `SOC2-39.7-T04` — Verify No-CUI policy acknowledgement, upload metadata/content handling, quarantine/malware integration and rejection paths with synthetic data only. Document classification limitations; do not claim perfect CUI detection.
+- [ ] `SOC2-39.7-T05` — Verify atomic append-only audit events for protected mutations, approvals, exports, upload decisions and rollback/failure behavior. Use real persistence/provider tests where mocks cannot prove the invariant.
+- [ ] `SOC2-39.7-T06` — Implement only verified defects using existing architecture and tests; preserve API contracts and run high-risk verification for affected boundaries. Capture source and deployed-state evidence separately and link monitoring/retention work to 39.12/39.16.
+
+Instructions:
+
+1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
+2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
+3. Apply the shared safety and change boundaries. Implement only verified, authorized gaps; preserve working controls and document remaining external or recurring work.
+4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
+
+#-----------------------------------------
+
+### Story 39.8: Enforce Secure SDLC Change Approval And Separation Of Duties
+**Status: Planned**
+
+**Work type:** Engineering, source-control governance and change operations  
+**Proposed accountable role:** Engineering lead with independent change reviewer  
+**Dependencies:** 39.5 policies; 39.6 identity ownership  
+**Type I / Type II relevance:** Both; each change during Type II  
+**Required deliverables:** change-procedure, protection-baseline, release-evidence, emergency-change-log
+
+Prompt:
+
+You are helping FeDril make code, infrastructure, configuration and content changes authorized, tested and traceable. Execute Story 39.8, "Enforce Secure SDLC Change Approval And Separation Of Duties," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
+
+> Context:
+>
+> - Epic: SOC 2 Assurance Program
+> - Parent traceability: New delivery story under Stories 39.1 and 39.2; defined in this consolidated execution backlog.
+> - User story: As the accountable engineering lead with independent change reviewer, I want to make code, infrastructure, configuration and content changes authorized, tested and traceable.
+> - Acceptance criteria: Actual protection settings and allowed/blocked workflow tests support the approved change model; a complete change sample links request to reviewer, commit, artifact, deployment and post-check.
+
+Tasks (stable IDs are `SOC2-39.8-T01` onward):
+
+- [ ] `SOC2-39.8-T01` — Define normal/emergency changes, risk assessment, tickets, security/privacy review, test requirements, migrations, approvals, deployment identity, rollback and post-change validation. Include IaC, production settings and security-relevant compliance content.
+- [ ] `SOC2-39.8-T02` — Verify actual branch/ruleset/environment controls: required checks, independent reviewers, stale-review dismissal, direct-push limits, force-push/deletion rules, admin bypass and production approval. Protected=true alone is insufficient.
+- [ ] `SOC2-39.8-T03` — Design enforceable segregation among author, approver and deployer where practicable. Document founder-stage conflicts, compensating external review and time-bounded exceptions rather than inventing a second approver.
+- [ ] `SOC2-39.8-T04` — Harden CI/CD with least-privilege tokens/workload identity, trusted dependency/action references, safe handling of untrusted pull requests, protected secrets and traceable immutable release artifacts.
+- [ ] `SOC2-39.8-T05` — Add risk-based design/threat review and secure coding checks. Reuse existing SCA/secret scanning and coordinate expanded scans with 39.11; record approved suppressions and scanner coverage.
+- [ ] `SOC2-39.8-T06` — Test a rejected change and an approved synthetic/staging change through review, CI, deployment evidence and rollback. Rehearse emergency authorization and retrospective review; do not bypass protected workflows.
+
+Instructions:
+
+1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
+2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
+3. Apply the shared safety and change boundaries. Implement only verified, authorized gaps; preserve working controls and document remaining external or recurring work.
+4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
+
+#-----------------------------------------
+
+### Story 39.9: Harden Production Configuration Networks And Drift Detection
+**Status: Planned**
+
+**Work type:** Infrastructure engineering and operations  
+**Proposed accountable role:** Platform/engineering lead with security reviewer  
+**Dependencies:** 39.1 assets; 39.8 change control; coordinate 39.10  
+**Type I / Type II relevance:** Both  
+**Required deliverables:** configuration-baseline, network-flow-matrix, drift-runbook, rollout-plan
+
+Prompt:
+
+You are helping FeDril reconcile live production configuration with approved IaC and restrict unnecessary exposure. Execute Story 39.9, "Harden Production Configuration Networks And Drift Detection," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
+
+> Context:
+>
+> - Epic: SOC 2 Assurance Program
+> - Parent traceability: New delivery story under Stories 39.1 and 39.2; defined in this consolidated execution backlog.
+> - User story: As the accountable platform/engineering lead with security reviewer, I want to reconcile live production configuration with approved IaC and restrict unnecessary exposure.
+> - Acceptance criteria: Reviewed live-versus-IaC baseline, authorized exposure decisions, safe connectivity/deny tests and a successful owned drift cycle exist; skipped jobs cannot pass.
+
+Tasks (stable IDs are `SOC2-39.9-T01` onward):
+
+- [ ] `SOC2-39.9-T01` — Inventory intended and live network flows for web/API, PostgreSQL, Redis, storage, identity, monitoring and build/deploy agents. Compare current IaC to cloud exports; unavailable live access is Requires Verification.
+- [ ] `SOC2-39.9-T02` — Investigate the assessment's PostgreSQL public-access/private-endpoint mismatch. Prefer restricted/private database connectivity where feasible; validate DNS, application and migration connectivity before disabling public access under approved rollout.
+- [ ] `SOC2-39.9-T03` — Review firewalls, ingress/egress, management endpoints, TLS, network segmentation, storage exposure, service ports and rate/abuse protections. Record justified exceptions, approved configuration and review dates.
+- [ ] `SOC2-39.9-T04` — Verify workload configuration, supported software versions, privileged service settings, environmental separation and security baseline; protect remote IaC state with access control, encryption, locking and recovery.
+- [ ] `SOC2-39.9-T05` — Make scheduled infrastructure drift checks actually execute: correct prerequisites, credentials and state configuration; alert on skipped/failed runs as well as detected drift. Assign triage and remediation ownership.
+- [ ] `SOC2-39.9-T06` — Test connectivity, denied access, alert delivery and rollback in an authorized safe environment; obtain explicit deployment/change approval for production and reconcile live evidence afterward.
+
+Instructions:
+
+1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
+2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
+3. Apply the shared safety and change boundaries. Implement only verified, authorized gaps; preserve working controls and document remaining external or recurring work.
+4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
+
+#-----------------------------------------
+
+### Story 39.10: Govern Secrets Encryption And Key Lifecycle
+**Status: Planned**
+
+**Work type:** Security engineering and key operations  
+**Proposed accountable role:** Platform/security lead  
+**Dependencies:** 39.6 identity inventory; 39.8 change control; 39.9 topology  
+**Type I / Type II relevance:** Both  
+**Required deliverables:** secret-key-inventory, encryption-matrix, rotation-runbook, access-review-evidence
+
+Prompt:
+
+You are helping FeDril minimize long-lived credentials and verify encryption and recoverable key operations. Execute Story 39.10, "Govern Secrets Encryption And Key Lifecycle," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
+
+> Context:
+>
+> - Epic: SOC 2 Assurance Program
+> - Parent traceability: New delivery story under Stories 39.1 and 39.2; defined in this consolidated execution backlog.
+> - User story: As the accountable platform/security lead, I want to minimize long-lived credentials and verify encryption and recoverable key operations.
+> - Acceptance criteria: Reviewed inventory and encryption matrix, approved live permissions, safe lifecycle test evidence and owned exceptions exist; no secrets appear in task records or reports.
+
+Tasks (stable IDs are `SOC2-39.10-T01` onward):
+
+- [ ] `SOC2-39.10-T01` — Inventory secrets/keys by purpose, system, custodian, storage, access, expiry and rotation trigger without recording secret values. Cover database, storage, CI/CD, third parties, backups and audit/evidence systems.
+- [ ] `SOC2-39.10-T02` — Use managed/workload identity and scoped authorization where supported; move unavoidable secrets into a governed vault. Remove client-side or source-code secret dependencies after proving compatibility.
+- [ ] `SOC2-39.10-T03` — Investigate storage shared-key use and alternatives; disable unnecessary shared-key access only after workload migration, backup/restore verification and approved rollout. Record any justified remaining use.
+- [ ] `SOC2-39.10-T04` — Verify encryption in transit/at rest, certificate ownership/renewal, key permissions, recovery and backup dependencies. Do not mandate customer-managed keys unless risk or commitments justify their additional operational burden.
+- [ ] `SOC2-39.10-T05` — Define routine and compromise-triggered rotation, revocation, credential leak response, dual-key transition where needed and rollback. Execute only authorized rotations; retain metadata evidence and prove retired credentials no longer work.
+- [ ] `SOC2-39.10-T06` — Test vault denial, secret redaction in logs/errors/CI, expiry alerts, approved renewal/rotation and emergency recovery using synthetic/non-production materials where possible.
+
+Instructions:
+
+1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
+2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
+3. Apply the shared safety and change boundaries. Implement only verified, authorized gaps; preserve working controls and document remaining external or recurring work.
+4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
+
+#-----------------------------------------
+
+### Story 39.11: Operate Vulnerability Patch And Security Testing Controls
+**Status: Planned**
+
+**Work type:** Engineering and vulnerability operations  
+**Proposed accountable role:** Security lead and engineering owners  
+**Dependencies:** 39.5 policy, 39.8 pipelines, 39.9 assets  
+**Type I / Type II relevance:** Both; recurring Type II evidence  
+**Required deliverables:** vulnerability-policy, scan-coverage, remediation-queue, restricted-test-report
+
+Prompt:
+
+You are helping FeDril detect, prioritize, remediate and independently validate security weaknesses with measurable follow-through. Execute Story 39.11, "Operate Vulnerability Patch And Security Testing Controls," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
+
+> Context:
+>
+> - Epic: SOC 2 Assurance Program
+> - Parent traceability: New delivery story under Stories 39.1 and 39.2; defined in this consolidated execution backlog.
+> - User story: As the accountable security lead and engineering owners, I want to detect, prioritize, remediate and independently validate security weaknesses with measurable follow-through.
+> - Acceptance criteria: Coverage, approved SLAs, actual scan execution, tracked disposition and retests exist; required independent testing is evidenced or explicitly blocked/deferred with gate impact.
+
+Tasks (stable IDs are `SOC2-39.11-T01` onward):
+
+- [ ] `SOC2-39.11-T01` — Define asset coverage, severity plus exploitability/exposure prioritization, response/remediation SLAs, owners, exception authority, overdue escalation and patch windows. Approve numeric targets rather than asserting SOC 2 prescribes them.
+- [ ] `SOC2-39.11-T02` — Inventory existing dependency/secret scans and gaps in SAST, DAST, container/image, IaC and platform scanning; implement proportionate coverage and patch monitoring with failed/skipped-scan alerts and governed suppression.
+- [ ] `SOC2-39.11-T03` — Include OS/runtime/framework/database dependencies and end-of-support risk. Link each finding to a task with first-seen date, deadline, risk, fix version, retest and residual risk.
+- [ ] `SOC2-39.11-T04` — Define independent penetration-test scope covering authentication, tenant isolation, authorization, uploads/exports and exposed infrastructure; obtain authorization, rules of engagement, vendor qualification and data restrictions before testing.
+- [ ] `SOC2-39.11-T05` — Perform approved testing and triage, fix material findings, then obtain retest evidence. Keep exploit details and reports restricted; unresolved risks must be visible to management and the service auditor.
+- [ ] `SOC2-39.11-T06` — Demonstrate one full scan-to-remediation-to-rescan cycle and an overdue/failed-scan escalation; measure backlog age and SLA performance. Choose future cadence based on risk and commitments.
+
+Instructions:
+
+1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
+2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
+3. Apply the shared safety and change boundaries. Implement only verified, authorized gaps; preserve working controls and document remaining external or recurring work.
+4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
+
+#-----------------------------------------
+
+### Story 39.12: Validate Audit Integrity Logging Monitoring And Alert Response
+**Status: Planned**
+
+**Work type:** Engineering and security operations  
+**Proposed accountable role:** Security operations owner and engineering lead  
+**Dependencies:** 39.7 audit controls, 39.9/39.10 infrastructure; 39.13 escalation can be drafted in parallel  
+**Type I / Type II relevance:** Both; continuous operation for Type II  
+**Required deliverables:** logging-matrix, alert-catalog, retention-settings, triage-records
+
+Prompt:
+
+You are helping FeDril prove relevant events reach protected storage and produce timely owned responses. Execute Story 39.12, "Validate Audit Integrity Logging Monitoring And Alert Response," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
+
+> Context:
+>
+> - Epic: SOC 2 Assurance Program
+> - Parent traceability: New delivery story under Stories 39.1 and 39.2; defined in this consolidated execution backlog.
+> - User story: As the accountable security operations owner and engineering lead, I want to prove relevant events reach protected storage and produce timely owned responses.
+> - Acceptance criteria: Live ingestion and protected retention are verified, synthetic events trigger owned alerts, and dated response records exist. A dashboard definition without telemetry or responder evidence does not pass.
+
+Tasks (stable IDs are `SOC2-39.12-T01` onward):
+
+- [ ] `SOC2-39.12-T01` — Map application audit/security events and identity, cloud, repository, pipeline, database, storage and malware telemetry to sources, time synchronization, collection path, owner and detection purpose.
+- [ ] `SOC2-39.12-T02` — Verify actual ingestion, completeness indicators, retention settings, access restrictions and storage/integrity controls. Test that privileged operators cannot silently alter protected audit history; document remaining administrative capabilities.
+- [ ] `SOC2-39.12-T03` — Prohibit secrets/raw customer data in logs; validate redaction and access controls with synthetic negative tests while retaining useful correlation and incident context.
+- [ ] `SOC2-39.12-T04` — Configure and validate risk-based detections for auth abuse, privilege change, tenant-boundary anomalies, deployments, malicious uploads, unusual storage/network events and monitoring failure. Include telemetry gaps and failed/skipped security jobs.
+- [ ] `SOC2-39.12-T05` — Assign alert delivery, on-call/deputy, risk-based acknowledgement/escalation targets, triage, incident linkage and closure. Test alert delivery and missed-acknowledgement escalation end to end.
+- [ ] `SOC2-39.12-T06` — Retain an actual reviewed triage cycle and periodic detection tuning/coverage review; reconcile retention with 39.16 and evidence needs.
+
+Instructions:
+
+1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
+2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
+3. Apply the shared safety and change boundaries. Implement only verified, authorized gaps; preserve working controls and document remaining external or recurring work.
+4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
+
+#-----------------------------------------
+
+### Story 39.13: Implement Incident Response And No-CUI Spill Exercises
+**Status: Planned**
+
+**Work type:** Organizational/security operations  
+**Proposed accountable role:** Incident commander, security lead and legal/contract owner  
+**Dependencies:** 39.5 policy; 39.6 contacts; 39.12 detection integration; immediate 39.4 escalation allowed  
+**Type I / Type II relevance:** Both  
+**Required deliverables:** incident-plan, restricted-incident-register, tabletop-report, corrective-actions
+
+Prompt:
+
+You are helping FeDril make incident and prohibited-data response executable, rehearsed and legally governed. Execute Story 39.13, "Implement Incident Response And No-CUI Spill Exercises," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
+
+> Context:
+>
+> - Epic: SOC 2 Assurance Program
+> - Parent traceability: New delivery story under Stories 39.1 and 39.2; defined in this consolidated execution backlog.
+> - User story: As the accountable incident commander, security lead and legal/contract owner, I want to make incident and prohibited-data response executable, rehearsed and legally governed.
+> - Acceptance criteria: Approved accessible plan, validated contacts, completed exercise and reviewed corrective actions exist; real incidents keep accurate contemporaneous records separate from simulations.
+
+Tasks (stable IDs are `SOC2-39.13-T01` onward):
+
+- [ ] `SOC2-39.13-T01` — Approve incident classifications, roles/deputies, communication routes, severity, escalation, investigation, containment, eradication, recovery and post-incident review.
+- [ ] `SOC2-39.13-T02` — Map applicable contractual/legal notification decision owners and clocks with qualified review; do not invent a universal notification deadline or send external notices without authorization.
+- [ ] `SOC2-39.13-T03` — Define No-CUI spill containment, access restriction, preservation, authorized disposition and customer coordination without redistributing suspected CUI or destroying required investigation evidence.
+- [ ] `SOC2-39.13-T04` — Create secure evidence/chain-of-custody, incident timeline, decision/approval and communication templates, including third-party incidents and cloud/vendor coordination.
+- [ ] `SOC2-39.13-T05` — Conduct a recorded tabletop covering leaked credentials/public artifact exposure, cross-tenant access, ransomware/service outage and monitoring escalation. Synthetic scenarios must be labeled as exercises.
+- [ ] `SOC2-39.13-T06` — Track lessons, owners, deadlines and retests; run an incident-to-recovery handoff with 39.14. Feed significant changes and recurring training back into the program.
+
+Instructions:
+
+1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
+2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
+3. Apply the shared safety and change boundaries. Implement only verified, authorized gaps; preserve working controls and document remaining external or recurring work.
+4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
+
+#-----------------------------------------
+
+### Story 39.14: Prove Backup Restoration Business Continuity And Recovery
+**Status: Planned**
+
+**Work type:** Platform operations and continuity governance  
+**Proposed accountable role:** Engineering lead and executive continuity owner  
+**Dependencies:** 39.9 infrastructure, 39.10 keys, 39.13 incident handoff  
+**Type I / Type II relevance:** Both; additional Availability obligations if scoped  
+**Required deliverables:** BIA, backup-matrix, recovery-runbooks, restore-test, continuity-exercise
+
+Prompt:
+
+You are helping FeDril show that FeDril can recover its required services and evidence within approved objectives. Execute Story 39.14, "Prove Backup Restoration Business Continuity And Recovery," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
+
+> Context:
+>
+> - Epic: SOC 2 Assurance Program
+> - Parent traceability: New delivery story under Stories 39.1 and 39.2; defined in this consolidated execution backlog.
+> - User story: As the accountable engineering lead and executive continuity owner, I want to show that FeDril can recover its required services and evidence within approved objectives.
+> - Acceptance criteria: Approved objectives, verified backup operation, measured representative restore and continuity exercise results are reviewed; unmet objectives remain gaps, not successful tests.
+
+Tasks (stable IDs are `SOC2-39.14-T01` onward):
+
+- [ ] `SOC2-39.14-T01` — Perform business-impact analysis and dependency mapping; approve RPO/RTO and service recovery priorities without inventing customer uptime commitments.
+- [ ] `SOC2-39.14-T02` — Inventory backup coverage for databases, storage, configuration, keys, source/evidence records and recovery dependencies; approve retention, encryption, access separation, geographic resilience and deletion protection proportionate to risk.
+- [ ] `SOC2-39.14-T03` — Verify backup jobs, restore permissions, integrity checks and failure alerts in live configuration; monitor and review actual failures and resolutions.
+- [ ] `SOC2-39.14-T04` — Run an authorized isolated production-equivalent restore with sanitized data, measured recovery time/data loss and application validation. Include tenant isolation, permissions and audit-history consistency; staging evidence alone cannot prove production recovery.
+- [ ] `SOC2-39.14-T05` — Exercise business continuity including loss of cloud region/vendor, founder/key-person unavailability, workforce access and communications. Verify deputy access and recovery prerequisites without exposing secrets.
+- [ ] `SOC2-39.14-T06` — Document failures, corrective actions, retest, reviewer approval and repeat cadence; do not execute destructive production failover without explicit approval.
+
+Instructions:
+
+1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
+2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
+3. Apply the shared safety and change boundaries. Implement only verified, authorized gaps; preserve working controls and document remaining external or recurring work.
+4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
+
+#-----------------------------------------
+
+### Story 39.15: Govern Vendors Subprocessors And Inherited Controls
+**Status: Planned**
+
+**Work type:** Vendor risk and contractual governance  
+**Proposed accountable role:** Security lead and procurement/legal owner  
+**Dependencies:** 39.1 boundary, 39.5 risk method, 39.2 protected evidence  
+**Type I / Type II relevance:** Both  
+**Required deliverables:** vendor-register, vendor-review, shared-responsibility-matrix, contract-actions
+
+Prompt:
+
+You are helping FeDril establish accountable third-party oversight without assuming provider assurance transfers to FeDril. Execute Story 39.15, "Govern Vendors Subprocessors And Inherited Controls," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
+
+> Context:
+>
+> - Epic: SOC 2 Assurance Program
+> - Parent traceability: New delivery story under Stories 39.1 and 39.2; defined in this consolidated execution backlog.
+> - User story: As the accountable security lead and procurement/legal owner, I want to establish accountable third-party oversight without assuming provider assurance transfers to FeDril.
+> - Acceptance criteria: Complete material-vendor population, current reviewed assurance/contract evidence and owned complementary controls exist; unavailable reports or unresolved vendor risks are explicitly dispositioned.
+
+Tasks (stable IDs are `SOC2-39.15-T01` onward):
+
+- [ ] `SOC2-39.15-T01` — Inventory cloud, identity, source-control, scanning, communication, support and other material vendors/subprocessors by service, owner, data access, dependency, location and risk tier.
+- [ ] `SOC2-39.15-T02` — Review onboarding due diligence, contractual security/data terms, confidentiality, breach notification, service commitments, termination/deletion, subprocessors and concentration/exit risk with qualified owners.
+- [ ] `SOC2-39.15-T03` — Obtain relevant provider assurance reports through authorized channels; review actual scope, period, opinion, exceptions, complementary user-entity/subservice controls and any bridge letters. Keep reports restricted.
+- [ ] `SOC2-39.15-T04` — Map inherited physical/environmental and infrastructure controls to FeDril responsibilities and operating evidence. Decide subservice carve-out/inclusive presentation with the CPA; a provider SOC report is not FeDril's report.
+- [ ] `SOC2-39.15-T05` — Assign reviews before onboarding, on material change and at an approved risk-based recurrence; track expired evidence, vendor incidents, issues, owners and follow-up.
+- [ ] `SOC2-39.15-T06` — Complete initial reviews for material providers; document exceptions, exit/contingency plans and actual approvals, linking required FeDril controls back to delivery stories.
+
+Instructions:
+
+1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
+2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
+3. Apply the shared safety and change boundaries. Implement only verified, authorized gaps; preserve working controls and document remaining external or recurring work.
+4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
+
+#-----------------------------------------
+
+### Story 39.16: Enforce Data Classification Retention Disposal And Customer Responsibilities
+**Status: Planned**
+
+**Work type:** Data governance and bounded engineering  
+**Proposed accountable role:** Security/privacy or legal owner and engineering lead  
+**Dependencies:** 39.1 flows, 39.5 policies, 39.10 encryption, 39.14 backups, 39.15 vendors  
+**Type I / Type II relevance:** Both; Confidentiality/Privacy additions if scoped  
+**Required deliverables:** data-inventory, retention-matrix, customer-responsibility-matrix, disposal-test
+
+Prompt:
+
+You are helping FeDril control non-CUI data from collection through disposal without weakening immutable evidence or customer boundaries. Execute Story 39.16, "Enforce Data Classification Retention Disposal And Customer Responsibilities," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
+
+> Context:
+>
+> - Epic: SOC 2 Assurance Program
+> - Parent traceability: New delivery story under Stories 39.1 and 39.2; defined in this consolidated execution backlog.
+> - User story: As the accountable security/privacy or legal owner and engineering lead, I want to control non-CUI data from collection through disposal without weakening immutable evidence or customer boundaries.
+> - Acceptance criteria: Approved classification/retention/responsibility records and tested lifecycle controls exist without loss of required audit integrity; real customer data deletion requires separate authorization.
+
+Tasks (stable IDs are `SOC2-39.16-T01` onward):
+
+- [ ] `SOC2-39.16-T01` — Inventory accounts, obligations, evidence references/metadata, customer documents if permitted, support records, audit logs, telemetry, exports and backups; classify data and identify owner, purpose, locations, third parties and prohibited inputs.
+- [ ] `SOC2-39.16-T02` — Approve retention periods by record class based on legal/contract needs, audit evidence and business risk; define legal hold, disposal authorization and backup expiry. Do not invent universal SOC 2 retention periods.
+- [ ] `SOC2-39.16-T03` — Implement or verify lifecycle enforcement for primary data, replicas, caches, exports, logs and vendor copies using synthetic records. Respect legal holds and established immutable audit/report contracts; escalate incompatible deletion requirements instead of silently hard-deleting.
+- [ ] `SOC2-39.16-T04` — Document customer versus FeDril responsibilities for access review, references versus uploaded evidence, prohibited CUI, authorized enclaves, customer SSP treatment and spill reporting. Verify public wording against actual enforcement.
+- [ ] `SOC2-39.16-T05` — Restrict support/export access and non-production data use, minimize collection, protect confidential non-CUI data and review applicable privacy obligations even when Privacy is not a scoped category.
+- [ ] `SOC2-39.16-T06` — Verify approved deletion/expiry and access-denial outcomes across applicable stores with reviewer signoff; record backup/vendor remnants, implementation limitations and residual risk.
+
+Instructions:
+
+1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
+2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
+3. Apply the shared safety and change boundaries. Implement only verified, authorized gaps; preserve working controls and document remaining external or recurring work.
+4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
+
+#-----------------------------------------
+
+### Story 39.17: Decide Additional Trust Categories And Implement Conditional Controls
+**Status: Planned**
+
+**Work type:** Scope decision with conditional engineering/operations  
+**Proposed accountable role:** Executive sponsor, security owner and qualified assurance reviewer  
+**Dependencies:** 39.1 customer commitments; 39.14–39.16 evidence  
+**Type I / Type II relevance:** Both if added; otherwise governed deferral  
+**Required deliverables:** category-decision, expanded-control-matrix, conditional-test-evidence
+
+Prompt:
+
+You are helping FeDril prevent unjustified scope growth while covering any verified commitments that require more than the initial Security scope. Execute Story 39.17, "Decide Additional Trust Categories And Implement Conditional Controls," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
+
+> Context:
+>
+> - Epic: SOC 2 Assurance Program
+> - Parent traceability: New delivery story under Stories 39.1 and 39.2; defined in this consolidated execution backlog.
+> - User story: As the accountable executive sponsor, security owner and qualified assurance reviewer, I want to prevent unjustified scope growth while covering any verified commitments that require more than the initial Security scope.
+> - Acceptance criteria: Every category has a documented decision. Included categories have criterion-level controls and tested acceptance requirements before the integrated gate; unsupported exclusions are not allowed. New commitments reopen scope and dependencies.
+
+Tasks (stable IDs are `SOC2-39.17-T01` onward):
+
+- [ ] `SOC2-39.17-T01` — Review contracts, questionnaires, product behavior and data sensitivity; record independent decisions for Availability, Confidentiality, Processing Integrity and Privacy. Security/common criteria remain the baseline.
+- [ ] `SOC2-39.17-T02` — If Availability is selected, map service commitments to capacity/SLO monitoring, outage handling, recovery, resilience and tested reporting; reconcile the 39.14 controls rather than duplicating them.
+- [ ] `SOC2-39.17-T03` — If Confidentiality is selected, map confidential non-CUI data to classification, permitted access/disclosure, encryption, retention and disposal across vendors and backups.
+- [ ] `SOC2-39.17-T04` — If Processing Integrity is selected, create explicit completeness, validity, accuracy, timeliness and authorization controls for scoped processing with reconciliations and failure handling.
+- [ ] `SOC2-39.17-T05` — If Privacy is selected, obtain qualified review of the privacy lifecycle, notices/choices, collection/use, disclosure, rights handling, retention and safeguards; implement applicable controls without claiming a category replaces legal compliance.
+- [ ] `SOC2-39.17-T06` — Record for each category include/defer/exclude rationale, approved owner, obligations, evidence, gaps and revisit trigger; before adding it, expand scoped criterion/task coverage and obtain reviewer approval.
+
+Instructions:
+
+1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
+2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
+3. Apply the shared safety and change boundaries. Implement only verified, authorized gaps; preserve working controls and document remaining external or recurring work.
+4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
+
+#-----------------------------------------
+
+### Story 39.18: Validate Integrated Readiness And Type I Decision Gate
+**Status: Planned**
+
+**Work type:** Independent internal readiness review and management decision  
+**Proposed accountable role:** Qualified readiness reviewer and executive sponsor  
+**Dependencies:** 39.4–39.17 accepted or explicitly approved N/A; 39.1–39.3 current  
+**Type I / Type II relevance:** Type I readiness and direct-Type II design/implementation entry  
+**Required deliverables:** readiness-review, gap-disposition, approved-system-description, route-decision
+
+Prompt:
+
+You are helping FeDril make a defensible evidence-backed decision without equating checklist completion with auditor approval. Execute Story 39.18, "Validate Integrated Readiness And Type I Decision Gate," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
+
+> Context:
+>
+> - Epic: SOC 2 Assurance Program
+> - Parent traceability: New delivery story under Stories 39.1 and 39.2; defined in this consolidated execution backlog.
+> - User story: As the accountable qualified readiness reviewer and executive sponsor, I want to make a defensible evidence-backed decision without equating checklist completion with auditor approval.
+> - Acceptance criteria: A complete reviewed scope/control/task crosswalk and authorized gate decision exist. Proceed requires current defensible evidence and resolved gate blockers, not a percentage score; defer records exact next remediation.
+
+Tasks (stable IDs are `SOC2-39.18-T01` onward):
+
+- [ ] `SOC2-39.18-T01` — Reconcile every scoped criterion, risk, assessment recommendation and story task to the control matrix. Verify the actual system description, commitments, subservice treatment and management responsibilities against current evidence and Description Criteria.
+- [ ] `SOC2-39.18-T02` — Inspect design and implementation separately for technical and human controls; use representative live exports, actual approvals, test records and completed initial operations. Revalidate evidence freshness and reliability.
+- [ ] `SOC2-39.18-T03` — Review all material gaps, exceptions, founder-stage conflicts, exposure decisions, failed tests, policy acknowledgements, vendors, incident exercise and recovery results. Explicitly distinguish missing evidence from proven control failure.
+- [ ] `SOC2-39.18-T04` — Confirm accountable owners, protected evidence index, assertion preparation, budget, business demand and auditor due diligence. Risk acceptance cannot manufacture evidence or force a favorable auditor conclusion.
+- [ ] `SOC2-39.18-T05` — Record signed proceed, defer or revise-scope decision with reasons, unresolved risks, date, reviewer and next review. Block progression where material design/implementation or evidence deficiencies undermine the proposed scope.
+- [ ] `SOC2-39.18-T06` — Select Type I-first, direct Type II, or continued internal readiness. An issued Type I report is optional unless FeDril's actual obligations require it; obtain service-auditor agreement on the selected route.
+
+Instructions:
+
+1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
+2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
+3. Do not perform or simulate a CPA attestation. Coordinate only authorized evidence and documentation work; record actual auditor and management actions separately.
+4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
+
+#-----------------------------------------
+
+### Story 39.19: Coordinate Optional Type I Examination And Report Acceptance
+**Status: Planned**
+
+**Work type:** Independent CPA examination coordination; not agent attestation  
+**Proposed accountable role:** Executive sponsor, SOC 2 owner and independent CPA  
+**Dependencies:** 39.18 proceed for Type I; 39.3 engagement approval  
+**Type I / Type II relevance:** Type I only; may be explicitly deferred/skipped for direct Type II  
+**Required deliverables:** type-I-engagement-record, request-tracker, assertion, issued-report-reference
+
+Prompt:
+
+You are helping FeDril coordinate a point-in-time examination and accurately govern its actual result when commercially justified. Execute Story 39.19, "Coordinate Optional Type I Examination And Report Acceptance," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
+
+> Context:
+>
+> - Epic: SOC 2 Assurance Program
+> - Parent traceability: New delivery story under Stories 39.2 and 39.3; defined in this consolidated execution backlog.
+> - User story: As the accountable executive sponsor, soc 2 owner and independent cpa, I want to coordinate a point-in-time examination and accurately govern its actual result when commercially justified.
+> - Acceptance criteria: Either a governed non-selection/defer decision or an actual independently issued and reviewed Type I report reference exists. Internal drafts and readiness reviews never count as issuance.
+
+Tasks (stable IDs are `SOC2-39.19-T01` onward):
+
+- [ ] `SOC2-39.19-T01` — Confirm selected Type I route, stable scope, as-of date, licensed independent CPA, terms, fees and authorized engagement. If direct Type II is selected, record approved not-selected disposition; do not block 39.20 on a missing Type I report.
+- [ ] `SOC2-39.19-T02` — Finalize management's system description and assertion through authorized management and CPA coordination; only management signs its representations.
+- [ ] `SOC2-39.19-T03` — Provide approved evidence/populations through restricted channels, preserve request history and resolve factual questions without backdating controls or changing historical evidence.
+- [ ] `SOC2-39.19-T04` — Track examiner findings, management responses and corrective actions. Do not represent an exception as closed without appropriate validation or attempt to dictate the opinion.
+- [ ] `SOC2-39.19-T05` — Verify the actual issued report, type, scope, date, opinion and use restrictions with authorized reviewers. Store securely and activate only exact approved claims through 39.3/39.23.
+- [ ] `SOC2-39.19-T06` — Carry unresolved findings and changed controls into Type II preparation; do not infer operating effectiveness from Type I issuance.
+
+Instructions:
+
+1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
+2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
+3. Do not perform or simulate a CPA attestation. Coordinate only authorized evidence and documentation work; record actual auditor and management actions separately.
+4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
+
+#-----------------------------------------
+
+### Story 39.20: Establish Type II Period Populations And Evidence Entry Gate
+**Status: Planned**
+
+**Work type:** Operating-readiness planning and CPA coordination  
+**Proposed accountable role:** SOC 2 owner, control owners and service auditor  
+**Dependencies:** 39.18 design/implementation gate; 39.19 disposition, not necessarily issuance; 39.2 calendar  
+**Type I / Type II relevance:** Type II  
+**Required deliverables:** type-II-period-plan, population-register, evidence-entry-gate
+
+Prompt:
+
+You are helping FeDril ensure every scoped control can be tested over the agreed period before relying on period evidence. Execute Story 39.20, "Establish Type II Period Populations And Evidence Entry Gate," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
+
+> Context:
+>
+> - Epic: SOC 2 Assurance Program
+> - Parent traceability: New delivery story under Stories 39.2 and 39.3; defined in this consolidated execution backlog.
+> - User story: As the accountable soc 2 owner, control owners and service auditor, I want to ensure every scoped control can be tested over the agreed period before relying on period evidence.
+> - Acceptance criteria: All scoped controls have workable populations, ownership, cadence, secure evidence and failure handling; management and CPA period assumptions are recorded, with unresolved material entry blockers preventing reliance.
+
+Tasks (stable IDs are `SOC2-39.20-T01` onward):
+
+- [ ] `SOC2-39.20-T01` — Agree proposed start/end dates, scope, criteria and commitments with management and service auditor. Do not invent a mandatory duration, retroactively start an unsupported period, or assume all controls must have identical frequencies.
+- [ ] `SOC2-39.20-T02` — For every control record approved operating cadence, evidence capture/review frequency, named operator/deputy/reviewer, population source, completeness check and failure escalation.
+- [ ] `SOC2-39.20-T03` — Build populations for access changes/reviews, changes/deployments, vulnerabilities, incidents, backups/restores, vendors, training, risks and exceptions. Agree sampling with the CPA; do not restrict populations to successful events.
+- [ ] `SOC2-39.20-T04` — Address annual/low-frequency controls, no-event periods, new controls and scope changes with the auditor; simulations prove rehearsal, not actual period operation. Define handling of missing or stale evidence.
+- [ ] `SOC2-39.20-T05` — Test evidence capture/retrieval and review, scheduling, missed-deadline escalation and backup. Confirm staffing, independent oversight and data protection.
+- [ ] `SOC2-39.20-T06` — Approve or defer period entry; record blockers, period version and control effective dates. Preserve evidence collected before entry and assess its relevance honestly.
+
+Instructions:
+
+1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
+2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
+3. Apply the shared safety and change boundaries. Implement only verified, authorized gaps; preserve working controls and document remaining external or recurring work.
+4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
+
+#-----------------------------------------
+
+### Story 39.21: Operate Type II Controls And Review Failures Throughout The Period
+**Status: Planned**
+
+**Work type:** Recurring human and automated control operation  
+**Proposed accountable role:** Control owners, evidence reviewers and executive sponsor  
+**Dependencies:** 39.20 entry approved; all operating controls placed in service  
+**Type I / Type II relevance:** Type II  
+**Required deliverables:** period-evidence-index, recurring-review-records, failure-register, management-review
+
+Prompt:
+
+You are helping FeDril demonstrate actual repeated control operation across the review period, not just policies or a one-time run. Execute Story 39.21, "Operate Type II Controls And Review Failures Throughout The Period," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
+
+> Context:
+>
+> - Epic: SOC 2 Assurance Program
+> - Parent traceability: New delivery story under Stories 39.2 and 39.3; defined in this consolidated execution backlog.
+> - User story: As the accountable control owners, evidence reviewers and executive sponsor, I want to demonstrate actual repeated control operation across the review period, not just policies or a one-time run.
+> - Acceptance criteria: Dated, reviewed control evidence spans the actual agreed period and complete populations; missed operations and deviations have honest disposition. No future operation, review or approval is pre-completed.
+
+Tasks (stable IDs are `SOC2-39.21-T01` onward):
+
+- [ ] `SOC2-39.21-T01` — Execute per-event onboarding/movers/leavers, access grants, changes, emergency approvals, incident response, vendor onboarding, vulnerability triage and disposal controls; capture dated full-population evidence.
+- [ ] `SOC2-39.21-T02` — Perform scheduled access/vendor/risk reviews, training, restoration/continuity and incident exercises, secret/key reviews and policy acknowledgements at approved cadences; retain actual decisions and follow-through.
+- [ ] `SOC2-39.21-T03` — Monitor backups, telemetry, alerts, vulnerability scans and infrastructure drift; investigate missed/failed/skipped jobs, overdue remediation and missing reviewers.
+- [ ] `SOC2-39.21-T04` — Review evidence quality and completeness monthly or at the approved risk-based cadence; reconcile populations to source systems and protect versions, timestamps, rejected items and corrections.
+- [ ] `SOC2-39.21-T05` — Hold management reviews at the approved cadence (quarterly is the initial FeDril proposal), covering incidents, vulnerabilities, access, vendors, recovery, metrics, risks, exceptions and scope changes with action closure.
+- [ ] `SOC2-39.21-T06` — Escalate failures immediately by policy, apply approved safeguards, remediate and retest without deleting failed samples. With the CPA, assess effect on scope, opinion, period or additional testing; do not automatically restart or hide the period.
+- [ ] `SOC2-39.21-T07` — Maintain period-close reconciliation and evidence handoff to 39.22; run this story repeatedly until the agreed coverage is supported. A single agent run cannot mark elapsed-period obligations complete.
+
+Instructions:
+
+1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
+2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
+3. Apply the shared safety and change boundaries. Implement only verified, authorized gaps; preserve working controls and document remaining external or recurring work.
+4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
+
+#-----------------------------------------
+
+### Story 39.22: Coordinate Type II Examination And Resolve Report Findings
+**Status: Planned**
+
+**Work type:** Readiness gate and independent CPA examination coordination  
+**Proposed accountable role:** Executive sponsor, SOC 2 owner and independent CPA  
+**Dependencies:** 39.21 sufficient actual period evidence; 39.3 current engagement governance  
+**Type I / Type II relevance:** Type II  
+**Required deliverables:** type-II-readiness-decision, examiner-request-log, management-assertion, issued-report-reference
+
+Prompt:
+
+You are helping FeDril support independent evaluation of the scoped period and preserve accurate findings and report status. Execute Story 39.22, "Coordinate Type II Examination And Resolve Report Findings," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
+
+> Context:
+>
+> - Epic: SOC 2 Assurance Program
+> - Parent traceability: New delivery story under Stories 39.2 and 39.3; defined in this consolidated execution backlog.
+> - User story: As the accountable executive sponsor, soc 2 owner and independent cpa, I want to support independent evaluation of the scoped period and preserve accurate findings and report status.
+> - Acceptance criteria: An actual reviewed independent Type II report is required for issuance status; otherwise record defer/in-progress truthfully. Neither internal acceptance nor remediation guarantees an unmodified opinion.
+
+Tasks (stable IDs are `SOC2-39.22-T01` onward):
+
+- [ ] `SOC2-39.22-T01` — Reconcile complete period populations, scoped criteria/control versions, evidence freshness, reviewers, significant changes, prior findings and all failed controls. Obtain a management proceed/defer decision; unresolved material evidence gaps require escalation to the CPA.
+- [ ] `SOC2-39.22-T02` — Confirm the independent engagement, system description for the period, management assertion/representations, subservice disclosures, commitments and period dates. Management retains responsibility.
+- [ ] `SOC2-39.22-T03` — Provide complete requested populations and auditor-selected samples through approved channels with response ownership and version history; protect restricted data and never substitute favorable samples silently.
+- [ ] `SOC2-39.22-T04` — Track tests/questions, exceptions, management responses, remediation commitments and subsequent events. Correct factual report errors through the CPA without altering its independent judgment.
+- [ ] `SOC2-39.22-T05` — Verify actual report issuance, opinion, covered system/categories/period, deviations and permitted audience. Store the governed report reference and obtain authorized review before report-specific claims or disclosure.
+- [ ] `SOC2-39.22-T06` — Transfer findings and ongoing obligations to 39.23; maintain continuous controls during fieldwork and after issuance. If no report is issued, retain the true status and next actions.
+
+Instructions:
+
+1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
+2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
+3. Do not perform or simulate a CPA attestation. Coordinate only authorized evidence and documentation work; record actual auditor and management actions separately.
+4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
+
+#-----------------------------------------
+
+### Story 39.23: Maintain Report Distribution Continuous Readiness And Renewal
+**Status: Planned**
+
+**Work type:** Ongoing governance and control operations  
+**Proposed accountable role:** Executive sponsor, SOC 2 owner and approved disclosure owner  
+**Dependencies:** 39.3 policy; actual 39.19/39.22 report for disclosure; readiness controls continue without issuance  
+**Type I / Type II relevance:** Both report types; continuous Type II  
+**Required deliverables:** disclosure-log, claims-review, renewal-plan, continuing-evidence-calendar
+
+Prompt:
+
+You are helping FeDril keep procurement claims accurate and control evidence current after the initial examination. Execute Story 39.23, "Maintain Report Distribution Continuous Readiness And Renewal," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
+
+> Context:
+>
+> - Epic: SOC 2 Assurance Program
+> - Parent traceability: New delivery story under Stories 39.2 and 39.3; defined in this consolidated execution backlog.
+> - User story: As the accountable executive sponsor, soc 2 owner and approved disclosure owner, I want to keep procurement claims accurate and control evidence current after the initial examination.
+> - Acceptance criteria: Disclosures and claims are governed, renewal/period ownership is approved and ongoing control evidence continues. SOC 2 is an operating program, not a permanently completed software feature.
+
+Tasks (stable IDs are `SOC2-39.23-T01` onward):
+
+- [ ] `SOC2-39.23-T01` — Approve each report disclosure according to actual restricted-use terms and intended audience; record recipient, purpose, confidentiality conditions, approver, version, sent date and access revocation/supersession. Do not publish the report to public Git or a public trust page.
+- [ ] `SOC2-39.23-T02` — Verify claims against actual type, system, criteria, period and report outcome. Review questionnaires and trust content before publication; never use SOC 2 certified or imply government/CUI authorization.
+- [ ] `SOC2-39.23-T03` — Maintain corrective actions, control operations and period evidence without a gap after issuance. Review risks, scope, vendors, access, training and policies at approved intervals and on significant change.
+- [ ] `SOC2-39.23-T04` — Track evidence completeness, overdue reviews, control failures, vulnerability age/SLAs, recovery outcomes and repeat findings with actual denominators; avoid unsupported maturity percentages.
+- [ ] `SOC2-39.23-T05` — Plan renewal with budget, reviewer/auditor independence, next period, control/commitment changes and prior findings. Annual examination is a common commercial expectation, not an invented universal report-expiry rule.
+- [ ] `SOC2-39.23-T06` — Distinguish a management-issued bridge letter from independent CPA assurance; obtain review and disclose its limited nature when requested. Revoke obsolete access and supersede stale claims while retaining historical records.
+- [ ] `SOC2-39.23-T07` — Return scope changes to 39.1/39.17, gaps to 39.2 and period planning to 39.20; record explicit proceed/defer decisions and business-demand review rather than declaring SOC 2 permanently complete.
+
+Instructions:
+
+1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
+2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
+3. Apply the shared safety and change boundaries. Implement only verified, authorized gaps; preserve working controls and document remaining external or recurring work.
+4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
+
+#-----------------------------------------
+
+### Assessment Recommendation Coverage
+
+This table covers every checklist row and gap in the dated assessment; 39.2 must retain task-level links as execution proceeds. Additional scope-specific controls discovered by the current licensed criterion mapping must be added before the readiness gate. This is not a claim that a generic checklist substitutes for that mapping.
+
+| Assessment rank | Recommendation | Delivery stories | Original gap linkage |
+| --- | --- | --- | --- |
+| 1 | Database dump exposure | 39.4 | SOC2-GAP-001 |
+| 2 | Boundary and criteria | 39.1, 39.17 | SOC2-GAP-002 |
+| 3 | Control matrix | 39.1, 39.18 | SOC2-GAP-002 |
+| 4 | Control/evidence ownership | 39.2, 39.5 | SOC2-GAP-002, SOC2-GAP-015 |
+| 5 | Enterprise risk assessment | 39.5 | SOC2-GAP-004 |
+| 6 | Policy baseline | 39.5 | SOC2-GAP-003 |
+| 7 | Examination decision | 39.3, 39.18–39.22 | SOC2-GAP-002 |
+| 8 | Workforce MFA | 39.6 | SOC2-GAP-005 |
+| 9 | Joiner/mover/leaver | 39.6, 39.21 | SOC2-GAP-005 |
+| 10 | Periodic access review | 39.6, 39.21 | SOC2-GAP-005 |
+| 11 | Privileged inventory | 39.6 | SOC2-GAP-005 |
+| 12 | Separation of duties | 39.5, 39.6, 39.8 | SOC2-GAP-007 |
+| 13 | Repository exposure boundary | 39.4 | SOC2-GAP-001 |
+| 14 | Production networking | 39.9 | SOC2-GAP-008 |
+| 15 | Secrets and keys | 39.10 | SOC2-GAP-008 |
+| 16 | Drift detection | 39.9, 39.12, 39.21 | SOC2-GAP-008 |
+| 17 | Vulnerability program | 39.11 | SOC2-GAP-009 |
+| 18 | Security testing | 39.7, 39.11 | SOC2-GAP-009 |
+| 19 | Incident response | 39.13 | SOC2-GAP-010 |
+| 20 | Vendor/subprocessor governance | 39.15 | SOC2-GAP-006 |
+| 21 | Evidence store/integrity | 39.2 | SOC2-GAP-015 |
+| 22 | Logging and monitoring | 39.12 | SOC2-GAP-012 |
+| 23 | Backup and recovery | 39.14 | SOC2-GAP-011 |
+| 24 | Change management | 39.8 | SOC2-GAP-007 |
+| 25 | Branch/environment protections | 39.8 | SOC2-GAP-007 |
+| 26 | Training | 39.6, 39.21 | SOC2-GAP-014 |
+| 27 | Retention/disposal | 39.16 | SOC2-GAP-013 |
+| 28 | Business continuity | 39.14 | SOC2-GAP-011 |
+| 29 | Shared/inherited responsibility | 39.1, 39.15 | SOC2-GAP-006 |
+| 30 | Customer claims | 39.3, 39.23 | SOC2-GAP-002 |
+| 31 | Evidence calendar | 39.2, 39.20, 39.21 | SOC2-GAP-015 |
+| 32 | Failures and exceptions | 39.2, 39.21, 39.22 | SOC2-GAP-015 |
+| 33 | Management review | 39.5, 39.21 | SOC2-GAP-003, SOC2-GAP-004 |
+| 34 | Continuous metrics | 39.21, 39.23 | SOC2-GAP-015 |
+| 35 | Availability decision | 39.17, 39.14 | Scope-dependent; no separate original gap |
+| 36 | Confidentiality decision | 39.17, 39.16 | Scope-dependent; no separate original gap |
+
+Additional explicit coverage beyond the original gaps: system-description completeness (39.1/39.18), workforce devices/physical safeguards/agreements (39.6), existing tenant/session/audit/No-CUI control validation (39.7), system-produced evidence completeness and sampling (39.2/39.20/39.22), conditional Processing Integrity/Privacy decisions (39.17), independent CPA due diligence and assertions (39.3/39.19/39.22), and restricted-use reporting/renewal (39.23).
+
+### Recurring-Control Calendar Starter
+
+These are FeDril planning defaults, not asserted universal SOC 2 frequencies. Owners must approve risk- and contract-based timing in 39.2, and the CPA must agree period/sampling expectations in 39.20. All rows require named owner/deputy/reviewer, due/review dates, complete population, evidence location, failure escalation and retention. Add any additional scoped controls.
+
+| Operation | Proposed starting cadence | Minimum evidence and validation |
+| --- | --- | --- |
+| JML and privileged grants/revocation | Each event; review completion promptly per approved SLA | Complete request population, approver, actual timestamps, removal verification |
+| User/service/privileged access review | Quarterly and significant change | Source population, independent decisions, removal/retest evidence |
+| Changes and emergency changes | Each change | Request, risk, independent approval, checks, release/rollback and post-review |
+| Vulnerabilities and patching | CI per change; scheduled scans at approved risk cadence; SLA-driven remediation | Asset coverage, executed scans, failures, finding age, tickets and rescans |
+| Telemetry/alerts | Continuous collection; response/review per severity and coverage model | Ingestion health, alerts, actual acknowledgement, escalation and closure |
+| Infrastructure drift | Scheduled and after relevant changes | Executed result, skipped/failed-run alerts, reviewer and dispositions |
+| Backups | Each scheduled job; daily health review proposed | Success/failure population, alert response, coverage and integrity evidence |
+| Restore and continuity exercises | Quarterly restore proposal; continuity at least annually proposed and on material change | Approved objectives, representative scope, measured results, corrective retests |
+| Incident response | Per incident; annual tabletop proposed and on material change | Actual incidents or labeled simulations, decisions, communications and closure |
+| Vendor assurance review | Before onboarding; annual material-vendor review proposed; on significant change | Vendor population, current reports/contracts, exceptions and follow-up |
+| Risk and policy review | Annual proposed and on significant change | Approved register, policy versions, residual risks, acknowledgements |
+| Training and workforce agreements | Onboarding; annual refresher proposed; role/change triggers | Actual completion/acknowledgement population and overdue escalation |
+| Secret/key/certificate lifecycle | Per approved expiry/rotation schedule; compromise immediately escalated | Inventory, access review, expiry alerts, authorized rotation/revocation tests |
+| Data retention/disposal | Scheduled by record class; legal-hold/event triggers | Authorized disposition, lifecycle test, hold checks and vendor follow-up |
+| Evidence quality | Monthly proposed; before each gate | Completeness/accuracy/freshness checks, rejected artifacts and correction |
+| Management review | Quarterly proposed and material incidents/changes | Metrics, decisions, owners, due dates, risk acceptance and action closure |
+| Security claims/report disclosure | Before every publication/disclosure; periodic revalidation | Approved exact wording, actual report scope/period, access and disclosure log |
+| Renewal planning | Before next agreed reporting period; annual commercial review proposed | Approved next scope/period, funding, previous findings and continuous evidence |
+
+### Program Sources And Interpretation
+
+Framework references reviewed 2026-09-19:
+
+- AICPA & CIMA, [System and Organization Controls: SOC Suite of Services](https://www.aicpa-cima.com/resources/landing/system-and-organization-controls-soc-suite-of-services): independent CPA assurance context and due-diligence concerns.
+- AICPA & CIMA, [2017 Trust Services Criteria (With Revised Points of Focus – 2022)](https://www.aicpa-cima.com/resources/download/2017-trust-services-criteria-with-revised-points-of-focus-2022): obtain current authorized criteria for scoped mapping; the full gated criteria were not reviewed in this backlog update.
+- AICPA & CIMA, [2018 SOC 2 Description Criteria (With Revised Implementation Guidance – 2022)](https://www.aicpa-cima.com/resources/download/get-description-criteria-for-your-organizations-soc-2-r-report): obtain current authorized description criteria for the system description; gated full text was not reviewed.
+- PBMares (CPA firm; not identified as FeDril's selected auditor), [SOC 2 Reports – Frequently Asked Questions](https://www.pbmares.com/soc-2-reports-frequently-asked-questions/): explanatory guidance on point-in-time versus period reports, Security baseline, report restrictions and common timing. Not a substitute for the selected CPA's terms or AICPA standards.
+- FeDril, [SOC 2 readiness assessment](soc2-readiness-assessment.md), dated 2026-09-19, reviewing main commit `6e38c20392c806c9c1355ea94f63954b0bdfca6e`: historical findings and recommendation IDs.
+- FeDril, [source use cases](development-phase-use-cases.md), Stories 39.1–39.3, and [project instructions](../AGENTS.md): preserved governance purpose and security/change invariants.
+
+The 23-story decomposition, proposed cadences, ordering and safeguards are implementation recommendations based on FeDril's assessment, not verbatim AICPA requirements. Validate current criteria, scope, control sufficiency and examination procedures with a qualified independent CPA. Verify legal/contract obligations with their owners. “Correct solution” means tested, risk-appropriate remediation with evidence and residual-risk disclosure, not a guaranteed report.
 
 #-----------------------------------------
 
 ### SOC 2 Readiness Assessment Companion Prompt
 **Status: Ready For Execution**
 
-This companion prompt is not a new numbered user story. It performs the cross-story current-state assessment needed to inform Stories 39.1 through 39.3 and must remain read-only unless a separate remediation task is approved.
+This companion prompt is not a new numbered user story. It refreshes the current-state assessment for parent Stories 39.1–39.3 and delivery Stories 39.4–39.23. Use the sequential stories above for implementation. Assessment is read-only with respect to application and infrastructure changes; its authorized output is a dated report. Record completed assessment runs in the report history; a reusable prompt's status is not a control-completion claim.
 
 Prompt:
 
@@ -5882,7 +6798,7 @@ Relevant stories:
 
 ## Execution boundaries and assessment record
 
-This is a read-only assessment and documentation task. Do not implement controls, change application behavior, modify infrastructure, alter policies, or start an examination unless separately instructed and approved.
+This is a read-only assessment and documentation task. Do not implement controls, change application behavior, modify infrastructure, alter policies, or start an examination unless separately instructed and approved. Include the consolidated Stories 39.1–39.23 in coverage checks. Use the Shared Execution Contract's dimension-specific conclusions and protected-evidence rules; the statuses below are evidence labels, not interchangeable proof of design, implementation and operation.
 
 At the beginning of the assessment, record:
 
@@ -6075,7 +6991,7 @@ Provide a Type I readiness table containing:
 - Dependency
 - Recommended completion order
 
-Identify the minimum conditions FeDril should satisfy before engaging an independent CPA firm for a Type I examination.
+Identify the minimum conditions FeDril should satisfy before engaging an independent CPA firm for a Type I examination. Separate early scoping/readiness consultation from examination commitment. Evaluate Type I-first versus direct Type II with the service auditor; an issued Type I report is not an automatic prerequisite for Type II.
 
 Treat code, tests, infrastructure-as-code, and draft policies as control-design or implementation evidence only unless dated operating records establish actual execution and review.
 
@@ -6180,7 +7096,7 @@ For each story, report:
 - Why the modification is or is not needed
 - Exact proposed replacement or additional wording
 
-Do not edit the story prompt file unless explicitly instructed. Provide diff-ready recommendations grouped by story.
+Do not edit the story prompt file unless explicitly instructed. Provide diff-ready recommendations grouped by story. Check delivery Stories 39.4–39.23 for coverage before recommending duplicate work, and distinguish new requirements from tasks already present.
 
 Specifically determine whether the stories adequately require:
 
@@ -6203,7 +7119,7 @@ Provide a phased roadmap:
 1. Scope and governance
 2. Critical remediation
 3. Type I readiness
-4. Type I examination decision
+4. Optional Type I examination decision, or documented direct-Type II route
 5. Type II operating period
 6. Type II examination decision
 7. Continuous readiness and renewal
