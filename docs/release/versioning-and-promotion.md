@@ -20,9 +20,9 @@
 
 ### Partially Implemented
 
-- `docs/release/approved-release.json` currently imports the last historical launch-candidate deployment as rollback evidence. Its `legacy-import` status intentionally cannot run the immutable production workflow.
+- `docs/release/approved-release.json` is the governed release decision record. A `legacy-import` entry is rollback evidence only and intentionally cannot run the immutable production workflow; an `approved` entry must identify the exact staged artifacts and evidence.
 - GitHub tag rulesets and protected-environment reviewers are external repository settings. The workflows verify a GitHub-signed merge commit and use the `staging` and protected `production` environments, but repository administrators must keep those controls enabled.
-- The first SemVer production promotion requires a successfully staged candidate, recorded artifact digests, a protected final tag, and an approval PR that changes the manifest status to `approved`.
+- Every SemVer production promotion requires a successfully staged candidate, recorded artifact digests, a protected final tag, an attested approval manifest, and protected production-environment approval.
 
 ### Planned
 

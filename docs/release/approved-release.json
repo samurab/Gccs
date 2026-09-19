@@ -1,20 +1,41 @@
 {
   "schemaVersion": 2,
-  "status": "legacy-import",
-  "version": "0.0.0-legacy.20260913.1",
-  "candidateTag": "launch-candidate-2026-09-13-1",
-  "releaseTag": null,
-  "commitSha": "dcd2d44cf2252f81a67158e2cce5e47c015cd145",
-  "approvedAt": "2026-09-13",
-  "approvalScope": "Historical solo-controlled No-CUI pilot production deployment",
+  "status": "approved",
+  "version": "0.1.0",
+  "candidateTag": "v0.1.0-rc.1",
+  "releaseTag": "v0.1.0",
+  "commitSha": "c2b4f854e87ec5a2f1d5bf8c2f481af6a1c6f715",
+  "approvedAt": "2026-09-19",
+  "approvalScope": "Solo-controlled No-CUI pilot production release",
   "dataPosture": "no-cui-only",
   "staging": {
     "environment": "staging",
-    "runId": 34792088854,
-    "evidenceUrl": "https://github.com/samurab/Gccs/actions/runs/34792088854"
+    "runId": 35467985467,
+    "evidenceUrl": "https://github.com/samurab/Gccs/actions/runs/35467985467"
   },
   "artifacts": {
-    "mode": "legacy-source-rebuild"
+    "mode": "immutable-promotion",
+    "releaseAssetTag": "v0.1.0-rc.1",
+    "api": {
+      "name": "fedril-api.zip",
+      "sha256": "0ca580882c4ec0323f573c280f72414c04a93ba011196cff71426bd43df0d576"
+    },
+    "web": {
+      "name": "fedril-web.zip",
+      "sha256": "7b266bc84b3ee39db3bae9bdb5c46a27c9812772f7bd14f216f1eea27cfa57f5"
+    },
+    "migration": {
+      "name": "fedril-migrations.zip",
+      "sha256": "b5f1567db9f9d0394f8573fbff2840cf9d59142dec4156a234f4e7650862b309"
+    },
+    "sbom": {
+      "name": "fedril-sbom.spdx.json",
+      "sha256": "835a911e55f3629be7e898ea9c1735945b3bb89df3127a06d3892f4748d1d93d"
+    },
+    "metadata": {
+      "name": "release-metadata.json",
+      "sha256": "ed59671fb44b20d324b3f83cdace0aace0aeb6c7cf4edac0cba65737893db472"
+    }
   },
   "approvals": {
     "engineering": true,
