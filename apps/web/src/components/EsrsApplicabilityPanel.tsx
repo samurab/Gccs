@@ -84,7 +84,7 @@ export function EsrsApplicabilityPanel({ contractId, canManage }: { contractId: 
   }
 
   return <section className="contract-esrs workflow-control-surface" aria-labelledby="contract-esrs-heading">
-    <div className="contract-documents__header"><div><span>SAM.gov SPR</span><strong id="contract-esrs-heading">{items.length}</strong></div></div>
+    <div className="contract-documents__header"><div><h3 id="contract-esrs-heading">SAM.gov SPR</h3><strong aria-label={`${items.length} SAM.gov SPR obligations`}>{items.length}</strong></div></div>
     <p>Track source-backed ISR and SSR deadlines. FeDril prepares and reminds; it does not submit reports to SAM.gov.</p>
     {state === "loading" ? <p role="status">Loading SAM.gov SPR obligations…</p> : null}
     {state === "error" ? <p role="alert">{message}</p> : message ? <p role="status">{message}</p> : null}

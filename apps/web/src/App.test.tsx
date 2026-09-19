@@ -6,6 +6,7 @@ const {
   acknowledgeNoCuiNoticeMock,
   acknowledgeSharedResponsibilityMatrixMock,
   acceptClauseCandidateMock,
+  editClauseCandidateMock,
   archiveReportMock,
   allWorkflowAccess,
   approveCuiReadyApprovalChecklistMock,
@@ -127,11 +128,12 @@ const {
   updateEvidenceMetadataMock,
   updateNotificationPreferencesMock,
   updateTenantDataHandlingModeMock,
-  updateSubcontractorFlowDownMock
+  updateTenantMemberStatusMock,updateSubcontractorFlowDownMock
 } = vi.hoisted(() => ({
   acknowledgeNoCuiNoticeMock: vi.fn(),
   acknowledgeSharedResponsibilityMatrixMock: vi.fn(),
   acceptClauseCandidateMock: vi.fn(),
+  editClauseCandidateMock: vi.fn(),
   archiveReportMock: vi.fn(),
   approveCuiReadyApprovalChecklistMock: vi.fn(),
   assignContractObligationOwnerMock: vi.fn(),
@@ -232,6 +234,7 @@ const {
   updateEvidenceMetadataMock: vi.fn(),
   updateNotificationPreferencesMock: vi.fn(),
   updateTenantDataHandlingModeMock: vi.fn(),
+  updateTenantMemberStatusMock: vi.fn(),
   updateSubcontractorFlowDownMock: vi.fn(),
   allWorkflowAccess: {
     tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
@@ -884,6 +887,7 @@ vi.mock("@/lib/api", () => ({
   getSubcontractorFlowDowns: getSubcontractorFlowDownsMock,
   getApprovedEvidencePackages: getApprovedEvidencePackagesMock,
   getCompanyProfile: getCompanyProfileMock,
+  getApplicabilityFacts: vi.fn().mockResolvedValue([]),
   getContractClauses: getContractClausesMock,
   getContractLaborApplicabilities: vi.fn().mockResolvedValue([]),
   createLaborApplicability: vi.fn(),
@@ -985,7 +989,7 @@ vi.mock("@/lib/api", () => ({
   updateSubcontractorFlowDown: updateSubcontractorFlowDownMock,
   acknowledgeNoCuiNotice: acknowledgeNoCuiNoticeMock,
   acknowledgeSharedResponsibilityMatrix: acknowledgeSharedResponsibilityMatrixMock,
-  createEvidenceUploadIntent: createEvidenceUploadIntentMock,
+  editClauseCandidate: editClauseCandidateMock,createEvidenceUploadIntent: createEvidenceUploadIntentMock,
   fallbackAccess: {
     tenantId: null,
     userId: null,
@@ -1029,7 +1033,8 @@ vi.mock("@/lib/api", () => ({
   getTenantMembers: getTenantMembersMock,
   selectDevelopmentTestingContext: selectDevelopmentTestingContextMock,
   updateTenantDataHandlingMode: updateTenantDataHandlingModeMock
-}));
+,
+  updateTenantMemberStatus: updateTenantMemberStatusMock}));
 
 import { App } from "@/App";
 
@@ -1042,6 +1047,7 @@ describe("App", () => {
     acknowledgeNoCuiNoticeMock.mockReset();
     acknowledgeSharedResponsibilityMatrixMock.mockReset();
     acceptClauseCandidateMock.mockReset();
+    editClauseCandidateMock.mockReset();
     approveCuiReadyApprovalChecklistMock.mockReset();
     assignContractObligationOwnerMock.mockReset();
     attachContractClauseMock.mockReset();
@@ -1120,6 +1126,7 @@ describe("App", () => {
     getTenantInvitationsMock.mockReset();
     getTenantMembersMock.mockReset();
     updateTenantDataHandlingModeMock.mockReset();
+    updateTenantMemberStatusMock.mockReset();
     getContractsMock.mockReset();
     getContentClassificationReviewItemsMock.mockReset();
     getCuiReadyApprovalChecklistsMock.mockReset();
@@ -1810,13 +1817,15 @@ describe("App", () => {
     getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
     getTenantInvitationsMock.mockResolvedValueOnce(invitations);
     getTenantMembersMock.mockResolvedValueOnce(members);
-    getNotificationsMock.mockResolvedValueOnce([notification]);
+    getNotificationsMock.mockResolvedValue([notification]);
     const user = userEvent.setup();
 
     render(<App />);
 
     await screen.findByRole("heading", { name: "Dashboard" });
     await user.click(screen.getByLabelText(/notifications, 1 unread/i));
+
+    expect(getNotificationsMock).toHaveBeenCalledTimes(2);
 
     expect(await screen.findByText("Task 'Assigned notification task' was assigned to you.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open" })).toHaveAttribute("href", "/api/tasks/16131613-1613-1613-1613-161316131632");
@@ -1827,12 +1836,39 @@ describe("App", () => {
     expect(await screen.findByText("0 unread")).toBeInTheDocument();
   });
 
+  it("refreshes assignment notifications when the bell opens", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    getNotificationsMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([notification]);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Dashboard" });
+    const notificationSummary = screen
+      .getByRole("group")
+      .querySelector("summary");
+    expect(notificationSummary).not.toBeNull();
+    await user.click(notificationSummary as HTMLElement);
+
+    expect(
+      await screen.findByText(
+        "Task 'Assigned notification task' was assigned to you.",
+      ),
+    ).toBeInTheDocument();
+    expect(getNotificationsMock).toHaveBeenCalledTimes(2);
+  });
+
   it("opens legacy workspace notifications inside the authenticated app shell", async () => {
     getComplianceOverviewMock.mockResolvedValueOnce(overview);
     getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
     getTenantInvitationsMock.mockResolvedValueOnce(invitations);
     getTenantMembersMock.mockResolvedValueOnce(members);
-    getNotificationsMock.mockResolvedValueOnce([{ ...notification, linkUrl: "/#/obligations" }]);
+    getNotificationsMock.mockResolvedValue([{ ...notification, linkUrl: "/#/obligations" }]);
     const user = userEvent.setup();
 
     render(<App />);
@@ -1876,6 +1912,55 @@ describe("App", () => {
       expect(await screen.findByText(expectedText)).toBeInTheDocument();
       expect(link).toHaveAttribute("aria-current", "page");
     }
+  });
+
+  it("shows Contributor self-service notification preferences without tenant administration controls", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce({
+      tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+      userId: "cccccccc-cccc-cccc-cccc-ccccccccccc3",
+      userEmail: "contributor@example.com",
+      roles: ["Contributor"],
+      permissions: [
+        "ViewCompanyProfile",
+        "ViewContracts",
+        "ViewObligations",
+        "ViewTasks",
+        "ManageTasks",
+        "ViewEvidence",
+        "ManageEvidence",
+        "ViewCmmc",
+        "ViewSubcontractors",
+        "ViewReports"
+      ],
+      rolePermissionMatrix: {}
+    });
+    getNotificationPreferencesMock.mockResolvedValueOnce({
+      id: "16161616-1616-1616-1616-161616161617",
+      tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+      userId: "cccccccc-cccc-cccc-cccc-ccccccccccc3",
+      roleName: "Contributor",
+      assignmentNotificationsEnabled: true,
+      dueSoonNotificationsEnabled: true,
+      overdueNotificationsEnabled: true,
+      evidenceRequestNotificationsEnabled: true,
+      certificationRenewalNotificationsEnabled: true,
+      cmmcAffirmationNotificationsEnabled: true,
+      createdAt: "2026-06-15T14:00:00Z",
+      updatedAt: null
+    });
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Dashboard" });
+    const settingsLink = screen.getByRole("link", { name: "Settings" });
+    expect(settingsLink).toBeInTheDocument();
+    await user.click(settingsLink);
+
+    expect(await screen.findByRole("heading", { name: "Preferences and reminder runs" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Team members" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Data handling mode" })).not.toBeInTheDocument();
   });
 
   it("TC-7.1.2 and TC-7.1.3 renders and saves the company profile form", async () => {
@@ -2138,6 +2223,7 @@ describe("App", () => {
 
     await user.click(await screen.findByRole("link", { name: /contracts/i }));
     expect(await screen.findByRole("heading", { name: "W15QKN-26-C-0001" })).toBeInTheDocument();
+    expect(screen.getByText("88888888-8888-8888-8888-888888888881")).toBeInTheDocument();
     expect(screen.getByText("2026-07-01 to 2027-06-30")).toBeInTheDocument();
     expect(screen.getByText("FciOnly")).toBeInTheDocument();
 
@@ -2357,11 +2443,18 @@ describe("App", () => {
     render(<App />);
 
     await user.click(await screen.findByRole("link", { name: /contracts/i }));
-    await user.click(await screen.findByRole("button", { name: /start extraction/i }));
+    const extractionButton =await screen.findByRole("button", { name: /start extraction/i });
+    expect(extractionButton).toBeDisabled();
+    await user.click(extractionButton);
 
     expect(startContractDocumentExtractionMock).not.toHaveBeenCalled();
+    expect(
+      screen.getByText(
+        /Select and confirm the workflow classification above before starting extraction/i,
+      ),
+    ).toBeInTheDocument();
     await user.selectOptions(screen.getByLabelText("Workflow classification"), "Unclassified");
-    await user.click(screen.getByRole("button", { name: /start extraction/i }));
+    expect(extractionButton).toBeEnabled();await user.click(extractionButton);
     expect(startContractDocumentExtractionMock).toHaveBeenCalledWith(contract.id, contractDocument.id, "Unclassified");
     expect(await screen.findByText(/Extraction job queued with status Queued/i)).toBeInTheDocument();
     expect(screen.getByText(/Extraction Queued/i)).toBeInTheDocument();
@@ -2430,6 +2523,98 @@ describe("App", () => {
       expect.objectContaining({ clauseLibraryId: "far-52-204-21" })
     );
     expect(await screen.findByText(/Candidate accepted/i)).toBeInTheDocument();
+  });
+
+  it("TC-18.3 exposes and saves the candidate edit form", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    getNoCuiAcknowledgementStatusMock.mockResolvedValueOnce({
+      isAcknowledged: true,
+      noticeVersion: "no-cui-mvp-v1",
+      noticeCopy: "No-CUI only.",
+      tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+      acknowledgedByUserId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+      acknowledgedAt: "2026-06-15T12:00:00Z",
+    });
+    getContractsMock.mockResolvedValueOnce([contract]);
+    getContractDocumentsMock.mockResolvedValueOnce([contractDocument]);
+    getContractDocumentExtractionResultsMock.mockResolvedValueOnce({
+      contractId: contract.id,
+      sourceDocumentId: contractDocument.id,
+      latestJobStatus: "Completed",
+      failureReason: null,
+      candidateCount: 1,
+      candidates: [
+        {
+          id: "18381838-1838-1838-1838-1838183818a1",
+          tenantId: contract.tenantId,
+          extractionJobId: "18181818-1818-1818-1818-1818181818a1",
+          sourceDocumentId: contractDocument.id,
+          normalizedCitation: "FAR 52.204-21",
+          rawExtractedText: "FAR 52.204-21 - Basic Safeguarding.",
+          detectedTitle: "Basic Safeguarding",
+          confidence: 1,
+          locationMetadata: "line 1",
+          matchMethod: "exact_library_match",
+          clauseLibraryId: "far-52-204-21",
+          reviewStatus: "pending_review",
+          reviewedByUserId: null,
+          reviewedAt: null,
+          decisionNote: null,
+          decisionReason: null,
+          createdAt: "2026-06-17T21:18:00Z",
+        },
+      ],
+    });
+    editClauseCandidateMock.mockResolvedValueOnce({
+      data: {
+        id: "18381838-1838-1838-1838-1838183818a1",
+        tenantId: contract.tenantId,
+        extractionJobId: "18181818-1818-1818-1818-1818181818a1",
+        sourceDocumentId: contractDocument.id,
+        normalizedCitation: "FAR 52.204-21 synthetic correction",
+        rawExtractedText: "FAR 52.204-21 - Basic Safeguarding.",
+        detectedTitle: "Basic Safeguarding",
+        confidence: 1,
+        locationMetadata: "line 1",
+        matchMethod: "exact_library_match",
+        clauseLibraryId: "far-52-204-21",
+        reviewStatus: "edited",
+        reviewedByUserId: null,
+        reviewedAt: null,
+        decisionNote: null,
+        decisionReason: null,
+        createdAt: "2026-06-17T21:18:00Z",
+      },
+      error: null,
+    });
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /contracts/i }));
+    await user.click(await screen.findByRole("button", { name: "Edit" }));
+    const citation = screen.getByRole("textbox", {
+      name: /Normalized citation for FAR 52.204-21/i,
+    });
+    await user.clear(citation);
+    await user.type(citation, "FAR 52.204-21 synthetic correction");
+    await user.click(screen.getByRole("button", { name: "Save candidate" }));
+
+    expect(editClauseCandidateMock).toHaveBeenCalledWith(
+      contract.id,
+      contractDocument.id,
+      "18381838-1838-1838-1838-1838183818a1",
+      {
+        normalizedCitation: "FAR 52.204-21 synthetic correction",
+        clauseLibraryId: "far-52-204-21",
+      },
+    );
+    expect(await screen.findByText(/Candidate edited/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText("FAR 52.204-21 synthetic correction")).toBeInTheDocument();
   });
 
   it("TC-8.3.1, TC-8.3.3, and TC-8.3.4 manages contract deliverables", async () => {
@@ -2538,7 +2723,10 @@ describe("App", () => {
 
     await user.click(screen.getByRole("button", { name: "Generate obligations for 52.204-27" }));
     expect(generateContractClauseObligationsMock).toHaveBeenCalledWith(contract.id, contractClause.id);
-    expect(await screen.findByText("1 obligation mapping available; 0 new tasks created.")).toBeInTheDocument();
+    expect(getContractObligationsMock).toHaveBeenCalledTimes(2);
+    expect(
+      within(attachedClause as HTMLElement).getByText(
+        "1 obligation is available for this contract. No duplicate task was created; the Obligations work queue was refreshed.")).toBeInTheDocument();
 
     const removalReason = screen.getByLabelText("Removal reason for 52.204-27");
     await user.type(removalReason, "Removed from revised flow-down.");
@@ -2705,7 +2893,9 @@ describe("App", () => {
 
     await user.selectOptions(screen.getByLabelText("Contract"), contract.id);
     await user.selectOptions(screen.getByLabelText("Risk"), "High");
-    await user.type(screen.getByLabelText("Owner"), "IT/security");
+    const ownerFilter =screen.getByLabelText("Owner");
+    expect(ownerFilter.tagName).toBe("SELECT");
+    await user.selectOptions(ownerFilter, "IT/security");
     await user.selectOptions(screen.getByLabelText("Status"), "Open");
     await user.selectOptions(screen.getByLabelText("Module"), "Cybersecurity");
     await user.selectOptions(screen.getByLabelText("Due date"), "overdue");
@@ -2722,6 +2912,15 @@ describe("App", () => {
       source: "52.204-21"
     });
     expect(await screen.findByText("1 tenant-scoped obligations matched.")).toBeInTheDocument();
+    expect(ownerFilter).toHaveValue("IT/security");
+    expect(
+      within(ownerFilter).getByRole("option", { name: "Security" }),
+    ).toBeInTheDocument();
+    expect(
+      within(ownerFilter).getByRole("option", { name: "All owners" }),
+    ).toBeInTheDocument();
+    await user.selectOptions(ownerFilter, "Security");
+    expect(ownerFilter).toHaveValue("Security");
   });
 
   it("TC-10.1.4 guides setup when the obligation work queue is empty", async () => {
@@ -3274,6 +3473,109 @@ describe("App", () => {
     expect(screen.queryByRole("button", { name: "Revoke invitation for pending@example.com" })).not.toBeInTheDocument();
   });
 
+  it("UAT-I02 deactivates a contributor from Settings with a required reason", async () => {
+    const contributor = {
+      ...members[0],
+      membershipId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2",
+      userId: "cccccccc-cccc-cccc-cccc-ccccccccccc2",
+      email: "contributor@example.com",
+      displayName: "Casey Contributor",
+      roleName: "Contributor",
+    };
+    const deactivatedContributor = {
+      ...contributor,
+      membershipStatus: "Deactivated",
+      updatedAt: "2026-09-17T21:00:00Z",
+    };
+    getComplianceOverviewMock.mockResolvedValueOnce(fallbackOverview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce([]);
+    getTenantMembersMock.mockResolvedValueOnce([
+      { ...members[0] },
+      contributor,
+    ]);
+    updateTenantMemberStatusMock.mockResolvedValueOnce({
+      data: deactivatedContributor,
+      error: null,
+    });
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /settings/i }));
+    await user.click(
+      screen.getByRole("button", {
+        name: "Deactivate membership for Casey Contributor",
+      }),
+    );
+    const dialog = screen.getByRole("dialog", {
+      name: "Deactivate membership",
+    });
+    expect(within(dialog).getByText("Casey Contributor")).toBeInTheDocument();
+    expect(within(dialog).getByText("Contributor")).toBeInTheDocument();
+    expect(within(dialog).getByLabelText("Deactivation reason")).toBeRequired();
+
+    fireEvent.submit(
+      within(dialog)
+        .getByRole("button", { name: "Deactivate membership" })
+        .closest("form")!,
+    );
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "Enter a reason",
+    );
+
+    await user.type(
+      within(dialog).getByLabelText("Deactivation reason"),
+      "The contributor no longer needs tenant access.",
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: "Deactivate membership" }),
+    );
+
+    expect(updateTenantMemberStatusMock).toHaveBeenCalledWith(
+      contributor.membershipId,
+      "Deactivated",
+      "The contributor no longer needs tenant access.",
+    );
+    expect(await screen.findByText(
+      "Casey Contributor's membership was deactivated.",
+    )).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Deactivated")).not.toHaveLength(0);
+  });
+
+  it("UAT-I02 does not offer deactivation for the Owner or last active Admin", async () => {
+    const owner = {
+      ...members[0],
+      roleName: "Owner",
+      displayName: "Workspace Owner",
+    };
+    const admin = {
+      ...members[0],
+      membershipId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2",
+      displayName: "Only Admin",
+      roleName: "Admin",
+    };
+    getComplianceOverviewMock.mockResolvedValueOnce(fallbackOverview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce([]);
+    getTenantMembersMock.mockResolvedValueOnce([owner, admin]);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /settings/i }));
+    expect(
+      screen.getByText("Owner membership cannot be deactivated."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Last active Admin membership cannot be deactivated."),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Deactivate membership for/ }),
+    ).not.toBeInTheDocument();
+  });
+
   it("TC-5.2.1, TC-5.2.3, and TC-5.2.4 renders tenant audit logs with filters and pagination", async () => {
     getComplianceOverviewMock.mockResolvedValueOnce(fallbackOverview);
     getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
@@ -3535,7 +3837,14 @@ describe("App", () => {
     expect(await screen.findByText("Evidence metadata")).toBeInTheDocument();
     expect(screen.getByText("Access control policy")).toBeInTheDocument();
     expect(screen.getByTestId("evidence-item")).toHaveTextContent("Access control policy");
-    expect(screen.getByDisplayValue("obligation-fci-safeguards")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("obligation-fci-safeguards"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Classification", { exact: true }),
+    ).toBeDisabled();
+    expect(
+      screen.getByText(
+        "Use Classification review and history above to review this item's classification.")).toBeInTheDocument();
     expect(screen.getByText("Classification review and history", { selector: "summary" })).toBeInTheDocument();
     expect(within(screen.getByLabelText("Evidence list")).getByText("Unclassified")).toBeInTheDocument();
 
@@ -4101,7 +4410,9 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: /3 total calendar agenda items/i }));
     expect(screen.getByRole("heading", { name: "Calendar agenda" })).toBeInTheDocument();
 
-    await user.type(screen.getByLabelText("Owner"), "contracts");
+    const ownerFilter =screen.getByLabelText("Owner");
+    expect(ownerFilter.tagName).toBe("SELECT");
+    await user.selectOptions(ownerFilter, "Contracts");
     await user.selectOptions(screen.getByLabelText("Status"), "open");
     await user.selectOptions(screen.getByLabelText("Risk"), "High");
     await user.selectOptions(screen.getByLabelText("Contract"), contract.id);
@@ -4110,7 +4421,7 @@ describe("App", () => {
 
     expect(getCalendarEventsMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        owner: "contracts",
+        owner: "Contracts",
         status: "open",
         risk: "High",
         contractId: contract.id,
@@ -4118,6 +4429,15 @@ describe("App", () => {
       })
     );
     expect(await screen.findByText("1 calendar items matched.")).toBeInTheDocument();
+    expect(ownerFilter).toHaveValue("Contracts");
+    expect(
+      within(ownerFilter).getByRole("option", { name: "Any owner" }),
+    ).toBeInTheDocument();
+    expect(
+      within(ownerFilter).getByRole("option", { name: "Security" }),
+    ).toBeInTheDocument();
+    await user.selectOptions(ownerFilter, "Security");
+    expect(ownerFilter).toHaveValue("Security");
   });
 
   it("UAT-13 displays the server disclaimer and opens generated report card details", async () => {

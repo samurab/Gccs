@@ -1,10 +1,136 @@
 # FeDril UAT: No-CUI Readiness Workflow
 
-Status basis: Current UI routes, API endpoints, authorization contracts, services, repositories, migrations, automated tests, recent Git history, and the active working tree were reviewed on 2026-09-12. The original PDF layout and test flow are preserved. Newer functionality is labeled `Implemented`, `Partially implemented`, `Planned`, `Blocked by environment`, or `Do not claim` according to available evidence.
+Status basis: Current UI routes, API endpoints, authorization contracts, services, repositories, migrations, automated tests, recent Git history, and the active working tree were reviewed on 2026-09-18. The original PDF test flow and synthetic fixtures are preserved. Newer functionality is labeled `Implemented`, `Partially implemented`, `Planned`, `Blocked by environment`, or `Do not claim` according to available evidence.
 
 Do not use real customer CUI, FCI, PHI, classified information, export-controlled or ITAR technical data, credentials, secrets, tokens, payroll records, private keys, proprietary customer documents, or production customer evidence in this UAT. Every record and file used below is synthetic and non-sensitive.
 
 Local observation on 2026-09-12 confirmed `/health` returned `200` and identified the service posture as `No-CUI / compliance management only`; PostgreSQL, Redis, object storage, background-job coordination, and the configured development ClamAV placeholder reported reachable. The web root returned `200`. This is point-in-time local evidence, not production evidence.
+
+## Table Of Contents
+
+Use these links to jump to a test area or individual case.
+
+- [Purpose And Scope](#purpose-and-scope)
+- [Out Of Scope](#out-of-scope)
+- [Result Vocabulary](#result-vocabulary)
+- [Acceptance Categories](#acceptance-categories)
+- [Roles](#roles)
+- [Test Data](#test-data)
+- [Pre-Publication Checklist](#pre-publication-checklist)
+- [UAT Environment And Execution Rules](#uat-environment-and-execution-rules)
+- [UAT-01: Confirm No-CUI Mode](#uat-01-confirm-no-cui-mode)
+- [UAT-02: Verify Role Access Surface](#uat-02-verify-role-access-surface)
+- [UAT-02A: Verify MVP Access-Control Enforcement](#uat-02a-verify-mvp-access-control-enforcement)
+- [Tenant Onboarding UAT](#tenant-onboarding-uat)
+  - [UAT-T01: Create A Pending Pilot Tenant](#uat-t01-create-a-pending-pilot-tenant)
+  - [UAT-T02: Create A Pending Paid Tenant](#uat-t02-create-a-pending-paid-tenant)
+  - [UAT-T03: Accept Pilot And Paid Owner Invitations](#uat-t03-accept-pilot-and-paid-owner-invitations)
+  - [UAT-T04: Verify Onboarding Authorization, Safe Retry, And Cancellation](#uat-t04-verify-onboarding-authorization-safe-retry-and-cancellation)
+- [Profile Module UAT](#profile-module-uat)
+  - [UAT-P01: Save An Incomplete Company Profile Draft](#uat-p01-save-an-incomplete-company-profile-draft)
+  - [UAT-P02: Verify Completion Validation](#uat-p02-verify-completion-validation)
+  - [UAT-P03: Complete The Synthetic Company Profile](#uat-p03-complete-the-synthetic-company-profile)
+  - [UAT-P04: Verify Profile Read-Only Access And Tenant Isolation](#uat-p04-verify-profile-read-only-access-and-tenant-isolation)
+- [UAT-03: Create The No-CUI Contract Record](#uat-03-create-the-no-cui-contract-record)
+- [UAT-04: Upload Contract Document Metadata](#uat-04-upload-contract-document-metadata)
+- [Contract Deliverables UAT](#contract-deliverables-uat)
+  - [UAT-D01: Create A Contract Deliverable](#uat-d01-create-a-contract-deliverable)
+  - [UAT-D02: Verify Deliverable Calendar Linkage](#uat-d02-verify-deliverable-calendar-linkage)
+  - [UAT-D03: Verify Overdue State And Status Update](#uat-d03-verify-overdue-state-and-status-update)
+  - [UAT-D04: Verify Deliverable Read-Only Access And Tenant Isolation](#uat-d04-verify-deliverable-read-only-access-and-tenant-isolation)
+- [UAT-05: Search Source-Backed Clauses](#uat-05-search-source-backed-clauses)
+- [UAT-06: Attach Clauses To Contract](#uat-06-attach-clauses-to-contract)
+- [UAT-07: Generate And Review Contract Obligations](#uat-07-generate-and-review-contract-obligations)
+- [UAT-08: Update Obligation Status](#uat-08-update-obligation-status)
+- [UAT-09: Assign Obligation Owner](#uat-09-assign-obligation-owner)
+- [UAT-10: Acknowledge No-CUI Evidence Rules](#uat-10-acknowledge-no-cui-evidence-rules)
+- [UAT-11: Create Allowed Evidence Metadata](#uat-11-create-allowed-evidence-metadata)
+- [UAT-12: Negative Evidence Classification Check](#uat-12-negative-evidence-classification-check)
+- [CMMC Module UAT](#cmmc-module-uat)
+  - [UAT-C01: Create A No-CUI CMMC Readiness Assessment](#uat-c01-create-a-no-cui-cmmc-readiness-assessment)
+  - [UAT-C02: Review The CMMC Control Readiness Baseline](#uat-c02-review-the-cmmc-control-readiness-baseline)
+  - [UAT-C03: Create A CMMC POA&M Remediation Item](#uat-c03-create-a-cmmc-poam-remediation-item)
+  - [UAT-C04: Generate A CMMC Readiness Report](#uat-c04-generate-a-cmmc-readiness-report)
+- [UAT-13: Generate Current Report Artifact](#uat-13-generate-current-report-artifact)
+- [UAT-14: Verify Audit History For Created Records](#uat-14-verify-audit-history-for-created-records)
+- [UAT-15: Verify Audit Access By Role](#uat-15-verify-audit-access-by-role)
+- [Standard Format For Every UAT Case](#standard-format-for-every-uat-case)
+- [Public Demo And Platform Follow-Up UAT](#public-demo-and-platform-follow-up-uat)
+- [UAT-M01: Submit A Synthetic Public Demo Request](#uat-m01-submit-a-synthetic-public-demo-request)
+- [UAT-M02: Review And Respond To A Demo Request](#uat-m02-review-and-respond-to-a-demo-request)
+- [UAT-M03: Verify Platform Customer List And Detail Administration](#uat-m03-verify-platform-customer-list-and-detail-administration)
+- [Identity, Membership, Workspace, And Subscription UAT](#identity-membership-workspace-and-subscription-uat)
+- [UAT-I01: Invite, Accept, Resend, Revoke, And Expire A Tenant User](#uat-i01-invite-accept-resend-revoke-and-expire-a-tenant-user)
+- [UAT-I02: Deactivate A Member And Verify Access Removal](#uat-i02-deactivate-a-member-and-verify-access-removal)
+- [UAT-I03: Switch Tenants And Exercise Subscription Lifecycle](#uat-i03-switch-tenants-and-exercise-subscription-lifecycle)
+- [Dashboard UAT](#dashboard-uat)
+- [UAT-DB01: Reconcile Executive Dashboard Metrics And Alerts](#uat-db01-reconcile-executive-dashboard-metrics-and-alerts)
+- [Contract Intelligence And Applicability UAT](#contract-intelligence-and-applicability-uat)
+- [UAT-X01: Review Extracted Clause Candidates](#uat-x01-review-extracted-clause-candidates)
+- [UAT-X02: Evaluate Applicability And Suggested Obligations](#uat-x02-evaluate-applicability-and-suggested-obligations)
+- [UAT-X03: Verify SAM Lookup And Contract Size Checks](#uat-x03-verify-sam-lookup-and-contract-size-checks)
+- [UAT-X04: Review Compliance Content Lifecycle And Development Import Boundary](#uat-x04-review-compliance-content-lifecycle-and-development-import-boundary)
+- [Tasks, Search, Calendar, And Notifications UAT](#tasks-search-calendar-and-notifications-uat)
+- [UAT-W01: Create, Search, Complete, Reopen, And Regenerate Tasks](#uat-w01-create-search-complete-reopen-and-regenerate-tasks)
+- [UAT-W02: Verify Notification Preferences, Assignments, And Reminders](#uat-w02-verify-notification-preferences-assignments-and-reminders)
+- [UAT-W03: Create And Complete A Compliance Checklist](#uat-w03-create-and-complete-a-compliance-checklist)
+- [Extended Evidence And Classification UAT](#extended-evidence-and-classification-uat)
+- [UAT-E01: Upload, Download, Replace, And Delete An Allowed Evidence File](#uat-e01-upload-download-replace-and-delete-an-allowed-evidence-file)
+- [UAT-E02: Review Evidence And Enforce Separation Of Responsibility](#uat-e02-review-evidence-and-enforce-separation-of-responsibility)
+- [UAT-E03: Complete An Evidence Request Workflow](#uat-e03-complete-an-evidence-request-workflow)
+- [UAT-E04: Verify Classification Review, Classified Notes, And Escalation](#uat-e04-verify-classification-review-classified-notes-and-escalation)
+- [Extended CMMC, SPRS, And SSP UAT](#extended-cmmc-sprs-and-ssp-uat)
+- [UAT-C05: Create Gaps And Close A POA&M Item](#uat-c05-create-gaps-and-close-a-poam-item)
+- [UAT-C06: Record Affirmation And Responsibility Assignments](#uat-c06-record-affirmation-and-responsibility-assignments)
+- [UAT-C07: Calculate And Review A Draft SPRS Score](#uat-c07-calculate-and-review-a-draft-sprs-score)
+- [UAT-C08: Build, Approve, Package, And Share An SSP Narrative](#uat-c08-build-approve-package-and-share-an-ssp-narrative)
+- [UAT-C09: Create And Review System Security Plan Sections](#uat-c09-create-and-review-system-security-plan-sections)
+- [UAT-C10: Generate, Edit, Compare, And Approve An SSP Narrative](#uat-c10-generate-edit-compare-and-approve-an-ssp-narrative)
+- [UAT-C11: Generate And Review An SSP Review Package](#uat-c11-generate-and-review-an-ssp-review-package)
+- [Subcontractor And Partner Collaboration UAT](#subcontractor-and-partner-collaboration-uat)
+- [UAT-S01: Create And Review A Subcontractor Profile](#uat-s01-create-and-review-a-subcontractor-profile)
+- [UAT-S02: Track Flow-Downs And Supplier Obligations](#uat-s02-track-flow-downs-and-supplier-obligations)
+- [UAT-S03: Request Evidence And Generate A Subcontractor Report](#uat-s03-request-evidence-and-generate-a-subcontractor-report)
+- [UAT-S04: Exercise Shared Portal Package Lifecycle](#uat-s04-exercise-shared-portal-package-lifecycle)
+- [SAM.gov SPR Preparation UAT](#samgov-spr-preparation-uat)
+- [UAT-SPR01: Configure SPR Applicability And Schedule](#uat-spr01-configure-spr-applicability-and-schedule)
+- [UAT-SPR02: Enter, Import, Review, And Remediate SPR Data](#uat-spr02-enter-import-review-and-remediate-spr-data)
+- [UAT-SPR03: Generate, Export, And Record A Manual SPR Receipt](#uat-spr03-generate-export-and-record-a-manual-spr-receipt)
+- [Labor Readiness UAT](#labor-readiness-uat)
+- [UAT-L01: Record Labor Applicability And Wage Evidence](#uat-l01-record-labor-applicability-and-wage-evidence)
+- [UAT-L02: Classify And Reclassify A Synthetic Employee Assignment](#uat-l02-classify-and-reclassify-a-synthetic-employee-assignment)
+- [UAT-L03: Verify Labor Dashboard And Immutable Report](#uat-l03-verify-labor-dashboard-and-immutable-report)
+- [Policies, Suggested Guidance, And Guarded Assistance UAT](#policies-suggested-guidance-and-guarded-assistance-uat)
+- [UAT-AI01: Generate And Review A Policy From A Template](#uat-ai01-generate-and-review-a-policy-from-a-template)
+- [UAT-AI02: Verify Citation, Logging, And Fail-Closed Assistant Behavior](#uat-ai02-verify-citation-logging-and-fail-closed-assistant-behavior)
+- [Extended Reporting And Audit UAT](#extended-reporting-and-audit-uat)
+- [UAT-R01: Verify Report, Export, Archive, Restore, And PDF Lifecycle](#uat-r01-verify-report-export-archive-restore-and-pdf-lifecycle)
+- [UAT-R02: Verify Audit Search, Export, Append-Only Behavior, And Rollback](#uat-r02-verify-audit-search-export-append-only-behavior-and-rollback)
+- [No-CUI Governance And Operational Readiness UAT](#no-cui-governance-and-operational-readiness-uat)
+- [UAT-N01: Verify Contextual Data-Handling Notices And Gating](#uat-n01-verify-contextual-data-handling-notices-and-gating)
+- [UAT-N02: Exercise CUI-Readiness Checklist And Evidence Without Authorizing CUI](#uat-n02-exercise-cui-readiness-checklist-and-evidence-without-authorizing-cui)
+- [UAT-N03: Verify Security, Technical, And Incident Readiness Records](#uat-n03-verify-security-technical-and-incident-readiness-records)
+- [UAT-N06: Complete And Approve A Security Review](#uat-n06-complete-and-approve-a-security-review)
+- [UAT-N07: Execute And Approve Technical Control Verification](#uat-n07-execute-and-approve-technical-control-verification)
+- [UAT-N08: Configure And Approve Incident Readiness](#uat-n08-configure-and-approve-incident-readiness)
+- [UAT-I04: Invite An External Reviewer](#uat-i04-invite-an-external-reviewer)
+- [UAT-I05: Verify External Invitation Access And Revocation](#uat-i05-verify-external-invitation-access-and-revocation)
+- [UAT-N04: Acknowledge Shared Responsibility And Resolve A Support Escalation](#uat-n04-acknowledge-shared-responsibility-and-resolve-a-support-escalation)
+- [UAT-N05: Seed, Verify, And Remove A Synthetic Demo Dataset](#uat-n05-seed-verify-and-remove-a-synthetic-demo-dataset)
+- [Enterprise And Regulated-Deployment Boundary UAT](#enterprise-and-regulated-deployment-boundary-uat)
+- [UAT-O01: Confirm Future Enterprise Features Do Not Alter MVP Claims Or Access](#uat-o01-confirm-future-enterprise-features-do-not-alter-mvp-claims-or-access)
+- [Acceptance Exit Criteria](#acceptance-exit-criteria)
+- [Mandatory Negative And Security Tests](#mandatory-negative-and-security-tests)
+- [Smoke Test Sequence](#smoke-test-sequence)
+- [Regression Test Execution](#regression-test-execution)
+- [API And UI Consistency Checks](#api-and-ui-consistency-checks)
+- [Evidence Capture Requirements](#evidence-capture-requirements)
+- [Defect Severity And Triage](#defect-severity-and-triage)
+- [Requirements Traceability Matrix](#requirements-traceability-matrix)
+- [Test Execution Summary And Sign-Off](#test-execution-summary-and-sign-off)
+- [Known Limitations And Unresolved Gaps](#known-limitations-and-unresolved-gaps)
+- [Hidden Risks, Edge Cases, And Dependencies](#hidden-risks-edge-cases-and-dependencies)
+- [Document Change History](#document-change-history)
 
 ## Purpose And Scope
 
@@ -206,6 +332,22 @@ Tenant-onboarding prerequisite: `Tenant onboarding` is an internal platform-oper
 | SSP | Section/title | `3.1 Access Control`; `Synthetic SSP narrative` |
 | SSP package | Title | `Internal SSP review package - synthetic` |
 | Readiness evidence | Source | `Synthetic restore rehearsal record`; URL `https://example.invalid/uat/restore-evidence` |
+| Security review | Synthetic fixture | Review all displayed areas with `Synthetic control verification for UAT; no production security details.` as the rationale and use the recorded approved synthetic evidence ID |
+| Security finding | Summary/severity | `Synthetic access review follow-up`; `Medium`; owner `Security`; due `2026-10-01` |
+| Technical verification | Environment/date | `staging-synthetic`; `2026-09-18` |
+| Technical artifact | URI/SHA-256 | `https://example.invalid/uat/technical-controls.txt`; `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` |
+| Incident readiness | Owner/review | `Security`; `Annual`; next review `2027-09-18` |
+| Incident contact | Synthetic contacts | `security-uat@example.invalid`, `support-uat@example.invalid`, `legal-compliance-uat@example.invalid`, `engineering-uat@example.invalid`, `customer-success-uat@example.invalid` |
+| Incident trigger | Criteria | `Suspected sensitive-data exposure, malware detection, cross-tenant exposure, or failed deletion/export request.` |
+| Incident tabletop | Artifact | `https://example.invalid/uat/incident-tabletop.txt`; SHA-256 `bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb` |
+| External reviewer | Email/role | `reviewer+uat@example.invalid`; `Auditor reviewer` |
+| External invitation | Scope/expiry | Use the returned SSP package ID and contract ID `DEMO-NC-26-0007`; expiration `2026-12-31` |
+| External invitation | Options | Downloads disabled; strong authentication required |
+| SSP section | Type/title/owner | `SystemDescription`; `Synthetic SSP system description`; `Security` |
+| SSP source | Name/URL/reviewed | `Synthetic company profile and contract`; `https://example.invalid/uat/ssp-source`; `2026-09-18` |
+| SSP link | Record type/relationship | `CompanyProfile`; `Synthetic source link for No-CUI UAT` |
+| SSP narrative | Draft text | `Synthetic narrative describing the No-CUI system boundary and FCI-only workflow. No customer CUI, classified data, or export-controlled technical data.` |
+| SSP package | Version/reviewer/boundary | `SSP-UAT-2026.09.18`; `Security`; `Synthetic FeDril No-CUI workspace, evidence, contract, and readiness records only.` |
 | Security readiness | Review note | `Synthetic control verification for UAT; no production security details.` |
 | Report | PDF/export title | `UAT No-CUI readiness snapshot` |
 
@@ -257,18 +399,27 @@ Standard execution record used by every test:
 
 ## UAT-01: Confirm No-CUI Mode
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: One configured No-CUI readiness workflow that shows contract metadata.
 
 Role: Owner.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
 Tab: `Settings`.
 
+
+Execution map:
+- Start location: `Settings`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Settings`; `Data handling mode`; `NoCui`; `Mode`; `UAT reset to No-CUI compliance management mode.`; `Reason for mode change`; `Approval checklist ID`; `Update mode`; `Tenant data handling mode history`; `New`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Open the FeDril app in local development.
@@ -293,18 +444,27 @@ Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not a
 
 ## UAT-02: Verify Role Access Surface
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: One configured No-CUI readiness workflow that shows contract metadata.
 
 Role: Owner or Admin.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
 Tab: `Settings`.
 
+
+Execution map:
+- Start location: `Settings`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Settings`; `Contracts`; `Obligations`; `Evidence`; `Reports`; `Auditor`; `200`; `404`; `POST`; `403`; `Contributor`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Stay on `Settings`.
@@ -333,16 +493,23 @@ Role: Owner or Admin for setup; Auditor and Compliance Manager for role checks.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
-Tabs: `CMMC`, `Reports`, and `Settings`.
+Tab or page: `CMMC`, `Reports`, and `Settings`.
 
 Current-state label: Implemented for tenant-scoped API permission gates; partially implemented as UI affordances.
 
 Implementation evidence: Protected API routes require authentication, active tenant context, and endpoint permissions such as `ViewCmmc`, `ManageCmmc`, `ViewReports`, and `ManageReports`. Tenant membership authorization is enforced outside local development. Local development uses explicit development authentication headers and should not be treated as production identity proof.
 
+
+Execution map:
+- Start location: `CMMC`, `Reports`, and `Settings`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `CMMC`; `Reports`; `Settings`; `ViewCmmc`; `ManageCmmc`; `ViewReports`; `ManageReports`; `Auditor`; `Create assessment`; `Save assessment`; `Create POA&M`; `permissions`; `rolePermissionMatrix`; `rolePermissionMatrix.Owner`; `rolePermissionMatrix.Admin`; `rolePermissionMatrix.Compliance Manager`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Sign in or switch local development context to `Auditor`.
@@ -400,22 +567,31 @@ VITE_GCCS_DEV_PLATFORM_PERMISSIONS=ProvisionTenants npm run dev
 
 ### UAT-T01: Create A Pending Pilot Tenant
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: Pilot and paid tenant onboarding.
 
 Role: Platform Operator.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
-Navigation: `Platform operations` -> `Tenant onboarding`.
+Tab or page: `Platform operations` -> `Tenant onboarding`.
 
-Page: `Tenant onboarding`.
+Tab or page: `Tenant onboarding`.
 
 Form sections: `Onboarding type`, `Tenant record`, `Initial Owner`, and `Operator confirmations`.
 
+
+Execution map:
+- Start location: `Platform operations` -> `Tenant onboarding`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Platform operations`; `Tenant onboarding`; `Onboarding type`; `Tenant record`; `Initial Owner`; `Operator confirmations`; `Overview`; `Signed in as`; `No-CUI product boundary`; `Pending tenant onboardings`; `No tenant onboardings are awaiting Owner acceptance.`; `Pilot`; `Pilot end date`; `Plan code`; `Subscription reference`; `Commercial approval confirmed`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. On the platform `Overview` page, click `Tenant onboarding`.
@@ -458,22 +634,31 @@ Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not a
 
 ### UAT-T02: Create A Pending Paid Tenant
 
+Current-state label: Partially implemented for Paid provisioning because the workflow records operator-confirmed commercial metadata but does not invoke a billing provider.
+
 Category: Pilot and paid tenant onboarding.
 
 Role: Platform Operator.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
-Navigation: `Platform operations` -> `Tenant onboarding`.
+Tab or page: `Platform operations` -> `Tenant onboarding`.
 
-Page: `Tenant onboarding`.
+Tab or page: `Tenant onboarding`.
 
 Form sections: `Onboarding type`, `Tenant record`, `Initial Owner`, and `Operator confirmations`.
 
+
+Execution map:
+- Start location: `Platform operations` -> `Tenant onboarding`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Platform operations`; `Tenant onboarding`; `Onboarding type`; `Tenant record`; `Initial Owner`; `Operator confirmations`; `Provision another tenant`; `Paid`; `Plan code`; `Subscription reference`; `Commercial approval confirmed`; `Pilot end date`; `Customer reference`; `CUSTOMER-UAT-026-A`; `Tenant display name`; `Blue Ridge Paid Workspace - Synthetic`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. If the Pilot success panel is still displayed, click `Provision another tenant`.
@@ -516,22 +701,31 @@ Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not a
 
 ### UAT-T03: Accept Pilot And Paid Owner Invitations
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: Pilot and paid tenant onboarding.
 
-Roles: Pilot Tenant Owner and Paid Tenant Owner.
+Role: Pilot Tenant Owner and Paid Tenant Owner.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
-Page: `FeDril account activation`, opened from the single-use invitation link.
+Tab or page: `FeDril account activation`, opened from the single-use invitation link.
 
 Form: `Tenant invitation` or the tenant display name.
 
 Environment dependency: Invitation delivery must be configured and the Owner must have the actual activation link. If delivery remains `Queued` or `Failed`, record this case as `Blocked by environment`; do not retrieve a token from the database or ask the Platform Operator to disclose one.
 
+
+Execution map:
+- Start location: `FeDril account activation`, opened from the single-use invitation link.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `FeDril account activation`; `Tenant invitation`; `Queued`; `Failed`; `Email delivery`; `Sent`; `Resend invitation`; `Use invited test identity`; `Invited email`; `Continue as invitee`; `riley.chen+pilot-uat@example.com`; `taylor.reed+paid-uat@example.com`; `Account`; `Role`; `Owner`; `Display name`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 Repeat these steps once for the Pilot invitation and once for the Paid invitation:
@@ -566,16 +760,23 @@ Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not a
 
 Category: Pilot and paid tenant onboarding.
 
-Roles: Platform Operator and a normal tenant Owner.
+Role: Platform Operator and a normal tenant Owner.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
-Navigation: `Platform operations` -> `Tenant onboarding`.
+Tab or page: `Platform operations` -> `Tenant onboarding`.
 
+
+Execution map:
+- Start location: `Platform operations` -> `Tenant onboarding`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Platform operations`; `Tenant onboarding`; `Owner`; `ProvisionTenants`; `Gccs.PlatformOperator`; `/platform/tenants/new`; `Provisioning access denied`; `Create pending tenant`; `ManageTenant`; `403`; `Customer reference`; `PILOT-UAT-CANCEL-026-A`; `Tenant display name`; `Blue Ridge Cancelled Pilot - Synthetic`; `Pilot end date`; `2027-01-31`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Sign in as a normal tenant `Owner` who does not have `ProvisionTenants` or `Gccs.PlatformOperator`.
@@ -622,18 +823,27 @@ Implementation evidence: The `Profile` tab calls tenant-scoped `GET /api/company
 
 ### UAT-P01: Save An Incomplete Company Profile Draft
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: Company profile.
 
 Role: Compliance Manager.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
 Tab: `Profile`.
 
+
+Execution map:
+- Start location: `Profile`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Profile`; `Create company profile`; `Blue Ridge Federal Support LLC`; `Legal entity`; `UEI`; `CAGE`; `SAM expires`; `Save draft`; `Draft saved.`; `Draft`; `100%`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Click the `Profile` tab in the left navigation.
@@ -660,26 +870,37 @@ Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not a
 
 ### UAT-P02: Verify Completion Validation
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: Company profile.
 
 Role: Compliance Manager.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
 Tab: `Profile`.
 
+
+Execution map:
+- Start location: `Profile`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Profile`; `Blue Ridge Federal Support LLC`; `UEI`; `CAGE`; `SAM expires`; `Complete profile`; `uei`; `cageCode`; `samRegistrationExpiresAt`; `Draft`; `100%`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
-1. Stay on `Profile` with the incomplete draft from UAT-P01.
-2. Click `Complete profile` without entering the missing required values.
-3. Confirm an error summary appears instead of a success message.
-4. Confirm the summary identifies missing completion data, including `uei`, `cageCode`, and `samRegistrationExpiresAt`.
-5. Confirm the completion meter remains `Draft` and below `100%`.
-6. Reload the page and confirm the attempted completion did not mark the record complete.
+1. Stay on the `Profile` tab with the incomplete draft from UAT-P01.
+2. Confirm the draft contains `Blue Ridge Federal Support LLC` but that `UEI`, `CAGE`, and `SAM expires` are still blank.
+3. Click `Complete profile`.
+4. Confirm the page remains on `Profile` and shows a validation summary instead of a success message.
+5. Confirm the validation summary names the missing fields `uei`, `cageCode`, and `samRegistrationExpiresAt`.
+6. Confirm the completion meter remains `Draft` and below `100%`.
+7. Reload the browser, return to `Profile`, and confirm the record is still a draft.
+8. Capture the validation response and confirm no completion audit event or completion state was created.
 
 Expected result: The API rejects completion while required profile fields are missing, and the stored profile remains a draft.
 
@@ -693,18 +914,27 @@ Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not a
 
 ### UAT-P03: Complete The Synthetic Company Profile
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: Company profile.
 
 Role: Compliance Manager.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
 Tab: `Profile`.
 
+
+Execution map:
+- Start location: `Profile`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Profile`; `Legal entity`; `Blue Ridge Federal Support LLC`; `DBA`; `Blue Ridge Support`; `UEI`; `UAT123ABC456`; `CAGE`; `7UAT1`; `SAM expires`; `2027-07-31`; `Role`; `Subcontractor`; `Agency customers`; `DHS synthetic UAT customer`; `Products and services`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Stay on `Profile`.
@@ -751,18 +981,27 @@ Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not a
 
 ### UAT-P04: Verify Profile Read-Only Access And Tenant Isolation
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: Company profile.
 
-Roles: Contributor, Auditor, Advisor, and Compliance Manager.
+Role: Contributor, Auditor, Advisor, and Compliance Manager.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
 Tab: `Profile`.
 
+
+Execution map:
+- Start location: `Profile`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Profile`; `Contributor`; `Save draft`; `Complete profile`; `Auditor`; `Advisor`; `PUT /api/company-profile`; `403`; `204`; `Blue Ridge Federal Support LLC`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Switch to the `Contributor` persona and apply the context.
@@ -787,26 +1026,50 @@ Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not a
 
 ## UAT-03: Create The No-CUI Contract Record
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: One configured No-CUI readiness workflow that shows contract metadata.
 
 Role: Compliance Manager.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
 Tab: `Contracts`.
 
+
+Execution map:
+- Start location: `Contracts`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Contracts`; `New contract`; `Create contract record`; `Contract number`; `DEMO-NC-26-0007`; `Title`; `Non-CUI Help Desk Support BPA Call`; `Agency or prime`; `Fictional Prime Systems Inc. for DHS`; `Relationship`; `Subcontractor`; `Type`; `Fixed price`; `Status`; `Active`; `Awarded`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Click the `Contracts` tab.
-2. Click `New contract` if an existing contract is selected.
-3. In `Create contract record`, enter the contract data from the `Test Data` section.
-4. Confirm `FCI/CUI posture` is `FCI only`.
-5. Click `Create contract`.
-6. Select `DEMO-NC-26-0007` in `Contract records`.
+2. Click `New contract` so the heading changes to `Create contract record`.
+3. Enter each field exactly as follows:
+   - `Contract number`: `DEMO-NC-26-0007`.
+   - `Title`: `Non-CUI Help Desk Support BPA Call`.
+   - `Agency or prime`: `Fictional Prime Systems Inc. for DHS`.
+   - `Relationship`: `Subcontractor`.
+   - `Type`: `Fixed price`.
+   - `Status`: `Active`.
+   - `Awarded`: `2026-06-15`.
+   - `Performance start`: `2026-07-01`.
+   - `Performance end`: `2027-06-30`.
+   - `Place of performance`: `Virginia, remote support`.
+   - `Description`: `Synthetic No-CUI FCI-only contract. No CUI, classified, export-controlled, or ITAR data.`.
+   - `FCI/CUI posture`: `FCI only`.
+4. Confirm the end date is on or after the start date before saving.
+5. Click `Create contract` once.
+6. Confirm a success message appears and the new contract is selected.
+7. In the contract summary, confirm the contract number, title, relationship, type, status, period, place of performance, description, and data posture match the values above.
+8. Reload the page, select `DEMO-NC-26-0007` from `Contract records`, and confirm the saved values persist.
+9. Record the returned `contractId` for later cases. Do not invent or manually substitute an ID.
 
 Expected result: The selected contract displays its number, title, agency or prime, relationship, type, status, dates, posture, place of performance, and description.
 
@@ -826,12 +1089,19 @@ Role: Compliance Manager.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
 Tab: `Contracts`.
 
+
+Execution map:
+- Start location: `Contracts`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Contracts`; `DEMO-NC-26-0007`; `Required before contract or evidence work`; `Required user acknowledgement`; `I acknowledge the No-CUI upload limitation`; `Acknowledged`; `Documents`; `Document type`; `Contract`; `Contract document classification`; `FCI`; `demo-nc-contract.txt`; `Upload document`; `accepted`; `clean`; `Start extraction`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Stay on `Contracts`.
@@ -865,13 +1135,15 @@ Implementation evidence: Deliverables are displayed inside the selected contract
 
 ### UAT-D01: Create A Contract Deliverable
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: Contract deliverables.
 
 Role: Compliance Manager.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
@@ -879,6 +1151,13 @@ Tab: `Contracts`.
 
 Prerequisite: UAT-03 is complete and contract `DEMO-NC-26-0007` is selected.
 
+
+Execution map:
+- Start location: `Contracts`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Contracts`; `DEMO-NC-26-0007`; `Contract records`; `Deliverables`; `Attached clauses`; `Documents`; `Monthly service status report - synthetic`; `Name`; `Owner`; `2026-08-31`; `Due date`; `Not started`; `Deliverable status`; `Deliverable description`; `Add deliverable`; `Deliverable added to the contract calendar.`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Click the `Contracts` tab.
@@ -906,26 +1185,38 @@ Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not a
 
 ### UAT-D02: Verify Deliverable Calendar Linkage
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: Contract deliverables.
 
 Role: Compliance Manager or Contributor.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
 Tab: `Calendar`.
 
+
+Execution map:
+- Start location: `Calendar`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Calendar`; `From`; `2026-08-01`; `To`; `2026-09-15`; `Contract`; `DEMO-NC-26-0007`; `Module`; `Apply filters`; `Monthly service status report - synthetic`; `08/31/2026`; `Contracts`; `Deliverables`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Click the `Calendar` tab.
-2. Set the calendar date range so that it includes `2026-08-31`.
-3. Apply a source or module filter for contract deliverables if that filter is available; otherwise review the complete date range.
-4. Find `Monthly service status report - synthetic`.
-5. Confirm its date is `2026-08-31` and its owner is `Contracts` when displayed.
-6. Return to `Contracts`, select `DEMO-NC-26-0007`, and confirm the source deliverable still shows the same due date and owner.
+2. Set `From` to `2026-08-01` and `To` to `2026-09-15` so the synthetic due date is inside the range.
+3. In `Contract`, select `DEMO-NC-26-0007` when the contract filter is available.
+4. In `Module`, choose `Contract` or the contract-deliverable option shown by the current UI.
+5. Click `Apply filters`.
+6. Locate `Monthly service status report - synthetic`.
+7. Confirm the calendar item shows `08/31/2026`, owner `Contracts`, and the saved status.
+8. Clear the contract filter, apply the same date range, and confirm the item remains tenant-scoped and appears only once.
+9. Return to `Contracts`, select `DEMO-NC-26-0007`, open `Deliverables`, and reconcile the calendar date and owner with the source record.
 
 Expected result: The dated deliverable appears in the tenant-scoped calendar without requiring duplicate manual task entry.
 
@@ -939,18 +1230,27 @@ Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not a
 
 ### UAT-D03: Verify Overdue State And Status Update
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: Contract deliverables.
 
 Role: Compliance Manager.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
 Tab: `Contracts`, then `Calendar`.
 
+
+Execution map:
+- Start location: `Contracts`, then `Calendar`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Contracts`; `Calendar`; `DEMO-NC-26-0007`; `Deliverables`; `Name`; `Overdue corrective-action summary - synthetic`; `Owner`; `Compliance`; `Due date`; `2026-07-15`; `Deliverable status`; `In progress`; `Deliverable description`; `Synthetic past-due record used to verify overdue presentation.`; `Add deliverable`; `Overdue`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. On `Contracts`, select `DEMO-NC-26-0007` and return to `Deliverables`.
@@ -979,18 +1279,27 @@ Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not a
 
 ### UAT-D04: Verify Deliverable Read-Only Access And Tenant Isolation
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: Contract deliverables.
 
-Roles: Contributor, Auditor, Advisor, and Compliance Manager.
+Role: Contributor, Auditor, Advisor, and Compliance Manager.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
 Tab: `Contracts`.
 
+
+Execution map:
+- Start location: `Contracts`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Contracts`; `Contributor`; `DEMO-NC-26-0007`; `Deliverables`; `Auditor`; `PUT /api/contracts/{contractId}/deliverables/{deliverableId}`; `403`; `Advisor`; `ManageContracts`; `404`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Switch to the `Contributor` persona and apply the context.
@@ -1017,27 +1326,38 @@ Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not a
 
 ## UAT-05: Search Source-Backed Clauses
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: Attached or reviewed clauses.
 
 Role: Compliance Manager or Advisor.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
 Tab: `Obligations`.
 
+
+Execution map:
+- Start location: `Obligations`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Obligations`; `Clause library search`; `52.204-21`; `FAR 52.204-21`; `52.204-25`; `52.204-27`; `UAT-NO-MATCH-9999`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Click the `Obligations` tab.
-2. Find `Clause library search`.
-3. Search `52.204-21`.
-4. Record the published clause ID for the matching FAR clause.
-5. Repeat for `52.204-25`.
-6. Repeat for `52.204-27`.
-7. Confirm each result includes clause number, title, source URL, confidence or review state when displayed.
+2. Locate `Clause library search` and clear any existing query, category, or review-state filter.
+3. Search for `52.204-21`.
+4. Select the published result whose title begins `FAR 52.204-21`.
+5. Record the displayed published clause ID and confirm the result shows its clause number, title, source URL, review state, confidence, effective date, and last-reviewed date when those fields are available.
+6. Search for `52.204-25` and repeat the same checks.
+7. Search for `52.204-27` and repeat the same checks.
+8. Search for `UAT-NO-MATCH-9999` and confirm the empty state says no published clauses matched.
+9. Clear the search before leaving the tab. Do not attach a draft or free-form citation as a substitute for a published result.
 
 Expected result: Published clause records can be located before attachment.
 
@@ -1051,28 +1371,39 @@ Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not a
 
 ## UAT-06: Attach Clauses To Contract
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: Attached or reviewed clauses.
 
 Role: Compliance Manager.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
 Tab: `Contracts`.
 
+
+Execution map:
+- Start location: `Contracts`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Contracts`; `DEMO-NC-26-0007`; `Attached clauses`; `Published clause`; `52.204-21`; `Attachment reason`; `Manual UAT tagging from synthetic contract text.`; `Source document reference`; `demo-nc-contract.txt`; `Attach clause`; `FAR 52.204-21`; `52.204-25`; `52.204-27`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
-1. Click the `Contracts` tab.
-2. Select `DEMO-NC-26-0007`.
-3. In `Attached clauses`, paste the published clause ID for `52.204-21`.
-4. Enter `Manual UAT tagging from synthetic contract text.` for `Attachment reason`.
-5. Enter `demo-nc-contract.txt` for `Source document reference`.
-6. Click `Attach clause`.
-7. Repeat steps 3 through 6 for `52.204-25` and `52.204-27`.
-8. Confirm attached rows show clause number, title, source URL, and review metadata when available.
+1. Click the `Contracts` tab and select `DEMO-NC-26-0007`.
+2. Locate the `Attached clauses` section and confirm the attachment form is visible to the Compliance Manager.
+3. In `Published clause`, enter the published clause ID recorded for `52.204-21` in UAT-05. Use the current published ID, not the citation text alone.
+4. In `Attachment reason`, enter `Manual UAT tagging from synthetic contract text.`.
+5. In `Source document reference`, enter `demo-nc-contract.txt`.
+6. Click `Attach clause` once.
+7. Confirm the attached row shows `FAR 52.204-21`, published review metadata, and the selected contract.
+8. Repeat steps 3 through 7 for the published IDs for `52.204-25` and `52.204-27`.
+9. Reload the contract and confirm all three attached clauses persist once each.
+10. Attempt to attach a draft, unknown clause ID, or Tenant B clause ID and confirm the request is rejected without adding a row.
 
 Expected result: Three clauses are attached to the contract.
 
@@ -1086,28 +1417,43 @@ Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not a
 
 ## UAT-07: Generate And Review Contract Obligations
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: Generated obligations.
 
 Role: Compliance Manager.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
 Tab: `Contracts`, then `Obligations`.
 
+
+Execution map:
+- Start location: `Contracts`, then `Obligations`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Contracts`; `Obligations`; `52.204-21`; `Generate obligations`; `No published obligation mappings are available for this clause.`; `Fail`; `Obligation work queue`; `Contract`; `DEMO-NC-26-0007`; `Source`; `Owner`; `Module`; `Status`; `Apply filters`; `View details`; `Why it applies`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Stay on `Contracts`.
-2. In the attached clause row for `52.204-21`, use the available generate action if visible.
-3. If generation occurs automatically after attachment, proceed to the next step.
-4. Click the `Obligations` tab.
-5. In `Obligation work queue`, filter by contract `DEMO-NC-26-0007`.
-6. Apply any useful filters: `Risk` = `High`, `Owner` = `Security` or `IT/security`, `Module` = `Cybersecurity`, `Source` = `52.204-21`.
-7. Open the matching obligation with `View details`.
-8. Confirm detail sections include `Why it applies`, `Required action`, `Owner`, `Source`, `Confidence`, `Last reviewed`, `Evidence examples`, and `Flow-down`.
+2. Find the attached clause row for `52.204-21` and click `Generate obligations`.
+3. In that same clause row, confirm one of these results appears:
+   - First generation: at least one obligation is available and one or more new tasks were created.
+   - Repeat generation: at least one obligation is available and no duplicate task was created. This is a successful idempotent result, not a failure.
+   - No mapping: `No published obligation mappings are available for this clause.` Stop and record the case as `Fail` because the published UAT fixture is incomplete.
+4. Confirm the message states that the `Obligations` work queue was refreshed.
+5. Click the `Obligations` tab.
+6. In `Obligation work queue`, clear any filters left from an earlier test, then set `Contract` to `DEMO-NC-26-0007`.
+7. Set `Source` to `52.204-21`. Leave `Owner`, `Module`, and `Status` blank for the first search because those values may change as the obligation is assigned or updated.
+8. Click `Apply filters`.
+9. Confirm the queue reports at least one tenant-scoped obligation and shows the `52.204-21` source-backed obligation.
+10. Open the matching obligation with `View details`.
+11. Confirm detail sections include `Why it applies`, `Required action`, `Owner`, `Source`, `Confidence`, `Last reviewed`, `Evidence examples`, and `Flow-down`.
 
 Expected result: At least one source-backed obligation appears for the contract, preserving clause and source metadata.
 
@@ -1121,24 +1467,37 @@ Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not a
 
 ## UAT-08: Update Obligation Status
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: Owner/status tracking.
 
 Role: Compliance Manager.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
 Tab: `Obligations`.
 
+
+Execution map:
+- Start location: `Obligations`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Obligations`; `Update status`; `In progress`; `Save status`; `Settings`; `Audit log`; `Auditor`; `403`; `404`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
-1. Stay in the opened obligation detail.
-2. In `Update status`, choose `In progress`.
-3. Click `Save status`.
-4. Confirm the status shown in detail or the work queue changes to `In progress`.
+1. Stay on the obligation detail opened in UAT-07 and record the obligation ID and current status.
+2. Locate the `Update status` control.
+3. Select `In progress`.
+4. Click `Save status` once.
+5. Confirm the detail view and the obligation work queue both show `In progress`.
+6. Reload the page and confirm the status persists.
+7. Open `Settings` -> `Audit log`, filter the obligation entity, and confirm an update event identifies the obligation and actor.
+8. Attempt the same update as `Auditor` or with a Tenant B obligation ID and confirm `403` or `404`, with no status, audit, calendar, or notification side effect.
 
 Expected result: The obligation status updates for the selected tenant-scoped contract obligation.
 
@@ -1152,31 +1511,40 @@ Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not a
 
 ## UAT-09: Assign Obligation Owner
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: Owner/status tracking.
 
 Role: Compliance Manager.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
 Tab: `Obligations`.
 
-Prerequisite: Priya Shah and Devin Brooks are active members of the selected tenant. Confirm both names appear under `Switch user` before assigning the obligation. If the selector is disabled or either name is absent, complete the tenant invitation/activation workflow first.
+Prerequisite: The member who will receive the direct assignment and at least one active Compliance Manager are active members of the selected tenant. Confirm the intended assignee appears under `Switch user` before assigning the obligation. The names `Priya Shah` and `Devin Brooks` are example personas, not universal seeded identities; use the actual active member names exposed by the selected tenant. If the selector is disabled or the intended assignee is absent, complete the tenant invitation/activation workflow first.
 
+
+Execution map:
+- Start location: `Obligations`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Obligations`; `Switch user`; `Priya Shah`; `Devin Brooks`; `Assign by`; `Tenant member`; `Also send assignment email`; `Assign owner`; `Currently assigned to`; `Apply context`; `My assignments`; `Role`; `Compliance manager`; `Role assignments`; `Assignment emails`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Stay in the opened obligation detail.
 2. In `Assign by`, choose `Tenant member`.
-3. In `Tenant member`, choose `Devin Brooks`.
+3. In `Tenant member`, choose the active member who will receive the direct assignment. Record the exact displayed name; use `Devin Brooks` only when that member exists in the selected tenant.
 4. Leave `Also send assignment email` checked.
 5. Click `Assign owner`.
-6. Reload, reopen the obligation detail, and confirm `Currently assigned to`, `Assign by`, and `Tenant member` show Devin Brooks.
-7. In the local test context, use `Switch user` to select Devin Brooks and apply the context.
-8. Confirm the notification bell shows an unread direct assignment. Open it, then return to `Obligations` and select `My assignments`.
-9. Switch the development user back to Priya Shah, assign the same obligation by `Role`, and choose `Compliance manager`.
+6. Reload, reopen the obligation detail, and confirm `Currently assigned to`, `Assign by`, and `Tenant member` show the exact member selected in step 3.
+7. In the local test context, use `Switch user` to select the same member selected in step 3 and click `Apply context`. Confirm the signed-in email and tenant context update to that member and the selected tenant.
+8. Confirm the notification bell shows an unread direct assignment. Open it, then return to `Obligations` and select `My assignments`. Do not evaluate the bell while still signed in as the assigning manager; notifications are recipient-specific.
+9. Switch the development user back to the original assigning user, assign the same obligation by `Role`, and choose `Compliance manager`.
 10. Reload, reopen the detail, and confirm the saved role remains displayed.
 11. Select `Role assignments` and confirm the obligation appears with the role-queue count.
 12. Switch to an active Compliance Manager persona and confirm the bell contains the role-assignment notification.
@@ -1193,25 +1561,41 @@ Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not a
 
 ## UAT-10: Acknowledge No-CUI Evidence Rules
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: Allowed evidence metadata.
 
 Role: Contributor or Compliance Manager.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
 Tab: `Evidence`.
 
+
+Execution map:
+- Start location: `Evidence`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Evidence`; `No-CUI acknowledgement`; `Required user acknowledgement`; `I will not upload, paste, import, or attach real CUI.`; `I will use synthetic, redacted, or non-sensitive data during the pilot.`; `I acknowledge the No-CUI upload limitation`; `Status`; `Acknowledged`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Click the `Evidence` tab.
-2. Find `No-CUI acknowledgement`.
-3. Read the notice and confirm it prohibits real customer CUI in No-CUI mode.
-4. Click `I acknowledge the No-CUI upload limitation`.
-5. Confirm the status changes to `Acknowledged`.
+2. Locate the panel headed `No-CUI acknowledgement`.
+3. Read the notice and confirm it states that the current workflow is limited to synthetic, redacted, or non-sensitive data.
+4. Under `Required user acknowledgement`, select all four statements:
+   - `I will not upload, paste, import, or attach real CUI.`
+   - `I will not upload classified information, ITAR/export-controlled data, credentials, payroll records, SSNs, health data, or sensitive incident details.`
+   - `I will use synthetic, redacted, or non-sensitive data during the pilot.`
+   - `I understand FeDril reports are workflow guidance, not legal advice or certification decisions.`
+5. Confirm the acknowledgement button becomes enabled.
+6. Click `I acknowledge the No-CUI upload limitation` once.
+7. Confirm `Status` changes to `Acknowledged`, `Acknowledged` date/time is displayed, and the upload controls are enabled only for permitted synthetic classifications.
+8. Reload the page and confirm the acknowledgement remains saved for the active tenant.
 
 Expected result: Evidence controls become available only after acknowledgement.
 
@@ -1225,28 +1609,48 @@ Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not a
 
 ## UAT-11: Create Allowed Evidence Metadata
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: Allowed evidence metadata.
 
 Role: Contributor or Compliance Manager.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
 Tab: `Evidence`.
 
+
+Execution map:
+- Start location: `Evidence`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Evidence`; `Evidence metadata`; `New evidence`; `Title`; `MFA configuration summary - synthetic`; `Type`; `System configuration`; `Owner`; `Security`; `Status`; `Approved`; `Effective`; `2026-06-01`; `Expires`; `2027-01-31`; `Tags`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
-1. Stay on `Evidence`.
-2. Find `Evidence metadata`.
-3. Click `New evidence`.
-4. Enter the evidence data from the `Test Data` section.
-5. For `Obligations`, paste the generated FAR 52.204-21 obligation ID if visible; otherwise leave blank and rely on the `Controls` link.
-6. For `Controls`, enter `AC.L1-3.1.1`.
-7. Click `Create metadata`.
-8. Confirm the record appears in `Evidence list`.
+1. Stay on the `Evidence` tab and locate `Evidence metadata`.
+2. Click `New evidence` and confirm the form is reset.
+3. Enter the synthetic fields:
+   - `Title`: `MFA configuration summary - synthetic`.
+   - `Type`: `System configuration`.
+   - `Owner`: `Security`.
+   - `Status`: `Approved`.
+   - `Effective`: `2026-06-01`.
+   - `Expires`: `2027-01-31`.
+   - `Tags`: `FAR 52.204-21, FCI, MFA, UAT`.
+   - `Classification`: `FCI`.
+   - `Classification reason`: `User confirmed synthetic FCI-only evidence for No-CUI UAT.`.
+   - `Description`: `Synthetic MFA configuration summary used to test source and control traceability.`.
+4. In `Obligations (optional)`, enter the generated FAR 52.204-21 obligation ID if UAT-07 produced one; otherwise leave the field blank.
+5. In `Controls`, enter `AC.L1-3.1.1` using the suggested control value when available.
+6. Click `Create metadata` once.
+7. Confirm the message is `Evidence metadata created.` and the record appears in `Evidence list`.
+8. Select the record and verify the title, owner, status, dates, classification, tags, control, and source links persist after reload.
+9. Confirm a duplicate submission is not created by refreshing or repeating the request with the same record ID.
 
 Expected result: The evidence record appears with title, type, owner, status, dates, tags, classification, and control or obligation links.
 
@@ -1266,21 +1670,31 @@ Role: Compliance Manager.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
 Tab: `Evidence`.
 
+
+Execution map:
+- Start location: `Evidence`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Evidence`; `Mode: NoCui`; `Evidence list`; `MFA configuration summary - synthetic`; `Fci`; `SyntheticCui`; `Classification`; `Classification review and history`; `Content type`; `Evidence items`; `Needs classification review only`; `Unknown`; `Cui`; `Prohibited`; `Inspect MFA configuration summary - synthetic`; `Inspect <the exact title of the record you selected>`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
-1. Stay on `Evidence`.
-2. Select the synthetic evidence item or create a new test evidence record.
-3. Attempt to classify it as `CUI` while the tenant remains in `NoCui` mode.
-4. Enter `Negative UAT check: NoCui mode should not accept CUI evidence.` as the classification reason.
-5. Submit the classification change.
+1. Stay on `Evidence` and confirm the tenant shows `Mode: NoCui`.
+2. In `Evidence list`, select any existing synthetic non-sensitive evidence item, such as `MFA configuration summary - synthetic` with classification `Fci`. Do not use an imported `SyntheticCui` demo record; it is approved demo content, not a review candidate.
+3. Do not use the read-only `Classification` field in the evidence metadata form. Expand `Classification review and history`.
+4. Set `Content type` to `Evidence items` and uncheck `Needs classification review only` so the selected `Fci` record appears in the full tenant-scoped list. If the selected record is already `Unknown`, `Cui`, or `Prohibited`, it may remain checked.
+5. Click `Inspect MFA configuration summary - synthetic` (or `Inspect <the exact title of the record you selected>`).
+6. In `Current classification detail`, use `Reviewed classification` to select `Cui`.
+7. Enter `Negative UAT check: NoCui mode should not accept CUI evidence.` in `Review reason`.
+8. Click `Save classification review`.
 
-Expected result: The workflow is rejected or blocked by the No-CUI policy.
+Expected result: The metadata form's `Classification` field remains disabled for the existing record, and the dedicated review workflow rejects or blocks the attempted `Cui` classification because the tenant is in `NoCui` mode. No successful classification change is recorded.
 
 Reason: A positive-only UAT misses the main safety guarantee. This negative test proves that No-CUI mode does not silently accept CUI-labeled evidence.
 
@@ -1300,18 +1714,27 @@ Important posture limit: This module tracks CMMC readiness work only. It does no
 
 ### UAT-C01: Create A No-CUI CMMC Readiness Assessment
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: CMMC readiness module.
 
 Role: Compliance Manager.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
 Tab: `CMMC`.
 
+
+Execution map:
+- Start location: `CMMC`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `CMMC`; `Assurance`; `CMMC and NIST workspace`; `MVP posture`; `NoCui`; `Assessment name`; `No-CUI Level 1 readiness workspace`; `Target level`; `Level 1`; `Framework`; `FAR basic safeguarding`; `Status`; `In progress`; `Started`; `2026-06-15`; `Affirmation due`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Click the `CMMC` tab under the `Assurance` navigation group.
@@ -1349,13 +1772,15 @@ Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not a
 
 ### UAT-C02: Review The CMMC Control Readiness Baseline
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: CMMC readiness module.
 
 Role: Compliance Manager or Auditor.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
@@ -1363,6 +1788,13 @@ Tab: `CMMC`.
 
 Prerequisite: UAT-C01 is complete and at least one CMMC readiness assessment is listed.
 
+
+Execution map:
+- Start location: `CMMC`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `CMMC`; `Control readiness`; `AC.L1-3.1.1`; `Not Started`; `Implemented`; `Partially Implemented`; `Not Applicable`; `Needs Review`; `Not Assessed`; `Met`; `Not Met`; `Family`; `Source`; `Reviewed`; `Evidence`; `Tasks`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Stay on the `CMMC` tab.
@@ -1403,13 +1835,15 @@ Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not a
 
 ### UAT-C03: Create A CMMC POA&M Remediation Item
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: CMMC readiness module.
 
 Role: Compliance Manager.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
@@ -1417,6 +1851,13 @@ Tab: `CMMC`, then `Calendar`.
 
 Prerequisite: UAT-C01 is complete and `Control readiness` has loaded controls.
 
+
+Execution map:
+- Start location: `CMMC`, then `Calendar`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `CMMC`; `Calendar`; `Control readiness`; `POA&M remediation`; `Control`; `AC.L1-3.1.1`; `Risk`; `High`; `Status`; `Open`; `Owner`; `Security`; `Due date`; `2026-07-15`; `Gap`; `Synthetic UAT gap: document annual access review evidence.`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Stay on the `CMMC` tab.
@@ -1456,13 +1897,15 @@ Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not a
 
 ### UAT-C04: Generate A CMMC Readiness Report
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: CMMC readiness module.
 
 Role: Compliance Manager.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
@@ -1470,6 +1913,13 @@ Tab: `Reports`.
 
 Prerequisite: UAT-C01 is complete. UAT-C03 is recommended so the report has POA&M content.
 
+
+Execution map:
+- Start location: `Reports`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Reports`; `CMMC readiness`; `Assessment`; `No-CUI Level 1 readiness workspace`; `Generate readiness`; `Recent generated reports`; `Target level`; `Control rows`; `Open gaps`; `Open POA&M`; `Evidence links`; `Report content`; `Readiness summary`; `assessmentId`; `403`; `Unknown`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Click the `Reports` tab.
@@ -1503,18 +1953,27 @@ Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not a
 
 ## UAT-13: Generate Current Report Artifact
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: A current report artifact.
 
 Role: Compliance Manager.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
 Tab: `Reports`.
 
+
+Execution map:
+- Start location: `Reports`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Reports`; `Compliance status`; `Generate status`; `Recent generated reports`; `Evidence package builder`; `Prime review evidence package - No-CUI UAT`; `Package title`; `DEMO-NC-26-0007`; `AC.L1-3.1.1`; `Include draft/rejected evidence when authorized`; `Generate package`; `Approved evidence packages`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Click the `Reports` tab.
@@ -1541,18 +2000,27 @@ Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not a
 
 ## UAT-14: Verify Audit History For Created Records
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: Audit history.
 
 Role: Owner, Admin, or Advisor.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
 Tab: `Settings`.
 
+
+Execution map:
+- Start location: `Settings`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Settings`; `Audit log`; `Action`; `Created`; `Entity`; `CompanyProfile`; `Filter`; `Blue Ridge Federal Support LLC`; `Updated`; `Contract`; `DEMO-NC-26-0007`; `ContractDeliverable`; `Monthly service status report - synthetic`; `Overdue corrective-action summary - synthetic`; `Submitted`; `ContractClause`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Click the `Settings` tab.
@@ -1601,20 +2069,28 @@ Role: Auditor, Contributor, Owner.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
 Tab: `Settings`.
 
+
+Execution map:
+- Start location: `Settings`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Settings`; `Owner`; `Audit log`; `Entity`; `Contract`; `Contributor`; `403`; `Auditor`; `ViewAuditLog`; `Advisor`; `Role`; `Tenant context`; `Test data`; `Preconditions`; `Tab`; `Steps`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
-1. As Owner, confirm the `Settings` tab and `Audit log` are visible.
-2. As Contributor, attempt to access `Settings` or audit log review.
-3. Confirm Contributor cannot view audit logs.
-4. As Auditor, attempt to access audit logs.
-5. Confirm Auditor cannot access audit logs unless the implementation grants `ViewAuditLog`.
-6. As Advisor, confirm audit visibility is available if assigned the `Advisor` role.
+1. As `Owner`, click `Settings` and confirm `Audit log` is visible.
+2. Filter by `Entity` = `Contract` and confirm the synthetic contract events are readable.
+3. Switch to `Contributor`, reopen `Settings`, and confirm the audit-log section is hidden or access is denied according to the permission matrix.
+4. As `Contributor`, call the audit endpoint directly and confirm `403` without event data or a new audit event.
+5. Switch to `Auditor` and repeat the UI and direct API check. Pass only if the current access response explicitly grants `ViewAuditLog`; otherwise record the expected denial.
+6. Switch to `Advisor` and verify audit visibility only if the role-permission response grants `ViewAuditLog`.
+7. Confirm no role can export or mutate audit history without the corresponding server permission.
 
 Expected result: Audit log access follows the role permission matrix.
 
@@ -1626,6 +2102,40 @@ Evidence to capture: Role and tenant context, relevant UI state, sanitized reque
 
 Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not applicable ☐ Not run | Defect: ______ | Tester: ______ | Date/time: ______ | Evidence location: ______ | Notes: ______
 
+## Standard Format For Every UAT Case
+
+Every case now uses the following execution card. The card is intentionally explicit so a new tester can execute the case without inferring a route, form, control, identifier, or test value.
+
+1. `Category` states the business workflow being tested.
+2. `Current-state label` states whether the documented behavior is implemented, partial, planned, or not claimable. This is a product-status label, not a test result.
+3. `Role` identifies the actor for each write, approval, read-only, and negative step.
+4. `Tenant context` identifies the active tenant to select and the tenant IDs that may be used for negative isolation checks.
+5. `Test data` and the `Synthetic inputs` line identify the only permitted values. Copy IDs returned by the current tenant; never invent them.
+6. `Preconditions` identify the prerequisite records and environment dependencies.
+7. `Tab`, `Tab or page`, `Form and control/value anchors`, and the numbered `Steps` identify the exact navigation and field-level actions.
+8. `Expected result` states the observable pass condition.
+9. `Reason`, `Security expectation`, `Evidence to capture`, and `Execution record` complete the acceptance evidence.
+
+Use every UAT case in this order:
+
+1. Confirm the `Role`, `Tenant context`, `Test data`, and `Preconditions` before changing any record.
+2. Open the named `Tab`, page, or API surface and use the exact form, filter, button, field, and value named in the numbered steps. The generated `Execution map` is a locator aid; the numbered steps are authoritative.
+3. Complete the numbered `Steps` in order. Capture the result before continuing to the next negative, retry, or cross-tenant step.
+4. Compare the observed result with `Expected result`. Record `Blocked by environment` when a required provider or deployment dependency is unavailable; do not convert it to `Pass`.
+5. Record the security, evidence, cleanup, and execution information at the end of the case.
+
+If a named field, button, or section is absent, record the exact visible UI state and mark the case `Failed` for discoverability or `Blocked by environment` only when the missing control is caused by an unavailable dependency. Do not guess a control name or silently substitute an API step for a required UI step. If the case explicitly says `Authorized API test`, use the API only for that named step and record the endpoint, method, status, trace ID, and sanitized response.
+
+The `Execution map` uses this fixed structure in every case:
+
+- `Start location`: the tab, page, or API surface to open first.
+- `Form and control/value anchors`: exact quoted labels, field names, buttons, filters, values, and result labels referenced by the steps. Values are included so the tester can distinguish a test fixture from a control label.
+- `Synthetic inputs`: the permitted synthetic-data boundary.
+- `Missing-control rule`: the required result when a control is not visible.
+- `Execution order`: the rule to capture each result before continuing.
+
+Each case is an acceptance workflow only. It does not establish certification, legal compliance, government approval, assessor acceptance, or authorization to process real CUI.
+
 ## Public Demo And Platform Follow-Up UAT
 
 Current-state label: Implemented for public request intake, request-detail capture, platform review, responses, appointments, and follow-up records. Email and HubSpot delivery are environment-dependent.
@@ -1634,18 +2144,27 @@ Implementation evidence: The public UI exposes demo request and detail pages. Pl
 
 ## UAT-M01: Submit A Synthetic Public Demo Request
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: Public demo request intake.
 
 Role: Anonymous visitor.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
-Page: Public landing page and demo-request detail page.
+Tab or page: Public landing page and demo-request detail page.
 
+
+Execution map:
+- Start location: Public landing page and demo-request detail page.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Open the public FeDril landing page in a clean browser profile.
@@ -1669,20 +2188,29 @@ Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not a
 
 ## UAT-M02: Review And Respond To A Demo Request
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: Platform demo operations.
 
 Role: Platform Operator with the exact demo-management permission.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
-Navigation: Platform operations -> Demo requests and calendar.
+Tab or page: Platform operations -> Demo requests and calendar.
 
 Prerequisite: UAT-M01 created the synthetic request.
 
+
+Execution map:
+- Start location: Platform operations -> Demo requests and calendar.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Blue Ridge Demo Company - Synthetic`; `403`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Open the platform demo-request list and locate `Blue Ridge Demo Company - Synthetic`.
@@ -1715,8 +2243,15 @@ Test data: Use the exact synthetic fixtures in `Test Data` and the recorded immu
 
 Preconditions: The synthetic tenants exist. Do not inspect or modify real customer records.
 
-Navigation: Platform operations -> Customers -> synthetic customer detail.
+Tab or page: Platform operations -> Customers -> synthetic customer detail.
 
+
+Execution map:
+- Start location: Platform operations -> Customers -> synthetic customer detail.
+- Form and control/value anchors: `Test Data`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Open the platform customer list and locate both synthetic tenants by customer reference.
@@ -1744,18 +2279,27 @@ Implementation evidence: The API exposes tenant invitations, membership lifecycl
 
 ## UAT-I01: Invite, Accept, Resend, Revoke, And Expire A Tenant User
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: Tenant user administration.
 
-Roles: Admin, invited Contributor, and unauthorized Auditor.
+Role: Admin, invited Contributor, and unauthorized Auditor.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
 Tab: `Settings`; invitation activation page.
 
+
+Execution map:
+- Start location: `Settings`; invitation activation page.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Settings`; `new.contributor+uat@example.com`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. As Admin in Tenant A, invite `new.contributor+uat@example.com` as Contributor.
@@ -1779,26 +2323,42 @@ Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not a
 
 ## UAT-I02: Deactivate A Member And Verify Access Removal
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: Membership lifecycle and session revocation.
 
-Roles: Admin and Contributor.
+Role: Admin and Contributor.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
-Tenant: Tenant A.
+Test tenant: Tenant A.
 
+Tab or page: `Settings` -> `Users and memberships` and `Audit log`.
+
+
+Execution map:
+- Start location: `Settings` -> `Users and memberships` and `Audit log`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Settings`; `Users and memberships`; `Audit log`; `Active`; `Deactivate membership`; `Deactivate`; `Deactivated`; `404`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
-1. Sign in as the active Contributor and capture `GET /api/me/access` and one permitted tenant read.
-2. In a separate Admin session, deactivate the Contributor membership.
-3. Retry the tenant read and a permitted mutation from the original Contributor session.
-4. Reload and use browser back on a protected route.
-5. Reactivate only if the implemented lifecycle permits it, then capture the restored permission state.
-6. Attempt to deactivate a Tenant B membership while operating in Tenant A.
+1. Sign in as the synthetic Contributor and open `Settings` -> `Users and memberships`.
+2. Record the Contributor's displayed membership ID and confirm the membership status is `Active`.
+3. In a separate Admin session, open the same tenant's membership list and select that Contributor.
+4. Click `Deactivate membership` or the equivalent action exposed by the current UI.
+5. Enter `Synthetic UAT deactivation test; access should be removed without deleting audit history.` in the required reason field.
+6. Confirm the UI warns before the change and click the final `Deactivate` action once.
+7. Confirm the member row changes to `Deactivated` and the audit log records the actor, target membership, reason, and timestamp.
+8. Return to the original Contributor session and retry `GET /api/me/access`, a permitted tenant read, and a permitted mutation.
+9. Confirm the read and mutation are denied, protected routes do not reload usable data, and no new business record is created.
+10. Confirm the Owner and last active Admin cannot be deactivated.
+11. While operating in Tenant A, submit a Tenant B membership ID and confirm `404` or a safe authorization denial without Tenant B disclosure.
 
 Expected result: Deactivation removes access at the documented authorization boundary even for an existing session. Cross-tenant membership identifiers are not disclosed, and unauthorized operations create no business side effects.
 
@@ -1814,16 +2374,25 @@ Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not a
 
 Category: Tenant selection and commercial lifecycle metadata.
 
-Roles: Multi-tenant Advisor and Platform Operator.
+Role: Multi-tenant Advisor and Platform Operator.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
-Tenants: Tenant A, Tenant B, and disposable pilot subscription fixtures.
+Test tenants: Tenant A, Tenant B, and disposable pilot subscription fixtures.
 
+Tab or page: `Tenant switcher`, `Settings` -> `Subscription`, and workspace dashboard.
+
+
+Execution map:
+- Start location: `Tenant switcher`, `Settings` -> `Subscription`, and workspace dashboard.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Tenant switcher`; `Settings`; `Subscription`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. As an Advisor with explicit memberships in A and B, list available tenants and select A.
@@ -1855,7 +2424,7 @@ Role: Compliance Manager and Auditor.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
@@ -1863,6 +2432,13 @@ Tab: `Dashboard`.
 
 Prerequisite: Original contract, obligation, evidence, deliverable, CMMC, and POA&M fixtures exist.
 
+
+Execution map:
+- Start location: `Dashboard`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Dashboard`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Open Dashboard and wait for loading to finish.
@@ -1888,13 +2464,15 @@ Current-state label: Implemented for document extraction candidates, clause revi
 
 ## UAT-X01: Review Extracted Clause Candidates
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: Contract document extraction and human review.
 
 Role: Compliance Manager.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
@@ -1902,6 +2480,13 @@ Tab: `Contracts`.
 
 Prerequisite: UAT-04 completed extraction for `demo-nc-contract.txt`.
 
+
+Execution map:
+- Start location: `Contracts`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Contracts`; `demo-nc-contract.txt`; `Accepted`; `Rejected`; `Needs clarification`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Open the document extraction results and confirm each candidate identifies the source document and extracted clause reference.
@@ -1924,18 +2509,27 @@ Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not a
 
 ## UAT-X02: Evaluate Applicability And Suggested Obligations
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: Applicability facts, rules, suggested obligations, and expert review.
 
 Role: Compliance Manager; qualified reviewer for final review actions.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
-Tabs: `Profile`, `Contracts`, and `Obligations`; API harness where no dedicated UI exists.
+Tab or page: `Profile`, `Contracts`, and `Obligations`; API harness only where no dedicated UI exists.
 
+
+Execution map:
+- Start location: `Profile`, `Contracts`, and `Obligations`; API harness only where no dedicated UI exists.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Profile`; `Contracts`; `Obligations`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Save synthetic applicability facts derived from the completed profile and contract.
@@ -1958,18 +2552,27 @@ Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not a
 
 ## UAT-X03: Verify SAM Lookup And Contract Size Checks
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: Optional entity lookup and size-assistance workflows.
 
 Role: Compliance Manager.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
-Tabs: `Profile` and `Contracts`.
+Tab or page: `Profile` and `Contracts`.
 
+
+Execution map:
+- Start location: `Profile` and `Contracts`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Profile`; `Contracts`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Search the configured SAM provider using the synthetic UEI; if the provider is disabled, record the lookup step `Blocked by environment`.
@@ -1993,7 +2596,7 @@ Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not a
 
 Category: Compliance-content governance.
 
-Roles: Qualified content reviewer and unauthorized tenant user.
+Role: Qualified content reviewer and unauthorized tenant user.
 
 Tenant context: Governed content scope and synthetic Tenant A; no production content changes unless separately approved.
 
@@ -2001,8 +2604,15 @@ Test data: Use a disposable synthetic clause/obligation revision with `example.i
 
 Preconditions: Use an approved disposable environment. Development import must be disabled outside Development.
 
-Page/API: Clause library, content review endpoints, and development-only import endpoint.
+Tab or page: `Obligations` -> `Clause library` and content review; development-only import endpoint where no UI exists.
 
+
+Execution map:
+- Start location: `Obligations` -> `Clause library` and content review; development-only import endpoint where no UI exists.
+- Form and control/value anchors: `example.invalid`; `Obligations`; `Clause library`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Create or import the synthetic draft only in Development and confirm draft/rejected content is hidden from normal customer searches.
@@ -2028,18 +2638,27 @@ Current-state label: Implemented for task CRUD, signed-cursor search, calendar a
 
 ## UAT-W01: Create, Search, Complete, Reopen, And Regenerate Tasks
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: Compliance task management.
 
-Roles: Compliance Manager and Contributor.
+Role: Compliance Manager and Contributor.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
-Tabs: `Calendar` and linked module views.
+Tab or page: `Calendar` and linked module views.
 
+
+Execution map:
+- Start location: `Calendar` and linked module views.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Calendar`; `Review synthetic MFA evidence`; `T+14`; `T-1`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Create `Review synthetic MFA evidence` with owner Devin Brooks, due `T+14`, and a link to the synthetic evidence item.
@@ -2064,27 +2683,56 @@ Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not a
 
 Category: Notifications and due-date reminders.
 
-Role: Contributor receiving work; Compliance Manager assigning work.
+Current-state label: Partially implemented. Notification preferences persist in the UI, assignment notifications are tenant-scoped and deduplicated, and due-date reminder runs are deduplicated. The current reminder service does not apply the stored due-soon/overdue toggles or a user timezone, and the UI does not expose a timezone field. Do not mark preference-based suppression or timezone behavior as implemented from this case.
+
+Role: Contributor receiving work and managing personal notification preferences; Compliance Manager assigning work; Owner/Admin only for tenant-administration controls.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
-Tabs: `Settings`, notification bell, and `Calendar`.
+Tab or page: `Settings` -> `Notification preferences` and `Due-date reminder run`; `Obligations` -> selected obligation -> `View details`; top-bar `Notifications`; `Calendar` for task visibility.
 
+
+Execution map:
+- Start location: `Settings`, notification bell, and `Calendar`.
+- Form and control/value anchors: `Settings`; `Notification preferences`; `Preferences and reminder runs`; `Assignment emails`; `Due soon`; `Overdue`; `Evidence requests`; `Certification renewals`; `CMMC affirmations`; `Save preferences`; `Due-date reminder run`; `Lead time days`; `Run reminders`; `Obligations`; `View details`; `Assign by`; `Tenant member`; `Also send assignment email`; `Assign owner`; `Notifications`; `Open`; `Mark notification as read`; `Calendar`; `Owner`; `Contract`; `Apply filters`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
-1. As Contributor, save the Notification preference values from Test Data and reload.
-2. As Compliance Manager, assign the obligation and task to the Contributor and request assignment email.
-3. Confirm one in-app notification is created and can be marked read.
-4. Run due-date reminders twice for the same eligibility window.
-5. Confirm reminders are deduplicated and respect preference/time-zone settings.
-6. If email delivery is enabled, verify only a generic authenticated-link message is sent; otherwise mark email delivery `Blocked by environment`.
-7. Simulate provider failure and confirm assignment persistence is not rolled back or duplicated.
+1. Switch to the synthetic `Contributor` test context.
+2. Confirm the `Settings` tab is visible under `Administration`. A Contributor must not receive tenant-mode, team-member, checklist, audit-log, or other tenant-administration controls.
+3. Click the `Settings` tab and find `Notification preferences` -> `Preferences and reminder runs`.
+4. Set these checkboxes exactly as shown, then click `Save preferences`:
 
-Expected result: Preferences persist safely, in-app notifications and reminders are tenant-scoped and deduplicated, and external email failure is explicit without exposing record content.
+| Checkbox | Synthetic value |
+| --- | --- |
+| `Assignment emails` | Checked |
+| `Due soon` | Checked |
+| `Overdue` | Checked |
+| `Evidence requests` | Checked |
+| `Certification renewals` | Checked |
+| `CMMC affirmations` | Checked |
+
+5. Reload `Settings` and confirm the six checkbox values remain selected. Record the response or confirmation; this verifies persistence only.
+6. Switch to `Compliance Manager`, open `Obligations`, and locate the obligation for contract `DEMO-NC-26-0007` titled `Basic Safeguarding of Covered Contractor Information Systems`.
+7. Click its `View details` control. In the obligation detail form, set `Assign by` = `Tenant member`, choose the synthetic Contributor member, check `Also send assignment email`, and click `Assign owner` once.
+8. Confirm the obligation owner and linked task owner change to the selected Contributor. Record the obligation ID and task ID returned or displayed.
+9. Switch back to the Contributor context and click the top-bar `Notifications` button.
+10. Confirm one assignment notification for the synthetic obligation is listed. Click its `Open` link, then click `Mark notification as read`. Confirm the unread count/state changes and the notification remains tenant-scoped.
+11. As the Contributor, open `Settings` -> `Notification preferences` -> `Due-date reminder run`. Set `Lead time days` to `14` and click `Run reminders` once.
+12. Record `Upcoming selected`, `Overdue selected`, `Created`, `Skipped`, `Failed`, and each returned reminder item. If the display does not show `Skipped`, use the second-run count and the notification list to prove deduplication.
+13. Click `Run reminders` a second time with the same `Lead time days` value. Confirm no second reminder is created for the same task, category, user, and due-date window.
+14. Open `Calendar`, select the task owner in `Owner`, select the linked contract in `Contract`, click `Apply filters`, and confirm the assigned task appears once.
+15. If email delivery is enabled, verify the message contains only a generic authenticated link and no evidence contents, contract text, CUI, or secrets. If the provider is unavailable, record only email delivery as `Blocked by environment`.
+16. Treat the following as an explicit limitation check, not a pass condition: uncheck `Due soon` and `Overdue`, save, rerun reminders for a controlled fixture, and record whether the service still creates reminders. The current implementation may still create date-eligible reminders because the reminder service does not consult these stored toggles.
+17. Restore all six checkboxes to the values in Step 4 and save preferences. Do not enter or test a timezone value; no timezone control is exposed in the current form.
+
+Expected result: The six preference values persist; assignment creates one tenant-scoped in-app notification and, when configured, an email delivery attempt; reminder runs are date-eligible and deduplicated on repeat. Preference suppression and timezone behavior are recorded as a current implementation gap if observed, not claimed as implemented.
 
 Reason: Notification reliability must not create duplicate messages, cross-tenant recipients, or unsafe customer data in email.
 
@@ -2098,7 +2746,7 @@ Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not a
 
 Category: Compliance checklist templates and tenant checklists.
 
-Roles: Compliance Manager and Auditor.
+Role: Compliance Manager and Auditor.
 
 Tenant context: Active synthetic Tenant A; Tenant B identifiers are used only for negative checks.
 
@@ -2106,16 +2754,26 @@ Test data: Use a published synthetic-safe checklist template and item notes cont
 
 Preconditions: At least one eligible checklist template is available for the tested content revision.
 
-Tab/API: Applicable readiness panel or `/api/compliance/checklists` API.
+Tab or page: `Tasks` or `Checklists` readiness panel; `/api/compliance/checklists` only for the explicit API negative checks.
 
+
+Execution map:
+- Start location: `Tasks` or `Checklists` readiness panel; `/api/compliance/checklists` only for the explicit API negative checks.
+- Form and control/value anchors: `Tasks`; `Checklists`; `New checklist`; `Synthetic annual access review checklist`; `In progress`; `Complete`; `Not applicable`; `Not applicable to synthetic No-CUI support scope.`; `Blocked`; `Security`; `Confirm synthetic access-review evidence.`; `Auditor`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
-1. List checklist templates and inspect source/review metadata.
-2. Create a tenant checklist from an eligible template.
-3. Update separate items to in-progress, complete, not-applicable with rationale, and blocked with owner/follow-up.
-4. Reload and compare progress calculations with item states.
-5. Attempt a stale update, unsupported status, missing rationale, draft template, and Tenant B checklist/item ID.
-6. Repeat item mutations as Auditor.
+1. Open the `Tasks` or `Checklists` workflow exposed by the current navigation.
+2. List checklist templates and select the published, non-draft synthetic template available for the tenant.
+3. Confirm the template shows its source, review state, version, and item count before creating a checklist.
+4. Click `New checklist`, select the template, enter `Synthetic annual access review checklist` as the checklist name, and save it.
+5. Set one item to `In progress`, one to `Complete`, one to `Not applicable` with rationale `Not applicable to synthetic No-CUI support scope.`, and one to `Blocked` with owner `Security` and follow-up `Confirm synthetic access-review evidence.`.
+6. Confirm the progress summary changes when item states change and that completed, not-applicable, and blocked counts are labeled.
+7. Reload the checklist and confirm every item, rationale, owner, and progress value persists.
+8. Attempt a stale update, unsupported status, missing not-applicable rationale, draft template, and Tenant B checklist ID.
+9. Repeat an item mutation as `Auditor` and confirm it is denied without changing progress or history.
 
 Expected result: Checklist instances and progress remain tenant-scoped, source-linked, role-controlled, version-safe, and auditable; completion never becomes a certification or official compliance claim.
 
@@ -2133,13 +2791,15 @@ Current-state label: Implemented for metadata, private file lifecycle, classific
 
 ## UAT-E01: Upload, Download, Replace, And Delete An Allowed Evidence File
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: Evidence file lifecycle and malware scanning.
 
 Role: Contributor; Auditor for read-only checks.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
@@ -2147,6 +2807,13 @@ Tab: `Evidence`.
 
 Prerequisite: UAT-10 and UAT-11 are complete.
 
+
+Execution map:
+- Start location: `Evidence`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Evidence`; `uat-mfa-summary.txt`; `FCI`; `uat-mfa-summary-v2.txt`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Request an upload intent for `uat-mfa-summary.txt` with `FCI` classification and the required acknowledgement.
@@ -2169,26 +2836,37 @@ Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not a
 
 ## UAT-E02: Review Evidence And Enforce Separation Of Responsibility
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: Evidence review and approval.
 
-Roles: Contributor submitter, authorized reviewer, Auditor.
+Role: Contributor submitter, authorized reviewer, Auditor.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
 Tab: `Evidence`.
 
+
+Execution map:
+- Start location: `Evidence`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Evidence`; `Contributor`; `New evidence`; `Contributor submitted access review - synthetic`; `FCI`; `Submitted`; `Security`; `Synthetic evidence submitted for reviewer separation test.`; `Evidence list`; `403`; `Classification review and history`; `Synthetic reviewer confirmed FCI-only content.`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
-1. Create a new synthetic evidence item as Contributor and submit it for review.
-2. Attempt to approve it as the submitter where separation of responsibility is configured.
-3. Approve it as the authorized reviewer with review date and notes.
-4. Edit the evidence metadata and confirm prior approval resets when the implemented contract requires re-review.
-5. Return it for correction, resubmit, and approve again.
-6. Attempt review against a Tenant B item and repeat a stale decision.
+1. As `Contributor`, open `Evidence`, click `New evidence`, and create a synthetic item titled `Contributor submitted access review - synthetic` with classification `FCI`, status `Submitted`, owner `Security`, and reason `Synthetic evidence submitted for reviewer separation test.`.
+2. Record the evidence ID and confirm the item is visible in `Evidence list`.
+3. As the same Contributor, attempt to approve or review the item and confirm the UI hides the action or the API returns `403` because the submitter cannot approve their own record.
+4. As the authorized reviewer, open `Classification review and history`, inspect the item, enter `Synthetic reviewer confirmed FCI-only content.` as the review reason, and approve it.
+5. Confirm reviewer, review date, status, and classification history are displayed.
+6. Edit the evidence metadata in a way that requires re-review and confirm the prior approval is reset or marked stale according to the current lifecycle.
+7. Return the item for correction, resubmit it, and approve it again with a new review reason.
+8. Attempt to review a Tenant B item and repeat a stale decision; confirm no cross-tenant disclosure or duplicate history mutation.
 
 Expected result: Review state, reviewer identity, review date, notes, reset behavior, and history are visible and tenant-scoped. Unauthorized, self-review-restricted, stale, and cross-tenant decisions fail without false approval.
 
@@ -2202,26 +2880,39 @@ Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not a
 
 ## UAT-E03: Complete An Evidence Request Workflow
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: Evidence requests and collaboration.
 
-Roles: Compliance Manager requester, Contributor respondent, reviewer.
+Role: Compliance Manager requester, Contributor respondent, reviewer.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
-Tabs: `Evidence`, `Calendar`, and notification bell.
+Tab or page: `Evidence`, `Calendar`, and notification bell.
 
+
+Execution map:
+- Start location: `Evidence`, `Calendar`, and notification bell.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Evidence`; `Calendar`; `Evidence requests`; `New request`; `Synthetic annual access-review evidence request`; `AC.L1-3.1.1`; `Create request`; `MFA configuration summary - synthetic`; `Synthetic correction: add the review period.`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
-1. Create `Synthetic annual access-review evidence request` for the Contributor with due `T+14` and the synthetic control/obligation scope.
-2. Confirm it appears in the request list, calendar, and recipient notification.
-3. Send reminders twice and verify deduplication.
-4. As Contributor, link the allowed evidence item and submit the request.
-5. As reviewer, return it with a correction note, then accept the corrected resubmission.
-6. Attempt submission with prohibited, expired, missing, or Tenant B evidence.
+1. Open `Evidence` and locate `Evidence requests` or the evidence-request workflow.
+2. Click `New request` and enter `Synthetic annual access-review evidence request` as the title.
+3. Set recipient/owner to the synthetic Contributor, due date to 14 days after the test date, control to `AC.L1-3.1.1`, and obligation to the generated synthetic obligation when available.
+4. Enter `Provide the synthetic annual access-review summary; do not upload real CUI.` as the request description and click `Create request` once.
+5. Confirm the request appears in the request list, the Calendar, and the recipient notification center when notifications are configured.
+6. Send the reminder twice and confirm only one reminder is created for the same request window.
+7. As Contributor, attach `MFA configuration summary - synthetic` and submit the request.
+8. As reviewer, return it with `Synthetic correction: add the review period.` and confirm the request returns to the submitter.
+9. Resubmit the corrected request and accept it as reviewer.
+10. Attempt to submit prohibited, expired, missing, or Tenant B evidence and confirm the request remains unchanged.
 
 Expected result: Request ownership, due date, evidence link, submission/review history, reminders, calendar, and audit remain consistent; ineligible evidence cannot satisfy the request.
 
@@ -2237,16 +2928,23 @@ Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not a
 
 Category: No-CUI classification governance.
 
-Roles: Contributor, classification reviewer, and support administrator.
+Role: Contributor, classification reviewer, and support administrator.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
-Tabs: `Evidence` and `Settings`.
+Tab or page: `Evidence` and `Settings`.
 
+
+Execution map:
+- Start location: `Evidence` and `Settings`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Evidence`; `Settings`; `FCI`; `Unknown`; `Prohibited`; `Cui`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Create the allowed synthetic classified note with `FCI` and a reason.
@@ -2272,26 +2970,40 @@ Current-state label: Implemented as internal readiness workflow. It does not cer
 
 ## UAT-C05: Create Gaps And Close A POA&M Item
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: CMMC gaps, remediation, accepted risk, and closure.
 
 Role: Compliance Manager; reviewer for closure.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
 Tab: `CMMC`.
 
+
+Execution map:
+- Start location: `CMMC`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `CMMC`; `No-CUI Level 1 readiness workspace`; `Control readiness`; `AC.L1-3.1.1`; `POA&M remediation`; `New POA&M`; `Control`; `High`; `Risk`; `Open`; `Status`; `Security`; `Owner`; `2026-07-15`; `Synthetic UAT gap: document annual access review evidence.`; `Gap`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
-1. Open the Level 1 assessment and inspect the gap projection for `AC.L1-3.1.1`.
-2. Create or update a POA&M with High severity, Security owner, `T+14`, remediation plan, and synthetic compensating-control text.
-3. Attempt closure without required notes/evidence and confirm validation.
-4. Link the reviewed evidence item, enter closure notes, and close the item.
-5. Reopen or update only where the lifecycle permits and confirm task/calendar synchronization.
-6. Submit an expired/prohibited/Tenant B evidence link and a stale concurrent closure.
+1. Open `CMMC` and select the `No-CUI Level 1 readiness workspace` created in UAT-C01.
+2. Open `Control readiness` and locate `AC.L1-3.1.1`.
+3. Confirm the control shows the current status, evidence count, task count, and any existing gap warning.
+4. Open `POA&M remediation` and click `New POA&M`.
+5. Enter `AC.L1-3.1.1` for `Control`, `High` for `Risk`, `Open` for `Status`, `Security` for `Owner`, and the synthetic UAT due date `2026-07-15`.
+6. Enter `Synthetic UAT gap: document annual access review evidence.` for `Gap` and `Upload synthetic access review summary and link it to the control.` for `Remediation plan`.
+7. Click `Create POA&M` and confirm the item and linked CMMC calendar task appear.
+8. Attempt to close it without closure notes or evidence and confirm validation prevents closure.
+9. Link the reviewed synthetic evidence, enter `Synthetic reviewer confirmed the access-review evidence is sufficient.` as closure notes, and close the item.
+10. Confirm the control, POA&M, task, calendar, and audit history show the same final state.
+11. Attempt an expired, prohibited, Tenant B, or stale evidence link and confirm no closure occurs.
 
 Expected result: Gap, POA&M, task, evidence, owner, due date, compensating control or accepted-risk metadata, closure, and history remain traceable and conflict-safe.
 
@@ -2305,26 +3017,38 @@ Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not a
 
 ## UAT-C06: Record Affirmation And Responsibility Assignments
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: CMMC affirmation preparation and responsibility matrix.
 
 Role: Compliance Manager; Owner where required.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
 Tab: `CMMC`.
 
+
+Execution map:
+- Start location: `CMMC`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `CMMC`; `Reports`; `Affirmation`; `SPRS preparation`; `New affirmation`; `Synthetic Level 1 affirmation preparation`; `Security`; `2027-06-15`; `Shared responsibility`; `Responsibility assignments`; `Customer`; `Provider`; `Shared`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
-1. Create a synthetic affirmation-preparation record with owner and due date.
-2. Update its status and review metadata without entering an external SPRS submission claim.
-3. Assign representative controls as Customer, Provider, and Shared responsibility.
-4. Export the responsibility matrix and compare every assignment with the UI/API.
-5. Attempt unauthorized, stale, and Tenant B updates and exports.
-6. Confirm assignment does not grant record access or change the tenant data-handling mode.
+1. Open the `CMMC` or `Reports` area that exposes `Affirmation` or `SPRS preparation`.
+2. Click `New affirmation` or the equivalent preparation action.
+3. Enter `Synthetic Level 1 affirmation preparation` as the record name, `Security` as owner, and `2027-06-15` as the synthetic due date.
+4. Save the preparation record and confirm its status and review metadata are displayed.
+5. Open `Shared responsibility` or `Responsibility assignments` and assign representative controls as `Customer`, `Provider`, and `Shared` using the available controlled values.
+6. Save the assignments and confirm the matrix shows the assigned party beside each control.
+7. Export or open the matrix and reconcile every assignment with the UI and API response.
+8. Attempt unauthorized, stale, and Tenant B updates and exports; confirm they are denied without changing the record or data-handling mode.
+9. Confirm no screen or export claims that an external SPRS submission was completed.
 
 Expected result: Affirmation preparation and responsibility assignments are tenant-scoped, versioned, auditable, and accurately exported without representing external affirmation or authorization.
 
@@ -2338,18 +3062,27 @@ Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not a
 
 ## UAT-C07: Calculate And Review A Draft SPRS Score
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: SPRS readiness calculation.
 
 Role: Compliance Manager; Auditor for read-only review.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
 Tab: `CMMC`.
 
+
+Execution map:
+- Start location: `CMMC`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `CMMC`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. List available scoring rule sets and identify the published, effective source revision.
@@ -2372,18 +3105,27 @@ Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not a
 
 ## UAT-C08: Build, Approve, Package, And Share An SSP Narrative
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: SSP internal-review workflow.
 
-Roles: Compliance Manager, reviewer, Owner for external-share approval, Auditor.
+Role: Compliance Manager, reviewer, Owner for external-share approval, Auditor.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
 Tab: `CMMC`; SSP panels.
 
+
+Execution map:
+- Start location: `CMMC`; SSP panels.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `CMMC`; `3.1 Access Control`; `FCI`; `Internal SSP review package - synthetic`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Create SSP section `3.1 Access Control` and link governed synthetic sources.
@@ -2405,11 +3147,154 @@ Evidence to capture: Role and tenant context, relevant UI state, sanitized reque
 
 Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not applicable ☐ Not run | Defect: ______ | Tester: ______ | Date/time: ______ | Evidence location: ______ | Notes: ______
 
+## UAT-C09: Create And Review System Security Plan Sections
+
+Category: System Security Plan section structure, source references, linked records, and lifecycle.
+
+Current-state label: Implemented as an internal SSP readiness workflow. Section approval does not certify compliance or authorize CUI handling.
+
+Role: Compliance Manager with `ManageCmmc`; Auditor for read-only review.
+
+Tenant context: Active synthetic Tenant A only; use Tenant B record IDs only for negative isolation checks.
+
+Test data: Use the `SSP section`, `SSP source`, and `SSP link` rows in `Test Data`. Use the returned company-profile ID from UAT-P03 or the exact current-tenant source ID; do not invent identifiers.
+
+Preconditions: Complete UAT-P03 and UAT-C01. Confirm the `CMMC` workspace exposes `System Security Plan sections` and the tester has `ManageCmmc`. If the panel is unavailable, mark the case `Blocked by environment`.
+
+Tab or page: `CMMC` -> `System Security Plan sections` -> `SSP section editor`.
+
+
+Execution map:
+- Start location: `CMMC` -> `System Security Plan sections` -> `SSP section editor`.
+- Form and control/value anchors: `ManageCmmc`; `SSP section`; `SSP source`; `SSP link`; `Test Data`; `CMMC`; `System Security Plan sections`; `Blocked by environment`; `SSP section editor`; `No SSP sections exist for this tenant`; `SystemDescription`; `Section type`; `Synthetic SSP system description`; `Title`; `Security`; `Owner`; `Synthetic company profile and contract`; `Source name`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
+Steps:
+
+1. Open the `CMMC` tab and locate the heading `System Security Plan sections`.
+2. Confirm the empty state says `No SSP sections exist for this tenant` when the tenant has no section, or record the existing synthetic sections without editing them.
+3. In `SSP section editor`, select `SystemDescription` in `Section type`.
+4. Enter `Synthetic SSP system description` in `Title`, `Security` in `Owner`, `Synthetic company profile and contract` in `Source name`, `https://example.invalid/uat/ssp-source` in `Source URL`, and `2026-09-18` in `Source reviewed`.
+5. Select `CompanyProfile` in `Linked record type`, enter the returned company-profile ID in `Linked record ID`, and enter `Synthetic source link for No-CUI UAT` in `Link rationale`.
+6. Click `Create section` and confirm the section card shows `SystemDescription`, `Draft`, owner, version, governed-link count, source-reference count, and lifecycle-event count.
+7. Select the new section card and click `Submit for review`.
+8. Enter `Security` in `Reviewer`, `2026-09-18` in `Review date`, and click `Approve section`.
+9. Confirm the section changes to `Approved`, the editor becomes read-only, and the lifecycle history records the actor, date, and status transition.
+10. Attempt to update the approved section and confirm the control is disabled or the API rejects the mutation.
+11. Click `Supersede` and confirm a superseded section cannot be newly edited or approved. Attempt a Tenant B linked record, missing source URL, invalid URL, missing source-review date, stale version, and Auditor mutation.
+
+Expected result: The SSP section stores its type, title, owner, source metadata, linked record, lifecycle, reviewer, and history in the active tenant. Approved sections are not silently overwritten.
+
+Reason: An SSP section without source provenance, ownership, linked records, and lifecycle state cannot be reliably reviewed or included in a controlled package.
+
+Security expectation: `ViewCmmc` controls reads, `ManageCmmc` controls create/update/status changes, tenant scope is enforced server-side, and stale or cross-tenant IDs do not disclose records.
+
+Evidence to capture: Section form, selected field values, created section ID, lifecycle states, reviewer/date, history, sanitized responses/statuses, and denied mutation results.
+
+Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not applicable ☐ Not run | Defect: ______ | Tester: ______ | Date/time: ______ | Evidence location: ______ | Notes: ______
+
+## UAT-C10: Generate, Edit, Compare, And Approve An SSP Narrative
+
+Category: Source-bounded SSP narrative drafting, human review, classification, and comparison.
+
+Current-state label: Implemented as deterministic/source-backed draft workflow. Generated or edited text remains draft-only until the implemented approval action succeeds.
+
+Role: Compliance Manager with `ManageCmmc`; reviewer; Auditor for read-only comparison.
+
+Tenant context: Active synthetic Tenant A; never use a Tenant B source ID.
+
+Test data: Use the approved synthetic evidence ID from UAT-11/E01, `Synthetic SSP narrative` text, reviewer notes `Synthetic reviewer note; source links checked.`, classification `Unclassified`, and review date `2026-09-18`.
+
+Preconditions: UAT-C09 has an approved or reviewable `Synthetic SSP system description` section and UAT-11/E01 has an approved same-tenant source. Record both IDs from the UI.
+
+Tab or page: `CMMC` -> selected SSP section -> `SSP narrative builder`.
+
+
+Execution map:
+- Start location: `CMMC` -> selected SSP section -> `SSP narrative builder`.
+- Form and control/value anchors: `ManageCmmc`; `Synthetic SSP narrative`; `Synthetic reviewer note; source links checked.`; `Unclassified`; `2026-09-18`; `Synthetic SSP system description`; `CMMC`; `SSP narrative builder`; `Generate from an approved source`; `Evidence`; `Source type`; `Approved source record ID`; `Add another source`; `Generate draft`; `Draft narrative`; `Draft-human review required`; `Source links`; `Narrative text`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
+Steps:
+
+1. Select `Synthetic SSP system description` from the SSP section list.
+2. In `Generate from an approved source`, select `Evidence` in `Source type` and enter the approved evidence ID in `Approved source record ID`.
+3. Click `Add another source` only if a second approved source is required, then click `Generate draft`.
+4. Confirm the narrative list displays a `Draft narrative`, `Draft-human review required`, source-link count, and classification.
+5. Open the narrative and confirm `Source links` list the selected approved record and its classification.
+6. Replace `Narrative text` with the synthetic text in `Test Data`, enter the reviewer note, keep `Content classification` as `Unclassified`, and click `Save draft`.
+7. Confirm the message says the narrative remains draft-only and that the version/source links persist after reload.
+8. Click `Compare with current approved` and confirm the comparison distinguishes `Current approved narrative` from `Proposed narrative`; if no approved narrative exists, confirm the explicit empty state.
+9. Enter `2026-09-18` in `Review date` and click `Approve narrative` as the authorized reviewer.
+10. Confirm the narrative changes to approved and records reviewer/date. Generate a later draft, edit it, and approve it; confirm the previous approved narrative is superseded rather than overwritten.
+11. Attempt duplicate source IDs, a Tenant B source ID, an unavailable/expired/prohibited/unknown source, CUI classification in a non-approved tenant, missing review date, and Auditor approval. Confirm each is rejected without an approved narrative.
+
+Expected result: Narrative generation is bounded to approved source identifiers, edits are retained as drafts, comparison shows approved versus proposed text, and approval records reviewer/date while preserving supersession history.
+
+Reason: Source-linked narrative assistance can create unsupported claims unless provenance, classification, draft state, reviewer action, and comparison are visible and enforced.
+
+Security expectation: `ManageCmmc`, tenant scope, source eligibility, classification policy, version checks, reviewer metadata, and audit behavior are enforced by the API. Never paste real CUI or sensitive operational information.
+
+Evidence to capture: Section and narrative IDs, selected source IDs, draft/approved labels, comparison view, reviewer/date, version history, sanitized error responses, and negative-test no-side-effect proof.
+
+Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not applicable ☐ Not run | Defect: ______ | Tester: ______ | Date/time: ______ | Evidence location: ______ | Notes: ______
+
+## UAT-C11: Generate And Review An SSP Review Package
+
+Category: Immutable internal SSP review package generation, eligibility filtering, metadata, and history.
+
+Current-state label: Implemented for internal review snapshots. The package is not a certification submission, assessor determination, government approval, or authorization to handle real CUI.
+
+Role: Compliance Manager with `ExportReports`; Owner for external-share approval; Auditor for denied generation.
+
+Tenant context: Active synthetic Tenant A only; use returned same-tenant IDs.
+
+Test data: Use `SSP-UAT-2026.09.18`, reviewer `Security`, system boundary `Synthetic FeDril No-CUI workspace, evidence, contract, and readiness records only.`, the approved evidence ID from UAT-11/E01, and the CMMC POA&M ID from UAT-C05.
+
+Preconditions: UAT-C09 has at least one approved or eligible SSP section. UAT-C10 has a source-backed narrative or a documented empty-state result. UAT-11/E01 evidence is approved, current, clean, and same-tenant. UAT-C05 provides a same-tenant POA&M ID. If `ExportReports` is unavailable, mark the generation steps `Blocked by environment`.
+
+Tab or page: `CMMC` -> `SSP review packages` -> `Generate SSP review package`.
+
+
+Execution map:
+- Start location: `CMMC` -> `SSP review packages` -> `Generate SSP review package`.
+- Form and control/value anchors: `ExportReports`; `SSP-UAT-2026.09.18`; `Security`; `Blocked by environment`; `CMMC`; `SSP review packages`; `Generate SSP review package`; `Package version`; `Package reviewer`; `System boundary`; `Approved evidence IDs`; `POA&M item IDs`; `Generate internal review package`; `SSP package history`; `Human-readable report`; `Machine-readable metadata`; `ManageTenant`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
+Steps:
+
+1. Open the `CMMC` tab and locate the `SSP review packages` panel.
+2. Confirm the panel explains that packages are immutable internal-review snapshots and that external sharing requires separate approval.
+3. Enter `SSP-UAT-2026.09.18` in `Package version`, `Security` in `Package reviewer`, and the synthetic system boundary in `System boundary`.
+4. Enter the approved evidence ID in `Approved evidence IDs`, one UUID per line, and the POA&M ID in `POA&M item IDs`.
+5. Click `Generate internal review package` once.
+6. Confirm the success message says the internal SSP review package was generated and audit logged.
+7. In `SSP package history`, confirm the package row shows version, status, generated date, and section count. Select it and expand `Human-readable report` and `Machine-readable metadata`.
+8. Confirm the package contains tenant, system boundary, section statuses, reviewer metadata, source references, approved evidence references, POA&M references, disclaimer, and package history.
+9. Reload the page and confirm the package remains immutable and appears once. Repeat the same version only if the API documents idempotency; otherwise record the duplicate/version conflict.
+10. Attempt to generate with missing reviewer/boundary, unavailable or expired evidence, prohibited/unknown/CUI evidence, a Tenant B evidence or POA&M ID, and an unauthorized role. Confirm the entire request is rejected without a partial package.
+11. As Owner, inspect the package-specific external-share approval control if exposed. Do not share it in this No-CUI UAT; confirm no package is represented as an external submission or certification artifact.
+
+Expected result: An eligible, tenant-scoped SSP review package is generated as an immutable internal snapshot with source, reviewer, limitation, history, evidence, and POA&M traceability. Ineligible or cross-tenant inputs do not produce a package.
+
+Reason: SSP packages aggregate multiple governed records and must preserve the exact review snapshot rather than silently reflecting later edits.
+
+Security expectation: `ExportReports` controls package read/generation, `ManageTenant` controls external-share approval, tenant isolation and eligibility are server-enforced, and package/audit history is append-only.
+
+Evidence to capture: Package form, package ID, history row, human/machine-readable output, metadata/disclaimer, source IDs, sanitized responses/statuses, audit event, and rejected-input no-side-effect proof.
+
+Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not applicable ☐ Not run | Defect: ______ | Tester: ______ | Date/time: ______ | Evidence location: ______ | Notes: ______
+
 ## Subcontractor And Partner Collaboration UAT
 
 Current-state label: Implemented for subcontractor profiles, flow-downs, supplier obligations, evidence requests, reports, and shared-package lifecycle. External portal identity and approved-package catalogs remain partially implemented.
 
 ## UAT-S01: Create And Review A Subcontractor Profile
+
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
 
 Category: Subcontractor profile and risk status.
 
@@ -2417,20 +3302,40 @@ Role: Compliance Manager.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
 Tab: `Subcontractors`.
 
+
+Execution map:
+- Start location: `Subcontractors`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Subcontractors`; `New subcontractor`; `Legal name`; `Potomac Synthetic Services LLC`; `UEI`; `SUBUAT123456`; `CAGE`; `8UAT2`; `Primary contact`; `Nora Ellis`; `Email`; `nora.ellis+subcontractor-uat@example.com`; `Role`; `Technical support subcontractor`; `Workshare`; `Synthetic help desk support`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
-1. Create `Potomac Synthetic Services LLC` with the synthetic UEI/CAGE/contact values.
-2. Add role, workshare, small-business metadata, insurance/NDA dates, CMMC readiness metadata, and an `FCI only` data-access flag.
-3. Save and confirm risk/expiry indicators are derived from the current values.
-4. Use optional SAM lookup and apply only intended synthetic fields when the provider is configured.
-5. Update one value and verify provenance and audit.
-6. Attempt invalid date/value combinations and Tenant B identifiers.
+1. Open the `Subcontractors` tab and click `New subcontractor`.
+2. Enter the synthetic record:
+   - `Legal name`: `Potomac Synthetic Services LLC`.
+   - `UEI`: `SUBUAT123456`.
+   - `CAGE`: `8UAT2`.
+   - `Primary contact`: `Nora Ellis`.
+   - `Email`: `nora.ellis+subcontractor-uat@example.com`.
+   - `Role`: `Technical support subcontractor`.
+   - `Workshare`: `Synthetic help desk support`.
+   - `Small business`: `Small, SDB`.
+   - `NDA status`: `Signed`.
+   - `Insurance expires`: `2027-01-31`.
+   - `FCI access`: enabled; `CUI access`: disabled; `Export-controlled access`: disabled.
+3. Set `CMMC status` to the available synthetic readiness value and confirm the option is not presented as certification.
+4. Click `Create subcontractor`.
+5. Confirm the profile card shows the saved role, access flags, ownership, expiry indicators, and status.
+6. If SAM lookup is configured, search the synthetic UEI, select only the intended result, and apply it; otherwise record the provider-dependent step as `Blocked by environment`.
+7. Update one field, reload, and confirm provenance and audit history.
+8. Submit invalid dates, unsupported controlled values, and Tenant B identifiers and confirm safe validation or isolation behavior.
 
 Expected result: The tenant-scoped profile, source/provenance, risk indicators, expiration data, and history persist without making an eligibility or compliance determination.
 
@@ -2444,26 +3349,37 @@ Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not a
 
 ## UAT-S02: Track Flow-Downs And Supplier Obligations
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: Flow-down clause and supplier work tracking.
 
 Role: Compliance Manager; Advisor when explicitly assigned.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
 Tab: `Subcontractors`.
 
+
+Execution map:
+- Start location: `Subcontractors`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Subcontractors`; `Potomac Synthetic Services LLC`; `Flow-downs`; `New flow-down`; `FAR 52.204-21`; `DEMO-NC-26-0007`; `Required`; `Synthetic flow-down required for FCI-only subcontractor support.`; `Sent`; `Acknowledged`; `Generate supplier obligations`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
-1. Attach the reviewed `FAR 52.204-21` flow-down to the synthetic subcontractor and contract.
-2. Move status from Required to Sent to Acknowledged using reasons and dates.
-3. Bulk-generate supplier obligations twice from eligible flow-downs.
-4. Confirm one obligation exists with owner, due date, status, source clause, contract, and subcontractor links.
-5. Update owner/status and link eligible evidence.
-6. Attempt a draft clause, Tenant B contract, unrelated evidence, unauthorized role, and stale transition.
+1. Open `Subcontractors`, select `Potomac Synthetic Services LLC`, and open `Flow-downs`.
+2. Click `New flow-down` and select the published `FAR 52.204-21` clause attached to `DEMO-NC-26-0007`.
+3. Set status to `Required`, enter `Synthetic flow-down required for FCI-only subcontractor support.` as the reason, and save.
+4. Move the flow-down through `Sent` and `Acknowledged`, recording the date and reason at each transition.
+5. Click `Generate supplier obligations` twice and confirm only one obligation is created for the eligible flow-down.
+6. Confirm the obligation shows source clause, contract, subcontractor, owner, due date, status, and evidence links.
+7. Update the owner/status and attach eligible synthetic evidence.
+8. Attempt to use a draft clause, Tenant B contract, unrelated evidence, unauthorized role, and stale transition; confirm no invalid obligation or duplicate task is created.
 
 Expected result: Flow-down and supplier-obligation lifecycle is source-linked, idempotent, tenant-scoped, and audited; invalid references create no partial obligations.
 
@@ -2477,18 +3393,27 @@ Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not a
 
 ## UAT-S03: Request Evidence And Generate A Subcontractor Report
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: Subcontractor collaboration and reporting.
 
-Roles: Compliance Manager, external contact without membership, Auditor.
+Role: Compliance Manager, external contact without membership, Auditor.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
-Tabs: `Subcontractors` and `Reports`.
+Tab or page: `Subcontractors` and `Reports`.
 
+
+Execution map:
+- Start location: `Subcontractors` and `Reports`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Subcontractors`; `Reports`; `T+14`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Create an evidence request for the synthetic subcontractor with due date `T+14` and allowed scope.
@@ -2512,16 +3437,23 @@ Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not a
 
 Category: External package access and lifecycle.
 
-Roles: Tenant Admin, explicitly invited external reviewer, unrelated external user.
+Role: Tenant Admin, explicitly invited external reviewer, unrelated external user.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
 Tab: `Settings`; portal API/test route where no production external UI exists.
 
+
+Execution map:
+- Start location: `Settings`; portal API/test route where no production external UI exists.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Settings`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Share the approved synthetic package with an eligible invitation and future expiry.
@@ -2548,26 +3480,37 @@ Current-state label: Implemented for internal preparation, governed schema, immu
 
 ## UAT-SPR01: Configure SPR Applicability And Schedule
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: Subcontracting Plan Reporting applicability preparation.
 
 Role: Compliance Manager.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
 Tab: `Contracts`; SPR applicability panel.
 
+
+Execution map:
+- Start location: `Contracts`; SPR applicability panel.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Contracts`; `SPRS preparation`; `Subcontracting plan reporting`; `New applicability`; `DEMO-NC-26-0007`; `Subcontractor`; `2026-07-01`; `2027-06-30`; `Synthetic UAT contract record`; `Synthetic FCI-only subcontracting-plan reporting preparation.`; `Draft`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
-1. Create an applicability record for `DEMO-NC-26-0007` using the synthetic reporting role and period.
-2. Add source, rationale, effective dates, and reporting schedule.
-3. Attempt activation without required source/rationale and confirm rejection.
-4. Activate the complete record and verify calendar/task generation.
-5. Update or deactivate it and confirm schedule synchronization.
-6. Retry activation and submit a Tenant B contract or stale version.
+1. Open `SPRS preparation` or the `Subcontracting plan reporting` section under the relevant workspace.
+2. Click `New applicability`.
+3. Select contract `DEMO-NC-26-0007`, reporting role `Subcontractor`, period start `2026-07-01`, and period end `2027-06-30`.
+4. Enter source `Synthetic UAT contract record`, rationale `Synthetic FCI-only subcontracting-plan reporting preparation.`, and the displayed reporting schedule.
+5. Save the record and confirm it remains `Draft` until all required fields are present.
+6. Attempt activation with source or rationale blank and confirm validation rejects it.
+7. Activate the complete record and confirm the scheduled task/calendar item appears once.
+8. Update or deactivate it, confirm schedule synchronization, then attempt a stale update and a Tenant B contract reference.
 
 Expected result: Applicability remains an explicit source-backed user workflow; activation is validated, tenant-scoped, auditable, and does not represent a legal reporting determination.
 
@@ -2581,18 +3524,27 @@ Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not a
 
 ## UAT-SPR02: Enter, Import, Review, And Remediate SPR Data
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: SPR report data and governed schema.
 
 Role: Compliance Manager.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
 Tab: `Contracts`; SPR report-data panel.
 
+
+Execution map:
+- Start location: `Contracts`; SPR report-data panel.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Contracts`; `125000`; `spr-uat-valid.csv`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Inspect the current governed schema profile and download the exact import template.
@@ -2621,12 +3573,19 @@ Role: Compliance Manager with export permission; Auditor for read-only review.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
 Tab: `Contracts`; SPR packages panel.
 
+
+Execution map:
+- Start location: `Contracts`; SPR packages panel.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Contracts`; `SAM-SPR-UAT-RECEIPT-001`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Inspect package eligibility and correct all blocking fields using synthetic data.
@@ -2653,26 +3612,37 @@ Current-state label: Implemented. Labor applicability, classification, dashboard
 
 ## UAT-L01: Record Labor Applicability And Wage Evidence
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: Labor applicability readiness.
 
 Role: Compliance Manager.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
 Tab: `Contracts`; Labor applicability panel.
 
+
+Execution map:
+- Start location: `Contracts`; Labor applicability panel.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Contracts`; `DEMO-NC-26-0007`; `Labor classifications`; `Labor applicability`; `New labor applicability`; `Labor standard`; `SCA`; `Owner`; `Compliance`; `Contract period start`; `2026-07-01`; `Contract period end`; `2027-06-30`; `Source clause`; `FAR 52.204-21`; `Rationale`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
-1. Create SCA applicability using the synthetic source, rationale, dates, and responsible owner.
-2. Attempt activation with missing source/rationale and confirm rejection.
-3. Activate the complete record and confirm one linked compliance task.
-4. Upload synthetic wage-determination evidence through the standard acknowledgement, classification, scanning, and private-storage path.
-5. Update status and verify task, evidence, history, and audit linkage.
-6. Attempt a Tenant B clause/evidence reference and prohibited classification.
+1. Open `Contracts`, select `DEMO-NC-26-0007`, and open `Labor classifications` or `Labor applicability`.
+2. Click `New labor applicability`.
+3. Set the synthetic values: `Labor standard` = `SCA`; `Owner` = `Compliance`; `Contract period start` = `2026-07-01`; `Contract period end` = `2027-06-30`; `Source clause` = `FAR 52.204-21`; and `Rationale` = `Synthetic labor applicability record for No-CUI UAT.`.
+4. Attempt to activate with source or rationale blank and confirm validation prevents activation.
+5. Save and activate the complete record, then confirm one linked compliance task is created.
+6. Upload a synthetic wage-determination text file through the standard acknowledgement, classification, scan, and private-storage flow.
+7. Update the applicability status and reconcile the task, evidence, history, and audit event.
+8. Attempt a Tenant B clause/evidence reference and prohibited classification; confirm no record or file is linked.
 
 Expected result: Labor applicability is explicit, source-backed, tenant-scoped, and linked to the shared evidence/task workflow without accepting payroll or real employee data.
 
@@ -2686,18 +3656,27 @@ Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not a
 
 ## UAT-L02: Classify And Reclassify A Synthetic Employee Assignment
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: Labor categories and employee classifications.
 
-Roles: Compliance Manager with sensitive-data permission; ordinary Viewer without it.
+Role: Compliance Manager with sensitive-data permission; ordinary Viewer without it.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
 Tab: `Contracts`; Labor classification panel.
 
+
+Execution map:
+- Start location: `Contracts`; Labor classification panel.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Contracts`; `Help Desk Specialist - Synthetic`; `UAT-EMP-0001`; `T`; `T+180`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Create `Help Desk Specialist - Synthetic` with the test wage/fringe values, source, and effective period.
@@ -2726,21 +3705,30 @@ Role: Compliance Manager and Auditor.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
-Tabs: `Contracts` and `Reports`.
+Tab or page: `Contracts` and `Reports`.
 
 Environment dependency: Execute against the exact release commit only after CI applies its migrations and the focused plus PostgreSQL real-stack tests pass.
 
+
+Execution map:
+- Start location: `Contracts` and `Reports`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Contracts`; `Reports`; `/labor/dashboard`; `Labor`; `DEMO-NC-26-0007`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
-1. Attach the successful build, migration, and labor test evidence; otherwise mark this case `Blocked by environment`.
-2. Filter `/labor/dashboard` by contract, applicability, category, review status, and effective date.
-3. Compare counts and redacted/sensitive views with source records.
-4. Generate the labor compliance report and verify immutable scope, source references, review state, classifications, and disclaimer language.
-5. Attempt unauthorized export, Tenant B scope, prohibited evidence, duplicate generation, and stale data.
+1. Confirm exact-commit CI, migration, and focused labor-test evidence is available. If it is not, stop and mark this case `Blocked by environment`.
+2. Open `/labor/dashboard` or the `Labor` route exposed by the current UI.
+3. Filter by contract `DEMO-NC-26-0007`, applicability status, labor category, review status, and effective date.
+4. Compare counts, owner, dates, source references, and redacted sensitive fields with the underlying labor records.
+5. Generate the labor compliance report and confirm it is an immutable scoped artifact with source references, review state, classifications, and limitation language.
+6. Attempt export as an unauthorized role, with a Tenant B contract, prohibited evidence, duplicate generation, and stale data.
+7. Confirm rejected attempts do not create a report, export, audit success event, or cross-tenant disclosure.
 
 Expected result: After the prerequisite is satisfied, dashboard and report data reconcile and remain tenant-scoped, permission-aware, immutable, and explicitly non-determinative. Until then, this case cannot pass.
 
@@ -2758,18 +3746,27 @@ Current-state label: Implemented for templates, generated-policy lifecycle, sugg
 
 ## UAT-AI01: Generate And Review A Policy From A Template
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: Policy templates and generated policy lifecycle.
 
-Roles: Compliance Manager and authorized reviewer.
+Role: Compliance Manager and authorized reviewer.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
 Tab: API-backed workflow or exposed policy panel.
 
+
+Execution map:
+- Start location: API-backed workflow or exposed policy panel.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Access Control Policy - Synthetic`; `FCI`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. List published templates and select `Access Control Policy - Synthetic` with source/review metadata.
@@ -2798,12 +3795,19 @@ Role: Compliance Manager.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
 Tab: API-backed suggestion or assistance workflow.
 
+
+Execution map:
+- Start location: API-backed suggestion or assistance workflow.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Request a suggestion using governed synthetic source identifiers.
@@ -2830,18 +3834,27 @@ Current-state label: Implemented for current reports, report detail, archive/res
 
 ## UAT-R01: Verify Report, Export, Archive, Restore, And PDF Lifecycle
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: Reporting and immutable artifacts.
 
-Roles: Compliance Manager, user with `ExportReports`, Auditor, Contributor.
+Role: Compliance Manager, user with `ExportReports`, Auditor, Contributor.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
 Tab: `Reports`.
 
+
+Execution map:
+- Start location: `Reports`.
+- Form and control/value anchors: `ExportReports`; `Test Data`; `Blocked by environment`; `Reports`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Generate compliance status, evidence package, CMMC readiness, SPRS readiness, subcontractor, and eligible labor reports.
@@ -2870,12 +3883,19 @@ Role: Owner/Advisor with `ViewAuditLog`; unauthorized Contributor.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
 Tab: `Settings`; API harness for failure injection.
 
+
+Execution map:
+- Start location: `Settings`; API harness for failure injection.
+- Form and control/value anchors: `ViewAuditLog`; `Test Data`; `Blocked by environment`; `Settings`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Filter audit history by actor, action, entity, date, classification, and trace ID; page forward/backward.
@@ -2902,18 +3922,27 @@ Current-state label: Implemented as notices, acknowledgements, readiness evidenc
 
 ## UAT-N01: Verify Contextual Data-Handling Notices And Gating
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: No-CUI notice and acknowledgement enforcement.
 
-Roles: Contributor and Owner.
+Role: Contributor and Owner.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
-Tabs: `Settings`, `Contracts`, `Evidence`, and `Reports`.
+Tab or page: `Settings`, `Contracts`, `Evidence`, and `Reports`.
 
+
+Execution map:
+- Start location: `Settings`, `Contracts`, `Evidence`, and `Reports`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Settings`; `Contracts`; `Evidence`; `Reports`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Retrieve published notices for Onboarding, Contract upload, Evidence upload, Extraction job, Classified note, Report generation, and Support contexts.
@@ -2935,18 +3964,27 @@ Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not a
 
 ## UAT-N02: Exercise CUI-Readiness Checklist And Evidence Without Authorizing CUI
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: Future CUI-readiness governance records.
 
-Roles: Owner, authorized independent approver, ordinary Tenant Admin.
+Role: Owner, authorized independent approver, ordinary Tenant Admin.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
 Tab: `Settings`.
 
+
+Execution map:
+- Start location: `Settings`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Settings`; `Synthetic restore rehearsal record`; `NoCui`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Create a synthetic readiness checklist and update items with owners, dates, sources, and evidence references.
@@ -2968,26 +4006,37 @@ Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not a
 
 ## UAT-N03: Verify Security, Technical, And Incident Readiness Records
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: Operational readiness evidence.
 
-Roles: Authorized owner/reviewer and read-only Auditor.
+Role: Authorized owner/reviewer and read-only Auditor.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
 Tab: `Settings`; Security incident readiness panel.
 
+
+Execution map:
+- Start location: `Settings`; Security incident readiness panel.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Settings`; `Readiness`; `Security readiness`; `Incident readiness`; `Synthetic annual access review`; `Synthetic endpoint baseline`; `Synthetic incident tabletop exercise`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
-1. Create or update synthetic security-review, technical-readiness, and incident-readiness records using no production security detail.
-2. Link only eligible same-tenant readiness evidence.
-3. Attempt approval with missing evidence, unresolved critical findings, expired sources, or stale version.
-4. Approve complete synthetic records using the authorized reviewer.
-5. Compare summary and history projections with individual records and audit events.
-6. Attempt unauthorized and Tenant B reads, writes, and approvals.
+1. Open the `Readiness`, `Security readiness`, or `Incident readiness` section exposed by the current workspace.
+2. Create or update three synthetic records: a security review, a technical-readiness record, and an incident-readiness record.
+3. Use only synthetic descriptions such as `Synthetic annual access review`, `Synthetic endpoint baseline`, and `Synthetic incident tabletop exercise`; do not enter production security details.
+4. Link only same-tenant evidence with allowed classifications and record owner, status, effective date, and review date.
+5. Attempt approval with missing evidence, unresolved critical findings, expired source dates, and a stale revision; confirm validation or conflict handling.
+6. Approve the complete synthetic records as the authorized reviewer.
+7. Compare the summary, detail, history, and audit log projections with the saved records.
+8. Attempt unauthorized and Tenant B reads, writes, and approvals; confirm no disclosure or state change.
 
 Expected result: Readiness records and approvals are evidence-linked, role-separated where configured, version-safe, tenant-scoped, and auditable without exposing sensitive incident data.
 
@@ -2999,28 +4048,279 @@ Evidence to capture: Role and tenant context, relevant UI state, sanitized reque
 
 Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not applicable ☐ Not run | Defect: ______ | Tester: ______ | Date/time: ______ | Evidence location: ______ | Notes: ______
 
+## UAT-N06: Complete And Approve A Security Review
+
+Category: Security review checklist, findings, accepted risks, and approval.
+
+Current-state label: Implemented as a tenant-scoped, versioned readiness record. It is not a production security assessment or certification determination.
+
+Role: Owner or authorized readiness approver; Auditor for read-only/denied checks.
+
+Tenant context: Active synthetic Tenant A only; use recorded Tenant B identifiers only for negative isolation checks.
+
+Test data: Use the `Security review`, `Security finding`, and `Readiness evidence` rows in `Test Data`. Copy the approved evidence ID returned by the UI; do not invent identifiers.
+
+Preconditions: Complete UAT-10 and UAT-11 or UAT-E01 so an approved, clean synthetic evidence option is available. Confirm the active tenant is synthetic Tenant A and that the tester has `ManageTenant`. If the readiness panel or evidence option is unavailable, mark the case `Blocked by environment`.
+
+Tab or page: `Settings` -> `Security and incident readiness` -> `Security review`.
+
+
+Execution map:
+- Start location: `Settings` -> `Security and incident readiness` -> `Security review`.
+- Form and control/value anchors: `Security review`; `Security finding`; `Readiness evidence`; `Test Data`; `ManageTenant`; `Blocked by environment`; `Settings`; `Security and incident readiness`; `tenant isolation`; `evidence storage`; `encryption`; `malware scanning`; `retention`; `backup`; `restore`; `admin access`; `support access`; `antitrust procurement integrity`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
+Steps:
+
+1. Open `Settings` and scroll to the `Security and incident readiness` panel.
+2. Confirm the `Security review` card displays the review state, readiness count, blocking-finding count, and the review-area grid.
+3. Confirm the grid includes these review areas: `tenant isolation`, `evidence storage`, `encryption`, `malware scanning`, `retention`, `backup`, `restore`, `admin access`, `support access`, `antitrust procurement integrity`, `logging`, `monitoring`, and `incident response`.
+4. For every row, choose `Passed`, enter `MFA configuration summary - synthetic` or the exact approved synthetic evidence option in `Evidence reference`, and enter `Synthetic control verification for UAT; no production security details.` in `Rationale`.
+5. Click `Add finding`. Set `Area` to `tenant-isolation`, `Summary` to `Synthetic access review follow-up`, `Severity` to `Medium`, `Status` to `Closed`, `Remediation owner` to `Security`, `Due date` to `2026-10-01`, and `Closure notes` to `Synthetic closure evidence reviewed; no production security details.`.
+6. Click `Add accepted risk`. Set `Related finding` to `General review risk`, `Scope` to `Synthetic UAT-only residual risk`, `Review date` to `2026-09-18`, `Expiration date` to `2026-12-31`, and `Mitigation` to `Monitor the synthetic workflow and repeat the review before expiration.`.
+7. Click `Save new review version` and confirm the message says the security review version was saved.
+8. Confirm the review state, version, row statuses, finding, accepted-risk fields, and readiness history persist after reload.
+9. Enter `Synthetic reviewer approval for the current UAT security review.` in `Approval notes` and click `Approve security review` as the authorized approver.
+10. Confirm the review state changes to the approved state and the approval notes, approver, date, version, and audit/history event are visible.
+11. Repeat the save with one missing evidence reference, one open `Critical` finding, or a stale `expectedVersion`; confirm validation or conflict handling rejects the unsafe state.
+12. As `Auditor`, attempt the approval endpoint or an unauthorized mutation and confirm `403` with no version, finding, approval, or audit-success side effect. Attempt a Tenant B record ID and confirm safe `404`/denial.
+
+Expected result: The security review is saved as a versioned, evidence-linked, tenant-scoped record. Approval requires the server-side readiness permission and does not authorize real CUI, claim certification, or replace an independent security assessment.
+
+Reason: A checklist display alone does not prove that findings, accepted risks, evidence, reviewer identity, version, and approval history are durable and enforceable.
+
+Security expectation: Server-side authentication, tenant isolation, permission checks, optimistic concurrency, and audit behavior remain authoritative. Rejected or cross-tenant actions must not expose protected metadata or create an unauthorized business record or success audit.
+
+Evidence to capture: Security-review card, all 13 row states, finding and accepted-risk values, version transition, approval metadata, sanitized responses/statuses, audit event, and negative-test no-side-effect proof.
+
+Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not applicable ☐ Not run | Defect: ______ | Tester: ______ | Date/time: ______ | Evidence location: ______ | Notes: ______
+
+## UAT-N07: Execute And Approve Technical Control Verification
+
+Category: Technical control verification for storage, malware, backup/restore, administrator access, and support access.
+
+Current-state label: Implemented as evidence-linked readiness records. It does not prove deployed infrastructure configuration or an independent assessment.
+
+Role: Owner or authorized readiness approver; Auditor for denied mutation checks.
+
+Tenant context: Active synthetic Tenant A only; use Tenant B identifiers only for negative isolation checks.
+
+Test data: Use `staging-synthetic`, `2026-09-18`, and the synthetic immutable artifact URI/SHA-256 in `Test Data`. Use only harmless synthetic evidence.
+
+Preconditions: Confirm the `Security and incident readiness` panel is available and the tester has `ManageTenant`. If the panel requires an approved CUI-readiness approval permission for approval, record that dependency and use an authorized approver.
+
+Tab or page: `Settings` -> `Security and incident readiness` -> `Technical control verification`.
+
+
+Execution map:
+- Start location: `Settings` -> `Security and incident readiness` -> `Technical control verification`.
+- Form and control/value anchors: `staging-synthetic`; `2026-09-18`; `Test Data`; `Security and incident readiness`; `ManageTenant`; `Settings`; `Technical control verification`; `Environment`; `Execution date`; `Source type`; `Approved evidence file`; `External immutable artifact`; `tenant isolation`; `evidence storage`; `malware scanner`; `backup restore`; `administrator access`; `support access`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
+Steps:
+
+1. Open `Settings` and locate the `Technical control verification` card.
+2. Confirm the card shows its state and the number of executed control records.
+3. Enter `staging-synthetic` in `Environment` and `2026-09-18` in `Execution date`.
+4. For each displayed control source editor, confirm `Source type` offers `Approved evidence file` and `External immutable artifact`.
+5. For the six controls `tenant isolation`, `evidence storage`, `malware scanner`, `backup restore`, `administrator access`, and `support access`, choose `External immutable artifact`.
+6. Enter `https://example.invalid/uat/technical-controls.txt` in `HTTPS artifact URI` and the 64-character synthetic SHA-256 from `Test Data` in `SHA-256 digest` for each control.
+7. Click `Save executed controls` and confirm six executed records are displayed with the selected environment, execution date, `Passed` result, reviewer, source URI, and digest.
+8. Reload the page and confirm all six records persist and remain linked to Tenant A.
+9. Enter `Synthetic approval of executed technical controls.` in `Approval notes` and click `Approve technical readiness` as the authorized approver.
+10. Confirm the state changes to the approved state and readiness history contains the save and approval actions.
+11. Clear one artifact URI or enter a non-HTTPS URI or non-hex digest; confirm the save control remains disabled or the server rejects the request without a partial record.
+12. Attempt an approval as `Auditor`, with a stale version, or using a Tenant B context; confirm denial/conflict and no state or audit-success side effect.
+
+Expected result: Six technical control verification records are saved with execution metadata and immutable-artifact references, then approved only by the server-authorized reviewer. The result remains internal readiness evidence and is not proof of deployed configuration.
+
+Reason: Technical verification is only meaningful when the control, execution environment/date, reviewer, result, and evidence source remain linked and immutable enough to review.
+
+Security expectation: The API must enforce tenant scope, `ManageTenant`, approval authorization, source validation, version checks, and audit behavior. UI disablement alone is not sufficient evidence.
+
+Evidence to capture: Card state, six control records, environment/date, URI/digest, approval metadata, sanitized request/response statuses, audit history, and validation/authorization denials.
+
+Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not applicable ☐ Not run | Defect: ______ | Tester: ______ | Date/time: ______ | Evidence location: ______ | Notes: ______
+
+## UAT-N08: Configure And Approve Incident Readiness
+
+Category: Incident readiness contacts, playbooks, tabletop evidence, follow-ups, and approval.
+
+Current-state label: Implemented as a tenant-scoped readiness record. It is not an incident-response service, emergency-access authorization, or guarantee of operational response.
+
+Role: Owner or authorized readiness approver; Auditor for denied mutation checks.
+
+Tenant context: Active synthetic Tenant A only; use Tenant B identifiers only for negative isolation checks.
+
+Test data: Use the `Incident readiness` rows in `Test Data`. Do not enter real incident details, credentials, secrets, customer content, or operational security information.
+
+Preconditions: Confirm the `Security and incident readiness` panel is available, an approved synthetic evidence option or external artifact can be selected, and the tester has `ManageTenant`.
+
+Tab or page: `Settings` -> `Security and incident readiness` -> `Incident readiness`.
+
+
+Execution map:
+- Start location: `Settings` -> `Security and incident readiness` -> `Incident readiness`.
+- Form and control/value anchors: `Incident readiness`; `Test Data`; `Security and incident readiness`; `ManageTenant`; `Settings`; `Security`; `Escalation owner`; `security contact`; `support contact`; `legal compliance contact`; `engineering contact`; `customer success contact`; `Annual`; `Review basis`; `2027-09-18`; `Next review date`; `Reviewed trigger criteria`; `Executed tabletop evidence`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
+Steps:
+
+1. Open `Settings` and locate the `Incident readiness` card.
+2. Enter `Security` in `Escalation owner`.
+3. Enter the five synthetic contacts in the fields labeled `security contact`, `support contact`, `legal compliance contact`, `engineering contact`, and `customer success contact`.
+4. Select `Annual` in `Review basis` and enter `2027-09-18` in `Next review date`.
+5. Enter `Suspected sensitive-data exposure, malware detection, cross-tenant exposure, or failed deletion/export request.` in `Reviewed trigger criteria`.
+6. In `Executed tabletop evidence`, choose `External immutable artifact`, enter the synthetic tabletop URI and SHA-256 from `Test Data`, and confirm the fields satisfy the HTTPS and digest format.
+7. Click `Add follow-up`. Enter `Synthetic tabletop follow-up`, choose `Medium`, leave `Open`, set `Owner` to `Security`, set the due date to `2026-10-18`, and leave `Closure notes` blank.
+8. Click `Save playbooks and exercise` and confirm the card shows the playbook count, one exercise, one open follow-up, owner, review basis, and review date.
+9. Reload and confirm contacts, trigger criteria, tabletop source, and follow-up persist in the same tenant.
+10. Enter `Synthetic incident-readiness approval for UAT.` in `Approval notes` and click `Approve incident readiness` as the authorized approver.
+11. Confirm approval metadata and history are displayed. Then close the follow-up with `Synthetic follow-up completed; no customer data involved.` and save a new version.
+12. Clear one required contact, trigger criterion, review date, or tabletop source; confirm the save is prevented or rejected. Attempt approval as `Auditor`, with a stale version, and with a Tenant B identifier; confirm no unauthorized state change.
+
+Expected result: Incident contacts, trigger criteria, playbooks, tabletop evidence, follow-ups, review dates, approval, and history are saved and tenant-scoped. The record does not authorize emergency access or represent a completed operational incident response.
+
+Reason: Incident-readiness data needs explicit ownership, review cadence, evidence, and follow-up state while avoiding storage of real incident-sensitive content.
+
+Security expectation: Server-side permission, tenant isolation, required-field validation, optimistic concurrency, and audit events remain authoritative. Do not claim incident response capability from a successful record save alone.
+
+Evidence to capture: Incident card, contact fields, review basis/date, trigger criteria, tabletop source, follow-up lifecycle, approval/history, sanitized responses, and negative-test no-side-effect proof.
+
+Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not applicable ☐ Not run | Defect: ______ | Tester: ______ | Date/time: ______ | Evidence location: ______ | Notes: ______
+
+## UAT-I04: Invite An External Reviewer
+
+Category: External portal invitation creation and scoped review access.
+
+Current-state label: Implemented for tenant-admin invitation management. The external portal does not authorize CUI sharing; only explicitly approved package and contract scopes may be requested.
+
+Role: Tenant Admin/Owner with `ManageUsers`; Auditor for denied administration checks.
+
+Tenant context: Active synthetic Tenant A; use the SSP package ID returned by UAT-C11 and contract `DEMO-NC-26-0007`.
+
+Test data: Use `reviewer+uat@example.invalid`, `Auditor reviewer`, the returned package ID, contract ID `DEMO-NC-26-0007`, expiration `2026-12-31`, downloads disabled, and strong authentication required.
+
+Preconditions: Complete UAT-C11 or use an existing approved synthetic package ID returned by the current tenant. Confirm the tester has `ManageUsers` and that the active tenant is Tenant A.
+
+Tab or page: `Settings` -> `External portal invitations` -> `Invite an external reviewer`.
+
+
+Execution map:
+- Start location: `Settings` -> `External portal invitations` -> `Invite an external reviewer`.
+- Form and control/value anchors: `ManageUsers`; `DEMO-NC-26-0007`; `reviewer+uat@example.invalid`; `Auditor reviewer`; `2026-12-31`; `Settings`; `External portal invitations`; `Invite an external reviewer`; `Portal reviewer email`; `Portal role`; `Prime reviewer`; `Advisor reviewer`; `Package recipient`; `Approved package IDs`; `Contract scope IDs`; `Expiration date`; `Allow approved package downloads`; `Require strong authentication`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
+Steps:
+
+1. Open `Settings` and locate the `External portal invitations` panel.
+2. Confirm the form heading is `Invite an external reviewer`.
+3. Enter `reviewer+uat@example.invalid` in `Portal reviewer email`.
+4. Select `Auditor reviewer` in `Portal role` and confirm the controlled choices include `Prime reviewer`, `Auditor reviewer`, `Advisor reviewer`, and `Package recipient`.
+5. Enter the returned SSP package ID in `Approved package IDs`, one ID per line.
+6. Enter the returned contract ID for `DEMO-NC-26-0007` in `Contract scope IDs`.
+7. Enter `2026-12-31` in `Expiration date`.
+8. Leave `Allow approved package downloads` unchecked and keep `Require strong authentication` checked.
+9. Click `Create portal invitation` once.
+10. Confirm `External portal invitation created.` and locate the invitation under `Invitation access`.
+11. Confirm the row displays the email, role, status, expiration, package count, contract-scope count, downloads `blocked`, and strong authentication `required`.
+12. Attempt a missing package ID, malformed email, past expiration, Tenant B package ID, or creation as `Auditor`; confirm validation/authorization failure with no invitation created.
+
+Expected result: A tenant-admin-created invitation is scoped to the returned approved package and contract, requires strong authentication, does not allow downloads, and remains separate from tenant membership and CUI authorization.
+
+Reason: An external reviewer must receive the smallest explicit approved scope and must not inherit the tenant's internal permissions or unrelated records.
+
+Security expectation: `ManageUsers`, tenant scope, package eligibility, contract scope, expiration, authentication requirements, and audit events must be enforced server-side.
+
+Evidence to capture: Form values, controlled role options, invitation ID/status, scope counts, expiration, access settings, sanitized response/status, audit event, and failed-attempt no-side-effect proof.
+
+Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not applicable ☐ Not run | Defect: ______ | Tester: ______ | Date/time: ______ | Evidence location: ______ | Notes: ______
+
+## UAT-I05: Verify External Invitation Access And Revocation
+
+Category: External invitation access validation, history, expiration, and revocation.
+
+Current-state label: Invitation administration is available in the UI. Resource access validation requires an authorized external-portal authentication/API harness when no portal sign-in screen is exposed in the current build.
+
+Role: Tenant Admin for management; synthetic external reviewer for access; Auditor for denied management checks.
+
+Tenant context: Active synthetic Tenant A; use only the invitation and package IDs returned by UAT-I04/UAT-C11.
+
+Test data: Invitation ID, approved package ID, contract ID, strong-authentication claim, and synthetic external reviewer identity returned by the prior case.
+
+Preconditions: UAT-I04 passed and the invitation status is active. If a portal authentication harness or external reviewer sign-in is unavailable, execute the UI management steps and mark only the access-validation steps `Blocked by environment`.
+
+Tab or page: `Settings` -> `External portal invitations` -> `Invitation access`; external portal access endpoint when no portal UI is exposed.
+
+
+Execution map:
+- Start location: `Settings` -> `External portal invitations` -> `Invitation access`; external portal access endpoint when no portal UI is exposed.
+- Form and control/value anchors: `Blocked by environment`; `Settings`; `External portal invitations`; `Invitation access`; `reviewer+uat@example.invalid`; `View access history`; `download=true`; `Extend`; `2027-01-31`; `New expiration date`; `Confirm extend`; `Revoke invitation`; `Synthetic UAT revocation after access-scope test.`; `Revocation reason`; `Confirm revoke`; `Revoked`; `Auditor`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
+Steps:
+
+1. In `Invitation access`, locate the row for `reviewer+uat@example.invalid` and record the invitation ID.
+2. Click `View access history` and confirm the initial history state is displayed without unrelated tenant records.
+3. Using the authorized synthetic external reviewer context, request the scoped package with `GET /api/external-portal/invitations/{invitationId}/access?packageId={packageId}&contractId={contractId}&download=false`.
+4. Confirm an eligible request is allowed only when the authenticated email matches the invitation and the strong-authentication claim is present.
+5. Repeat with a missing/weak authentication claim, an unrelated package ID, a Tenant B contract ID, and `download=true` while downloads are disabled. Confirm each request is denied without package or contract disclosure.
+6. Return to the UI and click `View access history`. Confirm allowed and denied results, result codes, timestamps, and invitation linkage are displayed.
+7. Click `Extend`, enter `2027-01-31` in `New expiration date`, and click `Confirm extend`.
+8. Confirm the invitation expiration changes without changing role, package scope, contract scope, or download setting.
+9. Click `Revoke invitation`, enter `Synthetic UAT revocation after access-scope test.` in `Revocation reason`, and click `Confirm revoke`.
+10. Confirm the invitation shows `Revoked`, the reason is visible, and a post-revocation access request is denied.
+11. Attempt to manage or access the invitation from Tenant B and as `Auditor`; confirm safe denial and no cross-tenant history disclosure.
+
+Expected result: Access is granted only to the invited identity for the listed approved resources and permitted operation. Expiration and revocation take effect at the server boundary and produce access history.
+
+Reason: A visible invitation row does not prove that every resource request is identity-, scope-, authentication-, expiration-, and revocation-checked.
+
+Security expectation: The portal access endpoint must enforce invitation identity, authentication strength, package/contract scope, download permission, expiration, revocation, tenant-safe errors, and append-only access history.
+
+Evidence to capture: Invitation row, access-history entries, sanitized allowed/denied requests and statuses, expiration change, revocation reason, post-revocation denial, and no-disclosure proof.
+
+Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not applicable ☐ Not run | Defect: ______ | Tester: ______ | Date/time: ______ | Evidence location: ______ | Notes: ______
+
 ## UAT-N04: Acknowledge Shared Responsibility And Resolve A Support Escalation
+
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
 
 Category: Shared responsibility and support escalation.
 
-Roles: Owner, Contributor, support administrator.
+Role: Owner, Contributor, support administrator.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
 Tab: `Settings`.
 
+
+Execution map:
+- Start location: `Settings`.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Settings`; `Shared responsibility matrix`; `Acknowledge current matrix`; `Current`; `Stale`; `Synthetic support escalation - UAT`; `Medium`; `Security`; `2026-09-30`; `Synthetic resolution completed; no customer data involved.`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
-1. Open the published shared-responsibility matrix and record its version/source.
-2. As Owner, acknowledge the current matrix and confirm history.
-3. Change the published revision in an approved fixture and verify the prior acknowledgement is visibly stale.
-4. Create the synthetic support escalation, assign owner/severity/due date, change status, and resolve it with closure notes.
-5. Generate or view the escalation report and compare counts/history.
-6. Attempt Contributor administration, Tenant B IDs, duplicate resolution, and stale updates.
+1. Open `Settings` and locate `Shared responsibility matrix`.
+2. Record the displayed matrix version, effective date, review owner, source, and status.
+3. As Owner, click `Acknowledge current matrix` and enter `Synthetic UAT acknowledgement for current shared responsibility baseline.` if a reason is required.
+4. Confirm the acknowledgement changes to `Current` and appears in acknowledgement history.
+5. In an approved synthetic fixture, publish a new matrix revision and confirm the prior acknowledgement becomes `Stale` or otherwise requires re-acknowledgement.
+6. Open the support or escalation workflow and create `Synthetic support escalation - UAT` with severity `Medium`, owner `Security`, and due date `2026-09-30`.
+7. Assign, update, and resolve the escalation with `Synthetic resolution completed; no customer data involved.` as the closure note.
+8. Confirm the report/summary counts and audit history reconcile with the escalation lifecycle.
+9. Attempt Contributor administration, Tenant B IDs, duplicate resolution, and stale updates; confirm they are denied without side effects.
 
 Expected result: Matrix acknowledgements and escalation lifecycle are versioned, tenant-scoped, role-controlled, and audited; neither represents legal acceptance of CUI processing.
 
@@ -3036,7 +4336,7 @@ Execution record: Status: ☐ Pass ☐ Fail ☐ Blocked by environment ☐ Not a
 
 Category: Synthetic DemoSandbox lifecycle.
 
-Roles: Authorized Owner/Admin in an approved disposable DemoSandbox; unauthorized user.
+Role: Authorized Owner/Admin in an approved disposable DemoSandbox; unauthorized user.
 
 Tenant context: Dedicated synthetic DemoSandbox only. Never run seed/delete against a customer or production tenant.
 
@@ -3044,8 +4344,15 @@ Test data: Use the server-provided synthetic dataset manifest and expected safe-
 
 Preconditions: Confirm the exact tenant ID, `DemoSandbox` posture, environment permission, backup/cleanup plan, and absence of customer records.
 
-Tab/API: Demo dataset precheck, seed, inspect, and delete endpoints; affected workspace modules.
+Tab or page: `Settings` -> `DemoSandbox` controls when exposed; otherwise use the documented seed, inspect, and delete API endpoints and then verify affected workspace modules.
 
+
+Execution map:
+- Start location: `Settings` -> `DemoSandbox` controls when exposed; otherwise use the documented seed, inspect, and delete API endpoints and then verify affected workspace modules.
+- Form and control/value anchors: `DemoSandbox`; `Settings`; `NoCui`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Retrieve the synthetic dataset manifest and run the precheck.
@@ -3071,18 +4378,27 @@ Current-state label: Planned or partially implemented scaffolding. Not applicabl
 
 ## UAT-O01: Confirm Future Enterprise Features Do Not Alter MVP Claims Or Access
 
+Current-state label: Implemented for the current UI/API workflow documented in this case; provider-dependent or API-only portions are identified in the numbered steps and must be recorded as `Blocked by environment` when unavailable.
+
 Category: Future-scope fail-closed posture.
 
-Roles: Normal Tenant Admin and authorized engineering test operator in a disposable synthetic environment.
+Role: Normal Tenant Admin and authorized engineering test operator in a disposable synthetic environment.
 
 Tenant context: Use the tenant or platform/public context named in this case. When no tenant is named, use active synthetic Tenant A; use only recorded Tenant B identifiers for negative isolation steps.
 
-Test data: Use the exact synthetic fixtures in `Test Data` and the unique run ID. Never substitute customer or sensitive data.
+Test data: Use only the synthetic values named in this case and the shared `Test Data` table. Copy IDs returned by the UI or API; do not invent identifiers. Never substitute customer or sensitive data.
 
 Preconditions: Complete referenced prerequisite cases and verify required environment/provider dependencies. If a dependency is unavailable, mark only the affected step or case `Blocked by environment`; do not mark it Passed.
 
-Page/API: Enterprise endpoints have no general MVP acceptance UI unless explicitly enabled for a separately governed release.
+Tab or page: `Settings`, workspace navigation, and enterprise endpoints. Enterprise endpoints have no general MVP acceptance UI unless explicitly enabled for a separately governed release.
 
+
+Execution map:
+- Start location: `Settings`, workspace navigation, and enterprise endpoints. Enterprise endpoints have no general MVP acceptance UI unless explicitly enabled for a separately governed release.
+- Form and control/value anchors: `Test Data`; `Blocked by environment`; `Settings`; `Not applicable`; `Tenant onboarding`; `PendingOwnerAcceptance`; `PendingActivation`; `NoCui`; `Trialing`; `Active`; `Passed`; `Complete`; `100%`; `DEMO-NC-26-0007`; `ManageContracts`; `Cui`; `Unknown`; `Prohibited`
+- Synthetic inputs: Use only the literal synthetic values shown in this case and the shared `Test Data` table. Copy every returned record ID from the current tenant; never invent, reuse, or substitute an ID from another tenant.
+- Missing-control rule: If a named tab, form, field, filter, button, result, or API dependency is absent, stop at that step and record the exact visible state. Mark `Failed` for a discoverability defect, or `Blocked by environment` only when this case explicitly identifies the missing dependency.
+- Execution order: Complete the numbered steps in order and capture the result before starting a retry, negative, stale, or cross-tenant check.
 Steps:
 
 1. Confirm normal No-CUI users are not presented with claims that SAML/SCIM, government cloud, FedRAMP authorization, CUI enclave, or customer-managed keys are active.
@@ -3331,3 +4647,9 @@ Recommended missing automation: generate an endpoint-to-permission-to-UAT invent
 | --- | --- | --- |
 | 1.0 | 2026-06 historical | Original PDF-aligned No-CUI onboarding-to-report UAT. |
 | 2.0 | 2026-09-12 | Preserved the original PDF format and 32 original test cases; added 42 executable cases for current application features, expanded synthetic fixtures, security/negative tests, smoke and regression suites, API/UI consistency checks, evidence requirements, defect triage, traceability, gaps, sign-off, and per-case execution records. |
+| 2.1 | 2026-09-17 | Standardized the remaining UAT cases to the UAT-01 through UAT-15 execution format, including consistent role, tenant, location, prerequisite, step, expected-result, evidence, and execution-record guidance. |
+| 2.2 | 2026-09-18 | Reworked every UAT case to use the UAT-01 execution format, expanded terse cases with exact synthetic values and field-level instructions, normalized duplicate interface labels, and added a linked table of contents. |
+| 2.3 | 2026-09-18 | Added dedicated synthetic-data UAT cases for security review, technical control verification, incident readiness, external reviewer invitations and access, SSP sections, SSP narratives, and SSP review packages. |
+| 2.4 | 2026-09-18 | Synchronized the companion beginner synthetic-data guide with the current UI feature set and verified the PDF table of contents uses clickable internal section links. |
+| 2.5 | 2026-09-18 | Added the same execution card to all 82 cases, including exact tab/form/control-value anchors, synthetic-input rules, missing-control handling, current-state labels, and ordered evidence capture. Corrected UAT-W02 to document the current reminder preference and timezone limitation instead of claiming unsupported behavior. |
+| 2.6 | 2026-09-18 | Made UAT-W02 executable for Contributors by documenting the Settings self-service path for personal notification preferences, while keeping tenant administration controls restricted to authorized roles. |

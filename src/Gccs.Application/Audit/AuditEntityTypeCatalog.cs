@@ -10,6 +10,7 @@ public static class AuditEntityTypeCatalog
         "Contract",
         "ContractClause",
         "ContractDeliverable",
+        "DataHandlingNoticeAcknowledgement",
         "EvidenceItem",
         "Report"
     ];

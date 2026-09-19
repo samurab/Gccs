@@ -35,6 +35,12 @@ describe("shared form action contrast", () => {
     expect(stylesheet).toMatch(/grid-template-columns:\s*max-content minmax\(220px, 360px\) max-content/);
   });
 
+  it("gives single-title workflow panels a full-width header", () => {
+    const stylesheet = readFileSync(resolve(process.cwd(), "styles/globals.css"), "utf8");
+    const header = stylesheet.match(/\.contract-esrs > \.contract-documents__header\s*\{([^}]*)\}/)?.[1];
+    expect(header).toMatch(/grid-template-columns:\s*minmax\(0, 1fr\)/);
+  });
+
   it("uses a white foreground for the primary dark action without changing secondary actions", () => {
     const stylesheet = readFileSync(resolve(process.cwd(), "styles/globals.css"), "utf8");
     const baseRule = stylesheet.match(/\.form-actions button\s*\{(?<declarations>[^}]*)\}/)?.groups?.declarations;

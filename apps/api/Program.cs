@@ -1304,6 +1304,7 @@ api.MapGet("/notification-preferences", async (
         roleName,
         cancellationToken));
 })
+.RequirePermission(Permission.ViewTasks)
 .WithName("GetNotificationPreferences");
 
 api.MapPut("/notification-preferences", async (
@@ -1321,6 +1322,7 @@ api.MapPut("/notification-preferences", async (
         request,
         cancellationToken));
 })
+.RequirePermission(Permission.ViewTasks)
 .WithName("UpdateNotificationPreferences");
 
 api.MapPost("/notifications/due-date-reminders", async (
@@ -6475,15 +6477,34 @@ api.MapPatch("/tenant-members/{membershipId:guid}/status", async (
     HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
-    var member = await service.UpdateStatusAsync(membershipId, request, tenantContext.UserId, cancellationToken);
-    return member is null
-        ? ApiProblemDetails.Create(
+    try
+    {
+        var member = await service.UpdateStatusAsync(membershipId, request, tenantContext.UserId, cancellationToken);
+        return member is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                "Tenant membership was not found in the current tenant scope.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Ok(member);
+    }
+    catch (TenantMembershipStatusChangeDeniedException exception)
+    {
+        return ApiProblemDetails.Create(
             httpContext,
-            "Resource not found",
-            "Tenant membership was not found in the current tenant scope.",
-            StatusCodes.Status404NotFound,
-            "resource_not_found")
-        : Results.Ok(member);
+            "Membership status change denied",
+            exception.Message,
+            StatusCodes.Status409Conflict,
+            "membership_status_change_denied");
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["reason"] = [exception.Message]
+        });
+    }
 })
 .RequirePermission(Permission.ManageUsers)
 .WithName("UpdateTenantMembershipStatus");

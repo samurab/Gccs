@@ -93,7 +93,7 @@ export function EsrsReportDataPanel({ contractId, contractNumber, companyUei, ca
   }
 
   return <section className="contract-esrs contract-esrs-data workflow-control-surface" aria-labelledby="contract-esrs-data-heading">
-    <div className="contract-documents__header"><div><span>SAM.gov subcontracting plan reporting</span><strong id="contract-esrs-data-heading">{rows.length}</strong></div></div>
+    <div className="contract-documents__header"><div><h3 id="contract-esrs-data-heading">SAM.gov subcontracting plan reporting</h3><strong aria-label={`${rows.length} subcontracting plan reporting rows`}>{rows.length}</strong></div></div>
     <p>Prepare documented ISR/SSR inputs for manual entry in SAM.gov Subcontracting Plan Reporting (SPR). FeDril does not submit or synchronize reports with SAM.gov.</p>
     <p>Do not enter or upload CUI, classified, export-controlled, ITAR, or sensitive government-furnished information.</p>
     {state === "loading" ? <p role="status">Loading subcontracting report data…</p> : null}

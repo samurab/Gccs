@@ -144,7 +144,9 @@ export function ClassificationReviewPanel({ group, tenantId, permissions, onChan
         <label className="classification-checkbox"><input type="checkbox" checked={reviewOnly} disabled={busy} onChange={e => changeList(route, e.target.checked, 0)} /> Needs classification review only</label>
       </div>
       {loading ? <p role="status">Loading classification records…</p> : listError ? <p role="alert">{listError}</p> :
-        items.length === 0 ? <p>No classification records match this page.</p> :
+        items.length === 0 ? <p>{reviewOnly
+          ? 'No records need classification review. Uncheck "Needs classification review only" to inspect all tenant-scoped records.'
+          : "No classification records match this page."}</p> :
           <ul className="classification-item-list" tabIndex={0} aria-label="Classification records">{items.map(item => <li key={item.id}>
             <button type="button" aria-pressed={selected?.id === item.id} disabled={busy} onClick={() => void open(item.id)}>Inspect {item.title}</button>{" "}
             <ClassificationBadge classification={item.classification.classification} />

@@ -91,35 +91,45 @@ export function AiOutputGovernancePanel({ permissions }: { permissions: string[]
       <h2 id="ai-output-governance-heading">AI output logs and review</h2>
       <p>Review source-backed drafts, inspect append-only decisions, and declare approved use in governed deliverables.</p>
     </div>
-    <label><input type="checkbox" checked={includeArchived} onChange={event => { setState("loading"); setIncludeArchived(event.target.checked); }} /> Include archived output</label>
-    {canExport ? <button type="button" onClick={() => void downloadExport()}>Export AI logs</button> : null}
+    <div className="governance-toolbar">
+      <label className="governance-checkbox"><input type="checkbox" checked={includeArchived} onChange={event => { setState("loading"); setIncludeArchived(event.target.checked); }} /> Include archived output</label>
+      {canExport ? <button className="secondary-action" type="button" onClick={() => void downloadExport()}>Export AI logs</button> : null}
+    </div>
     {state === "loading" ? <p role="status">Loading AI output logs…</p> : null}
     {state === "error" ? <p role="alert">{message}</p> : null}
     {state === "ready" && outputs.length === 0 ? <p>No AI output logs are available for this workflow.</p> : null}
     {message && state !== "error" ? <p role="status">{message}</p> : null}
     {outputs.map(output => <article key={output.id} className="expert-review-queue__item">
-      <div className="guarded-assistant__status"><strong>{output.reviewState}</strong><span>{output.workflowContext}</span><span>{output.classification}</span></div>
+      <div className="governance-status-list"><strong>{output.reviewState}</strong><span>{output.workflowContext}</span><span>{output.classification}</span></div>
       <p><strong>Prompt:</strong> {output.promptWasRedacted ? "Excluded under prohibited-data policy." : output.prompt}</p>
       <p>{output.answer}</p>
       <small>Created {new Date(output.createdAt).toLocaleString()} · retain until {new Date(output.retainUntil).toLocaleDateString()}</small>
       <ul>{output.citations.map(citation => <li key={citation.sourceId}>{citation.title} · {citation.excerptPointer} · {citation.version}</li>)}</ul>
-      <button type="button" onClick={() => void loadHistory(output.id)}>Load review history</button>
-      {history[output.id]?.length === 0 ? <p>No review decisions recorded.</p> : null}
-      {history[output.id]?.length ? <ol>{history[output.id].map(item => <li key={item.id}>{item.previousState} → {item.newState}: {item.note ?? "System transition"}</li>)}</ol> : null}
-      {canReview ? <form onSubmit={event => void review(event, output)}>
-        <label>Decision<select required value={decisions[output.id] ?? ""} onChange={event => setDecisions(current => ({ ...current, [output.id]: event.target.value }))}>
-          <option value="">Select decision</option><option>Approved</option><option>Rejected</option><option>Superseded</option><option>Archived</option>
-        </select></label>
-        <label>Review note<textarea required maxLength={1000} value={notes[output.id] ?? ""} onChange={event => setNotes(current => ({ ...current, [output.id]: event.target.value }))} /></label>
-        {decisions[output.id] === "Rejected" ? <label>Rejection reason<textarea required maxLength={1000} value={reasons[output.id] ?? ""} onChange={event => setReasons(current => ({ ...current, [output.id]: event.target.value }))} /></label> : null}
-        <button type="submit">Save AI output decision</button>
+      <div className="governance-subsection ai-output-governance__history">
+        <button className="secondary-action" type="button" onClick={() => void loadHistory(output.id)}>Load review history</button>
+        {history[output.id]?.length === 0 ? <p>No review decisions recorded.</p> : null}
+        {history[output.id]?.length ? <ol>{history[output.id].map(item => <li key={item.id}>{item.previousState} → {item.newState}: {item.note ?? "System transition"}</li>)}</ol> : null}
+      </div>
+      {canReview ? <form className="governance-form governance-form--section" onSubmit={event => void review(event, output)}>
+        <h3>Review output</h3>
+        <div className="governance-form__grid governance-form__grid--two">
+          <label className="governance-field">Decision<select required value={decisions[output.id] ?? ""} onChange={event => setDecisions(current => ({ ...current, [output.id]: event.target.value }))}>
+            <option value="">Select decision</option><option>Approved</option><option>Rejected</option><option>Superseded</option><option>Archived</option>
+          </select></label>
+          <label className="governance-field">Review note<textarea required maxLength={1000} value={notes[output.id] ?? ""} onChange={event => setNotes(current => ({ ...current, [output.id]: event.target.value }))} /></label>
+          {decisions[output.id] === "Rejected" ? <label className="governance-field governance-field--wide">Rejection reason<textarea required maxLength={1000} value={reasons[output.id] ?? ""} onChange={event => setReasons(current => ({ ...current, [output.id]: event.target.value }))} /></label> : null}
+        </div>
+        <div className="governance-form__actions"><button className="primary-action" type="submit">Save AI output decision</button></div>
       </form> : null}
-      {output.reviewState === "Approved" && allowedDeliverableTypes.length > 0 ? <form onSubmit={event => void link(event, output)}>
-        <label>Deliverable type<select value={deliverableTypes[output.id] ?? allowedDeliverableTypes[0]} onChange={event => setDeliverableTypes(current => ({ ...current, [output.id]: event.target.value as AiDeliverableType }))}>
-          {allowedDeliverableTypes.map(type => <option key={type} value={type}>{type === "Ssp" ? "SSP" : type === "Poam" ? "POA&M" : type === "CustomerDeliverable" ? "Customer deliverable" : type}</option>)}
-        </select></label>
-        <label>Existing deliverable ID<input required value={deliverableIds[output.id] ?? ""} onChange={event => setDeliverableIds(current => ({ ...current, [output.id]: event.target.value }))} /></label>
-        <button type="submit">Link approved output</button>
+      {output.reviewState === "Approved" && allowedDeliverableTypes.length > 0 ? <form className="governance-form governance-form--section" onSubmit={event => void link(event, output)}>
+        <h3>Link approved output</h3>
+        <div className="governance-form__grid governance-form__grid--two">
+          <label className="governance-field">Deliverable type<select value={deliverableTypes[output.id] ?? allowedDeliverableTypes[0]} onChange={event => setDeliverableTypes(current => ({ ...current, [output.id]: event.target.value as AiDeliverableType }))}>
+            {allowedDeliverableTypes.map(type => <option key={type} value={type}>{type === "Ssp" ? "SSP" : type === "Poam" ? "POA&M" : type === "CustomerDeliverable" ? "Customer deliverable" : type}</option>)}
+          </select></label>
+          <label className="governance-field">Existing deliverable ID<input required value={deliverableIds[output.id] ?? ""} onChange={event => setDeliverableIds(current => ({ ...current, [output.id]: event.target.value }))} /></label>
+        </div>
+        <div className="governance-form__actions"><button className="primary-action" type="submit">Link approved output</button></div>
       </form> : null}
     </article>)}
   </section>;

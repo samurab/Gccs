@@ -101,9 +101,9 @@ export type CurrentUserAccess = {
   rolePermissionMatrix: Record<string, string[]>;
 };
 
-export type AssistantWorkflowContext = "obligation" | "contract" | "evidence" | "cmmc" | "ssp" | "poam" | "labor" | "subcontractor";
-export type AssistantDraftActionType = "Task" | "EvidenceRequest" | "Note" | "ReviewItem";
-export type AssistantFeedbackType = "Helpful" | "Incorrect" | "MissingSource" | "NeedsExpertReview";
+export type AssistantWorkflowContext = |"obligation" | "contract" | "evidence" | "cmmc" | "ssp" | "poam" | "labor" | "subcontractor";
+export type AssistantDraftActionType = |"Task" | "EvidenceRequest" | "Note" | "ReviewItem";
+export type AssistantFeedbackType = |"Helpful" | "Incorrect" | "MissingSource" | "NeedsExpertReview";
 export type AssistantCitation = {
   sourceId: string;
   title: string;
@@ -139,12 +139,12 @@ export type GuardedAssistantAnswer = {
   retrievalPolicy: string;
   classification: string;
   result: string;
-  reviewState: "Draft" | "NeedsReview" | "Approved" | "Rejected" | "Superseded" | "Archived";
+  reviewState: |"Draft" | "NeedsReview" | "Approved" | "Rejected" | "Superseded" | "Archived";
   rejectionReason: string | null;
   retainUntil: string;
   version: number;
 };
-export type AiOutputReviewResult = { answer: GuardedAssistantAnswer; review: { id: string; newState: string; createdAt: string } };
+export type AiOutputReviewResult = { answer: GuardedAssistantAnswer; review: { id: string; newState: string; createdAt: string } ;};
 export type AiOutputReviewHistory = {
   id: string;
   tenantId: string;
@@ -156,7 +156,7 @@ export type AiOutputReviewHistory = {
   rejectionReason: string | null;
   createdAt: string;
 };
-export type AiDeliverableType = "Report" | "Policy" | "Ssp" | "Poam" | "CustomerDeliverable";
+export type AiDeliverableType = |"Report" | "Policy" | "Ssp" | "Poam" | "CustomerDeliverable";
 export type AiOutputUsage = {
   id: string;
   tenantId: string;
@@ -166,7 +166,7 @@ export type AiOutputUsage = {
   linkedByUserId: string;
   linkedAt: string;
 };
-export type AiOutputExport = { tenantId: string; logCount: number; exportedAt: string; logs: unknown[] };
+export type AiOutputExport = { tenantId: string; logCount: number; exportedAt: string; logs: unknown[] ;};
 export type AssistantDraftAction = {
   id: string;
   tenantId: string;
@@ -190,7 +190,7 @@ export type AssistantFeedback = {
 export type ExpertReviewItem = {
   id: string;
   tenantId: string;
-  sourceType: "clause_candidate" | "suggested_obligation" | "assistant_answer" | string;
+  sourceType: |"clause_candidate" | "suggested_obligation" | "assistant_answer" | string;
   sourceId: string;
   reason: string;
   priority: string;
@@ -244,7 +244,7 @@ export type PortalPackageActivity = {
   id: string;
   sharedPackageId: string;
   tenantId: string;
-  activityType: "Access" | "Comment" | "Download" | "ExpirationReminder" | "Expiration" | "Supersede" | "Revocation" | "Reissue" | "Archive";
+  activityType: |"Access" | "Comment" | "Download" | "ExpirationReminder" | "Expiration" | "Supersede" | "Revocation" | "Reissue" | "Archive";
   actorUserId: string;
   occurredAt: string;
   detail: string | null;
@@ -290,7 +290,7 @@ export type PortalReviewPackage = {
   reviewerMessages: PortalPackageReviewMessage[];
 };
 
-export type ExternalPortalRole = "PrimeReviewer" | "AuditorReviewer" | "AdvisorReviewer" | "PackageRecipient";
+export type ExternalPortalRole = |"PrimeReviewer" | "AuditorReviewer" | "AdvisorReviewer" | "PackageRecipient";
 export type ExternalPortalInvitation = {
   id: string;
   tenantId: string;
@@ -450,7 +450,7 @@ export type DemoFollowUpDevelopmentPreview = {
 export type ConfirmDemoAppointmentRequest = {
   confirmedLocalStart: string;
   timeZone: string;
-  meetingMethod: "ConnectionDetailsToFollow" | "MicrosoftTeams" | "Zoom" | "GoogleMeet" | "Phone";
+  meetingMethod: |"ConnectionDetailsToFollow" | "MicrosoftTeams" | "Zoom" | "GoogleMeet" | "Phone";
   meetingJoinUrl: string | null;
 };
 export type DemoAppointmentConfirmationReceipt = {
@@ -508,8 +508,8 @@ export type TenantSubscription = {
   tenantKind: "ContractorWorkspace" | "PartnerOrganization" | "Internal";
   plan: "PilotEvaluation" | "CommercialStandard" | "Partner" | "Internal";
   planCode: string;
-  status: "Pending" | "Active" | "GracePeriod" | "Expired" | "Cancelled" | "Converted";
-  effectiveStatus: "Pending" | "Active" | "GracePeriod" | "Expired" | "Cancelled" | "Converted";
+  status: |"Pending" | "Active" | "GracePeriod" | "Expired" | "Cancelled" | "Converted";
+  effectiveStatus: |"Pending" | "Active" | "GracePeriod" | "Expired" | "Cancelled" | "Converted";
   accessLevel: "Full" | "ReadOnly" | "Denied";
   startsAt: string;
   endsAt: string | null;
@@ -592,7 +592,7 @@ export type PlatformCustomerQuery = {
   onboardingStatus?: string;
   subscriptionStatus?: string;
   attention?: PlatformCustomerAttention;
-  sort?: "UpdatedDescending" | "NameAscending" | "CreatedDescending" | "PilotEndAscending";
+  sort?: |"UpdatedDescending" | "NameAscending" | "CreatedDescending" | "PilotEndAscending";
 };
 
 export type PlatformPilotSubscription = {
@@ -645,7 +645,7 @@ export type TenantInvitation = {
   revokedByUserId: string | null;
   notificationSentAt: string | null;
   notificationPlaceholder: string;
-  deliveryStatus: "Queued" | "Processing" | "RetryScheduled" | "Sent" | "Failed" | "Cancelled" | string;
+  deliveryStatus: |"Queued" | "Processing" | "RetryScheduled" | "Sent" | "Failed" | "Cancelled" | string;
   deliveryAttemptCount: number;
   nextDeliveryAttemptAt: string | null;
   lastDeliveryAttemptAt: string | null;
@@ -745,7 +745,7 @@ export type ReviewCuiReadyChecklistRequest = {
 
 export type SharedResponsibilityMatrixRow = {
   category: string;
-  responsibility: "FeDril" | "Customer" | "Shared" | "ThirdPartyProvider" | "NotApplicable" | string;
+  responsibility: |"FeDril" | "Customer" | "Shared" | "ThirdPartyProvider" | "NotApplicable" | string;
   notes: string;
   sourceReference: string;
   effectiveAt: string;
@@ -823,9 +823,9 @@ export type CuiSupportEscalation = {
   sourceWorkflow: string;
   affectedEntityType: string;
   affectedEntityId: string;
-  category: "AccidentalCuiUpload" | "SuspectedCui" | "ProhibitedData" | "Misclassification" | "CustomerQuestion" | "ClassificationQuestion" | string;
+  category: |"AccidentalCuiUpload" | "SuspectedCui" | "ProhibitedData" | "Misclassification" | "CustomerQuestion" | "ClassificationQuestion" | string;
   severity: "Low" | "Medium" | "High" | "Critical" | string;
-  status: "Submitted" | "Triage" | "Contained" | "CustomerActionRequired" | "Resolved" | "Closed" | "Reopened" | string;
+  status: |"Submitted" | "Triage" | "Contained" | "CustomerActionRequired" | "Resolved" | "Closed" | "Reopened" | string;
   owner: string | null;
   description: string;
   isAffectedContentBlocked: boolean;
@@ -841,13 +841,13 @@ export type CuiSupportEscalation = {
   resolutions: CuiSupportEscalationResolution[];
   events: CuiSupportEscalationEvent[];
 };
-export type CuiSupportEscalationEvent = { id: string; status: string; note: string; occurredAt: string; actorUserId: string };
-export type CuiSupportEscalationReport = { openCount: number; resolvedCount: number; overdueCount: number; byStatus: Record<string, number>; bySeverity: Record<string, number> };
+export type CuiSupportEscalationEvent = { id: string; status: string; note: string; occurredAt: string; actorUserId: string ;};
+export type CuiSupportEscalationReport = { openCount: number; resolvedCount: number; overdueCount: number; byStatus: Record<string, number>; bySeverity: Record<string, number> ;};
 
 export type CuiSupportEscalationResolution = {
   id: string;
   escalationId: string;
-  resolutionType: "FalsePositive" | "ContentRemoved" | "ApprovedForUse" | "ReferredToCustomer" | string;
+  resolutionType: |"FalsePositive" | "ContentRemoved" | "ApprovedForUse" | "ReferredToCustomer" | string;
   summary: string;
   resolvedAt: string;
   resolvedByUserId: string;
@@ -857,7 +857,7 @@ export type CreateCuiSupportEscalationRequest = {
   sourceWorkflow: string;
   affectedEntityType: string;
   affectedEntityId: string;
-  category: "AccidentalCuiUpload" | "SuspectedCui" | "ProhibitedData" | "Misclassification" | "CustomerQuestion" | "ClassificationQuestion" | string;
+  category: |"AccidentalCuiUpload" | "SuspectedCui" | "ProhibitedData" | "Misclassification" | "CustomerQuestion" | "ClassificationQuestion" | string;
   severity: "Low" | "Medium" | "High" | "Critical" | string;
   description: string;
 };
@@ -874,7 +874,7 @@ export type ChangeCuiSupportEscalationStatusRequest = {
 };
 
 export type ResolveCuiSupportEscalationRequest = {
-  resolutionType: "FalsePositive" | "ContentRemoved" | "ApprovedForUse" | "ReferredToCustomer" | string;
+  resolutionType: |"FalsePositive" | "ContentRemoved" | "ApprovedForUse" | "ReferredToCustomer" | string;
   summary: string;
 };
 
@@ -1038,7 +1038,7 @@ export type CmmcAssessment = {
 
 export type UpsertCmmcAssessmentRequest = Omit<
   CmmcAssessment,
-  "id" | "tenantId" | "controlSummary" | "openPoamItemCount" | "overduePoamItemCount" | "createdAt" | "updatedAt"
+  |"id" | "tenantId" | "controlSummary" | "openPoamItemCount" | "overduePoamItemCount" | "createdAt" | "updatedAt"
 >;
 
 export type CmmcControlStatus = {
@@ -1184,7 +1184,7 @@ export type SprsScoringRuleSet = {
     requirementId: string;
     title: string;
     ruleType: string;
-    conditionalDeductions: Array<{ code: string; deduction: number; when: string }> | null;
+    conditionalDeductions: Array<{ code: string; deduction: number; when: string ;}> | null;
   }>;
 };
 
@@ -1229,7 +1229,7 @@ export type SprsScoreCalculation = {
 export type CreateSprsScoreCalculationRequest = {
   ruleSetId: string;
   manualNotes: string | null;
-  conditionalDeductionSelections: Array<{ requirementId: string; optionCode: string }>;
+  conditionalDeductionSelections: Array<{ requirementId: string; optionCode: string ;}>;
   manualNotesClassification: {
     classification: string;
     source: "UserSelected";
@@ -1237,12 +1237,12 @@ export type CreateSprsScoreCalculationRequest = {
   } | null;
 };
 
-export type SspSectionType = "SystemDescription" | "AuthorizationBoundary" | "Environment" | "Interconnections" | "Users" | "Roles" | "DataTypes" | "CuiHandlingPosture" | "ControlImplementationNarratives" | "InheritedResponsibilities" | "ExternalServiceProviders" | "EvidenceReferences";
-export type SspSectionStatus = "Draft" | "InReview" | "Approved" | "Superseded" | "Archived";
-export type SspLinkedRecordType = "CompanyProfile" | "SystemBoundary" | "Asset" | "CmmcControl" | "ResponsibilityMatrix" | "Policy" | "PoamItem" | "Evidence";
-export type SspLinkedRecord = { recordType: SspLinkedRecordType; recordId: string; relationship: string };
-export type SspSourceReference = { source: string; sourceUrl: string; lastReviewedAt: string };
-export type SspSectionHistory = { status: SspSectionStatus; actorUserId: string; actorName: string; changedAt: string; notes: string | null };
+export type SspSectionType = |"SystemDescription" | "AuthorizationBoundary" | "Environment" | "Interconnections" | "Users" | "Roles" | "DataTypes" | "CuiHandlingPosture" | "ControlImplementationNarratives" | "InheritedResponsibilities" | "ExternalServiceProviders" | "EvidenceReferences";
+export type SspSectionStatus = |"Draft" | "InReview" | "Approved" | "Superseded" | "Archived";
+export type SspLinkedRecordType = |"CompanyProfile" | "SystemBoundary" | "Asset" | "CmmcControl" | "ResponsibilityMatrix" | "Policy" | "PoamItem" | "Evidence";
+export type SspLinkedRecord = { recordType: SspLinkedRecordType; recordId: string; relationship: string ;};
+export type SspSourceReference = { source: string; sourceUrl: string; lastReviewedAt: string ;};
+export type SspSectionHistory = { status: SspSectionStatus; actorUserId: string; actorName: string; changedAt: string; notes: string | null ;};
 export type SspSection = {
   id: string; tenantId: string; sectionType: SspSectionType; title: string; owner: string; status: SspSectionStatus;
   reviewer: string | null; reviewDate: string | null; approvalRationale: string | null; isRequired: boolean; version: number;
@@ -1250,10 +1250,10 @@ export type SspSection = {
   createdAt: string; updatedAt: string;
 };
 export type CreateSspSectionRequest = Pick<SspSection, "sectionType" | "title" | "owner" | "linkedRecords" | "sourceReferences">;
-export type UpdateSspSectionRequest = CreateSspSectionRequest & { expectedVersion: number };
-export type SspSectionStatusRequest = { status: SspSectionStatus; actorName: string; expectedVersion: number; reviewDate?: string | null; reviewer?: string | null; approvalRationale?: string | null };
-export type SspNarrativeStatus = "Draft" | "Approved" | "Superseded" | "Archived";
-export type SspNarrativeSourceType = "Evidence" | "GeneratedPolicy" | "Clause" | "Obligation";
+export type UpdateSspSectionRequest = CreateSspSectionRequest & { expectedVersion: number ;};
+export type SspSectionStatusRequest = { status: SspSectionStatus; actorName: string; expectedVersion: number; reviewDate?: string | null; reviewer?: string | null; approvalRationale?: string | null ;};
+export type SspNarrativeStatus = |"Draft" | "Approved" | "Superseded" | "Archived";
+export type SspNarrativeSourceType = |"Evidence" | "GeneratedPolicy" | "Clause" | "Obligation";
 export type SspNarrativeSource = {
   sourceType: SspNarrativeSourceType; recordId: string; label: string; summary: string; sourceUrl: string;
   fingerprint: string; classification: string;
@@ -1276,10 +1276,10 @@ export type GenerateSspNarrativeRequest = {
 };
 export type EditSspNarrativeRequest = {
   editedText: string; reviewerNotes: string | null; expectedVersion: number;
-  classification: { classification: "Unclassified" | "Fci" | "Cui"; source: "UserSelected" };
+  classification: { classification: "Unclassified" | "Fci" | "Cui"; source: "UserSelected" ;};
 };
 export type SspExportFormat = "HumanReadable" | "MachineReadable" | "Both";
-export type SspExportPackageStatus = "InternalReview" | "ExternalShareApproved" | "Shared";
+export type SspExportPackageStatus = |"InternalReview" | "ExternalShareApproved" | "Shared";
 export type SspExportEvidenceReference = {
   id: string; title: string; status: string; classification: string; ownerFunction: string;
   approvedAt: string; approvedByUserId: string; effectiveAt: string | null; expiresAt: string | null;
@@ -1294,7 +1294,7 @@ export type SspExportSection = {
   approvedNarrativeText: string | null; approvedNarrativeId: string | null; narrativeReviewer: string | null;
   narrativeReviewDate: string | null; narrativeSources: SspNarrativeSource[];
 };
-export type SspExportHistory = { id: string; action: string; actorUserId: string; actorName: string; occurredAt: string; notes: string | null };
+export type SspExportHistory = { id: string; action: string; actorUserId: string; actorName: string; occurredAt: string; notes: string | null ;};
 export type SspExportPackage = {
   id: string; tenantId: string; tenantName: string; generatedAt: string; packageVersion: string; systemBoundary: string;
   reviewer: string; format: SspExportFormat; disclaimer: string; humanReadableReport: string; machineReadableMetadata: Record<string, unknown>;
@@ -1440,7 +1440,7 @@ export type SubcontractorEvidenceRequest = {
 
 export type UpsertSubcontractorEvidenceRequestRequest = Omit<
   SubcontractorEvidenceRequest,
-  "id" | "tenantId" | "subcontractorId" | "ownerFunction" | "isOverdue" | "completedAt" | "createdAt" | "updatedAt"
+  |"id" | "tenantId" | "subcontractorId" | "ownerFunction" | "isOverdue" | "completedAt" | "createdAt" | "updatedAt"
 > & {
   ownerFunction?: string | null;
 };
@@ -1594,7 +1594,7 @@ export type EvidenceRequest = {
 
 export type CreateEvidenceRequestRequest = Omit<
   EvidenceRequest,
-  "id" | "tenantId" | "requesterUserId" | "status" | "submittedEvidenceItemId" | "submissionComment" | "reviewComment" | "createdAt"
+  |"id" | "tenantId" | "requesterUserId" | "status" | "submittedEvidenceItemId" | "submissionComment" | "reviewComment" | "createdAt"
 >;
 
 export type EvidenceRequestDashboardItem = EvidenceRequest & {
@@ -1699,7 +1699,7 @@ export type SprsReadinessReportRequest = {
   ruleSetId: string;
   reviewerNotes: string | null;
   leadershipReviewStatus: "Pending" | "Reviewed" | "NeedsChanges" | null;
-  conditionalDeductionSelections: Array<{ requirementId: string; optionCode: string }> | null;
+  conditionalDeductionSelections: Array<{ requirementId: string; optionCode: string ;}> | null;
 };
 
 export type EvidencePackageGenerateRequest = {
@@ -1902,8 +1902,18 @@ export type ContractRecord = {
 
 export type UpsertContractRequest = Omit<ContractRecord, "id" | "tenantId" | "createdAt" | "updatedAt">;
 
+export type ApplicabilityFact = {
+  tenantId: string;
+  key: string;
+  value: string;
+  isUnknown: boolean;
+  sourceType: string;
+  sourceId: string;
+  lastUpdatedAt: string | null;
+};
+
 export type LaborApplicabilityStatus = "Draft" | "Active" | "Inactive";
-export type LaborApplicabilityReviewStatus = "Draft" | "PendingReview" | "Reviewed" | "Rejected";
+export type LaborApplicabilityReviewStatus = |"Draft" | "PendingReview" | "Reviewed" | "Rejected";
 export type LaborApplicability = {
   id: string; tenantId: string; contractId: string; taskId: string | null;
   scaApplicable: boolean; dbaApplicable: boolean; otherFarPart22Obligations: string | null;
@@ -1912,11 +1922,11 @@ export type LaborApplicability = {
   sourceContractClauseId: string | null; sourceClause: string | null; rationale: string | null;
   ownerFunction: string; status: LaborApplicabilityStatus; reviewStatus: LaborApplicabilityReviewStatus;
   reviewNotes: string | null; reviewedByUserId: string | null; reviewedAt: string | null;
-  reviewTask: { id: string; tenantId: string; contractId: string; title: string; description: string; status: string; dueAt: string | null } | null;
+  reviewTask: { id: string; tenantId: string; contractId: string; title: string; description: string; status: string; dueAt: string | null ;} | null;
   createdAt: string; updatedAt: string | null; laborStandard: string;
 };
 export type UpsertLaborApplicabilityRequest = Omit<LaborApplicability,
-  "id" | "tenantId" | "taskId" | "status" | "reviewedByUserId" | "reviewedAt" | "reviewTask" | "createdAt" | "updatedAt" | "laborStandard">;
+  |"id" | "tenantId" | "taskId" | "status" | "reviewedByUserId" | "reviewedAt" | "reviewTask" | "createdAt" | "updatedAt" | "laborStandard">;
 
 export type LaborCategory = {
   id: string; tenantId: string; contractId: string; title: string;
@@ -1929,7 +1939,7 @@ export type LaborClassificationHistory = {
   id: string; assignmentId: string; priorCategoryId: string | null; priorCategoryTitle: string | null;
   newCategoryId: string; newCategoryTitle: string; actorUserId: string; changedAt: string; reason: string;
 };
-export type LaborClassificationReviewStatus = "PendingReview" | "Reviewed" | "Rejected";
+export type LaborClassificationReviewStatus = |"PendingReview" | "Reviewed" | "Rejected";
 export type LaborEmployeeAssignment = {
   id: string; tenantId: string; contractId: string; employeeId: string;
   employeeName: string | null; employeeEmail: string | null; categoryId: string;
@@ -1942,7 +1952,7 @@ export type LaborEmployeeAssignmentRequest = {
   employeeId: string; contractId: string; categoryId: string; workLocation: string;
   effectiveStart: string; effectiveEnd: string | null; sourceReference: string; evidenceItemIds: string[];
 };
-export type LaborEmployeeOption = { id: string; tenantId: string; employeeNumber: string; name: string; email: string };
+export type LaborEmployeeOption = { id: string; tenantId: string; employeeNumber: string; name: string; email: string ;};
 
 export type EsrsApplicability = {
   id: string;
@@ -1971,7 +1981,7 @@ export type EsrsApplicability = {
 
 export type UpsertEsrsApplicabilityRequest = Omit<
   EsrsApplicability,
-  "id" | "tenantId" | "taskId" | "status" | "reviewedByUserId" | "reviewedAt" | "createdAt" | "updatedAt" | "isOverdue"
+  |"id" | "tenantId" | "taskId" | "status" | "reviewedByUserId" | "reviewedAt" | "createdAt" | "updatedAt" | "isOverdue"
 >;
 
 export type EsrsScheduleTemplate = {
@@ -1985,7 +1995,7 @@ export type EsrsScheduleTemplate = {
   guidance: string;
 };
 
-export type SubcontractingReportDataReviewStatus = "Draft" | "PendingReview" | "Reviewed" | "Accepted" | "Rejected";
+export type SubcontractingReportDataReviewStatus = |"Draft" | "PendingReview" | "Reviewed" | "Accepted" | "Rejected";
 export type SprReportingRole = "PrimeContractor" | "Subcontractor";
 export type SprReportingPeriod = "March31" | "September30" | "Final";
 export type SprSchemaProfile = {
@@ -2010,18 +2020,18 @@ export type SubcontractingReportDataRow = {
   version: number; createdAt: string; updatedAt: string | null; isPackageEligible: boolean;
 };
 export type UpsertSubcontractingReportDataRowRequest = Omit<SubcontractingReportDataRow,
-  "id" | "tenantId" | "reviewStatus" | "reviewedByUserId" | "reviewedAt" | "reviewerNotes" |
+  |"id" | "tenantId" | "reviewStatus" | "reviewedByUserId" | "reviewedAt" | "reviewerNotes" |
   "version" | "createdAt" | "updatedAt" | "isPackageEligible" | "sprReadinessStatus" | "sprReadinessBlockers" |
   "sprSchemaProfileId" | "sprSchemaVersion" | "sprSchemaSourceUrl" | "sprSchemaDefinitionSha256"> & { expectedVersion?: number | null };
-export type SprSchemaReference = { id: string; version: string; sourceUrl: string; definitionSha256: string };
+export type SprSchemaReference = { id: string; version: string; sourceUrl: string; definitionSha256: string ;};
 export type SprReportPackage = {
   id: string; tenantId: string; contractId: string; reportType: "Isr" | "Ssr"; periodStart: string; periodEnd: string;
   status: "Draft" | "InReview" | "Approved" | "Superseded" | "Archived"; version: number;
   notSubmittedDisclaimer: string; reviewerName: string | null; reviewerUserId: string | null;
   approvedAt: string | null; reviewNotes: string | null; generatedAt: string; updatedAt: string | null;
   snapshot: { contractId: string; reportType: "Isr" | "Ssr"; periodStart: string; periodEnd: string;
-    rowCount: number; totalSpend: number; spendSummaries: { socioeconomicCategory: string; totalSpend: number; subcontractorCount: number }[];
-    evidenceReferences: { rowId: string; evidenceItemId: string }[]; exceptions: string[]; schemaProfiles: SprSchemaReference[] };
+    rowCount: number; totalSpend: number; spendSummaries: { socioeconomicCategory: string; totalSpend: number; subcontractorCount: number ;}[];
+    evidenceReferences: { rowId: string; evidenceItemId: string }[]; exceptions: string[]; schemaProfiles: SprSchemaReference[] ;};
 };
 export type SprManualSubmissionReceipt = {
   id: string; tenantId: string; packageId: string; submittedAt: string; confirmationReference: string;
@@ -2058,8 +2068,8 @@ export type ContractDocumentUploadRequest = {
 };
 
 export type ContentClassification = {
-  classification: "Unclassified" | "Fci" | "Cui" | "SyntheticCui" | "Prohibited" | "Unknown" | string;
-  source: "UserSelected" | "SystemSuggested" | "AdminReviewed" | "ImportedDemoSeed" | string;
+  classification: |"Unclassified" | "Fci" | "Cui" | "SyntheticCui" | "Prohibited" | "Unknown" | string;
+  source: |"UserSelected" | "SystemSuggested" | "AdminReviewed" | "ImportedDemoSeed" | string;
   confidence: number | null;
   reviewedByUserId: string | null;
   reviewedAt: string | null;
@@ -2077,7 +2087,7 @@ export type ContentClassificationReviewItem = {
   reviewRoute: string;
 };
 
-export type ClassifiedContentRoute = "evidence-items" | "evidence-file-versions" | "notes" | "contract-documents" | "extraction-jobs" | "reports";
+export type ClassifiedContentRoute = |"evidence-items" | "evidence-file-versions" | "notes" | "contract-documents" | "extraction-jobs" | "reports";
 export type ClassifiedContent = {
   entityType: string;
   id: string;
@@ -2370,7 +2380,7 @@ export type RemoveContractClauseRequest = {
 
 export type UpsertCompanyProfileRequest = Omit<
   CompanyProfile,
-  "id" | "tenantId" | "completionPercentage" | "isComplete" | "validationErrors" | "createdAt" | "updatedAt"
+  |"id" | "tenantId" | "completionPercentage" | "isComplete" | "validationErrors" | "createdAt" | "updatedAt"
 > & {
   completeProfile: boolean;
 };
@@ -2747,7 +2757,7 @@ export function getSelectedTenantId(): string | null {
 
 export function getSelectedDevelopmentRole(): string {
   try {
-    return window.localStorage.getItem(developmentRoleStorageKey) ?? import.meta.env.VITE_GCCS_DEV_ROLE ?? "Owner";
+    return (window.localStorage.getItem(developmentRoleStorageKey) ?? import.meta.env.VITE_GCCS_DEV_ROLE ?? "Owner");
   } catch {
     return import.meta.env.VITE_GCCS_DEV_ROLE ?? "Owner";
   }
@@ -2833,6 +2843,17 @@ function normalizeCurrentUserAccess(access: CurrentUserAccess): CurrentUserAcces
 
 export async function getTenantMembers(): Promise<TenantMember[]> {
   return getJson<TenantMember[]>("/api/tenant-members", []);
+}
+
+export async function updateTenantMemberStatus(
+  membershipId: string,
+  status: "Active" | "Suspended" | "Deactivated",
+  reason = "",
+): Promise<ApiMutationResult<TenantMember>> {
+  return patchJsonResult<TenantMember>(
+    `/api/tenant-members/${encodeURIComponent(membershipId)}/status`,
+    { status, reason },
+  );
 }
 
 export async function getObligationAssignmentCandidates(): Promise<ObligationAssignmentCandidate[]> {
@@ -3307,7 +3328,7 @@ export async function updateContractObligationStatus(
 export async function assignContractObligationOwner(
   contractClauseId: string,
   obligationId: string,
-  request: { userId?: string | null; roleName?: string | null; notify?: boolean }
+  request: { userId?: string | null; roleName?: string | null; notify?: boolean ;}
 ): Promise<ApiMutationResult<ContractObligationDetail>> {
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
 
@@ -3382,6 +3403,12 @@ export async function getContract(contractId: string): Promise<ContractRecord | 
   } catch {
     return null;
   }
+}
+
+export async function getApplicabilityFacts(contractId: string): Promise<ApplicabilityFact[]> {
+  return getRequiredJson<ApplicabilityFact[]>(
+    `/api/applicability-facts?contractId=${encodeURIComponent(contractId)}`
+  );
 }
 
 export async function saveCompanyProfile(
@@ -3522,34 +3549,48 @@ export async function downloadSubcontractingPlanReportDataTemplate(): Promise<Ap
     if (!response.ok) return { data: null, error: await readErrorMessage(response) };
     const disposition = response.headers.get("content-disposition") ?? "";
     const fileName = disposition.match(/filename\*?=(?:UTF-8''|")?([^";]+)/i)?.[1] ?? "sam-gov-spr-report-data-template.csv";
-    return { data: { blob: await response.blob(), fileName: decodeURIComponent(fileName.replace(/"/g, "")) }, error: null };
-  } catch { return { data: null, error: "The SAM.gov SPR import template could not be downloaded." }; }
+    return { data: { blob: await response.blob(), fileName: decodeURIComponent(fileName.replace(/"/g, "")),
+      },
+      error: null,
+    };
+  } catch {
+    return {
+      data: null,
+      error: "The SAM.gov SPR import template could not be downloaded.",
+    };
+  }
 }
 
 export const getSprReportPackages = () =>
-  getRequiredJson<SprReportPackage[]>("/api/subcontracting-plan-reports/packages");
+  getRequiredJson<SprReportPackage[]>(
+    "/api/subcontracting-plan-reports/packages",
+  );
 
 export const getSharedPortalPackages = () =>
   getRequiredJson<SharedPortalPackage[]>("/api/portal/shared-packages");
 
 export const getPortalReviewPackages = (invitationId: string) =>
-  getRequiredJson<PortalReviewPackage[]>(`/api/external-portal/invitations/${encodeURIComponent(invitationId)}/packages`);
+  getRequiredJson<PortalReviewPackage[]>(
+    `/api/external-portal/invitations/${encodeURIComponent(invitationId)}/packages`,
+  );
 
 export const createPortalReviewMessage = (
   invitationId: string,
   sharedPackageId: string,
   kind: "Comment" | "Question",
-  body: string
-) => postJsonResult<PortalPackageReviewMessage>(
-  `/api/external-portal/invitations/${encodeURIComponent(invitationId)}/packages/${encodeURIComponent(sharedPackageId)}/messages`,
-  { kind, body }
-);
+  body: string,
+) =>
+  postJsonResult<PortalPackageReviewMessage>(
+    `/api/external-portal/invitations/${encodeURIComponent(invitationId)}/packages/${encodeURIComponent(sharedPackageId)}/messages`,
+    { kind, body },
+  );
 
 export async function downloadPortalReviewPackage(
   invitationId: string,
-  sharedPackageId: string
+  sharedPackageId: string,
 ): Promise<ApiMutationResult<{ blob: Blob; fileName: string }>> {
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+  const apiBaseUrl =
+    import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
   try {
     const path = `/api/external-portal/invitations/${encodeURIComponent(invitationId)}/packages/${encodeURIComponent(sharedPackageId)}/download`;
     const response = await fetch(`${apiBaseUrl}${path}`, { headers: await getApiHeaders() });
@@ -3560,9 +3601,11 @@ export async function downloadPortalReviewPackage(
     return {
       data: {
         blob: await response.blob(),
-        fileName: decodeURIComponent(encodedName ?? plainName ?? "fedril-portal-package.html")
+        fileName: decodeURIComponent(
+          encodedName ?? plainName ?? "fedril-portal-package.html",
+        ),
       },
-      error: null
+      error: null,
     };
   } catch {
     return { data: null, error: "The portal package could not be downloaded." };
@@ -3573,34 +3616,73 @@ export const getExternalPortalInvitations = () =>
   getRequiredJson<ExternalPortalInvitation[]>("/api/portal/invitations");
 
 export const createExternalPortalInvitation = (request: {
-  email: string; role: ExternalPortalRole; packageIds: string[]; contractIds: string[];
-  expiresAt: string; canDownload: boolean; strongAuthenticationRequired: boolean;
-}) => postJsonResult<ExternalPortalInvitation>("/api/portal/invitations", request);
+  email: string;
+  role: ExternalPortalRole;
+  packageIds: string[];
+  contractIds: string[];
+  expiresAt: string;
+  canDownload: boolean;
+  strongAuthenticationRequired: boolean;
+}) =>
+  postJsonResult<ExternalPortalInvitation>("/api/portal/invitations", request);
 
 export const resendExternalPortalInvitation = (invitationId: string) =>
-  postJsonResult<ExternalPortalInvitation>(`/api/portal/invitations/${invitationId}/resend`, {});
+  postJsonResult<ExternalPortalInvitation>(
+    `/api/portal/invitations/${invitationId}/resend`,
+    {},
+  );
 
-export const extendExternalPortalInvitation = (invitationId: string, expiresAt: string) =>
-  postJsonResult<ExternalPortalInvitation>(`/api/portal/invitations/${invitationId}/extend`, { expiresAt });
+export const extendExternalPortalInvitation = (
+  invitationId: string,
+  expiresAt: string,
+) =>
+  postJsonResult<ExternalPortalInvitation>(
+    `/api/portal/invitations/${invitationId}/extend`,
+    { expiresAt },
+  );
 
-export const revokeExternalPortalInvitation = (invitationId: string, reason: string) =>
-  postJsonResult<ExternalPortalInvitation>(`/api/portal/invitations/${invitationId}/revoke`, { reason });
+export const revokeExternalPortalInvitation = (
+  invitationId: string,
+  reason: string,
+) =>
+  postJsonResult<ExternalPortalInvitation>(
+    `/api/portal/invitations/${invitationId}/revoke`,
+    { reason },
+  );
 
 export const getExternalPortalAccessHistory = (invitationId: string) =>
-  getRequiredJson<ExternalPortalAccessHistory[]>(`/api/portal/invitations/${invitationId}/access-history`);
+  getRequiredJson<ExternalPortalAccessHistory[]>(
+    `/api/portal/invitations/${invitationId}/access-history`,
+  );
 
 export const getPortalPackageActivityReport = () =>
-  getRequiredJson<PortalPackageActivityReport>("/api/portal/shared-packages/activity-report");
+  getRequiredJson<PortalPackageActivityReport>(
+    "/api/portal/shared-packages/activity-report",
+  );
 
 export const expireSharedPortalPackage = (sharedPackageId: string) =>
-  postJsonResult<SharedPortalPackage>(`/api/portal/shared-packages/${sharedPackageId}/expire`, {});
+  postJsonResult<SharedPortalPackage>(
+    `/api/portal/shared-packages/${sharedPackageId}/expire`,
+    {},
+  );
 
-export const revokeSharedPortalPackage = (sharedPackageId: string, reason: string) =>
-  postJsonResult<SharedPortalPackage>(`/api/portal/shared-packages/${sharedPackageId}/revoke`, { reason });
+export const revokeSharedPortalPackage = (
+  sharedPackageId: string,
+  reason: string,
+) =>
+  postJsonResult<SharedPortalPackage>(
+    `/api/portal/shared-packages/${sharedPackageId}/revoke`,
+    { reason },
+  );
 
-export const supersedeSharedPortalPackage = (sharedPackageId: string, replacementSharedPackageId: string) =>
-  postJsonResult<SharedPortalPackage>(`/api/portal/shared-packages/${sharedPackageId}/supersede`,
-    { replacementSharedPackageId });
+export const supersedeSharedPortalPackage = (
+  sharedPackageId: string,
+  replacementSharedPackageId: string,
+) =>
+  postJsonResult<SharedPortalPackage>(
+    `/api/portal/shared-packages/${sharedPackageId}/supersede`,
+    { replacementSharedPackageId },
+  );
 
 export const reissueSharedPortalPackage = (
   sharedPackageId: string,
@@ -3608,51 +3690,105 @@ export const reissueSharedPortalPackage = (
   expiresAt: string,
   expirationReminderDays = 7,
   reviewDueAt?: string,
-  approvalReason?: string
-) => postJsonResult<SharedPortalPackage>(`/api/portal/shared-packages/${sharedPackageId}/reissue`,
-  { replacementPackageId, expiresAt, expirationReminderDays, reviewDueAt, approvalReason });
+  approvalReason?: string,
+) =>
+  postJsonResult<SharedPortalPackage>(
+    `/api/portal/shared-packages/${sharedPackageId}/reissue`,
+    {
+      replacementPackageId,
+      expiresAt,
+      expirationReminderDays,
+      reviewDueAt,
+      approvalReason,
+    },
+  );
 
 export const archiveSharedPortalPackage = (sharedPackageId: string) =>
-  postJsonResult<SharedPortalPackage>(`/api/portal/shared-packages/${sharedPackageId}/archive`, {});
+  postJsonResult<SharedPortalPackage>(
+    `/api/portal/shared-packages/${sharedPackageId}/archive`,
+    {},
+  );
 
 export const getSprSubmissionCapability = () =>
-  getRequiredJson<SprSubmissionCapability>("/api/subcontracting-plan-reports/submission-capability");
+  getRequiredJson<SprSubmissionCapability>(
+    "/api/subcontracting-plan-reports/submission-capability",
+  );
 
-export const createSprReportPackage = (contractId: string, reportType: "Isr" | "Ssr", periodStart: string, periodEnd: string) =>
-  postJsonResult<SprReportPackage>("/api/subcontracting-plan-reports/packages",
-    { contractId, reportType, periodStart, periodEnd });
+export const createSprReportPackage = (
+  contractId: string,
+  reportType: "Isr" | "Ssr",
+  periodStart: string,
+  periodEnd: string,
+) =>
+  postJsonResult<SprReportPackage>(
+    "/api/subcontracting-plan-reports/packages",
+    { contractId, reportType, periodStart, periodEnd },
+  );
 
-export const reviewSprReportPackage = (packageId: string, action: "begin-review" | "approve" | "supersede" | "archive",
-  reviewerName: string, reviewNotes: string | null) =>
-  postJsonResult<SprReportPackage>(`/api/subcontracting-plan-reports/packages/${packageId}/${action}`, { reviewerName, reviewNotes });
+export const reviewSprReportPackage = (
+  packageId: string,
+  action: "begin-review" | "approve" | "supersede" | "archive",
+  reviewerName: string,
+  reviewNotes: string | null,
+) =>
+  postJsonResult<SprReportPackage>(
+    `/api/subcontracting-plan-reports/packages/${packageId}/${action}`,
+    { reviewerName, reviewNotes },
+  );
 
 export const getSprManualSubmissionReceipts = (packageId: string) =>
-  getRequiredJson<SprManualSubmissionReceipt[]>(`/api/subcontracting-plan-reports/packages/${packageId}/manual-submission-receipts`);
+  getRequiredJson<SprManualSubmissionReceipt[]>(
+    `/api/subcontracting-plan-reports/packages/${packageId}/manual-submission-receipts`,
+  );
 
-export const createSprManualSubmissionReceipt = (packageId: string, request: {
-  submittedAt: string; confirmationReference: string; outcome: SprManualSubmissionReceipt["outcome"];
-  notes: string | null; evidenceItemId: string | null; supersedesReceiptId?: string | null;
-}) => postJsonResult<SprManualSubmissionReceipt>(
-  `/api/subcontracting-plan-reports/packages/${packageId}/manual-submission-receipts`, request);
+export const createSprManualSubmissionReceipt = (
+  packageId: string,
+  request: {
+    submittedAt: string;
+    confirmationReference: string;
+    outcome: SprManualSubmissionReceipt["outcome"];
+    notes: string | null;
+    evidenceItemId: string | null;
+    supersedesReceiptId?: string | null;
+  },
+) =>
+  postJsonResult<SprManualSubmissionReceipt>(
+    `/api/subcontracting-plan-reports/packages/${packageId}/manual-submission-receipts`,
+    request,
+  );
 
-export async function downloadSprReportPackage(packageId: string, format: "Html" | "Json"):
-  Promise<ApiMutationResult<{ blob: Blob; fileName: string }>> {
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+export async function downloadSprReportPackage(
+  packageId: string,
+  format: "Html" | "Json",
+): Promise<ApiMutationResult<{ blob: Blob; fileName: string }>> {
+  const apiBaseUrl =
+    import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
   try {
     const response = await fetch(`${apiBaseUrl}/api/subcontracting-plan-reports/packages/${packageId}/export?format=${format}`,
       { headers: await getApiHeaders() });
     if (!response.ok) return { data: null, error: await readErrorMessage(response) };
     const disposition = response.headers.get("content-disposition") ?? "";
     const fileName = disposition.match(/filename\*?=(?:UTF-8''|")?([^";]+)/i)?.[1] ?? `sam-gov-spr-package.${format.toLowerCase()}`;
-    return { data: { blob: await response.blob(), fileName: decodeURIComponent(fileName.replace(/"/g, "")) }, error: null };
-  } catch { return { data: null, error: "The SPR preparation package could not be downloaded." }; }
+    return { data: { blob: await response.blob(), fileName: decodeURIComponent(fileName.replace(/"/g, "")),
+      },
+      error: null,
+    };
+  } catch {
+    return {
+      data: null,
+      error: "The SPR preparation package could not be downloaded.",
+    };
+  }
 }
 
 export async function createContractDocument(
   contractId: string,
-  request: ContractDocumentUploadRequest
+  request: ContractDocumentUploadRequest,
 ): Promise<ApiMutationResult<ContractDocument>> {
-  return postJsonResult<ContractDocument>(`/api/contracts/${contractId}/documents`, request);
+  return postJsonResult<ContractDocument>(
+    `/api/contracts/${contractId}/documents`,
+    request,
+  );
 }
 
 export async function uploadContractDocumentFile(
@@ -3660,35 +3796,47 @@ export async function uploadContractDocumentFile(
   documentType: string,
   file: File,
   classification: string,
-  noCuiAttestation: boolean
+  noCuiAttestation: boolean,
 ): Promise<ApiMutationResult<ContractDocument>> {
   const form = new FormData();
   form.set("file", file);
   form.set("documentType", documentType);
   form.set("classification", classification);
-  form.set("classificationReason", `User selected ${classification} for contract document upload.`);
+  form.set(
+    "classificationReason",
+    `User selected ${classification} for contract document upload.`,
+  );
   form.set("noCuiAttestation", String(noCuiAttestation));
   form.set("containsPotentialCui", String(classification === "Cui"));
-  return postFormResult<ContractDocument>(`/api/contracts/${contractId}/documents/file`, form);
+  return postFormResult<ContractDocument>(
+    `/api/contracts/${contractId}/documents/file`,
+    form,
+  );
 }
 
 export async function startContractDocumentExtraction(
   contractId: string,
   documentId: string,
-  classification: string
+  classification: string,
 ): Promise<ApiMutationResult<ExtractionJob>> {
-  return postJsonResult<ExtractionJob>(`/api/contracts/${contractId}/documents/${documentId}/extraction-jobs`, { classification: { classification } });
+  return postJsonResult<ExtractionJob>(
+    `/api/contracts/${contractId}/documents/${documentId}/extraction-jobs`,
+    { classification: { classification } },
+  );
 }
 
 export async function getContractDocumentExtractionResults(
   contractId: string,
   documentId: string,
-  reviewStatus?: string
+  reviewStatus?: string,
 ): Promise<ContractDocumentExtractionResults | null> {
-  const query = reviewStatus && reviewStatus !== "all" ? `?reviewStatus=${encodeURIComponent(reviewStatus)}` : "";
+  const query =
+    reviewStatus && reviewStatus !== "all"
+      ? `?reviewStatus=${encodeURIComponent(reviewStatus)}`
+      : "";
   return getJson<ContractDocumentExtractionResults | null>(
     `/api/contracts/${contractId}/documents/${documentId}/extraction-results${query}`,
-    null
+    null,
   );
 }
 
@@ -3696,11 +3844,11 @@ export async function editClauseCandidate(
   contractId: string,
   documentId: string,
   candidateId: string,
-  request: ClauseCandidateEditRequest
+  request: ClauseCandidateEditRequest,
 ): Promise<ApiMutationResult<ClauseCandidate>> {
   return patchJsonResult<ClauseCandidate>(
     `/api/contracts/${contractId}/documents/${documentId}/clause-candidates/${candidateId}`,
-    request
+    request,
   );
 }
 
@@ -3708,11 +3856,11 @@ export async function acceptClauseCandidate(
   contractId: string,
   documentId: string,
   candidateId: string,
-  request: ClauseCandidateReviewRequest
+  request: ClauseCandidateReviewRequest,
 ): Promise<ApiMutationResult<ClauseCandidate>> {
   return postJsonResult<ClauseCandidate>(
     `/api/contracts/${contractId}/documents/${documentId}/clause-candidates/${candidateId}/accept`,
-    request
+    request,
   );
 }
 
@@ -3720,11 +3868,11 @@ export async function rejectClauseCandidate(
   contractId: string,
   documentId: string,
   candidateId: string,
-  request: ClauseCandidateReviewRequest
+  request: ClauseCandidateReviewRequest,
 ): Promise<ApiMutationResult<ClauseCandidate>> {
   return postJsonResult<ClauseCandidate>(
     `/api/contracts/${contractId}/documents/${documentId}/clause-candidates/${candidateId}/reject`,
-    request
+    request,
   );
 }
 
@@ -3732,11 +3880,11 @@ export async function markClauseCandidateNeedsClarification(
   contractId: string,
   documentId: string,
   candidateId: string,
-  request: ClauseCandidateStateChangeRequest
+  request: ClauseCandidateStateChangeRequest,
 ): Promise<ApiMutationResult<ClauseCandidate>> {
   return postJsonResult<ClauseCandidate>(
     `/api/contracts/${contractId}/documents/${documentId}/clause-candidates/${candidateId}/needs-clarification`,
-    request
+    request,
   );
 }
 
@@ -3744,16 +3892,20 @@ export async function supersedeClauseCandidate(
   contractId: string,
   documentId: string,
   candidateId: string,
-  request: ClauseCandidateStateChangeRequest
+  request: ClauseCandidateStateChangeRequest,
 ): Promise<ApiMutationResult<ClauseCandidate>> {
   return postJsonResult<ClauseCandidate>(
     `/api/contracts/${contractId}/documents/${documentId}/clause-candidates/${candidateId}/supersede`,
-    request
+    request,
   );
 }
 
-export async function deleteContractDocument(contractId: string, documentId: string): Promise<ApiMutationResult<null>> {
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+export async function deleteContractDocument(
+  contractId: string,
+  documentId: string,
+): Promise<ApiMutationResult<null>> {
+  const apiBaseUrl =
+    import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
 
   try {
     const response = await fetch(`${apiBaseUrl}/api/contracts/${contractId}/documents/${documentId}`, {
@@ -3939,91 +4091,155 @@ export async function downloadReportExport(exportId: string): Promise<{ blob: Bl
   const quotedName = disposition.match(/filename="([^"]+)"/i)?.[1];
   return {
     blob: await response.blob(),
-    fileName: utf8Name ? decodeURIComponent(utf8Name) : quotedName ?? `report-${exportId}.pdf`
+    fileName: utf8Name
+      ? decodeURIComponent(utf8Name)
+      : (quotedName ?? `report-${exportId}.pdf`),
   };
 }
 
-export async function getEvidencePackage(reportId: string): Promise<EvidencePackageReport> {
-  return getRequiredJson<EvidencePackageReport>(`/api/reports/evidence-packages/${reportId}`);
+export async function getEvidencePackage(
+  reportId: string,
+): Promise<EvidencePackageReport> {
+  return getRequiredJson<EvidencePackageReport>(
+    `/api/reports/evidence-packages/${reportId}`,
+  );
 }
 
-export async function generateComplianceStatusReport(classification: string): Promise<ApiMutationResult<ComplianceStatusReport>> {
-  return postJsonResult<ComplianceStatusReport>("/api/reports/compliance-status", { classification: { classification } });
+export async function generateComplianceStatusReport(
+  classification: string,
+): Promise<ApiMutationResult<ComplianceStatusReport>> {
+  return postJsonResult<ComplianceStatusReport>(
+    "/api/reports/compliance-status",
+    { classification: { classification } },
+  );
 }
 
-export async function generateCmmcReadinessReport(assessmentId: string, classification: string): Promise<ApiMutationResult<CmmcReadinessReport>> {
-  return postJsonResult<CmmcReadinessReport>(`/api/reports/cmmc-readiness?assessmentId=${encodeURIComponent(assessmentId)}`, { classification: { classification } });
+export async function generateCmmcReadinessReport(
+  assessmentId: string,
+  classification: string,
+): Promise<ApiMutationResult<CmmcReadinessReport>> {
+  return postJsonResult<CmmcReadinessReport>(
+    `/api/reports/cmmc-readiness?assessmentId=${encodeURIComponent(assessmentId)}`,
+    { classification: { classification } },
+  );
 }
 
 export async function generateSprsReadinessReport(
   assessmentId: string,
   request: SprsReadinessReportRequest,
   classification: string,
-  idempotencyKey: string
+  idempotencyKey: string,
 ): Promise<ApiMutationResult<SprsReadinessReport>> {
   return postJsonResult<SprsReadinessReport>(
     `/api/reports/sprs-readiness?assessmentId=${encodeURIComponent(assessmentId)}`,
     { ...request, classification: { classification } },
-    { "Idempotency-Key": idempotencyKey }
+    { "Idempotency-Key": idempotencyKey },
   );
 }
 
 export async function generateSubcontractorComplianceReport(
   classification: string,
-  contractId?: string
+  contractId?: string,
 ): Promise<ApiMutationResult<SubcontractorComplianceReport>> {
-  const query = contractId ? `?contractId=${encodeURIComponent(contractId)}` : "";
-  return postJsonResult<SubcontractorComplianceReport>(`/api/reports/subcontractor-compliance${query}`, { classification: { classification } });
+  const query = contractId
+    ? `?contractId=${encodeURIComponent(contractId)}`
+    : "";
+  return postJsonResult<SubcontractorComplianceReport>(
+    `/api/reports/subcontractor-compliance${query}`,
+    { classification: { classification } },
+  );
 }
 
 export async function generateEvidencePackage(
-  request: EvidencePackageGenerateRequest, classification: string
+  request: EvidencePackageGenerateRequest,
+  classification: string,
 ): Promise<ApiMutationResult<EvidencePackageReport>> {
-  return postJsonResult<EvidencePackageReport>("/api/reports/evidence-packages", { ...request, classification: { classification } });
+  return postJsonResult<EvidencePackageReport>(
+    "/api/reports/evidence-packages",
+    { ...request, classification: { classification } },
+  );
 }
 
 export async function updateEvidenceMetadata(
   evidenceItemId: string,
-  request: UpsertEvidenceMetadataRequest
+  request: UpsertEvidenceMetadataRequest,
 ): Promise<ApiMutationResult<EvidenceMetadata>> {
-  return putJsonResult<EvidenceMetadata>(`/api/evidence-items/${evidenceItemId}`, request);
+  return putJsonResult<EvidenceMetadata>(
+    `/api/evidence-items/${evidenceItemId}`,
+    request,
+  );
 }
 
 export type ClassifiedNote = {
-  id: string; title: string; body: string; revision: number; createdAt: string; updatedAt: string;
+  id: string;
+  title: string;
+  body: string;
+  revision: number;
+  createdAt: string;
+  updatedAt: string;
   classification: { classification: string; source: string; reason?: string };
 };
-export const getClassifiedNotes = () => getRequiredJson<ClassifiedNote[]>("/api/classified-notes");
-export const getClassifiedNote = (id: string) => getRequiredJson<ClassifiedNote>(`/api/classified-notes/${id}`);
-export function saveClassifiedNote(id: string | null, title: string, body: string, classification: string, revision: number) {
+export const getClassifiedNotes = () =>
+  getRequiredJson<ClassifiedNote[]>("/api/classified-notes");
+export const getClassifiedNote = (id: string) =>
+  getRequiredJson<ClassifiedNote>(`/api/classified-notes/${id}`);
+export function saveClassifiedNote(
+  id: string | null,
+  title: string,
+  body: string,
+  classification: string,
+  revision: number,
+) {
   const request = { title, body, classification: { classification }, revision };
-  return id ? putJsonResult<ClassifiedNote>(`/api/classified-notes/${id}`, request) : postJsonResult<ClassifiedNote>("/api/classified-notes", request);
+  return id
+    ? putJsonResult<ClassifiedNote>(`/api/classified-notes/${id}`, request)
+    : postJsonResult<ClassifiedNote>("/api/classified-notes", request);
 }
 
-export async function getContentClassificationReviewItems(): Promise<ContentClassificationReviewItem[]> {
-  return getJson<ContentClassificationReviewItem[]>("/api/content-classification-review-items", []);
+export async function getContentClassificationReviewItems(): Promise<
+  ContentClassificationReviewItem[]
+> {
+  return getJson<ContentClassificationReviewItem[]>(
+    "/api/content-classification-review-items",
+    [],
+  );
 }
 
 export async function reclassifyEvidenceItem(
   evidenceItemId: string,
-  request: ReclassifyContentRequest
+  request: ReclassifyContentRequest,
 ): Promise<ApiMutationResult<EvidenceMetadata>> {
-  return patchJsonResult<EvidenceMetadata>(`/api/evidence-items/${evidenceItemId}/classification`, request);
+  return patchJsonResult<EvidenceMetadata>(
+    `/api/evidence-items/${evidenceItemId}/classification`,
+    request,
+  );
 }
 
 export async function getSyntheticDemoDataset(): Promise<SyntheticDemoDatasetDefinition | null> {
-  return getJson<SyntheticDemoDatasetDefinition | null>("/api/demo/synthetic-dataset", null);
+  return getJson<SyntheticDemoDatasetDefinition | null>(
+    "/api/demo/synthetic-dataset",
+    null,
+  );
 }
 
-export async function precheckSyntheticDemoDataset(): Promise<ApiMutationResult<SyntheticDemoDatasetPrecheckResult>> {
-  return postJsonResult<SyntheticDemoDatasetPrecheckResult>("/api/demo/synthetic-dataset/precheck", {});
+export async function precheckSyntheticDemoDataset(): Promise<
+  ApiMutationResult<SyntheticDemoDatasetPrecheckResult>
+> {
+  return postJsonResult<SyntheticDemoDatasetPrecheckResult>(
+    "/api/demo/synthetic-dataset/precheck",
+    {},
+  );
 }
 
-export async function seedDemoTenant(): Promise<ApiMutationResult<DemoTenantSeedResult>> {
+export async function seedDemoTenant(): Promise<
+  ApiMutationResult<DemoTenantSeedResult>
+> {
   return postJsonResult<DemoTenantSeedResult>("/api/demo/seed", {});
 }
 
-export async function resetDemoTenantSeed(): Promise<ApiMutationResult<DemoTenantSeedResult>> {
+export async function resetDemoTenantSeed(): Promise<
+  ApiMutationResult<DemoTenantSeedResult>
+> {
   return deleteJsonResult<DemoTenantSeedResult>("/api/demo/seed");
 }
 
@@ -4032,177 +4248,407 @@ export async function createEvidenceUploadIntent(
   file: File,
   classification: string,
   classificationReason: string,
-  noCuiAttestation: boolean
+  noCuiAttestation: boolean,
 ): Promise<ApiMutationResult<EvidenceFileAccess>> {
   const form = new FormData();
   form.set("file", file);
   form.set("noCuiAttestation", String(noCuiAttestation));
   form.set("containsPotentialCui", String(classification === "Cui"));
   form.set("classification", classification);
-  form.set("classificationReason", classificationReason.trim() || `User selected ${classification} upload classification.`);
-  return postFormResult<EvidenceFileAccess>(`/api/evidence-items/${evidenceItemId}/file`, form);
+  form.set(
+    "classificationReason",
+    classificationReason.trim() ||
+      `User selected ${classification} upload classification.`,
+  );
+  return postFormResult<EvidenceFileAccess>(
+    `/api/evidence-items/${evidenceItemId}/file`,
+    form,
+  );
 }
 
 export async function createTenantInvitation(
-  request: CreateTenantInvitationRequest
+  request: CreateTenantInvitationRequest,
 ): Promise<ApiMutationResult<TenantInvitation>> {
   return postJsonResult<TenantInvitation>("/api/tenant-invitations", request);
 }
 
 export async function revokeTenantInvitation(
   invitationId: string,
-  request: RevokeTenantInvitationRequest
+  request: RevokeTenantInvitationRequest,
 ): Promise<ApiMutationResult<TenantInvitation>> {
-  return postJsonResult<TenantInvitation>(`/api/tenant-invitations/${invitationId}/revoke`, request);
+  return postJsonResult<TenantInvitation>(
+    `/api/tenant-invitations/${invitationId}/revoke`,
+    request,
+  );
 }
 
 export async function updateTenantDataHandlingMode(
   tenantId: string,
-  request: UpdateTenantDataHandlingModeRequest
+  request: UpdateTenantDataHandlingModeRequest,
 ): Promise<ApiMutationResult<Tenant>> {
-  return patchJsonResult<Tenant>(`/api/tenants/${tenantId}/data-handling-mode`, request);
+  return patchJsonResult<Tenant>(
+    `/api/tenants/${tenantId}/data-handling-mode`,
+    request,
+  );
 }
 
 export async function acknowledgeSharedResponsibilityMatrix(
   tenantId: string,
-  request: AcknowledgeSharedResponsibilityMatrixRequest
+  request: AcknowledgeSharedResponsibilityMatrixRequest,
 ): Promise<ApiMutationResult<SharedResponsibilityMatrixAcknowledgement>> {
   return postJsonResult<SharedResponsibilityMatrixAcknowledgement>(
     `/api/tenants/${tenantId}/shared-responsibility-matrix/acknowledgements`,
-    request
+    request,
   );
 }
 
 export async function acknowledgeDataHandlingNotice(
   tenantId: string,
-  request: AcknowledgeDataHandlingNoticeRequest
+  request: AcknowledgeDataHandlingNoticeRequest,
 ): Promise<ApiMutationResult<DataHandlingNoticeAcknowledgement>> {
   return postJsonResult<DataHandlingNoticeAcknowledgement>(
     `/api/tenants/${tenantId}/data-handling-notice-acknowledgements`,
-    request
+    request,
   );
 }
 
 export async function createCuiSupportEscalation(
   tenantId: string,
-  request: CreateCuiSupportEscalationRequest
+  request: CreateCuiSupportEscalationRequest,
 ): Promise<ApiMutationResult<CuiSupportEscalation>> {
-  return postJsonResult<CuiSupportEscalation>(`/api/tenants/${tenantId}/cui-support-escalations`, request);
+  return postJsonResult<CuiSupportEscalation>(
+    `/api/tenants/${tenantId}/cui-support-escalations`,
+    request,
+  );
 }
 
 export async function updateCuiSupportEscalation(
   tenantId: string,
   escalationId: string,
-  request: UpdateCuiSupportEscalationRequest
+  request: UpdateCuiSupportEscalationRequest,
 ): Promise<ApiMutationResult<CuiSupportEscalation>> {
-  return patchJsonResult<CuiSupportEscalation>(`/api/tenants/${tenantId}/cui-support-escalations/${escalationId}`, request);
+  return patchJsonResult<CuiSupportEscalation>(
+    `/api/tenants/${tenantId}/cui-support-escalations/${escalationId}`,
+    request,
+  );
 }
 
 export async function changeCuiSupportEscalationStatus(
   tenantId: string,
   escalationId: string,
-  request: ChangeCuiSupportEscalationStatusRequest
+  request: ChangeCuiSupportEscalationStatusRequest,
 ): Promise<ApiMutationResult<CuiSupportEscalation>> {
   return postJsonResult<CuiSupportEscalation>(
     `/api/tenants/${tenantId}/cui-support-escalations/${escalationId}/status`,
-    request
+    request,
   );
 }
 
 export async function resolveCuiSupportEscalation(
   tenantId: string,
   escalationId: string,
-  request: ResolveCuiSupportEscalationRequest
+  request: ResolveCuiSupportEscalationRequest,
 ): Promise<ApiMutationResult<CuiSupportEscalation>> {
   return postJsonResult<CuiSupportEscalation>(
     `/api/tenants/${tenantId}/cui-support-escalations/${escalationId}/resolve`,
-    request
+    request,
   );
 }
 
-export async function createCuiReadyApprovalChecklist(tenantId: string): Promise<ApiMutationResult<CuiReadyApprovalChecklist>> {
-  return postJsonResult<CuiReadyApprovalChecklist>(`/api/tenants/${tenantId}/cui-ready-checklists`, {});
+export async function createCuiReadyApprovalChecklist(
+  tenantId: string,
+): Promise<ApiMutationResult<CuiReadyApprovalChecklist>> {
+  return postJsonResult<CuiReadyApprovalChecklist>(
+    `/api/tenants/${tenantId}/cui-ready-checklists`,
+    {},
+  );
 }
 
-export type ReadinessSource = { id: string; kind: string; version: string; title: string };
-export type ReadinessEvidence = { id: string; kind: string; version: number; state: string; reviewedAt: string; expiresAt: string; reviewNotes: string };
-export const getReadinessSources = () => getRequiredJson<ReadinessSource[]>("/api/cui-readiness-evidence/sources");
-export const getReadinessEvidence = () => getRequiredJson<ReadinessEvidence[]>("/api/cui-readiness-evidence");
-export const getReadinessNotice = () => getRequiredJson<DataHandlingNotice>("/api/cui-readiness-evidence/notice");
-export const acknowledgeReadinessNotice = (request: AcknowledgeDataHandlingNoticeRequest) =>
-  postJsonResult<DataHandlingNoticeAcknowledgement>("/api/cui-readiness-evidence/notice-acknowledgement", request);
-export const recordReadinessEvidence = (request: { kind: string; expectedVersion: number; expiresAt: string;
-  sourceReference: string; reviewNotes: string; details: unknown; rejected: boolean }) =>
-  postJsonResult<ReadinessEvidence>("/api/cui-readiness-evidence", request);
+export type ReadinessSource = {
+  id: string;
+  kind: string;
+  version: string;
+  title: string;
+};
+export type ReadinessEvidence = {
+  id: string;
+  kind: string;
+  version: number;
+  state: string;
+  reviewedAt: string;
+  expiresAt: string;
+  reviewNotes: string;
+};
+export const getReadinessSources = () =>
+  getRequiredJson<ReadinessSource[]>("/api/cui-readiness-evidence/sources");
+export const getReadinessEvidence = () =>
+  getRequiredJson<ReadinessEvidence[]>("/api/cui-readiness-evidence");
+export const getReadinessNotice = () =>
+  getRequiredJson<DataHandlingNotice>("/api/cui-readiness-evidence/notice");
+export const acknowledgeReadinessNotice = (
+  request: AcknowledgeDataHandlingNoticeRequest,
+) =>
+  postJsonResult<DataHandlingNoticeAcknowledgement>(
+    "/api/cui-readiness-evidence/notice-acknowledgement",
+    request,
+  );
+export const recordReadinessEvidence = (request: {
+  kind: string;
+  expectedVersion: number;
+  expiresAt: string;
+  sourceReference: string;
+  reviewNotes: string;
+  details: unknown;
+  rejected: boolean;
+}) => postJsonResult<ReadinessEvidence>("/api/cui-readiness-evidence", request);
 
-export type SecurityReviewItem = { area: string; status: "NotStarted" | "InReview" | "Passed" | "FindingOpen" | "AcceptedRisk"; reviewerUserId: string | null; reviewedAt: string | null; evidenceLink: string | null; rationale: string | null };
-export type SecurityReviewRecord = { id: string; version: number; state: string; approvedAt: string | null; approvalNotes: string | null; items: SecurityReviewItem[]; findings: Array<{ id: string; area: string; severity: string; status: string; summary: string; remediationOwner: string; dueAt: string | null; closureNotes: string | null }>; acceptedRisks: Array<{ id:string; findingId:string|null; approverUserId:string; acceptedAt:string; scope:string; expiresAt:string|null; reviewAt:string|null; mitigationNote:string }> };
-export type ReadinessEvidenceSource = { evidenceSourceType:string; evidenceFileVersionId:string|null; externalUri:string|null; sha256Digest:string|null };
-export type ReadinessEvidenceOption = { evidenceFileVersionId:string; evidenceItemId:string; versionNumber:number; title:string; fileName:string; sha256Digest:string; uploadedAt:string };
-export type TechnicalReadinessRecord = { id: string; version: number; state: string; approvedAt: string | null; evidence: Array<{ id: string; controlType: string; executedAt: string; environment: string; reviewerUserId: string; result: string; evidenceReference: string; expiresAt: string | null; notes: string } & ReadinessEvidenceSource> };
-export type IncidentReadinessRecord = { id: string; version: number; state: string; approvedAt: string | null; reviewDueAt:string; reviewBasis:string; contacts:Array<{id:string;function:string;contact:string;escalationRole:string}>; playbooks: Array<{ id: string; key: string; trigger:string; containmentSteps:string[]; notificationPath:string; evidenceToCollect:string[]; owner: string; closureCriteria:string }>; tabletops: Array<{ id: string; executedAt: string; environment: string; participants:string[]; findings:string[]; evidenceReference: string; reviewerUserId:string } & ReadinessEvidenceSource>; followUps: Array<{ id: string; tabletopId:string; severity: string; status: string; summary: string; owner: string; dueAt: string; closureNotes:string|null }> };
-export type ReadinessHistory = { id: string; recordType: string; recordId: string; version: number; action: string; actorUserId: string; occurredAt: string; summary: string };
-export const getSecurityReviewReadiness = () => getRequiredJson<SecurityReviewRecord | null>("/api/security-incident-readiness/security-review");
-export const saveSecurityReviewReadiness = (request: unknown) => putJsonResult<SecurityReviewRecord>("/api/security-incident-readiness/security-review", request);
-export const approveSecurityReviewReadiness = (expectedVersion: number, notes: string) => postJsonResult<SecurityReviewRecord>("/api/security-incident-readiness/security-review/approve", { expectedVersion, notes });
-export const getTechnicalReadiness = () => getRequiredJson<TechnicalReadinessRecord | null>("/api/security-incident-readiness/technical");
-export const saveTechnicalReadiness = (request: unknown) => putJsonResult<TechnicalReadinessRecord>("/api/security-incident-readiness/technical", request);
-export const approveTechnicalReadiness = (expectedVersion: number, notes: string) => postJsonResult<TechnicalReadinessRecord>("/api/security-incident-readiness/technical/approve", { expectedVersion, notes });
-export const getIncidentReadiness = () => getRequiredJson<IncidentReadinessRecord | null>("/api/security-incident-readiness/incident");
-export const saveIncidentReadiness = (request: unknown) => putJsonResult<IncidentReadinessRecord>("/api/security-incident-readiness/incident", request);
-export const approveIncidentReadiness = (expectedVersion: number, notes: string) => postJsonResult<IncidentReadinessRecord>("/api/security-incident-readiness/incident/approve", { expectedVersion, notes });
-export const getSecurityIncidentReadinessHistory = () => getRequiredJson<ReadinessHistory[]>("/api/security-incident-readiness/history");
-export const getSecurityIncidentReadinessEvidenceOptions = () => getRequiredJson<ReadinessEvidenceOption[]>("/api/security-incident-readiness/evidence-options");
+export type SecurityReviewItem = {
+  area: string;
+  status: "NotStarted" | "InReview" | "Passed" | "FindingOpen" | "AcceptedRisk";
+  reviewerUserId: string | null;
+  reviewedAt: string | null;
+  evidenceLink: string | null;
+  rationale: string | null;
+};
+export type SecurityReviewRecord = {
+  id: string;
+  version: number;
+  state: string;
+  approvedAt: string | null;
+  approvalNotes: string | null;
+  items: SecurityReviewItem[];
+  findings: Array<{
+    id: string;
+    area: string;
+    severity: string;
+    status: string;
+    summary: string;
+    remediationOwner: string;
+    dueAt: string | null;
+    closureNotes: string | null;
+  }>;
+  acceptedRisks: Array<{
+    id: string;
+    findingId: string | null;
+    approverUserId: string;
+    acceptedAt: string;
+    scope: string;
+    expiresAt: string | null;
+    reviewAt: string | null;
+    mitigationNote: string;
+  }>;
+};
+export type ReadinessEvidenceSource = {
+  evidenceSourceType: string;
+  evidenceFileVersionId: string | null;
+  externalUri: string | null;
+  sha256Digest: string | null;
+};
+export type ReadinessEvidenceOption = {
+  evidenceFileVersionId: string;
+  evidenceItemId: string;
+  versionNumber: number;
+  title: string;
+  fileName: string;
+  sha256Digest: string;
+  uploadedAt: string;
+};
+export type TechnicalReadinessRecord = {
+  id: string;
+  version: number;
+  state: string;
+  approvedAt: string | null;
+  evidence: Array<
+    {
+      id: string;
+      controlType: string;
+      executedAt: string;
+      environment: string;
+      reviewerUserId: string;
+      result: string;
+      evidenceReference: string;
+      expiresAt: string | null;
+      notes: string;
+    } & ReadinessEvidenceSource
+  >;
+};
+export type IncidentReadinessRecord = {
+  id: string;
+  version: number;
+  state: string;
+  approvedAt: string | null;
+  reviewDueAt: string;
+  reviewBasis: string;
+  contacts: Array<{
+    id: string;
+    function: string;
+    contact: string;
+    escalationRole: string;
+  }>;
+  playbooks: Array<{
+    id: string;
+    key: string;
+    trigger: string;
+    containmentSteps: string[];
+    notificationPath: string;
+    evidenceToCollect: string[];
+    owner: string;
+    closureCriteria: string;
+  }>;
+  tabletops: Array<
+    {
+      id: string;
+      executedAt: string;
+      environment: string;
+      participants: string[];
+      findings: string[];
+      evidenceReference: string;
+      reviewerUserId: string;
+    } & ReadinessEvidenceSource
+  >;
+  followUps: Array<{
+    id: string;
+    tabletopId: string;
+    severity: string;
+    status: string;
+    summary: string;
+    owner: string;
+    dueAt: string;
+    closureNotes: string | null;
+  }>;
+};
+export type ReadinessHistory = {
+  id: string;
+  recordType: string;
+  recordId: string;
+  version: number;
+  action: string;
+  actorUserId: string;
+  occurredAt: string;
+  summary: string;
+};
+export const getSecurityReviewReadiness = () =>
+  getRequiredJson<SecurityReviewRecord | null>(
+    "/api/security-incident-readiness/security-review",
+  );
+export const saveSecurityReviewReadiness = (request: unknown) =>
+  putJsonResult<SecurityReviewRecord>(
+    "/api/security-incident-readiness/security-review",
+    request,
+  );
+export const approveSecurityReviewReadiness = (
+  expectedVersion: number,
+  notes: string,
+) =>
+  postJsonResult<SecurityReviewRecord>(
+    "/api/security-incident-readiness/security-review/approve",
+    { expectedVersion, notes },
+  );
+export const getTechnicalReadiness = () =>
+  getRequiredJson<TechnicalReadinessRecord | null>(
+    "/api/security-incident-readiness/technical",
+  );
+export const saveTechnicalReadiness = (request: unknown) =>
+  putJsonResult<TechnicalReadinessRecord>(
+    "/api/security-incident-readiness/technical",
+    request,
+  );
+export const approveTechnicalReadiness = (
+  expectedVersion: number,
+  notes: string,
+) =>
+  postJsonResult<TechnicalReadinessRecord>(
+    "/api/security-incident-readiness/technical/approve",
+    { expectedVersion, notes },
+  );
+export const getIncidentReadiness = () =>
+  getRequiredJson<IncidentReadinessRecord | null>(
+    "/api/security-incident-readiness/incident",
+  );
+export const saveIncidentReadiness = (request: unknown) =>
+  putJsonResult<IncidentReadinessRecord>(
+    "/api/security-incident-readiness/incident",
+    request,
+  );
+export const approveIncidentReadiness = (
+  expectedVersion: number,
+  notes: string,
+) =>
+  postJsonResult<IncidentReadinessRecord>(
+    "/api/security-incident-readiness/incident/approve",
+    { expectedVersion, notes },
+  );
+export const getSecurityIncidentReadinessHistory = () =>
+  getRequiredJson<ReadinessHistory[]>(
+    "/api/security-incident-readiness/history",
+  );
+export const getSecurityIncidentReadinessEvidenceOptions = () =>
+  getRequiredJson<ReadinessEvidenceOption[]>(
+    "/api/security-incident-readiness/evidence-options",
+  );
 
 export async function updateCuiReadyApprovalChecklistItem(
   tenantId: string,
   checklistId: string,
   itemKey: string,
-  request: UpdateCuiReadyChecklistItemRequest
+  request: UpdateCuiReadyChecklistItemRequest,
 ): Promise<ApiMutationResult<CuiReadyApprovalChecklist>> {
   return putJsonResult<CuiReadyApprovalChecklist>(
     `/api/tenants/${tenantId}/cui-ready-checklists/${checklistId}/items/${encodeURIComponent(itemKey)}`,
-    request
+    request,
   );
 }
 
 export async function submitCuiReadyApprovalChecklist(
   tenantId: string,
-  checklistId: string
+  checklistId: string,
 ): Promise<ApiMutationResult<CuiReadyApprovalChecklist>> {
-  return postJsonResult<CuiReadyApprovalChecklist>(`/api/tenants/${tenantId}/cui-ready-checklists/${checklistId}/submit`, {});
+  return postJsonResult<CuiReadyApprovalChecklist>(
+    `/api/tenants/${tenantId}/cui-ready-checklists/${checklistId}/submit`,
+    {},
+  );
 }
 
 export async function approveCuiReadyApprovalChecklist(
   tenantId: string,
   checklistId: string,
-  request: ReviewCuiReadyChecklistRequest
+  request: ReviewCuiReadyChecklistRequest,
 ): Promise<ApiMutationResult<CuiReadyApprovalChecklist>> {
-  return postJsonResult<CuiReadyApprovalChecklist>(`/api/tenants/${tenantId}/cui-ready-checklists/${checklistId}/approve`, request);
+  return postJsonResult<CuiReadyApprovalChecklist>(
+    `/api/tenants/${tenantId}/cui-ready-checklists/${checklistId}/approve`,
+    request,
+  );
 }
 
 export async function rejectCuiReadyApprovalChecklist(
   tenantId: string,
   checklistId: string,
-  request: ReviewCuiReadyChecklistRequest
+  request: ReviewCuiReadyChecklistRequest,
 ): Promise<ApiMutationResult<CuiReadyApprovalChecklist>> {
-  return postJsonResult<CuiReadyApprovalChecklist>(`/api/tenants/${tenantId}/cui-ready-checklists/${checklistId}/reject`, request);
+  return postJsonResult<CuiReadyApprovalChecklist>(
+    `/api/tenants/${tenantId}/cui-ready-checklists/${checklistId}/reject`,
+    request,
+  );
 }
 
 export async function supersedeCuiReadyApprovalChecklist(
   tenantId: string,
   checklistId: string,
-  request: ReviewCuiReadyChecklistRequest
+  request: ReviewCuiReadyChecklistRequest,
 ): Promise<ApiMutationResult<CuiReadyApprovalChecklist>> {
-  return postJsonResult<CuiReadyApprovalChecklist>(`/api/tenants/${tenantId}/cui-ready-checklists/${checklistId}/supersede`, request);
+  return postJsonResult<CuiReadyApprovalChecklist>(
+    `/api/tenants/${tenantId}/cui-ready-checklists/${checklistId}/supersede`,
+    request,
+  );
 }
 
 async function postJsonResult<T>(
   path: string,
   body: unknown,
-  additionalHeaders: Record<string, string> = {}
+  additionalHeaders: Record<string, string> = {},
 ): Promise<ApiMutationResult<T>> {
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+  const apiBaseUrl =
+    import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
 
   try {
     const apiHeaders = await getApiHeaders();
@@ -4429,7 +4875,7 @@ async function readErrorMessage(response: Response): Promise<string> {
 
 async function readErrorDetails(
   response: Response
-): Promise<{ error: string; errorSummary?: string; errors?: Record<string, string[]> }> {
+): Promise<{ error: string; errorSummary?: string; errors?: Record<string, string[]> ;}> {
   try {
     const problem = await response.json();
     if (response.status === 428 && problem.errorCode === "data_handling_notice_acknowledgement_required") {

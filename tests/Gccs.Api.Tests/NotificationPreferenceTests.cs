@@ -113,6 +113,38 @@ public sealed class NotificationPreferenceTests : IClassFixture<WebApplicationFa
             audit.MetadataJson.Contains("evidenceRequestNotificationsEnabled", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public async Task TC_16_1_5_Notification_preferences_require_task_visibility_for_read_and_write()
+    {
+        var ids = StoryIds.ForCase("tc-16-1-5");
+        await using var factory = CreateFactory("tc-16-1-5", dbContext => SeedTenants(dbContext, ids));
+        using var client = factory.CreateClient();
+
+        using var request = CreateRequest<object?>(
+            HttpMethod.Get,
+            "/api/notification-preferences",
+            null,
+            ids.TenantAId,
+            ids.AuditorUserId,
+            "NoTaskAccess");
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+
+        using var updateRequest = CreateRequest(
+            HttpMethod.Put,
+            "/api/notification-preferences",
+            new NotificationPreferenceUpdateRequest(true, true, true, true, true, true),
+            ids.TenantAId,
+            ids.AuditorUserId,
+            "NoTaskAccess");
+
+        var updateResponse = await client.SendAsync(updateRequest);
+
+        Assert.Equal(HttpStatusCode.Forbidden, updateResponse.StatusCode);
+    }
+
     private static async Task<NotificationPreferenceDto> GetPreferencesAsync(
         HttpClient client,
         Guid tenantId,
