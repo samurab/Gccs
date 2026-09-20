@@ -35,6 +35,8 @@
     "check:launch-candidate": "node tools/release/sync-approved-launch-candidate.mjs --check",
     "check:release-control": "node tools/release/release-control.mjs check",
     "test:release-control": "node --test tools/release/release-control.test.mjs",
+    "check:sensitive-artifacts": "node tools/security/check-sensitive-artifacts.mjs --staged",
+    "test:sensitive-artifacts": "node --test tools/security/check-sensitive-artifacts.test.mjs",
     "lint:openapi": "redocly lint docs/api/openapi.yaml --extends=spec",
     "test": "npm run test:api && npm run test:web",
     "restore:api": "dotnet restore Gccs.slnx",
