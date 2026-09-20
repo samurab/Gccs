@@ -319,6 +319,14 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Test repository artifact policy
+        run: node --test tools/security/check-sensitive-artifacts.test.mjs
+
+      - name: Reject introduced database artifacts
+        env:
+          SENSITIVE_ARTIFACT_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: node tools/security/check-sensitive-artifacts.mjs --changed-since "$SENSITIVE_ARTIFACT_BASE_SHA"
+
       - name: Scan repository for committed secrets
         uses: gitleaks/gitleaks-action@v3
         env:

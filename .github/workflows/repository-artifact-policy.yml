@@ -1,0 +1,32 @@
+name: Repository artifact policy
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: repository-artifact-policy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sensitive-artifacts:
+    name: Sensitive artifact policy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository history
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Test repository artifact policy
+        run: node --test tools/security/check-sensitive-artifacts.test.mjs
+
+      - name: Reject database artifacts introduced by this ref update
+        env:
+          SENSITIVE_ARTIFACT_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: node tools/security/check-sensitive-artifacts.mjs --changed-since "$SENSITIVE_ARTIFACT_BASE_SHA"

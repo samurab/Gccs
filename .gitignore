@@ -41,3 +41,11 @@ tmp/phase2-keynote-existing/
 tmp/exports/
 
 .playwright-mcp/
+
+# Local database backups are restricted evidence and must never enter Git.
+/.codex/db-backups/
+*.dump
+*.backup
+*.bak
+*.sqlite
+*.sqlite3
