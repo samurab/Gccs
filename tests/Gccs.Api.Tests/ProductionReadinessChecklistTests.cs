@@ -1682,7 +1682,10 @@ public sealed class ProductionReadinessChecklistTests
         {
             "Gccs__DataPosture: No-CUI / compliance management only",
             "PRODUCTION_CUSTOMER_DATA_MODE: no-cui-only",
-            "AZURE_CREDENTIALS_GCCS_PRODUCTION",
+            "id-token: write",
+            "client-id: ${{ vars.AZURE_CLIENT_ID }}",
+            "tenant-id: ${{ vars.AZURE_TENANT_ID }}",
+            "subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}",
             "AZURE_STATIC_WEB_APPS_API_TOKEN_GCCS_PRODUCTION",
             "PRODUCTION_DATABASE_URL",
             "Generate idempotent production migration script",

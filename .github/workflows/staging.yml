@@ -14,13 +14,16 @@ permissions:
   contents: read
 
 concurrency:
-  group: staging-${{ github.ref }}
+  group: staging-deployment
   cancel-in-progress: false
 
 jobs:
   staging-deploy:
     name: Deploy staging
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     environment:
       name: staging
       url: ${{ vars.STAGING_WEB_BASE_URL }}
@@ -33,8 +36,18 @@ jobs:
       DOTNET_ENVIRONMENT: Staging
       ASPNETCORE_ENVIRONMENT: Staging
       Gccs__DataPosture: No-CUI / compliance management only
-      STAGING_API_APP_NAME: gccs-api-staging-19984
-      STAGING_RESOURCE_GROUP: gccs-staging-rg
+      STAGING_API_APP_NAME: ${{ vars.STAGING_API_APP_NAME }}
+      STAGING_RESOURCE_GROUP: ${{ vars.STAGING_RESOURCE_GROUP }}
+      FEDRIL_REQUIRE_CUSTOMER_AUTH: "true"
+      FEDRIL_WORKFORCE_CLIENT_ID: ${{ vars.STAGING_MSAL_CLIENT_ID }}
+      FEDRIL_WORKFORCE_TENANT_ID: ${{ vars.STAGING_MSAL_TENANT_ID }}
+      FEDRIL_WORKFORCE_API_SCOPE: ${{ vars.STAGING_MSAL_API_SCOPE }}
+      FEDRIL_CUSTOMER_CLIENT_ID: ${{ vars.STAGING_CUSTOMER_MSAL_CLIENT_ID }}
+      FEDRIL_CUSTOMER_TENANT_ID: ${{ vars.STAGING_CUSTOMER_MSAL_TENANT_ID }}
+      FEDRIL_CUSTOMER_TENANT_SUBDOMAIN: ${{ vars.STAGING_CUSTOMER_MSAL_TENANT_SUBDOMAIN }}
+      FEDRIL_CUSTOMER_API_SCOPE: ${{ vars.STAGING_CUSTOMER_MSAL_API_SCOPE }}
+      FEDRIL_CUSTOMER_AUTHORITY: ${{ vars.STAGING_CUSTOMER_AUTHORITY }}
+      FEDRIL_CUSTOMER_AUDIENCE: ${{ vars.STAGING_CUSTOMER_AUDIENCE }}
       STAGING_API_BASE_URL: ${{ vars.STAGING_API_BASE_URL }}
       STAGING_WEB_BASE_URL: ${{ vars.STAGING_WEB_BASE_URL }}
       STAGING_CUSTOMER_DATA_MODE: synthetic-only
@@ -74,6 +87,8 @@ jobs:
             test "$(jq -r '.object.type' <<<"$tag_ref")" = "commit"
             test "$(jq -r '.object.sha' <<<"$tag_ref")" = "$commit_sha"
             gh api "repos/${GITHUB_REPOSITORY}/commits/${commit_sha}" --jq '.commit.verification.verified' | grep -Fx true
+            cp tools/release/validate-auth-config.mjs "$RUNNER_TEMP/validate-auth-config.mjs"
+            cp tools/release/check-azure-settings.mjs "$RUNNER_TEMP/check-azure-settings.mjs"
             git checkout --detach "$commit_sha"
             bundle_name="fedril-${candidate_tag}"
           else
@@ -107,6 +122,17 @@ jobs:
         with:
           node-version: "25"
           cache: npm
+
+      - name: Validate paired staging authentication before mutations
+        run: |
+          test -n "$STAGING_API_APP_NAME"
+          test -n "$STAGING_RESOURCE_GROUP"
+          if [[ -f "$RUNNER_TEMP/validate-auth-config.mjs" ]]; then
+            node "$RUNNER_TEMP/validate-auth-config.mjs"
+          else
+            node tools/release/validate-auth-config.mjs
+            cp tools/release/check-azure-settings.mjs "$RUNNER_TEMP/check-azure-settings.mjs"
+          fi
 
       - name: Restore dependencies
         run: |
@@ -211,7 +237,9 @@ jobs:
       - name: Login to Azure staging subscription
         uses: azure/login@v3
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS_GCCS_STAGING }}
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
       - name: Configure staging email delivery
         run: |
@@ -228,8 +256,8 @@ jobs:
               InvitationDelivery__PollIntervalSeconds=5 \
               InvitationDelivery__LeaseMinutes=5 \
               InvitationDelivery__MaximumAttempts=5 \
-              Authentication__Customer__Authority=https://fedrilcustomersstaging.ciamlogin.com/f1922ab8-830a-4517-afec-6a9ce8f6113e/v2.0 \
-              Authentication__Customer__Audience=api://293510cf-aec0-48ac-b074-55edeba2caf8 \
+              Authentication__Customer__Authority="$FEDRIL_CUSTOMER_AUTHORITY" \
+              Authentication__Customer__Audience="$FEDRIL_CUSTOMER_AUDIENCE" \
               DemoRequests__Enabled=true \
               DemoRequests__Provider=AzureCommunicationServices \
               DemoRequests__Endpoint="$DEMO_REQUESTS_ENDPOINT" \
@@ -266,6 +294,14 @@ jobs:
             --output tsv)"
           test -n "$task_cursor_key_configured"
 
+      - name: Verify staging public settings contract
+        env:
+          STAGING_MSAL_TENANT_ID: ${{ env.FEDRIL_WORKFORCE_TENANT_ID }}
+          STAGING_MSAL_API_SCOPE: ${{ env.FEDRIL_WORKFORCE_API_SCOPE }}
+          STAGING_CUSTOMER_AUTHORITY: ${{ env.FEDRIL_CUSTOMER_AUTHORITY }}
+          STAGING_CUSTOMER_AUDIENCE: ${{ env.FEDRIL_CUSTOMER_AUDIENCE }}
+        run: node "$RUNNER_TEMP/check-azure-settings.mjs" staging
+
       - name: Deploy staging API App Service
         uses: azure/webapps-deploy@v3
         with:
@@ -275,13 +311,6 @@ jobs:
       - name: Write staging runtime configuration
         env:
           FEDRIL_API_BASE_URL: ${{ env.STAGING_API_BASE_URL }}
-          FEDRIL_WORKFORCE_CLIENT_ID: 8df0cbe5-60ee-4356-9386-41f300e82718
-          FEDRIL_WORKFORCE_TENANT_ID: 8c934636-0c37-4a8f-9134-323bef993ef2
-          FEDRIL_WORKFORCE_API_SCOPE: api://ad0a64ee-ab9a-4dcf-b330-b3ab36214426/access_as_user
-          FEDRIL_CUSTOMER_CLIENT_ID: 60771465-6a29-44e0-b8cc-ea30fa3cf83f
-          FEDRIL_CUSTOMER_TENANT_ID: f1922ab8-830a-4517-afec-6a9ce8f6113e
-          FEDRIL_CUSTOMER_TENANT_SUBDOMAIN: fedrilcustomersstaging
-          FEDRIL_CUSTOMER_API_SCOPE: api://293510cf-aec0-48ac-b074-55edeba2caf8/access_as_customer
           FEDRIL_APP_VERSION: ${{ env.RELEASE_VERSION }}
           FEDRIL_CANDIDATE_TAG: ${{ env.CANDIDATE_TAG }}
           FEDRIL_COMMIT_SHA: ${{ env.COMMIT_SHA }}
@@ -303,7 +332,7 @@ jobs:
           echo "Deploy API artifact from $RUNNER_TEMP/gccs-api-staging"
           echo "Deploy web artifact from apps/web/dist"
           echo "Apply staging migrations from $RUNNER_TEMP/gccs-staging-migrations.sql"
-          echo "Provisioned staging database, object storage, cache, queue, and secrets through Azure resource group gccs-staging-rg."
+          echo "Provisioned staging database, object storage, cache, queue, and secrets through Azure resource group $STAGING_RESOURCE_GROUP."
 
       - name: Run staging smoke tests
         run: |

@@ -1,9 +1,6 @@
-name: Azure Static Web Apps CI/CD
+name: Static Web App pull request previews
 
 on:
-  push:
-    branches:
-      - main
   pull_request:
     types: [opened, synchronize, reopened, labeled, unlabeled, closed]
     branches:
@@ -16,12 +13,10 @@ permissions:
 jobs:
   build_and_deploy_job:
     if: >-
-      github.event_name == 'push' ||
-      (
-        github.event_name == 'pull_request' &&
-        github.event.action != 'closed' &&
-        contains(github.event.pull_request.labels.*.name, 'deploy-preview')
-      )
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.action != 'closed' &&
+      contains(github.event.pull_request.labels.*.name, 'deploy-preview')
     runs-on: ubuntu-latest
     name: Build and Deploy Job
     steps:
@@ -41,16 +36,16 @@ jobs:
           npm ci
           npm run build:web
 
-      - name: Write staging or preview runtime configuration
+      - name: Write preview runtime configuration
         env:
-          FEDRIL_API_BASE_URL: https://gccs-api-staging-19984.azurewebsites.net
-          FEDRIL_WORKFORCE_CLIENT_ID: 8df0cbe5-60ee-4356-9386-41f300e82718
-          FEDRIL_WORKFORCE_TENANT_ID: 8c934636-0c37-4a8f-9134-323bef993ef2
-          FEDRIL_WORKFORCE_API_SCOPE: api://ad0a64ee-ab9a-4dcf-b330-b3ab36214426/access_as_user
-          FEDRIL_CUSTOMER_CLIENT_ID: 60771465-6a29-44e0-b8cc-ea30fa3cf83f
-          FEDRIL_CUSTOMER_TENANT_ID: f1922ab8-830a-4517-afec-6a9ce8f6113e
-          FEDRIL_CUSTOMER_TENANT_SUBDOMAIN: fedrilcustomersstaging
-          FEDRIL_CUSTOMER_API_SCOPE: api://293510cf-aec0-48ac-b074-55edeba2caf8/access_as_customer
+          FEDRIL_API_BASE_URL: ${{ vars.STAGING_API_BASE_URL }}
+          FEDRIL_WORKFORCE_CLIENT_ID: ${{ vars.STAGING_MSAL_CLIENT_ID }}
+          FEDRIL_WORKFORCE_TENANT_ID: ${{ vars.STAGING_MSAL_TENANT_ID }}
+          FEDRIL_WORKFORCE_API_SCOPE: ${{ vars.STAGING_MSAL_API_SCOPE }}
+          FEDRIL_CUSTOMER_CLIENT_ID: ${{ vars.STAGING_CUSTOMER_MSAL_CLIENT_ID }}
+          FEDRIL_CUSTOMER_TENANT_ID: ${{ vars.STAGING_CUSTOMER_MSAL_TENANT_ID }}
+          FEDRIL_CUSTOMER_TENANT_SUBDOMAIN: ${{ vars.STAGING_CUSTOMER_MSAL_TENANT_SUBDOMAIN }}
+          FEDRIL_CUSTOMER_API_SCOPE: ${{ vars.STAGING_CUSTOMER_MSAL_API_SCOPE }}
           FEDRIL_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           FEDRIL_BUILD_ID: ${{ github.run_id }}
         run: |
@@ -72,6 +67,7 @@ jobs:
   close_pull_request_job:
     if: >-
       github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
       (
         (
           github.event.action == 'closed' &&

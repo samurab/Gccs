@@ -34,7 +34,7 @@
     "sync:launch-candidate": "node tools/release/sync-approved-launch-candidate.mjs --write",
     "check:launch-candidate": "node tools/release/sync-approved-launch-candidate.mjs --check",
     "check:release-control": "node tools/release/release-control.mjs check",
-    "test:release-control": "node --test tools/release/release-control.test.mjs",
+    "test:release-control": "node --test tools/release/*.test.mjs",
     "lint:openapi": "redocly lint docs/api/openapi.yaml --extends=spec",
     "test": "npm run test:api && npm run test:web",
     "restore:api": "dotnet restore Gccs.slnx",
