@@ -14,9 +14,54 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  public-settings:
+    name: Check ${{ matrix.environment }} public runtime settings
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - environment: staging
+            argument: staging
+          - environment: Production
+            argument: production
+    environment: ${{ matrix.environment }}
+    env:
+      STAGING_API_APP_NAME: ${{ vars.STAGING_API_APP_NAME }}
+      STAGING_RESOURCE_GROUP: ${{ vars.STAGING_RESOURCE_GROUP }}
+      STAGING_API_BASE_URL: ${{ vars.STAGING_API_BASE_URL }}
+      STAGING_WEB_BASE_URL: ${{ vars.STAGING_WEB_BASE_URL }}
+      STAGING_MSAL_TENANT_ID: ${{ vars.STAGING_MSAL_TENANT_ID }}
+      STAGING_MSAL_API_SCOPE: ${{ vars.STAGING_MSAL_API_SCOPE }}
+      STAGING_CUSTOMER_AUTHORITY: ${{ vars.STAGING_CUSTOMER_AUTHORITY }}
+      STAGING_CUSTOMER_AUDIENCE: ${{ vars.STAGING_CUSTOMER_AUDIENCE }}
+      PRODUCTION_API_APP_NAME: ${{ vars.PRODUCTION_API_APP_NAME }}
+      PRODUCTION_RESOURCE_GROUP: ${{ vars.PRODUCTION_RESOURCE_GROUP }}
+      PRODUCTION_API_BASE_URL: ${{ vars.PRODUCTION_API_BASE_URL }}
+      PRODUCTION_WEB_BASE_URL: ${{ vars.PRODUCTION_WEB_BASE_URL }}
+      PRODUCTION_MSAL_TENANT_ID: ${{ vars.PRODUCTION_MSAL_TENANT_ID }}
+      PRODUCTION_MSAL_API_SCOPE: ${{ vars.PRODUCTION_MSAL_API_SCOPE }}
+      PRODUCTION_CUSTOMER_AUTHORITY: ${{ vars.PRODUCTION_CUSTOMER_AUTHORITY }}
+      PRODUCTION_CUSTOMER_AUDIENCE: ${{ vars.PRODUCTION_CUSTOMER_AUDIENCE }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "25"
+      - name: Login with environment-scoped identity
+        uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Compare allowlisted public settings without exposing values
+        env:
+          TARGET_ENVIRONMENT: ${{ matrix.argument }}
+        run: node tools/release/check-azure-settings.mjs "$TARGET_ENVIRONMENT"
+
   plan:
     runs-on: ubuntu-latest
-    environment: production
+    environment: Production
     env:
       ARM_USE_OIDC: "true"
       ARM_CLIENT_ID: ${{ vars.AZURE_PRODUCTION_TERRAFORM_CLIENT_ID }}

@@ -13,15 +13,19 @@ permissions:
   attestations: read
 
 concurrency:
-  group: production-release-${{ github.event.inputs.release_tag }}
+  group: production-deployment
   cancel-in-progress: false
 
 jobs:
   production-deploy:
     name: Promote approved immutable release
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      attestations: read
+      id-token: write
     environment:
-      name: production
+      name: Production
       url: ${{ vars.PRODUCTION_WEB_BASE_URL }}
     env:
       APPROVED_RELEASE_MANIFEST: docs/release/approved-release.json
@@ -30,7 +34,18 @@ jobs:
       Gccs__DataPosture: No-CUI / compliance management only
       PRODUCTION_API_APP_NAME: ${{ vars.PRODUCTION_API_APP_NAME }}
       PRODUCTION_RESOURCE_GROUP: ${{ vars.PRODUCTION_RESOURCE_GROUP }}
-      PRODUCTION_POSTGRES_SERVER_NAME: gccs-postgres-production
+      PRODUCTION_POSTGRES_SERVER_NAME: ${{ vars.PRODUCTION_POSTGRES_SERVER_NAME }}
+      PRODUCTION_APP_INSIGHTS_NAME: ${{ vars.PRODUCTION_APP_INSIGHTS_NAME }}
+      FEDRIL_REQUIRE_CUSTOMER_AUTH: "true"
+      FEDRIL_WORKFORCE_CLIENT_ID: ${{ vars.PRODUCTION_MSAL_CLIENT_ID }}
+      FEDRIL_WORKFORCE_TENANT_ID: ${{ vars.PRODUCTION_MSAL_TENANT_ID }}
+      FEDRIL_WORKFORCE_API_SCOPE: ${{ vars.PRODUCTION_MSAL_API_SCOPE }}
+      FEDRIL_CUSTOMER_CLIENT_ID: ${{ vars.PRODUCTION_CUSTOMER_MSAL_CLIENT_ID }}
+      FEDRIL_CUSTOMER_TENANT_ID: ${{ vars.PRODUCTION_CUSTOMER_MSAL_TENANT_ID }}
+      FEDRIL_CUSTOMER_TENANT_SUBDOMAIN: ${{ vars.PRODUCTION_CUSTOMER_MSAL_TENANT_SUBDOMAIN }}
+      FEDRIL_CUSTOMER_API_SCOPE: ${{ vars.PRODUCTION_CUSTOMER_MSAL_API_SCOPE }}
+      FEDRIL_CUSTOMER_AUTHORITY: ${{ vars.PRODUCTION_CUSTOMER_AUTHORITY }}
+      FEDRIL_CUSTOMER_AUDIENCE: ${{ vars.PRODUCTION_CUSTOMER_AUDIENCE }}
       PRODUCTION_API_BASE_URL: ${{ vars.PRODUCTION_API_BASE_URL }}
       PRODUCTION_WEB_BASE_URL: ${{ vars.PRODUCTION_WEB_BASE_URL }}
       PRODUCTION_CUSTOMER_DATA_MODE: no-cui-only
@@ -117,6 +132,9 @@ jobs:
 
       - name: Validate production CI/CD and No-CUI deployment guardrails
         run: |
+          node tools/release/validate-auth-config.mjs
+          test -n "$PRODUCTION_POSTGRES_SERVER_NAME"
+          test -n "$PRODUCTION_APP_INSIGHTS_NAME"
           test "$PRODUCTION_CUSTOMER_DATA_MODE" = "no-cui-only"
           test "$Gccs__DataPosture" = "No-CUI / compliance management only"
           test -n "$PRODUCTION_API_APP_NAME"
@@ -156,7 +174,9 @@ jobs:
       - name: Login to Azure production subscription
         uses: azure/login@v3
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS_GCCS_PRODUCTION }}
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
       - name: Verify live production point-in-time recovery window
         run: |
@@ -182,7 +202,7 @@ jobs:
       - name: Configure production services and release identity
         run: |
           application_insights_connection_string="$(az monitor app-insights component show \
-            --app gccs-api-production \
+            --app "$PRODUCTION_APP_INSIGHTS_NAME" \
             --resource-group "$PRODUCTION_RESOURCE_GROUP" \
             --query connectionString \
             --output tsv)"
@@ -191,6 +211,8 @@ jobs:
             --resource-group "$PRODUCTION_RESOURCE_GROUP" \
             --name "$PRODUCTION_API_APP_NAME" \
             --settings \
+              Authentication__Customer__Authority="$FEDRIL_CUSTOMER_AUTHORITY" \
+              Authentication__Customer__Audience="$FEDRIL_CUSTOMER_AUDIENCE" \
               InvitationDelivery__Enabled=true \
               InvitationDelivery__Provider=AzureCommunicationServices \
               InvitationDelivery__PublicWebBaseUrl="$PRODUCTION_WEB_BASE_URL" \
@@ -225,6 +247,12 @@ jobs:
               Gccs__Release__BuildId="$GITHUB_RUN_ID" \
               APPLICATIONINSIGHTS_CONNECTION_STRING="$application_insights_connection_string" \
             --output none
+
+      - name: Verify production public settings contract
+        env:
+          PRODUCTION_CUSTOMER_AUTHORITY: ${{ env.FEDRIL_CUSTOMER_AUTHORITY }}
+          PRODUCTION_CUSTOMER_AUDIENCE: ${{ env.FEDRIL_CUSTOMER_AUDIENCE }}
+        run: node tools/release/check-azure-settings.mjs production
 
       - name: Write production runtime configuration overlay
         env:
