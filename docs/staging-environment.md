@@ -20,6 +20,7 @@ Current state: **Implemented**.
 - The workforce SPA sign-in and post-logout callbacks use the exact `/platform` route. Do not configure the workforce client to return through `/app`; that route initializes the customer External ID client.
 - Customer routes, including `/app`, `/invitations/accept`, and non-platform authenticated APIs, use the `FeDril Customers - Staging` External ID tenant (`fedrilcustomersstaging.onmicrosoft.com`).
 - The customer user flow uses email one-time passcode as its only initial sign-up and sign-in provider. A customer directory identity alone grants no workspace access; the API still requires an exact invited-email match during activation and an active server-side tenant membership afterward.
+
 - The API selects the JWT validation scheme from the requested route. It validates separate issuers and audiences, does not accept the identity-provider tenant ID as a FeDril tenant ID, and requires a client-selected `X-Gccs-Tenant` value that the server verifies against active membership for tenant-scoped work.
 - Customer identities cannot satisfy Platform Operator authorization, even if an untrusted customer token contains a role value with the Platform Operator name.
 
@@ -29,6 +30,35 @@ Staging identity resources:
 - Customer portal application ID: `60771465-6a29-44e0-b8cc-ea30fa3cf83f`
 - Customer resource registration ID: `293510cf-aec0-48ac-b074-55edeba2caf8`
 - Sign-up/sign-in user flow ID: `46173763-2f13-4ec1-bbd2-2cf904eda808`
+
+Staging upload scanning uses the private `gccs-clamav-staging` container group on `gccs-staging-vnet`. The API App Service uses regional VNet integration and resolves the scanner through its private address on TCP `3310`. The staging deployment workflow reads the current private address from Azure and rewrites the `MalwareScanning__*` settings on every deployment; it fails before application deployment if the scanner is absent or not running.
+
+## Authenticated Browser Verification
+
+The local `e2e-real` suite uses development authentication and is not staging sign-in evidence. The staging suite requires two real, invited staging identities and starts no local API or web server:
+
+1. Assign one staging identity a role containing `ManageEvidence`, `ManageReports`, and `ViewReports` (for example, Compliance Manager).
+2. Assign a second staging identity the Auditor role with `ViewEvidence` and `ViewReports`, but without `ManageEvidence` or `ManageReports`.
+3. Export the deployed web URL:
+
+   ```bash
+   export PLAYWRIGHT_STAGING_WEB_URL="https://<staging-web-host>"
+   ```
+
+4. Capture each short-lived signed-in browser state through the real Microsoft sign-in flow. Complete the email one-time-passcode or workforce sign-in in the opened browser:
+
+   ```bash
+   npm run test:e2e:staging:auth -- manager
+   npm run test:e2e:staging:auth -- auditor
+   ```
+
+5. Run the deployed tests immediately:
+
+   ```bash
+   npm run test:e2e:staging
+   ```
+
+The suite rejects local or non-HTTPS web URLs, derives the API origin from the successful authenticated `/api/me/access` response, verifies that the request used a bearer token and no `X-Gccs-Dev-Auth` header, checks server-derived permissions, runs a synthetic No-CUI upload and report as the manager, and proves matching UI and API denials as the auditor. The auditor test compares authorized evidence and report reads before and after each denied mutation to prove no record was created. Auth state is written under ignored `.auth/` files with owner-only permissions and contains sensitive session material; the staging test command deletes both profile files in its cleanup path whether the test passes or fails. Traces, videos, screenshots, and retained Playwright output are disabled so the command emits only the sanitized test result summary.
 
 ## Data Guardrails
 
