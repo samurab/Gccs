@@ -231,7 +231,7 @@ jobs:
           psql "$STAGING_DATABASE_URL" --set ON_ERROR_STOP=on --file infra/database/predeploy-compliance-task-search-index.sql
           psql "$STAGING_DATABASE_URL" --set ON_ERROR_STOP=on --file "$RUNNER_TEMP/gccs-staging-migrations.sql"
 
-      - name: Deploy staging API, web, and externally provisioned dependencies
+      - name: Deploy staging API, web, data, storage, cache, queue, and secrets
         run: |
           echo "Staging database, object storage, cache, queue, malware scanner, network integration, and secrets are provisioned outside this repository workflow."
           echo "API and web artifacts are deployed by the following workflow steps."
