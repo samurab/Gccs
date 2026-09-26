@@ -52,6 +52,10 @@ locals {
       purpose       = "Background job queue"
       health_signal = "background-jobs"
     }
+    malware_scanner = {
+      purpose       = "Private ClamAV-compatible upload scanner"
+      health_signal = "clean synthetic upload through the deployed API"
+    }
     secrets = {
       purpose       = "Managed secret store for staging-only values"
       health_signal = "deployment secret resolution"

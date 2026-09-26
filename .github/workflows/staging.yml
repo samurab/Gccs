@@ -38,6 +38,7 @@ jobs:
       Gccs__DataPosture: No-CUI / compliance management only
       STAGING_API_APP_NAME: ${{ vars.STAGING_API_APP_NAME }}
       STAGING_RESOURCE_GROUP: ${{ vars.STAGING_RESOURCE_GROUP }}
+      STAGING_MALWARE_SCANNER_NAME: ${{ vars.STAGING_MALWARE_SCANNER_NAME }}
       FEDRIL_REQUIRE_CUSTOMER_AUTH: "true"
       FEDRIL_WORKFORCE_CLIENT_ID: ${{ vars.STAGING_MSAL_CLIENT_ID }}
       FEDRIL_WORKFORCE_TENANT_ID: ${{ vars.STAGING_MSAL_TENANT_ID }}
@@ -217,6 +218,7 @@ jobs:
           grep -R "object_storage" infra/terraform/environments/staging/main.tf
           grep -R "cache" infra/terraform/environments/staging/main.tf
           grep -R "queue" infra/terraform/environments/staging/main.tf
+          grep -R "malware_scanner" infra/terraform/environments/staging/main.tf
           grep -R "secrets" infra/terraform/environments/staging/main.tf
 
       - name: Apply staging migrations through approved CI/CD
@@ -231,7 +233,7 @@ jobs:
 
       - name: Deploy staging API, web, data, storage, cache, queue, and secrets
         run: |
-          echo "Staging database, object storage, cache, queue, and secrets are provisioned outside this repository workflow."
+          echo "Staging database, object storage, cache, queue, malware scanner, network integration, and secrets are provisioned outside this repository workflow."
           echo "API and web artifacts are deployed by the following workflow steps."
 
       - name: Login to Azure staging subscription
@@ -241,8 +243,20 @@ jobs:
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Configure staging email delivery
+      - name: Configure staging runtime dependencies
         run: |
+          malware_scanner_ip="$(az container show \
+            --resource-group "$STAGING_RESOURCE_GROUP" \
+            --name "$STAGING_MALWARE_SCANNER_NAME" \
+            --query ipAddress.ip \
+            --output tsv)"
+          test -n "$malware_scanner_ip"
+          test "$(az container show \
+            --resource-group "$STAGING_RESOURCE_GROUP" \
+            --name "$STAGING_MALWARE_SCANNER_NAME" \
+            --query instanceView.state \
+            --output tsv)" = "Running"
+
           az webapp config appsettings set \
             --resource-group "$STAGING_RESOURCE_GROUP" \
             --name "$STAGING_API_APP_NAME" \
@@ -275,6 +289,12 @@ jobs:
               DemoRequests__RetentionDays=365 \
               TaskSearch__CursorSigningKey="$TASK_SEARCH_CURSOR_SIGNING_KEY" \
               TaskSearch__PreviousCursorSigningKey="$TASK_SEARCH_PREVIOUS_CURSOR_SIGNING_KEY" \
+              MalwareScanning__Enabled=true \
+              MalwareScanning__Provider=ClamAV \
+              MalwareScanning__Host="$malware_scanner_ip" \
+              MalwareScanning__Port=3310 \
+              MalwareScanning__TimeoutSeconds=30 \
+              MalwareScanning__MaxChunkSizeBytes=8192 \
               Gccs__Release__Version="$RELEASE_VERSION" \
               Gccs__Release__CandidateTag="$CANDIDATE_TAG" \
               Gccs__Release__CommitSha="$COMMIT_SHA" \
@@ -293,6 +313,11 @@ jobs:
             --query "[?name=='TaskSearch__CursorSigningKey'].value | [0]" \
             --output tsv)"
           test -n "$task_cursor_key_configured"
+          test "$(az webapp config appsettings list \
+            --resource-group "$STAGING_RESOURCE_GROUP" \
+            --name "$STAGING_API_APP_NAME" \
+            --query "[?name=='MalwareScanning__Host'].value | [0]" \
+            --output tsv)" = "$malware_scanner_ip"
 
       - name: Verify staging public settings contract
         env:
