@@ -1,40 +1,40 @@
 {
   "schemaVersion": 2,
   "status": "approved",
-  "version": "0.1.0",
-  "candidateTag": "v0.1.0-rc.1",
-  "releaseTag": "v0.1.0",
-  "commitSha": "c2b4f854e87ec5a2f1d5bf8c2f481af6a1c6f715",
-  "approvedAt": "2026-09-19",
+  "version": "0.1.1",
+  "candidateTag": "v0.1.1-rc.1",
+  "releaseTag": "v0.1.1",
+  "commitSha": "2c1784a0e79ea6db0f9de0eaa119c88c2a911948",
+  "approvedAt": "2026-09-26",
   "approvalScope": "Solo-controlled No-CUI pilot production release",
   "dataPosture": "no-cui-only",
   "staging": {
     "environment": "staging",
-    "runId": 35467985467,
-    "evidenceUrl": "https://github.com/samurab/Gccs/actions/runs/35467985467"
+    "runId": 36276437698,
+    "evidenceUrl": "https://github.com/samurab/Gccs/actions/runs/36276437698"
   },
   "artifacts": {
     "mode": "immutable-promotion",
-    "releaseAssetTag": "v0.1.0-rc.1",
+    "releaseAssetTag": "v0.1.1-rc.1",
     "api": {
       "name": "fedril-api.zip",
-      "sha256": "0ca580882c4ec0323f573c280f72414c04a93ba011196cff71426bd43df0d576"
+      "sha256": "02e707c747469a8269554815e757ea47ec209ac718df98923c8604b707604d20"
     },
     "web": {
       "name": "fedril-web.zip",
-      "sha256": "7b266bc84b3ee39db3bae9bdb5c46a27c9812772f7bd14f216f1eea27cfa57f5"
+      "sha256": "441421d6a02debeacd344755637e5775364fc6ec8893dbb13be7c453ac48fc7a"
     },
     "migration": {
       "name": "fedril-migrations.zip",
-      "sha256": "b5f1567db9f9d0394f8573fbff2840cf9d59142dec4156a234f4e7650862b309"
+      "sha256": "2c1b740ec6b516e0d66ef6e2e880d753a18c16f2bae330af0d68d01b6a03f3a0"
     },
     "sbom": {
       "name": "fedril-sbom.spdx.json",
-      "sha256": "835a911e55f3629be7e898ea9c1735945b3bb89df3127a06d3892f4748d1d93d"
+      "sha256": "bfa0630455e730c7b36767fcb3e1e9d40c8151420cbe230dcc5aa64f3d1f93b0"
     },
     "metadata": {
       "name": "release-metadata.json",
-      "sha256": "ed59671fb44b20d324b3f83cdace0aace0aeb6c7cf4edac0cba65737893db472"
+      "sha256": "8ac9321caf5e770529d3c13ee5c75897b298e99a3e93e14383f6e72292e20180"
     }
   },
   "approvals": {
@@ -43,6 +43,6 @@
     "product": true
   },
   "rollback": {
-    "sourceTag": "launch-candidate-2026-09-13-1"
+    "sourceTag": "v0.1.0"
   }
 }
