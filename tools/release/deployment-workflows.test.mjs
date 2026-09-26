@@ -58,6 +58,17 @@ test("legacy rollback validates the live realm before migration and preserves cu
   }
 });
 
+test("legacy rollback retains current runtime tools and publishes metadata for repeated rollback verification", () => {
+  const job = deploymentJob(rollback, "production-deploy");
+  const copy = job.indexOf('cp tools/release/write-runtime-config.mjs tools/release/validate-auth-config.mjs "$RUNNER_TEMP/"');
+  const historicalCheckout = job.indexOf("Checkout approved launch candidate artifact source");
+  const write = job.indexOf('node "$RUNNER_TEMP/write-runtime-config.mjs" apps/web/dist/runtime-config.js');
+  const publish = job.indexOf("uses: Azure/static-web-apps-deploy@");
+  assert.ok(copy >= 0 && copy < historicalCheckout, "Current runtime tooling must survive historical checkout");
+  assert.ok(write > historicalCheckout && write > job.indexOf("npm run build:web"), "Runtime metadata follows historical build");
+  assert.ok(publish > write, "Runtime metadata must be included in published web artifact");
+});
+
 for (const [name, workflow, jobName, environment] of [
   ["staging", staging, "staging-deploy", "staging"],
   ["production", production, "production-deploy", "Production"],

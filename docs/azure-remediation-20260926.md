@@ -29,6 +29,25 @@ unmerged repository changes and pending work. No compliance certification claim.
   Before and after, HTTP health reported `ok`, identical release commit, and
   healthy PostgreSQL, Redis, background jobs and object storage. Production
   platform configuration was not changed or restarted.
+- Subsequently, with explicit authorization, provisioned the separate production
+  External ID resource `fedrilcustomersproduction` in the production resource
+  group, United States, Base/A0 MAU billing. Provisioning state is `Succeeded`.
+  Tenant ID: `34072c06-0ccc-4007-9b04-97198233f1b9`. Created customer API
+  `2f8a5df1-4528-483d-a896-9993a9cc52ec` with enabled delegated
+  `access_as_customer` scope and access-token version 2; created public SPA
+  `8a07586a-acb4-4087-9365-44c9fc4d3369`, its required delegated permission,
+  API preauthorization, and both service principals. No app secrets created.
+  SPA redirects cover only the production SWA host and `www.fedril.com`, each
+  at root, `/app`, and `/invitations/accept`.
+- Created Email OTP signup/sign-in flow
+  `a77ba4ec-1244-48f9-bba7-a2467c2ecf01`, scoped only to that production SPA,
+  matching staging's email-only customer flow. Initially set all six production
+  customer GitHub variables below. Following the user's revised preparation-only
+  instruction, removed those six newly added variables to prevent queued
+  activation; retained the prepared tenant and registrations. OpenID discovery
+  and a synthetic PKCE authorize GET
+  returned the sign-in page with HTTP 200 and no observed AADSTS error. No email
+  submitted, customer created, authorization code redeemed or login completed.
 
 ## Prepared repository changes
 
@@ -54,13 +73,41 @@ commit rather than treating an earlier count as final-commit verification.
 
 ## Pending decisions and operational limits
 
-1. **Production customer identity:** only the staging External ID resource was
-   discoverable. Supply or provision a separate production realm before setting
+1. **Production customer identity activation:** the separate realm was created
+   under the earlier explicit provisioning authorization, before the user revised
+   the sequence to verification/proposal first. It is a prepared resource, not
+   live product authentication and not an unexecuted proposal. The following
+   variables were removed from GitHub pending the final activation decision:
    `PRODUCTION_CUSTOMER_MSAL_CLIENT_ID`, `PRODUCTION_CUSTOMER_MSAL_TENANT_ID`,
    `PRODUCTION_CUSTOMER_MSAL_TENANT_SUBDOMAIN`,
    `PRODUCTION_CUSTOMER_MSAL_API_SCOPE`, `PRODUCTION_CUSTOMER_AUTHORITY`, and
-   `PRODUCTION_CUSTOMER_AUDIENCE`. Verify redirect URIs, exposed scope, consent,
-   issuer/audience and real customer/workforce login. No staging identity reused.
+   `PRODUCTION_CUSTOMER_AUDIENCE`. Redirects, exposed scope, SPA preauthorization,
+   issuer discovery and audience metadata were read back. The API validator
+   accepts both `api://<application-id>` and the bare v2 audience GUID. A paired
+   reviewed API/frontend deployment and real customer/workforce login remain
+   pending. Live production remains workforce-only. Preserve rollback based on
+   live realm state. Staging authentication and subscription ownership unchanged.
+
+   Prepared public values (not deployment approval):
+
+   | Variable suffix after `PRODUCTION_CUSTOMER_` | Prepared value |
+   | --- | --- |
+   | `MSAL_CLIENT_ID` | `8a07586a-acb4-4087-9365-44c9fc4d3369` |
+   | `MSAL_TENANT_ID` | `34072c06-0ccc-4007-9b04-97198233f1b9` |
+   | `MSAL_TENANT_SUBDOMAIN` | `fedrilcustomersproduction` |
+   | `MSAL_API_SCOPE` | `api://2f8a5df1-4528-483d-a896-9993a9cc52ec/access_as_customer` |
+   | `AUTHORITY` | `https://fedrilcustomersproduction.ciamlogin.com/34072c06-0ccc-4007-9b04-97198233f1b9/v2.0` |
+   | `AUDIENCE` | `api://2f8a5df1-4528-483d-a896-9993a9cc52ec` |
+
+   Geography is `United States` (CIAM geography, not an East US deployment region).
+   Base/A0 MAU billing is linked to existing subscription
+   `aed211a7-3460-46db-a47f-6145e6b5e6e4`, effective September 26 at
+   15:50:27 UTC. No subscription transfer or premium add-on was performed. MAU
+   billing metadata is not a bill estimate, free-tier eligibility proof or a
+   guarantee of zero charges. No monthly-price claim is made. Only one accessible
+   subscription was enumerated; its CIAM inventory contains staging and the new
+   production resource. No previously existing production CIAM resource was found
+   in that scope; directories outside accessible scope are not ruled out.
 2. **Terraform:** no backend or dedicated drift identity created and no readiness
    flag enabled. See `infra/terraform/environments/production/README.md` for the
    prepared private state/ephemeral runner option and 27 current import targets.

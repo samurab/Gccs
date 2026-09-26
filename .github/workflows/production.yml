@@ -92,6 +92,7 @@ jobs:
           test -n "$PRODUCTION_APP_INSIGHTS_NAME"
           node tools/release/validate-rollback-auth.mjs
           cp tools/release/check-azure-settings.mjs "$RUNNER_TEMP/check-azure-settings.mjs"
+          cp tools/release/write-runtime-config.mjs tools/release/validate-auth-config.mjs "$RUNNER_TEMP/"
 
       - name: Validate production CI/CD and No-CUI deployment guardrails
         run: |
@@ -171,6 +172,15 @@ jobs:
           if grep -R "http://localhost:5062" apps/web/dist; then exit 1; fi
           if grep -R "Local test context" apps/web/dist; then exit 1; fi
           if grep -R "/api/development/testing-context" apps/web/dist; then exit 1; fi
+
+      - name: Preserve effective legacy authentication metadata for repeated recovery
+        env:
+          FEDRIL_API_BASE_URL: ${{ env.PRODUCTION_API_BASE_URL }}
+          FEDRIL_BUILD_ID: ${{ github.run_id }}
+        run: |
+          export FEDRIL_APP_VERSION="$(node -p "require('./package.json').version")"
+          export FEDRIL_COMMIT_SHA="$(git rev-parse HEAD)"
+          node "$RUNNER_TEMP/write-runtime-config.mjs" apps/web/dist/runtime-config.js
 
       - name: Generate idempotent production migration script
         run: |
