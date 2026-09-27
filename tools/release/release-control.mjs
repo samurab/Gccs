@@ -50,6 +50,11 @@ export function validateMigrationSources(sources) {
   return true;
 }
 
+export function validateMigrationDeletions(paths) {
+  if (paths.length > 0) fail(`Candidate must not delete migration source files: ${paths.join(", ")}`);
+  return true;
+}
+
 export function validateMigrationRange(baseRef, candidateSha) {
   requiredString(baseRef, "migration base ref");
   requiredString(candidateSha, "candidate SHA");
@@ -57,6 +62,10 @@ export function validateMigrationRange(baseRef, candidateSha) {
   const changedPaths = git([
     "diff", "--name-only", "--diff-filter=ACMR", "-z", `${baseRef}...${candidateSha}`, "--", `${migrationRoot}*.cs`
   ]).toString("utf8").split("\0").filter(Boolean);
+  const deletedPaths = git([
+    "diff", "--name-only", "--diff-filter=D", "-z", `${baseRef}...${candidateSha}`, "--", `${migrationRoot}*.cs`
+  ]).toString("utf8").split("\0").filter(Boolean);
+  validateMigrationDeletions(deletedPaths);
   const sources = changedPaths.flatMap(path => {
     if (path.endsWith(".Designer.cs") || path === `${migrationRoot}GccsDbContextModelSnapshot.cs`) return [];
     if (!new RegExp(`^${migrationRoot}\\d{14}_[^/]+\\.cs$`).test(path)) {

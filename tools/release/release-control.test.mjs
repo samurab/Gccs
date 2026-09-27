@@ -7,6 +7,7 @@ import {
   createArtifactMetadata,
   validateApprovedRelease,
   validateCandidate,
+  validateMigrationDeletions,
   validateMigrationDiff,
   validateMigrationSources,
   verifyReleaseBundle
@@ -48,6 +49,14 @@ test("blocks destructive operations in the forward Up method", () => {
 test("fails closed when the forward migration scope is malformed", () => {
   assert.throws(() => validateMigrationSources([{ path: "missing.cs", source: "protected override void Down(MigrationBuilder migrationBuilder) { }" }]), /exactly one standard Up/);
   assert.throws(() => validateMigrationSources([{ path: "unbalanced.cs", source: "protected override void Up(MigrationBuilder migrationBuilder) {" }]), /unbalanced Up/);
+});
+
+test("fails closed when candidate history deletes migration sources", () => {
+  assert.throws(
+    () => validateMigrationDeletions(["src/Gccs.Infrastructure/Persistence/Migrations/20260927000000_AddReference.cs"]),
+    /must not delete migration source files/
+  );
+  assert.equal(validateMigrationDeletions([]), true);
 });
 
 test("blocks destructive added standalone SQL", () => {
