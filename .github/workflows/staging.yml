@@ -108,10 +108,7 @@ jobs:
         run: |
           migration_base_ref="$(jq -r '.rollback.sourceTag' docs/release/approved-release.json)"
           git rev-parse --verify "${migration_base_ref}^{commit}"
-          git diff --unified=0 "${migration_base_ref}...${COMMIT_SHA}" -- \
-            'src/Gccs.Infrastructure/Persistence/Migrations/*.cs' \
-            'infra/database/*.sql' | \
-            node tools/release/release-control.mjs migration-diff
+          node tools/release/release-control.mjs migration-diff "$migration_base_ref" "$COMMIT_SHA"
 
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v6
