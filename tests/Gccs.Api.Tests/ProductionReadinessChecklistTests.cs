@@ -1024,6 +1024,73 @@ public sealed class ProductionReadinessChecklistTests
     }
 
     [Fact]
+    public void TC_PR_3_4_Staging_browser_tests_require_real_sign_in_and_server_permissions()
+    {
+        var config = ReadText("playwright.staging.config.ts");
+        var authCapture = ReadText("tools", "testing", "capture-staging-auth.mjs");
+        var testRunner = ReadText("tools", "testing", "run-staging-tests.mjs");
+        var authHelper = ReadText("apps", "web", "e2e-staging", "authenticated-staging.ts");
+        var managerTest = ReadText("apps", "web", "e2e-staging", "manager-upload-report.spec.ts");
+        var auditorTest = ReadText("apps", "web", "e2e-staging", "auditor-upload-report.spec.ts");
+
+        Assert.DoesNotContain("webServer:", config);
+        Assert.Contains("PLAYWRIGHT_STAGING_WEB_URL", config);
+        Assert.Contains("storageState", config);
+        Assert.Contains("trace: \"off\"", config);
+        Assert.Contains("video: \"off\"", config);
+        Assert.Contains("screenshot: \"off\"", config);
+        Assert.Contains("preserveOutput: \"never\"", config);
+        Assert.Contains("staging-manager.json", config);
+        Assert.Contains("staging-auditor.json", config);
+
+        Assert.Contains("Complete the real staging sign-in", authCapture);
+        Assert.Contains("PLAYWRIGHT_STAGING_EMAIL", authCapture);
+        Assert.Contains("Sign in with email code", authCapture);
+        Assert.Contains("Enter the staging email verification code", authCapture);
+        Assert.Contains("setRawMode(true)", authCapture);
+        Assert.Contains("headless: Boolean(stagingEmail)", authCapture);
+        Assert.Contains("Customer sign-in page reached.", authCapture);
+        Assert.Contains("Verification code requested.", authCapture);
+        Assert.Contains("Verification code submitted.", authCapture);
+        Assert.Contains("Promise.race", authCapture);
+        Assert.Contains("waitForAccessResponse(page)", authCapture);
+        Assert.DoesNotContain("console.log(email", authCapture);
+        Assert.DoesNotContain("console.log(code", authCapture);
+        Assert.Contains("bearer authentication", authCapture);
+        Assert.Contains("Development authentication must not be used", authCapture);
+        Assert.Contains("ManageEvidence", authCapture);
+        Assert.Contains("ManageReports", authCapture);
+        Assert.Contains("ViewReports", authCapture);
+
+        Assert.Contains("finally", testRunner);
+        Assert.Contains("rm(file, { force: true })", testRunner);
+        Assert.Contains("staging-manager.json", testRunner);
+        Assert.Contains("staging-auditor.json", testRunner);
+
+        Assert.Contains("authorization", authHelper);
+        Assert.Contains("x-gccs-dev-auth", authHelper);
+        Assert.Contains("toBeUndefined", authHelper);
+        Assert.Contains("requiredPermissions", authHelper);
+        Assert.Contains("forbiddenPermissions", authHelper);
+        Assert.Contains("new URL(accessResponse.url()).origin", authHelper);
+        Assert.DoesNotContain("PLAYWRIGHT_STAGING_API_URL", authHelper);
+
+        Assert.Contains("Upload evidence", managerTest);
+        Assert.Contains("/api/reports/compliance-status", managerTest);
+        Assert.Contains("validationStatus: \"accepted\"", managerTest);
+        Assert.Contains("staging compliance-status generation must return 201", managerTest);
+
+        Assert.Contains("ViewEvidence", auditorTest);
+        Assert.Contains("ManageEvidence", auditorTest);
+        Assert.Contains("ManageReports", auditorTest);
+        Assert.Equal(2, Regex.Matches(auditorTest, "expect\\(denied[A-Za-z]+\\.status\\)\\.toBe\\(403\\)").Count);
+        Assert.Equal(4, Regex.Matches(auditorTest, "await authenticatedCollectionIds").Count);
+        Assert.Contains("permission_denied", auditorTest);
+        Assert.DoesNotContain("PLAYWRIGHT_STAGING_API_URL", managerTest);
+        Assert.DoesNotContain("PLAYWRIGHT_STAGING_API_URL", auditorTest);
+    }
+
+    [Fact]
     public void TC_17_4_1_Production_readiness_checklist_blocks_launch_until_required_approvals_complete()
     {
         var checklist = ReadText("docs", "production-readiness-checklist.md");
@@ -1682,7 +1749,10 @@ public sealed class ProductionReadinessChecklistTests
         {
             "Gccs__DataPosture: No-CUI / compliance management only",
             "PRODUCTION_CUSTOMER_DATA_MODE: no-cui-only",
-            "AZURE_CREDENTIALS_GCCS_PRODUCTION",
+            "id-token: write",
+            "client-id: ${{ vars.AZURE_CLIENT_ID }}",
+            "tenant-id: ${{ vars.AZURE_TENANT_ID }}",
+            "subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}",
             "AZURE_STATIC_WEB_APPS_API_TOKEN_GCCS_PRODUCTION",
             "PRODUCTION_DATABASE_URL",
             "Generate idempotent production migration script",

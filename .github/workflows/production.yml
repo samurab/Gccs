@@ -13,15 +13,18 @@ permissions:
   contents: read
 
 concurrency:
-  group: production-${{ github.event.inputs.launch_candidate_tag }}
+  group: production-deployment
   cancel-in-progress: false
 
 jobs:
   production-deploy:
     name: Deploy production
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     environment:
-      name: production
+      name: Production
       url: ${{ vars.PRODUCTION_WEB_BASE_URL }}
     env:
       DOTNET_ENVIRONMENT: Production
@@ -29,6 +32,17 @@ jobs:
       Gccs__DataPosture: No-CUI / compliance management only
       PRODUCTION_API_APP_NAME: ${{ vars.PRODUCTION_API_APP_NAME }}
       PRODUCTION_RESOURCE_GROUP: ${{ vars.PRODUCTION_RESOURCE_GROUP }}
+      PRODUCTION_APP_INSIGHTS_NAME: ${{ vars.PRODUCTION_APP_INSIGHTS_NAME }}
+      FEDRIL_REQUIRE_CUSTOMER_AUTH: "false"
+      FEDRIL_WORKFORCE_CLIENT_ID: ${{ vars.PRODUCTION_MSAL_CLIENT_ID }}
+      FEDRIL_WORKFORCE_TENANT_ID: ${{ vars.PRODUCTION_MSAL_TENANT_ID }}
+      FEDRIL_WORKFORCE_API_SCOPE: ${{ vars.PRODUCTION_MSAL_API_SCOPE }}
+      FEDRIL_CUSTOMER_CLIENT_ID: ${{ vars.PRODUCTION_CUSTOMER_MSAL_CLIENT_ID }}
+      FEDRIL_CUSTOMER_TENANT_ID: ${{ vars.PRODUCTION_CUSTOMER_MSAL_TENANT_ID }}
+      FEDRIL_CUSTOMER_TENANT_SUBDOMAIN: ${{ vars.PRODUCTION_CUSTOMER_MSAL_TENANT_SUBDOMAIN }}
+      FEDRIL_CUSTOMER_API_SCOPE: ${{ vars.PRODUCTION_CUSTOMER_MSAL_API_SCOPE }}
+      FEDRIL_CUSTOMER_AUTHORITY: ${{ vars.PRODUCTION_CUSTOMER_AUTHORITY }}
+      FEDRIL_CUSTOMER_AUDIENCE: ${{ vars.PRODUCTION_CUSTOMER_AUDIENCE }}
       PRODUCTION_API_BASE_URL: ${{ vars.PRODUCTION_API_BASE_URL }}
       PRODUCTION_WEB_BASE_URL: ${{ vars.PRODUCTION_WEB_BASE_URL }}
       PRODUCTION_CUSTOMER_DATA_MODE: no-cui-only
@@ -60,6 +74,25 @@ jobs:
           test "$approved_tag" = "$LEGACY_ROLLBACK_TAG"
           git fetch --force --tags
           test "$(git rev-list -n 1 "$approved_tag")" = "$approved_sha"
+
+      - name: Setup Node.js for authentication validation
+        uses: actions/setup-node@v7
+        with:
+          node-version: "25"
+
+      - name: Login to Azure production subscription
+        uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Validate paired production authentication before source checkout
+        run: |
+          test -n "$PRODUCTION_APP_INSIGHTS_NAME"
+          node tools/release/validate-rollback-auth.mjs
+          cp tools/release/check-azure-settings.mjs "$RUNNER_TEMP/check-azure-settings.mjs"
+          cp tools/release/write-runtime-config.mjs tools/release/validate-auth-config.mjs "$RUNNER_TEMP/"
 
       - name: Validate production CI/CD and No-CUI deployment guardrails
         run: |
@@ -125,6 +158,10 @@ jobs:
           VITE_MSAL_CLIENT_ID: ${{ vars.PRODUCTION_MSAL_CLIENT_ID }}
           VITE_MSAL_TENANT_ID: ${{ vars.PRODUCTION_MSAL_TENANT_ID }}
           VITE_MSAL_API_SCOPE: ${{ vars.PRODUCTION_MSAL_API_SCOPE }}
+          VITE_CUSTOMER_MSAL_CLIENT_ID: ${{ env.FEDRIL_CUSTOMER_CLIENT_ID }}
+          VITE_CUSTOMER_MSAL_TENANT_ID: ${{ env.FEDRIL_CUSTOMER_TENANT_ID }}
+          VITE_CUSTOMER_MSAL_TENANT_SUBDOMAIN: ${{ env.FEDRIL_CUSTOMER_TENANT_SUBDOMAIN }}
+          VITE_CUSTOMER_MSAL_API_SCOPE: ${{ env.FEDRIL_CUSTOMER_API_SCOPE }}
         run: |
           test -n "$VITE_API_BASE_URL"
           test -n "$VITE_MSAL_CLIENT_ID"
@@ -135,6 +172,15 @@ jobs:
           if grep -R "http://localhost:5062" apps/web/dist; then exit 1; fi
           if grep -R "Local test context" apps/web/dist; then exit 1; fi
           if grep -R "/api/development/testing-context" apps/web/dist; then exit 1; fi
+
+      - name: Preserve effective legacy authentication metadata for repeated recovery
+        env:
+          FEDRIL_API_BASE_URL: ${{ env.PRODUCTION_API_BASE_URL }}
+          FEDRIL_BUILD_ID: ${{ github.run_id }}
+        run: |
+          export FEDRIL_APP_VERSION="$(node -p "require('./package.json').version")"
+          export FEDRIL_COMMIT_SHA="$(git rev-parse HEAD)"
+          node "$RUNNER_TEMP/write-runtime-config.mjs" apps/web/dist/runtime-config.js
 
       - name: Generate idempotent production migration script
         run: |
@@ -155,15 +201,14 @@ jobs:
           psql "$PRODUCTION_DATABASE_URL" --set ON_ERROR_STOP=on --file infra/database/predeploy-compliance-task-search-index.sql
           psql "$PRODUCTION_DATABASE_URL" --set ON_ERROR_STOP=on --file "$RUNNER_TEMP/gccs-production-migrations.sql"
 
-      - name: Login to Azure production subscription
-        uses: azure/login@v3
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS_GCCS_PRODUCTION }}
-
       - name: Configure production email delivery
         run: |
+          customer_auth_settings=()
+          if [[ -n "$FEDRIL_CUSTOMER_AUTHORITY" ]]; then
+            customer_auth_settings+=("Authentication__Customer__Authority=$FEDRIL_CUSTOMER_AUTHORITY" "Authentication__Customer__Audience=$FEDRIL_CUSTOMER_AUDIENCE")
+          fi
           application_insights_connection_string="$(az monitor app-insights component show \
-            --app gccs-api-production \
+            --app "$PRODUCTION_APP_INSIGHTS_NAME" \
             --resource-group "$PRODUCTION_RESOURCE_GROUP" \
             --query connectionString \
             --output tsv)"
@@ -172,6 +217,7 @@ jobs:
             --resource-group "$PRODUCTION_RESOURCE_GROUP" \
             --name "$PRODUCTION_API_APP_NAME" \
             --settings \
+              "${customer_auth_settings[@]}" \
               InvitationDelivery__Enabled=true \
               InvitationDelivery__Provider=AzureCommunicationServices \
               InvitationDelivery__PublicWebBaseUrl="$PRODUCTION_WEB_BASE_URL" \
@@ -214,6 +260,15 @@ jobs:
             --query "[?name=='TaskSearch__CursorSigningKey'].value | [0]" \
             --output tsv)"
           test -n "$task_cursor_key_configured"
+
+      - name: Verify production public settings contract
+        if: env.FEDRIL_CUSTOMER_AUTHORITY != ''
+        env:
+          PRODUCTION_MSAL_TENANT_ID: ${{ env.FEDRIL_WORKFORCE_TENANT_ID }}
+          PRODUCTION_MSAL_API_SCOPE: ${{ env.FEDRIL_WORKFORCE_API_SCOPE }}
+          PRODUCTION_CUSTOMER_AUTHORITY: ${{ env.FEDRIL_CUSTOMER_AUTHORITY }}
+          PRODUCTION_CUSTOMER_AUDIENCE: ${{ env.FEDRIL_CUSTOMER_AUDIENCE }}
+        run: node "$RUNNER_TEMP/check-azure-settings.mjs" production
 
       - name: Deploy production API App Service
         uses: azure/webapps-deploy@v3

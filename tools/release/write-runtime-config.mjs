@@ -1,11 +1,14 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
+import { validateAuthConfig } from "./validate-auth-config.mjs";
 
 const output = process.argv[2];
 if (!output) {
   console.error("Usage: write-runtime-config.mjs <output-path>");
   process.exit(2);
 }
+
+validateAuthConfig();
 
 const config = {
   apiBaseUrl: requiredUrl("FEDRIL_API_BASE_URL"),

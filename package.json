@@ -1,6 +1,6 @@
 {
   "name": "gccs",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "workspaces": [
     "apps/web",
@@ -13,6 +13,8 @@
     "lint:web": "npm --workspace apps/web run lint",
     "test:e2e": "playwright test",
     "test:e2e:real": "playwright test --config playwright.real.config.ts",
+    "test:e2e:staging:auth": "node tools/testing/capture-staging-auth.mjs",
+    "test:e2e:staging": "node tools/testing/run-staging-tests.mjs",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:headed:slow": "PLAYWRIGHT_SLOW_MO=1000 playwright test --headed --workers=1",
     "test:e2e:debug": "PWDEBUG=1 playwright test --debug --workers=1",
@@ -34,7 +36,7 @@
     "sync:launch-candidate": "node tools/release/sync-approved-launch-candidate.mjs --write",
     "check:launch-candidate": "node tools/release/sync-approved-launch-candidate.mjs --check",
     "check:release-control": "node tools/release/release-control.mjs check",
-    "test:release-control": "node --test tools/release/release-control.test.mjs",
+    "test:release-control": "node --test tools/release/*.test.mjs",
     "check:sensitive-artifacts": "node tools/security/check-sensitive-artifacts.mjs --staged",
     "test:sensitive-artifacts": "node --test tools/security/check-sensitive-artifacts.test.mjs",
     "lint:openapi": "redocly lint docs/api/openapi.yaml --extends=spec",
