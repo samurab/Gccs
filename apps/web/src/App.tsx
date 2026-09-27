@@ -2918,6 +2918,7 @@ export function App() {
               canManageCmmc={canManageCmmc}
               canManageSsp={canManageCmmc}
               canExportSsp={canExportReports}
+              canManageSspExportPolicy={canManageTenant}
               controls={cmmcControls}
               contracts={contracts}
               message={cmmcMessage}
@@ -6466,6 +6467,7 @@ function CmmcView({
   canManageCmmc,
   canManageSsp,
   canExportSsp,
+  canManageSspExportPolicy,
   controls,
   contracts,
   message,
@@ -6489,6 +6491,7 @@ function CmmcView({
   canManageCmmc: boolean;
   canManageSsp: boolean;
   canExportSsp: boolean;
+  canManageSspExportPolicy: boolean;
   controls: CmmcControlStatus[];
   contracts: ContractRecord[];
   message: string;
@@ -7100,7 +7103,7 @@ function CmmcView({
         )}
       </WorkflowColumn>
 
-      <SspSectionsPanel canManage={canManageSsp} canExport={canExportSsp} />
+      <SspSectionsPanel canManage={canManageSsp} canExport={canExportSsp} canManageExportPolicy={canManageSspExportPolicy} />
     </section>
   );
 }

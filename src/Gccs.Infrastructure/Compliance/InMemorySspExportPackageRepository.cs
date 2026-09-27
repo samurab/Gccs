@@ -55,7 +55,7 @@ public sealed class InMemorySspExportPackageRepository : ISspExportPackageReposi
             };
         });
 
-    public Task<SspExportPackageDto?> ShareAsync(Guid tenantId, Guid packageId, string recipient, string purpose, Guid actorUserId, string actorName, DateTimeOffset sharedAt, CancellationToken cancellationToken = default) =>
+    public Task<SspExportPackageDto?> RecordExternalShareAsync(Guid tenantId, Guid packageId, string recipient, string purpose, Guid actorUserId, string actorName, DateTimeOffset sharedAt, CancellationToken cancellationToken = default) =>
         UpdateAsync(tenantId, packageId, package =>
         {
             if (package.ExternalShareApprovedAt is null || package.Status != SspExportPackageStatus.ExternalShareApproved)

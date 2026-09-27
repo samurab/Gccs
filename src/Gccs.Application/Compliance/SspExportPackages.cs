@@ -21,6 +21,8 @@ public sealed class SspExportPackageService(
     ICurrentTenantContext tenantContext,
     IAuditEventWriter auditEventWriter,
     IApplicationTransaction transaction,
+    ISspExportPolicyRepository policyRepository,
+    SspExportLanguagePolicy languagePolicy,
     TimeProvider timeProvider,
     AiOutputReviewService? aiOutputReview = null)
 {
@@ -85,7 +87,7 @@ public sealed class SspExportPackageService(
                     narrative?.SourceRecords ?? []));
             }
 
-            EnsureNoPositiveAssuranceClaims(
+            languagePolicy.EnsureReviewOnly(
             [
                 request.SystemBoundary,
                 request.Reviewer,
@@ -111,6 +113,7 @@ public sealed class SspExportPackageService(
                 request.SystemBoundary.Trim(),
                 request.Reviewer.Trim(),
                 request.Format,
+                SspExportLanguagePolicy.Version,
                 ReviewOnlyDisclaimer,
                 string.Empty,
                 default,
@@ -169,6 +172,31 @@ public sealed class SspExportPackageService(
         var reason = NormalizeRequired(request.Reason, "Approval reason", 1_000);
         return transaction.ExecuteAsync(async transactionToken =>
         {
+            var current = await packageRepository.GetAsync(tenantContext.TenantId, packageId, transactionToken);
+            if (current is null) return null;
+            var policy = await policyRepository.GetAsync(tenantContext.TenantId, lockForDecision: true, transactionToken);
+            if (policy.RequireIndependentApproval)
+            {
+                var generator = current.History.FirstOrDefault(item => item.Action == "Generated")?.ActorUserId;
+                if (generator is null || generator == actorUserId)
+                {
+                    await auditEventWriter.WriteAsync(
+                        tenantContext.TenantId,
+                        actorUserId,
+                        AuditAction.Rejected,
+                        "SspExportPackage",
+                        packageId.ToString(),
+                        "SSP package external-share approval was rejected by the independent-approver policy.",
+                        new Dictionary<string, string>
+                        {
+                            ["policy"] = "require-independent-approval",
+                            ["policyVersion"] = policy.Version.ToString(),
+                            ["result"] = "rejected"
+                        },
+                        transactionToken);
+                    throw new SspExportPackageValidationException("Independent external-share approval must be recorded by a different authorized user than the package generator.");
+                }
+            }
             var approved = await packageRepository.ApproveExternalShareAsync(
                 tenantContext.TenantId,
                 packageId,
@@ -183,7 +211,47 @@ public sealed class SspExportPackageService(
         }, cancellationToken);
     }
 
-    public Task<SspExportPackageDto?> ShareAsync(
+    public Task<SspExportPolicyDto> GetPolicyAsync(CancellationToken cancellationToken = default) =>
+        policyRepository.GetAsync(tenantContext.TenantId, lockForDecision: false, cancellationToken);
+
+    public Task<SspExportPolicyDto> UpdatePolicyAsync(
+        UpdateSspExportPolicyRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var reason = NormalizeRequired(request.Reason, "Policy change reason", 1_000);
+        if (request.ExpectedVersion < 0) throw new SspExportPackageValidationException("Expected policy version cannot be negative.");
+        return transaction.ExecuteAsync(async transactionToken =>
+        {
+            var before = await policyRepository.GetAsync(tenantContext.TenantId, lockForDecision: false, transactionToken);
+            var updated = await policyRepository.UpdateAsync(
+                tenantContext.TenantId,
+                request.RequireIndependentApproval,
+                request.ExpectedVersion,
+                actorUserId,
+                timeProvider.GetUtcNow(),
+                transactionToken);
+            await auditEventWriter.WriteAsync(
+                tenantContext.TenantId,
+                actorUserId,
+                AuditAction.Updated,
+                "SspExportPolicy",
+                tenantContext.TenantId.ToString(),
+                "SSP external-share approval policy was updated.",
+                new Dictionary<string, string>
+                {
+                    ["beforeRequireIndependentApproval"] = before.RequireIndependentApproval.ToString(),
+                    ["afterRequireIndependentApproval"] = updated.RequireIndependentApproval.ToString(),
+                    ["reason"] = reason,
+                    ["version"] = updated.Version.ToString()
+                },
+                transactionToken);
+            return updated;
+        }, cancellationToken);
+    }
+
+    public Task<SspExportPackageDto?> RecordExternalShareAsync(
         Guid packageId,
         SspExternalShareRequest request,
         Guid actorUserId,
@@ -198,7 +266,7 @@ public sealed class SspExportPackageService(
             if (current.ExternalShareApprovedAt is null || current.Status != SspExportPackageStatus.ExternalShareApproved)
                 throw new SspExportPackageValidationException("An external share may be recorded once and requires explicit approval for this package.");
 
-            var shared = await packageRepository.ShareAsync(
+            var shared = await packageRepository.RecordExternalShareAsync(
                 tenantContext.TenantId,
                 packageId,
                 recipient,
@@ -251,34 +319,6 @@ public sealed class SspExportPackageService(
         return normalized;
     }
 
-    private static void EnsureNoPositiveAssuranceClaims(IEnumerable<string?> values)
-    {
-        string[] prohibitedClaims =
-        [
-            "certified",
-            "certification",
-            "certified compliant",
-            "cmmc certified",
-            "is compliant",
-            "are compliant",
-            "fully compliant",
-            "compliance guaranteed",
-            "assessment determination",
-            "assessor determination",
-            "government approved",
-            "government-approved",
-            "government endorsed",
-            "government-endorsed",
-            "authorization granted",
-            "authorized to handle cui",
-            "authorized to process cui",
-            "authorized to store cui"
-        ];
-        if (values.Where(value => !string.IsNullOrWhiteSpace(value)).Any(value =>
-                prohibitedClaims.Any(claim => value!.Contains(claim, StringComparison.OrdinalIgnoreCase))))
-            throw new SspExportPackageValidationException("SSP package content contains prohibited certification, assessment, authorization, or government-endorsement language.");
-    }
-
     private static string BuildHumanReadableReport(SspExportPackageDto package)
     {
         var report = new StringBuilder();
@@ -287,6 +327,7 @@ public sealed class SspExportPackageService(
         report.AppendLine($"Tenant: {package.TenantName} ({package.TenantId})");
         report.AppendLine($"System boundary: {package.SystemBoundary}");
         report.AppendLine($"Package reviewer: {package.Reviewer}");
+        report.AppendLine($"Export language policy: {package.LanguagePolicyVersion}");
         report.AppendLine($"Status: {package.Status}");
         report.AppendLine();
         report.AppendLine(package.Disclaimer);
@@ -333,6 +374,7 @@ public sealed class SspExportPackageService(
             package.SystemBoundary,
             package.Reviewer,
             package.Format,
+            package.LanguagePolicyVersion,
             package.Disclaimer,
             DraftOnly = true,
             package.Status,
@@ -360,7 +402,13 @@ public interface ISspExportPackageRepository
     Task<bool> PackageVersionExistsAsync(Guid tenantId, string packageVersion, CancellationToken cancellationToken = default);
     Task<SspExportPackageDto> CreateAsync(SspExportPackageDto package, Guid actorUserId, CancellationToken cancellationToken = default);
     Task<SspExportPackageDto?> ApproveExternalShareAsync(Guid tenantId, Guid packageId, string reason, Guid actorUserId, string actorName, DateTimeOffset approvedAt, CancellationToken cancellationToken = default);
-    Task<SspExportPackageDto?> ShareAsync(Guid tenantId, Guid packageId, string recipient, string purpose, Guid actorUserId, string actorName, DateTimeOffset sharedAt, CancellationToken cancellationToken = default);
+    Task<SspExportPackageDto?> RecordExternalShareAsync(Guid tenantId, Guid packageId, string recipient, string purpose, Guid actorUserId, string actorName, DateTimeOffset sharedAt, CancellationToken cancellationToken = default);
+}
+
+public interface ISspExportPolicyRepository
+{
+    Task<SspExportPolicyDto> GetAsync(Guid tenantId, bool lockForDecision, CancellationToken cancellationToken = default);
+    Task<SspExportPolicyDto> UpdateAsync(Guid tenantId, bool requireIndependentApproval, long expectedVersion, Guid actorUserId, DateTimeOffset updatedAt, CancellationToken cancellationToken = default);
 }
 
 public sealed record CreateSspExportPackageRequest(
@@ -374,6 +422,11 @@ public sealed record CreateSspExportPackageRequest(
     Guid? AiOutputId = null);
 public sealed record SspExternalShareApprovalRequest(string Reason);
 public sealed record SspExternalShareRequest(string Recipient, string Purpose);
+public sealed record UpdateSspExportPolicyRequest(
+    [property: JsonRequired] bool RequireIndependentApproval,
+    [property: JsonRequired] long ExpectedVersion,
+    string Reason);
+public sealed record SspExportPolicyDto(bool RequireIndependentApproval, long Version, DateTimeOffset? UpdatedAt, Guid? UpdatedByUserId);
 public sealed record SspExportSourceSnapshot(string TenantName, SspExportEvidenceReferenceDto[] Evidence, SspExportPoamReferenceDto[] PoamItems);
 public sealed record SspExportEvidenceReferenceDto(Guid Id, string Title, EvidenceStatus Status, ContentClassification Classification, string OwnerFunction, DateTimeOffset ApprovedAt, Guid ApprovedByUserId, DateOnly? EffectiveAt, DateOnly? ExpiresAt);
 public sealed record SspExportPoamReferenceDto(Guid Id, Guid AssessmentId, string ControlId, string Weakness, string PlannedRemediation, PoamStatus Status, string OwnerFunction, DateOnly TargetCompletionAt);
@@ -388,6 +441,7 @@ public sealed record SspExportPackageDto(
     string SystemBoundary,
     string Reviewer,
     SspExportFormat Format,
+    string LanguagePolicyVersion,
     string Disclaimer,
     string HumanReadableReport,
     JsonElement MachineReadableMetadata,
