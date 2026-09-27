@@ -78,23 +78,25 @@ This register identifies the known GCCS dependencies for local development, test
 | NIST CSRC | NIST SP 800-171 references | Yes as source reference | Rev. 2/Rev. 3 distinction must remain explicit. |
 | NIST SP 800-171 DoD Assessment Methodology Version 1.2.1 and qualified reviewer | SPRS scoring-rule baseline and readiness reports | Source is checked in; reviewer approval is pending | The rule package remains draft and runtime-unusable until a reviewer distinct from the owner verifies the source hash, all 110 requirements, deductions, conditional and blocking rules, applicability conditions, version, and review metadata. See `docs/sprs-readiness-release-gates.md`. |
 | SBA sources | Size standards, governing rules, certifications context | Identified | Direct integration deferred. |
-| SAM.gov / GSA Entity API | Entity lookup and SAM profile assist | Deferred | Requires credentials/config, provenance, limits, stale-data handling. |
+| SAM.gov / GSA Entity API | Entity lookup and SAM profile assist | Implemented adapter; production enablement unverified | `SamGovEntityLookupClient` and company/subcontractor lookup workflows exist; configuration and current live use require protected verification. This is separate from disabled SPR submission. |
 | NARA CUI Registry | CUI category reference | Identified | MVP must not store CUI; mapping integration deferred. |
 
-## Planned Or Deferred Service Dependencies
+## Implemented, Conditional And Planned Service Dependencies
 
 | Dependency | Planned use | Status | Gate before enablement |
 | --- | --- | --- | --- |
-| Queue/background worker | Extraction, scanning, report jobs | Planned | Tenant-scoped job payloads, retry/poison handling, audit events. |
-| Search index | Compliance content and tenant document metadata search | Planned | Tenant isolation, CUI/data-handling controls, source provenance. |
+| Database-backed jobs and API hosted workers | Extraction, exports, notifications, cleanup and maintenance | Implemented; enabled per runtime configuration | `apps/api/Program.cs` registers workers; no independent queue service is established by this record. Scanner calls are part of the upload boundary. |
+| PostgreSQL full-text retrieval | Governed assistant source retrieval | Implemented | `EfAiRetrievalSourceRepository` and full-text migration; external search service remains planned. |
 | AI/RAG service | Draft-only clause explanations, evidence suggestions, summaries | Deferred | Source citations, logging, review workflow, tenant CUI/data-handling decision. |
 | Azure Communication Services Email | Tenant invitations and direct assignment emails | Partially implemented | Provider configuration and secrets are deployment dependencies; assignment delivery has a persisted outbox, leases, bounded retries, and audit outcomes. Reminder email delivery remains planned. |
-| Production object storage | Evidence/document files | Planned | Encryption, malware scanning, retention/export/delete controls. |
-| Production malware scanner | Upload scanning | Planned | Real scanner integration or explicit launch exception. |
+| Production object storage | Evidence/document files | Partially implemented | Azure Blob adapter exists; deployed configuration, recovery, retention, complete access review and period evidence require verification. |
+| Production malware scanner | Upload scanning | Partially implemented | ClamAV adapter exists; deployed service health, signature updates, capacity and operating review require verification. |
 | GovCloud/Government cloud | Regulated deployment tier | Deferred | Product decision, CUI-ready architecture, shared responsibility matrix. |
 | SSO/SAML/SCIM | Enterprise identity | Deferred | Tier decision and identity-provider testing. |
 
 ## Dependency Rules
+
+The [SOC 2 system boundary index](soc2/system-boundary-index.md) reconciles these statuses with source evidence and identifies production verification needs. Provider existence does not establish feature enablement or operating effectiveness.
 
 - Domain and application projects must not depend directly on EF Core, ASP.NET, React, object storage SDKs, queue SDKs, search SDKs, AI SDKs, or external API clients.
 - Infrastructure adapters own database, storage, cache, queue, search, AI, and external API implementation details.

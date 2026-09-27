@@ -47,17 +47,19 @@ Build the first release around high-frequency govcon compliance work:
 
 The MVP should optimize for traceability, task ownership, evidence readiness, and defensible workflow guidance instead of broad generic GRC coverage.
 
-## Deferred Scope
+## Scope Beyond The Original MVP
 
-The following should be deferred unless pilot customers make them launch blockers:
+The original roadmap deferrals below are superseded by the current repository implementation status. They do not expand the approved production release or contractual service commitments. Use the [SOC 2 system boundary index](soc2/system-boundary-index.md) and approved release manifest when defining deployed scope.
 
-- Labor compliance module, except lightweight metadata capture.
-- SAM.gov Subcontracting Plan Reporting preparation (manual submission; no portal synchronization).
-- SSP builder.
-- SPRS score calculator.
-- Full AI assistant.
-- GovCloud and FedRAMP readiness.
-- Public-sector direct sales features.
+| Capability | Current repository status and limitation |
+| --- | --- |
+| Labor workflows | **Implemented:** source-backed applicability and classification workflows; sensitive payroll processing and legal determinations remain excluded. |
+| SAM.gov SPR preparation | **Implemented:** internal preparation, review and exports; **Do not claim** external submission or synchronization. |
+| SSP builder | **Implemented:** structured sections, deterministic narratives and governed packages; external AI provider remains **Planned**. |
+| SPRS scoring | **Partially implemented:** code and rule package exist; qualified rule approval remains a release dependency in `docs/sprs-readiness-release-gates.md`. |
+| Guarded assistant | **Implemented:** governed lexical retrieval and reviewed draft workflows; external generated-answer and semantic retrieval services remain **Planned**. |
+| GovCloud, FedRAMP and CUI operation | **Planned:** separate deployment and approval required; **Do not claim** current authorization or real-CUI support. |
+| Public-sector direct sales | **Planned:** no contractual commitment inferred from roadmap intent. |
 
 ## Product Claims Policy
 

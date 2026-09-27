@@ -2,6 +2,8 @@
 
 This document identifies the MVP data fields GCCS needs, the source system or input source for each field, and the current implementation status. It is a product and engineering contract, not legal advice.
 
+Current repository status is reconciled in the [SOC 2 system boundary index](soc2/system-boundary-index.md). Implementation does not establish deployed enablement, source accuracy or operating effectiveness.
+
 The MVP is **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**. Source documents, evidence, and notes may use synthetic or redacted CUI in demo tenants. Real customer CUI is allowed only for approved future `CuiReady` tenants. Classified data, export-controlled technical data, payroll records, SSNs, secrets, and other prohibited sensitive content require a separately approved deployment posture.
 
 ## Source System Register
@@ -9,9 +11,9 @@ The MVP is **No-CUI / compliance management only with synthetic CUI-ready demons
 | Source system | Data supplied | MVP use | Integration posture |
 | --- | --- | --- | --- |
 | User-entered tenant data | Company profile, roles, locations, IT posture, task ownership, evidence metadata, subcontractor records | Primary MVP data entry path | Implemented through app/API workflows where modules exist |
-| Customer contract package | Contract metadata, clauses, deliverables, reporting deadlines, flow-down attachments, wage determinations, CUI markings if present | Contract intake and obligation generation | Manual entry and non-CUI document metadata in MVP; automated extraction deferred |
+| Customer contract package | Contract metadata, clauses, deliverables, reporting deadlines, flow-down attachments, wage determinations, classification metadata | Contract intake and obligation generation | Implemented manual entry, guarded file pipeline and extraction worker; deployed enablement and extraction-quality review require evidence |
 | Source-backed obligation library | Clause numbers, trigger logic, required actions, evidence examples, source URLs, confidence, review state | Obligation dashboard, reports, clause search | Implemented as governed seed package and persistence-backed content |
-| SAM.gov / GSA Entity API | UEI, entity registration status, SAM expiration, CAGE, legal entity metadata | Company profile verification and future profile assist | Identified source; direct API integration deferred |
+| SAM.gov / GSA Entity API | UEI, entity registration status, SAM expiration, CAGE, legal entity metadata | Company and subcontractor lookup | Implemented client and workflows; production configuration/use unverified; distinct from disabled SPR submission |
 | SBA size standards and certification references | NAICS size standards, small-business qualification support, socioeconomic certification references | Company profile and SBA-oriented readiness | Identified source; MVP stores user-entered status and references |
 | Acquisition.gov FAR/DFARS | FAR and DFARS clause source text and URLs | Clause library and obligations | Used as source URLs in obligation content |
 | eCFR | 32 CFR Part 170 and other regulatory references | CMMC obligation source and governance review | Used as source URLs in obligation content |
@@ -42,7 +44,7 @@ The MVP is **No-CUI / compliance management only with synthetic CUI-ready demons
 | Compliance task | Title, owner, linked entity type, linked entity ID for linked tasks, status, due date when applicable | Obligations, renewals, deliverables, evidence expiration, manual entry | Implemented |
 | Calendar event | Source module, title, owner, status, due date/date range, risk when available | Derived from tasks, renewals, deliverables, evidence, and CMMC records | Implemented |
 | Evidence metadata | Title, evidence type, owner, approval status, tags, expiration date when applicable, linked obligation/control/contract/vendor/subcontractor IDs when applicable | User entry and approved evidence records governed by tenant data handling mode | Implemented |
-| Evidence file metadata | File name, content type, file size, data classification, validation status, malware scan placeholder status, storage URI when enabled | Upload workflow and object storage adapter | Implemented as guarded metadata; future `CuiReady` tenant gating and production storage maturity still pending |
+| Evidence file metadata | File name, content type, file size, classification, validation/scan result, storage reference and version | Upload workflow and object storage adapter | Implemented byte upload, scanner adapter and durable versions; production recovery/retention and current operation require verification; real CUI remains excluded |
 | Evidence approval | Decision, reviewer, reviewed timestamp, rejection/request-changes reason when applicable | Authorized reviewer action | Implemented |
 | CMMC assessment | Name, framework, Level 1 or Level 2, owner, status, assessment dates, linked company/contract scope when available | User entry; source context from CMMC/NIST/32 CFR references | Implemented |
 | CMMC control readiness | Assessment ID, control ID, status, notes, linked evidence/tasks/assets/POA&M when available | CMMC baseline content and user readiness tracking | Implemented |
@@ -63,13 +65,13 @@ The MVP is **No-CUI / compliance management only with synthetic CUI-ready demons
 - Customer-facing reports must expose source links and last-reviewed dates for obligation content and must distinguish tenant-entered facts from GCCS-governed content.
 - Any field that could indicate CUI, export-controlled data, classified data, payroll/PII, or security secrets must trigger data classification warnings and blocking controls based on tenant data handling mode.
 
-## Deferred Source Integrations
+## Conditional And Deferred Source Integrations
 
 | Integration | Why deferred | Required before enabling |
 | --- | --- | --- |
-| SAM.gov/GSA Entity API lookup | MVP can start with user-entered profile data | API credentials/config, rate-limit handling, provenance metadata, stale-data warnings |
+| SAM.gov/GSA Entity API lookup | Implemented client; production enablement unverified | Protected configuration verification, source provenance, service limits and operational review |
 | SBA size helper | Size determinations can carry business/legal risk | Source-update process, calculation assumptions, SME/legal review, customer-facing disclaimer |
-| Automated contract/clause extraction | Manual tagging is safer for MVP validation | Extraction evaluation set, precision/recall targets, confidence labels, human review workflow |
+| Automated contract/clause extraction | Implemented worker; production capability/quality needs reconciliation | Deployed enablement, reviewed evaluation results, confidence labels and human review evidence |
 | Wage determination lookup | Labor compliance has high complexity and risk | DOL/source integration design, labor SME review, data retention policy |
 | SPRS/CMMC external status import | Assessment/readiness claims require careful controls | Customer authorization, source limitations, CMMC SME review, audit trail |
 | CUI category mapping from NARA registry | CuiReady workflows need category support, but real CUI must remain tenant-gated | CUI-ready architecture decision, intake controls, support process, shared responsibility matrix |
