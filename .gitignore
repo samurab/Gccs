@@ -42,3 +42,11 @@ tmp/exports/
 
 .playwright-mcp/
 .auth/
+
+# Local database backups are restricted evidence and must never enter Git.
+/.codex/db-backups/
+*.dump
+*.backup
+*.bak
+*.sqlite
+*.sqlite3
