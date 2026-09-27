@@ -8012,6 +8012,30 @@ api.MapGet("/compliance/ssp/export-packages", async (
 .RequirePermission(Permission.ExportReports)
 .WithName("ListSspExportPackages");
 
+api.MapGet("/compliance/ssp/export-policy", async (
+    SspExportPackageService service,
+    CancellationToken cancellationToken) => Results.Ok(await service.GetPolicyAsync(cancellationToken)))
+.RequireAnyPermission(Permission.ExportReports, Permission.ManageTenant)
+.WithName("GetSspExportPolicy");
+
+api.MapPut("/compliance/ssp/export-policy", async (
+    UpdateSspExportPolicyRequest request,
+    SspExportPackageService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.UpdatePolicyAsync(request, tenantContext.UserId, cancellationToken));
+    }
+    catch (SspExportPackageValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["sspExportPolicy"] = [exception.Message] });
+    }
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("UpdateSspExportPolicy");
+
 api.MapGet("/compliance/ssp/export-packages/{packageId:guid}", async (
     Guid packageId,
     SspExportPackageService service,
@@ -8068,6 +8092,29 @@ api.MapPost("/compliance/ssp/export-packages/{packageId:guid}/external-share-app
 .RequirePermission(Permission.ManageTenant)
 .WithName("ApproveSspExportPackageExternalShare");
 
+api.MapPost("/compliance/ssp/export-packages/{packageId:guid}/external-share-record", async (
+    Guid packageId,
+    SspExternalShareRequest request,
+    SspExportPackageService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var package = await service.RecordExternalShareAsync(packageId, request, tenantContext.UserId, cancellationToken);
+        return package is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "SSP export package was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(package);
+    }
+    catch (SspExportPackageValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["sspExportPackage"] = [exception.Message] });
+    }
+})
+.RequirePermission(Permission.ExportReports)
+.WithName("RecordSspExportPackageExternalShare");
+
 api.MapPost("/compliance/ssp/export-packages/{packageId:guid}/share", async (
     Guid packageId,
     SspExternalShareRequest request,
@@ -8078,7 +8125,7 @@ api.MapPost("/compliance/ssp/export-packages/{packageId:guid}/share", async (
 {
     try
     {
-        var package = await service.ShareAsync(packageId, request, tenantContext.UserId, cancellationToken);
+        var package = await service.RecordExternalShareAsync(packageId, request, tenantContext.UserId, cancellationToken);
         return package is null
             ? ApiProblemDetails.Create(httpContext, "Resource not found", "SSP export package was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
             : Results.Ok(package);

@@ -882,6 +882,8 @@ vi.mock("@/lib/api", () => ({
   compareSspNarrative: vi.fn(),
   getSspExportPackages: vi.fn().mockResolvedValue([]),
   createSspExportPackage: vi.fn(),
+  getSspExportPolicy: vi.fn().mockResolvedValue({ requireIndependentApproval: true, version: 0, updatedAt: null, updatedByUserId: null }),
+  updateSspExportPolicy: vi.fn(),
   getSubcontractors: getSubcontractorsMock,
   getSubcontractorEvidenceRequests: getSubcontractorEvidenceRequestsMock,
   getSubcontractorFlowDowns: getSubcontractorFlowDownsMock,
@@ -4164,6 +4166,27 @@ describe("App", () => {
       })
     );
     expect(await screen.findByText("POA&M item created.")).toBeInTheDocument();
+  });
+
+  it("allows ViewCmmc tenant managers to administer SSP export policy without ExportReports", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce({
+      ...allWorkflowAccess,
+      roles: ["Owner"],
+      permissions: ["ViewCmmc", "ManageTenant"]
+    });
+    getCmmcAssessmentsMock.mockResolvedValueOnce([]);
+    getCmmcControlStatusesMock.mockResolvedValueOnce([]);
+    getCmmcPoamItemsMock.mockResolvedValueOnce([]);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /cmmc/i }));
+    expect(await screen.findByLabelText("SSP external-share policy")).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: /Require independent approval/ })).toBeChecked();
+    expect(screen.getByText(/ExportReports permission is required/)).toBeInTheDocument();
+    expect(screen.queryByRole("form", { name: "Generate SSP review package" })).not.toBeInTheDocument();
   });
 
   it("Story 30.2 calculates and renders a draft SPRS score without mixing reviewer notes into deductions", async () => {

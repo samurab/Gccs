@@ -921,6 +921,7 @@ INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
 VALUES ('20260610031239_InitialDevelopmentSchema', '10.0.4');
 
 COMMIT;
+
 START TRANSACTION;
 ALTER TABLE gccs.contract_clauses ADD review_state character varying(64) NOT NULL DEFAULT 'Draft';
 
@@ -4717,5 +4718,27 @@ CREATE INDEX "IX_labor_applicabilities_wage_determination_evidence_item_id" ON g
 
 INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
 VALUES ('20260911040908_AddLaborApplicabilities', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.ssp_export_packages ADD language_policy_version character varying(40) DEFAULT 'legacy-29.3.0' NOT NULL;
+
+CREATE TABLE gccs.ssp_export_policies (
+    tenant_id uuid NOT NULL,
+    require_independent_approval boolean NOT NULL,
+    version bigint NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_ssp_export_policies" PRIMARY KEY (tenant_id),
+    CONSTRAINT "FK_ssp_export_policies_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_ssp_export_policies_created_at_updated_at" ON gccs.ssp_export_policies (created_at, updated_at);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260926221414_RecoverSspExportReviewPolicy', '10.0.4');
 
 COMMIT;

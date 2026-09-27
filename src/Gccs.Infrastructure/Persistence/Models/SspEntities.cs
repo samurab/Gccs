@@ -110,6 +110,7 @@ public sealed class SspExportPackageEntity : AuditedEntity
     public string SystemBoundary { get; set; } = string.Empty;
     public string Reviewer { get; set; } = string.Empty;
     public string Format { get; set; } = string.Empty;
+    public string LanguagePolicyVersion { get; set; } = string.Empty;
     public string Disclaimer { get; set; } = string.Empty;
     public string HumanReadableReport { get; set; } = string.Empty;
     public string MachineReadableMetadata { get; set; } = "{}";
@@ -127,6 +128,14 @@ public sealed class SspExportPackageEntity : AuditedEntity
     public long Version { get; set; }
     public TenantEntity? Tenant { get; set; }
     public ICollection<SspExportPackageHistoryEntity> History { get; set; } = [];
+}
+
+public sealed class SspExportPolicyEntity : AuditedEntity
+{
+    public Guid TenantId { get; set; }
+    public bool RequireIndependentApproval { get; set; } = true;
+    public long Version { get; set; }
+    public TenantEntity? Tenant { get; set; }
 }
 
 public sealed class SspExportPackageHistoryEntity
