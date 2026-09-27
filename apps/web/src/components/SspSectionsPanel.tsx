@@ -206,10 +206,12 @@ function SspExportWorkspace({ canExport, canManagePolicy }: { canExport: boolean
     {(canExport || canManagePolicy) && policy && <div aria-label="SSP external-share policy">
       <p><strong>External-share approval:</strong> {policy.requireIndependentApproval ? "A different authorized user must approve each package." : "Self-approval is allowed by tenant policy."}</p>
       <p>FeDril records approval and external-share metadata only; it does not deliver the package to the recipient.</p>
-      {canManagePolicy && <form onSubmit={savePolicy} aria-label="Update SSP external-share policy">
-        <label><input type="checkbox" checked={policyRequired} onChange={event => setPolicyRequired(event.target.checked)} /> Require independent approval by a different user</label>
-        <label><span>Policy change reason</span><input required maxLength={1000} value={policyReason} onChange={event => setPolicyReason(event.target.value)} /></label>
-        <button disabled={busy || (policyRequired === policy.requireIndependentApproval)}>Save external-share policy</button>
+      {canManagePolicy && <form className="cmmc-form" onSubmit={savePolicy} aria-label="Update SSP external-share policy">
+        <div className="form-grid cmmc-form-grid">
+          <label className="checkbox-label span-2"><input type="checkbox" checked={policyRequired} onChange={event => setPolicyRequired(event.target.checked)} /> Require independent approval by a different user</label>
+          <label className="span-2"><span>Policy change reason</span><input required maxLength={1000} value={policyReason} onChange={event => setPolicyReason(event.target.value)} /></label>
+        </div>
+        <div className="form-actions"><button disabled={busy || (policyRequired === policy.requireIndependentApproval)}>Save external-share policy</button></div>
       </form>}
     </div>}
     {canExport && !loading && !error && packages.length === 0 && <p>No SSP review packages exist for this tenant.</p>}

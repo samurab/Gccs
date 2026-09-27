@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { SspSectionsPanel } from "./SspSectionsPanel";
@@ -128,6 +128,11 @@ it("shows record-only sharing posture and updates independent approval policy fo
   render(<SspSectionsPanel canManage canExport canManageExportPolicy />);
   expect(await screen.findByText(/different authorized user must approve/)).toBeInTheDocument();
   expect(screen.getByText(/does not deliver the package/)).toBeInTheDocument();
+  const policyForm = screen.getByRole("form", { name: "Update SSP external-share policy" });
+  expect(policyForm).toHaveClass("cmmc-form");
+  expect(within(policyForm).getByRole("checkbox").closest("label")).toHaveClass("checkbox-label", "span-2");
+  expect(within(policyForm).getByLabelText("Policy change reason").closest("label")).toHaveClass("span-2");
+  expect(within(policyForm).getByRole("button", { name: "Save external-share policy" }).parentElement).toHaveClass("form-actions");
   await userEvent.click(screen.getByRole("checkbox", { name: /Require independent approval/ }));
   await userEvent.type(screen.getByLabelText("Policy change reason"), "Tenant workflow exception");
   await userEvent.click(screen.getByRole("button", { name: "Save external-share policy" }));
