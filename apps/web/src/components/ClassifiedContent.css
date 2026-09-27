@@ -52,7 +52,7 @@ details.data-handling-notice { display: block; padding: 0; }
 .classification-review-panel h3,
 .classified-notes h3 { margin: 0 0 10px; font-size: 1.05rem; overflow-wrap: anywhere; }
 .classification-review-panel h4,
-.classified-notes h4 { margin: 0 0 14px; font-size: .9rem; }
+.classified-notes h4 { margin: 0 0 10px; font-size: .9rem; }
 
 .classification-guidance {
   padding: 12px 16px;
@@ -77,10 +77,12 @@ details.data-handling-notice { display: block; padding: 0; }
 .classification-browser { padding-bottom: 12px; border-bottom: 1px solid var(--line); }
 .classification-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin-bottom: 12px; }
 .classification-filters > label:first-child { min-width: 220px; }
-.classification-detail form,
-.classified-note-editor form { display: grid; gap: 16px; }
+.classification-detail form { display: grid; gap: 16px; }
+.classified-note-editor form { display: grid; gap: 12px; }
 .classification-review-panel label,
-.classified-notes label { display: grid; gap: 8px; font-size: .85rem; font-weight: 650; color: var(--ink-soft); }
+.classified-notes label { display: grid; font-size: .85rem; font-weight: 650; color: var(--ink-soft); }
+.classification-review-panel label { gap: 8px; }
+.classified-notes label { gap: 6px; }
 
 .classification-review-panel input:not([type="checkbox"]),
 .classification-review-panel select,
@@ -103,7 +105,7 @@ details.data-handling-notice { display: block; padding: 0; }
 
 .classification-review-panel textarea,
 .classified-notes textarea { min-height: 100px; resize: vertical; line-height: 1.6; }
-.classified-notes textarea { min-height: 160px; }
+.classified-notes textarea { min-height: 8rem; }
 .classification-review-panel label.classification-checkbox {
   display: flex;
   align-items: flex-start;

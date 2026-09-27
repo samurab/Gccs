@@ -24,4 +24,9 @@ public sealed record AssignTenantMemberRequest(
     string RoleName,
     MembershipStatus Status = MembershipStatus.Active);
 
-public sealed record UpdateTenantMembershipStatusRequest(MembershipStatus Status);
+public sealed record UpdateTenantMembershipStatusRequest(MembershipStatus Status, string Reason = "");
+
+public sealed class TenantMembershipStatusChangeDeniedException(string message) : InvalidOperationException(message);
+
+public sealed class TenantMembershipStatusChangeConflictException(string message, Exception innerException)
+    : InvalidOperationException(message, innerException);

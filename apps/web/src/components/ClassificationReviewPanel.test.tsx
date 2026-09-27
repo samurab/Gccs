@@ -105,10 +105,10 @@ it("distinguishes load failure from empty results and allows retry", async () =>
   render(<ClassificationReviewPanel group="evidence" tenantId="tenant-1" permissions={["ViewEvidence"]} onChanged={vi.fn()} />);
   const user = userEvent.setup(); await user.click(screen.getByText("Classification review and history", { selector: "summary" }));
   expect(await screen.findByRole("alert")).toHaveTextContent("API unavailable");
-  expect(screen.queryByText("No classification records match this page.")).not.toBeInTheDocument();
+  expect(screen.queryByText(/No records need classification review/)).not.toBeInTheDocument();
   vi.mocked(getClassifiedContent).mockResolvedValue([]);
   await user.click(screen.getByRole("button", { name: "Refresh classification list" }));
-  expect(await screen.findByText("No classification records match this page.")).toBeVisible();
+  expect(await screen.findByText(/No records need classification review/)).toBeVisible();
 });
 it("requires reloading after a stale or uncertain write instead of overwriting", async () => {
   vi.mocked(reviewContentClassification).mockResolvedValue({ data: null, error: "A newer revision exists." });
