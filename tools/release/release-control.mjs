@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
 import { basename, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,7 +11,7 @@ const stableVersionPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 const semVerPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)$/;
 const shaPattern = /^[0-9a-f]{40}$/;
 const digestPattern = /^[0-9a-f]{64}$/;
-const destructiveMigrationPattern = /migrationBuilder\.(?:DropColumn|DropForeignKey|DropIndex|DropPrimaryKey|DropTable|AlterColumn|DeleteData|RenameColumn|RenameIndex|RenameTable|Sql)\s*\(/;
+const destructiveMigrationPattern = /migrationBuilder\s*\.\s*(?:DropColumn|DropForeignKey|DropIndex|DropPrimaryKey|DropTable|AlterColumn|DeleteData|RenameColumn|RenameIndex|RenameTable|Sql)\s*\(/;
 const destructiveSqlPattern = /^\+\s*(?:DROP\b|TRUNCATE\b|DELETE\s+FROM\b|UPDATE\b|ALTER\s+TABLE\b.*\bDROP\b)/i;
 
 export function validateCandidate(candidateTag, commitSha, expectedVersion) {
@@ -31,7 +32,46 @@ export function validateMigrationDiff(diff) {
   const violations = diff
     .split("\n")
     .filter(line => line.startsWith("+") && !line.startsWith("+++"))
-    .filter(line => destructiveMigrationPattern.test(line) || destructiveSqlPattern.test(line));
+    .filter(line => destructiveSqlPattern.test(line));
+
+  rejectDestructiveMigrations(violations);
+  return true;
+}
+
+export function validateMigrationSources(sources) {
+  const violations = [];
+  for (const { path, source } of sources) {
+    const upBody = extractUpBody(source, path);
+    const destructiveOperation = destructiveMigrationPattern.exec(upBody);
+    if (destructiveOperation) violations.push(`${path}: ${destructiveOperation[0]}`);
+  }
+
+  rejectDestructiveMigrations(violations);
+  return true;
+}
+
+export function validateMigrationRange(baseRef, candidateSha) {
+  requiredString(baseRef, "migration base ref");
+  requiredString(candidateSha, "candidate SHA");
+  const migrationRoot = "src/Gccs.Infrastructure/Persistence/Migrations/";
+  const changedPaths = git([
+    "diff", "--name-only", "--diff-filter=ACMR", "-z", `${baseRef}...${candidateSha}`, "--", `${migrationRoot}*.cs`
+  ]).toString("utf8").split("\0").filter(Boolean);
+  const sources = changedPaths.flatMap(path => {
+    if (path.endsWith(".Designer.cs") || path === `${migrationRoot}GccsDbContextModelSnapshot.cs`) return [];
+    if (!new RegExp(`^${migrationRoot}\\d{14}_[^/]+\\.cs$`).test(path)) {
+      fail(`Unrecognized changed migration source: ${path}`);
+    }
+    return [{ path, source: git(["show", `${candidateSha}:${path}`]).toString("utf8") }];
+  });
+  validateMigrationSources(sources);
+  validateMigrationDiff(git([
+    "diff", "--unified=0", `${baseRef}...${candidateSha}`, "--", "infra/database/*.sql"
+  ]).toString("utf8"));
+  return true;
+}
+
+function rejectDestructiveMigrations(violations) {
 
   if (violations.length > 0) {
     fail(
@@ -39,7 +79,56 @@ export function validateMigrationDiff(diff) {
       `post-compatibility cleanup release. Blocked additions:\n${violations.join("\n")}`
     );
   }
-  return true;
+}
+
+function extractUpBody(source, path) {
+  const signature = /protected\s+override\s+void\s+Up\s*\(\s*MigrationBuilder\s+migrationBuilder\s*\)\s*\{/g;
+  const matches = [...source.matchAll(signature)];
+  if (matches.length !== 1) fail(`${path} must contain exactly one standard Up(MigrationBuilder migrationBuilder) method`);
+  const openingBrace = matches[0].index + matches[0][0].lastIndexOf("{");
+  const closingBrace = findClosingBrace(source, openingBrace);
+  if (closingBrace < 0) fail(`${path} has an unbalanced Up() method body`);
+  return source.slice(openingBrace + 1, closingBrace);
+}
+
+function findClosingBrace(source, openingBrace) {
+  let depth = 0;
+  let state = "code";
+  let rawQuotes = 0;
+  for (let index = openingBrace; index < source.length; index += 1) {
+    const current = source[index];
+    const next = source[index + 1];
+    if (state === "line-comment") { if (current === "\n") state = "code"; continue; }
+    if (state === "block-comment") { if (current === "*" && next === "/") { state = "code"; index += 1; } continue; }
+    if (state === "string") { if (current === "\\") index += 1; else if (current === '"') state = "code"; continue; }
+    if (state === "verbatim-string") { if (current === '"' && next === '"') index += 1; else if (current === '"') state = "code"; continue; }
+    if (state === "character") { if (current === "\\") index += 1; else if (current === "'") state = "code"; continue; }
+    if (state === "raw-string") {
+      if (current === '"') {
+        let count = 1;
+        while (source[index + count] === '"') count += 1;
+        if (count >= rawQuotes) { state = "code"; index += rawQuotes - 1; }
+      }
+      continue;
+    }
+    if (current === "/" && next === "/") { state = "line-comment"; index += 1; continue; }
+    if (current === "/" && next === "*") { state = "block-comment"; index += 1; continue; }
+    if (current === '"') {
+      let count = 1;
+      while (source[index + count] === '"') count += 1;
+      if (count >= 3) { state = "raw-string"; rawQuotes = count; index += count - 1; continue; }
+      state = source[index - 1] === "@" || source.slice(index - 2, index) === "@$" ? "verbatim-string" : "string";
+      continue;
+    }
+    if (current === "'") { state = "character"; continue; }
+    if (current === "{") depth += 1;
+    if (current === "}" && --depth === 0) return index;
+  }
+  return -1;
+}
+
+function git(args) {
+  return execFileSync("git", args, { cwd: repositoryRoot, maxBuffer: 20 * 1024 * 1024 });
 }
 
 export function validateApprovedRelease(manifest, { production = false } = {}) {
@@ -202,13 +291,6 @@ function fail(message) {
   throw new Error(`Release control validation failed: ${message}`);
 }
 
-async function readStandardInput() {
-  let input = "";
-  process.stdin.setEncoding("utf8");
-  for await (const chunk of process.stdin) input += chunk;
-  return input;
-}
-
 async function main() {
   const [command, ...args] = process.argv.slice(2);
   if (command === "check") {
@@ -252,11 +334,11 @@ async function main() {
     return;
   }
   if (command === "migration-diff") {
-    validateMigrationDiff(await readStandardInput());
+    validateMigrationRange(args[0], args[1]);
     console.log("Candidate migration diff is expand-only.");
     return;
   }
-  console.error("Usage: release-control.mjs check|candidate <tag> <sha>|production <manifest> <release-tag>|metadata|bundle <manifest> <directory>|migration-diff");
+  console.error("Usage: release-control.mjs check|candidate <tag> <sha>|production <manifest> <release-tag>|metadata|bundle <manifest> <directory>|migration-diff <base-ref> <candidate-sha>");
   process.exitCode = 2;
 }
 

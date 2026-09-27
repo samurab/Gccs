@@ -8,6 +8,7 @@ import {
   validateApprovedRelease,
   validateCandidate,
   validateMigrationDiff,
+  validateMigrationSources,
   verifyReleaseBundle
 } from "./release-control.mjs";
 
@@ -17,12 +18,41 @@ test("validates SemVer release candidates against the application version", () =
   assert.throws(() => validateCandidate("v1.2.4-rc.1", "a".repeat(40), "1.2.3"));
 });
 
-test("allows expand-only migrations and blocks destructive candidate operations", () => {
-  assert.equal(validateMigrationDiff("+migrationBuilder.AddColumn<string>(name: \"Reference\");"), true);
-  assert.throws(() => validateMigrationDiff("+migrationBuilder.DropColumn(name: \"Legacy\");"), /expand-only/);
-  assert.throws(() => validateMigrationDiff("+migrationBuilder.Sql(\"DELETE FROM Evidence\");"), /expand-only/);
+test("allows destructive rollback operations outside the forward Up method", () => {
+  assert.equal(validateMigrationSources([{ path: "20260927000000_AddReference.cs", source: `
+    protected override void Up(MigrationBuilder migrationBuilder)
+    {
+      migrationBuilder.AddColumn<string>(name: "Reference");
+    }
+    protected override void Down(MigrationBuilder migrationBuilder)
+    {
+      migrationBuilder.DropColumn(name: "Reference");
+    }
+  ` }]), true);
+});
+
+test("blocks destructive operations in the forward Up method", () => {
+  const migration = operation => [{ path: "20260927000000_BreakCompatibility.cs", source: `
+    protected override void Up(MigrationBuilder migrationBuilder)
+    {
+      ${operation}
+    }
+    protected override void Down(MigrationBuilder migrationBuilder) { }
+  ` }];
+  assert.throws(() => validateMigrationSources(migration('migrationBuilder.DropTable(name: "Legacy");')), /expand-only/);
+  assert.throws(() => validateMigrationSources(migration('migrationBuilder.DropColumn(name: "Legacy");')), /expand-only/);
+  assert.throws(() => validateMigrationSources(migration('migrationBuilder.Sql("DELETE FROM Evidence");')), /expand-only/);
+  assert.throws(() => validateMigrationSources(migration('migrationBuilder\n        .DropTable(name: "Legacy");')), /expand-only/);
+});
+
+test("fails closed when the forward migration scope is malformed", () => {
+  assert.throws(() => validateMigrationSources([{ path: "missing.cs", source: "protected override void Down(MigrationBuilder migrationBuilder) { }" }]), /exactly one standard Up/);
+  assert.throws(() => validateMigrationSources([{ path: "unbalanced.cs", source: "protected override void Up(MigrationBuilder migrationBuilder) {" }]), /unbalanced Up/);
+});
+
+test("blocks destructive added standalone SQL", () => {
   assert.throws(() => validateMigrationDiff("+DROP TABLE gccs.legacy_evidence;"), /expand-only/);
-  assert.equal(validateMigrationDiff("-migrationBuilder.DropTable(name: \"AlreadyRemoved\");"), true);
+  assert.equal(validateMigrationDiff("+CREATE TABLE gccs.new_evidence(id uuid);"), true);
 });
 
 test("requires immutable digests and approvals for production", () => {
