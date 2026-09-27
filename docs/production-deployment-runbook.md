@@ -2,6 +2,8 @@
 
 Operational status: **Legacy rollback only**.
 
+SOC 2 handling: this legacy operational document is not a sanitized evidence export. Use [the system boundary index](soc2/system-boundary-index.md) for scope references. Existing operational identifiers require restricted review and evidence handling. For read-only evidence inventory, never execute the full application-settings listing below: it can print secret values. Collect only approved non-secret fields and sanitized results. Historical exposure must be handled through the restricted incident process.
+
 For every new release, use `docs/release/versioning-and-promotion.md` and `.github/workflows/production-release.yml`. That path uses SemVer tags, an attested approved-release manifest, staged artifact digests, and build-once promotion. The launch-candidate procedure retained below exists only to roll back to the historically approved `launch-candidate-2026-09-13-1`; do not use it to create or approve a new release.
 
 This document preserves the historical launch-candidate deployment path from GitHub to Azure so a new operator can understand or execute that one rollback target.

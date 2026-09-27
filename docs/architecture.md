@@ -10,6 +10,8 @@ Known runtime, local infrastructure, test, source-content, and deferred integrat
 
 ## Application Boundaries
 
+SOC 2 boundary reconciliation: [versioned system boundary index](soc2/system-boundary-index.md). Implementation labels below describe repository behavior; production enablement, release identity and operating evidence require separate verification.
+
 - `apps/web`: React + Vite UI for the authenticated SaaS workspace: profile, contracts, obligations, evidence, calendar, CMMC readiness, subcontractors, and reporting.
 - `apps/api`: ASP.NET Core API exposing tenant-scoped compliance workflows.
 - `src/Gccs.Domain`: Core model with no framework dependencies.
@@ -72,9 +74,9 @@ flowchart TB
         adapters["Adapters<br/>src/Gccs.Infrastructure"]
         postgres[("PostgreSQL<br/>tenant data")]
         objectStorage[("Azure Blob-compatible object storage / Azurite<br/>evidence files")]
-        redis[("Redis<br/>cache and job coordination")]
-        queue[["Queue<br/>background work"]]
-        search[("Search index<br/>content and metadata")]
+        redis[("Redis<br/>configured dependency; workload use requires verification")]
+        queue[["PostgreSQL job/outbox records<br/>API hosted workers when enabled"]]
+        search[("PostgreSQL full-text retrieval<br/>no separate search service established")]
         contentRepo[("Compliance content package<br/>packages/compliance-content")]
     end
 
@@ -237,12 +239,12 @@ Current state: **Implemented** for durable shared-package lifecycle records, ten
 - Controlled downloads currently support server-held HTML/text artifacts. The server adds package/version/download metadata and applies the configured watermark envelope. Binary PDF watermarking and direct evidence-file download are **Planned** and unsupported formats fail closed.
 - This feature does not authorize sharing CUI and does not expose raw reviewer notes, tenant workspace mutations, evidence file bytes, or unrestricted audit-log exports.
 
-## Planned Services
+## Runtime Services And Deployment Verification
 
-- PostgreSQL for transactional tenant data.
-- Object storage for evidence files.
-- Redis for cache and background job coordination.
-- Queue worker for document extraction, notifications, malware scanning, and report generation.
+- **Implemented:** PostgreSQL persistence and Azure Blob storage adapters. Repository implementation does not prove that all workflows are deployed, enabled, or operating correctly.
+- **Implemented:** API-hosted workers for database-backed extraction, report export, object cleanup, notifications, retention and portal maintenance, subject to the configuration conditions in `apps/api/Program.cs`. Upload malware scanning uses the scanner adapter; it is not evidence of a separate scanning queue.
+- **Partially implemented / verification pending:** Redis exists as a configured dependency. Do not infer that it stores production job queues from the conceptual diagram or health check.
+- **Implemented:** PostgreSQL full-text retrieval for governed assistant sources. A separate search platform and an external generated-answer provider remain **Planned**.
 
 ## Assignment Notifications
 
@@ -257,10 +259,10 @@ Current state: **Implemented** for direct tenant-member obligation and task assi
 - Local development context selection can switch tenant, actual tenant-member persona, and role so recipient-specific notification behavior is testable without changing production authentication.
 
 Deployment dependency: actual email transmission occurs only when `InvitationDelivery` email-provider configuration is enabled and valid. With delivery disabled, the in-app notification remains available and assignment itself remains successful.
-- Search over curated compliance content and tenant documents.
-- RAG service limited to cited internal and curated sources.
 
 ## Security Baseline
+
+These are design objectives, not a declaration that every deployed or workforce control has been verified. In particular, MFA/SSO readiness does not prove workforce MFA enforcement, and append-only application audit APIs do not establish protection against privileged database changes. See the SOC 2 boundary index for evidence and limitations.
 
 - MFA and SSO-ready auth.
 - RBAC and tenant isolation.
