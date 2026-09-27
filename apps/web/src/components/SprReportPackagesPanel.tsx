@@ -87,7 +87,7 @@ export function SprReportPackagesPanel({ contractId, canManage, canExport }:
 
   const approvedPackages = packages.filter(item => item.status === "Approved");
   return <section className="contract-esrs contract-esrs-packages workflow-control-surface" aria-labelledby="spr-package-heading">
-    <div className="contract-documents__header"><div><span>SPR preparation packages</span><strong id="spr-package-heading">{packages.length}</strong></div></div>
+    <div className="contract-documents__header"><div><h3 id="spr-package-heading">SPR preparation packages</h3><strong aria-label={`${packages.length} SPR preparation packages`}>{packages.length}</strong></div></div>
     <p>Packages are immutable, versioned snapshots for customer review and manual entry in SAM.gov. FeDril does not submit or synchronize them.</p>
     {capability ? <p role="status">Direct submission: {capability.enabled ? "configured" : `unavailable — ${capability.reason}`}</p> : null}
     {state === "loading" ? <p role="status">Loading SPR preparation packages…</p> : null}

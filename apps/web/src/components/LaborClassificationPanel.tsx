@@ -112,7 +112,7 @@ export function LaborClassificationPanel({ contractId, canManage, canViewSensiti
   }
 
   return <section className="contract-esrs workflow-control-surface" aria-labelledby="labor-classification-heading">
-    <div className="contract-documents__header"><div><span>Labor classifications</span><strong id="labor-classification-heading">{assignments.length}</strong></div></div>
+    <div className="contract-documents__header"><div><h3 id="labor-classification-heading">Labor classifications</h3><strong aria-label={`${assignments.length} labor classifications`}>{assignments.length}</strong></div></div>
     <p>Track source-backed wage, fringe, and worker-classification evidence. FeDril organizes review work and does not make legal labor determinations.</p>
     <p>Do not enter CUI, classified, export-controlled/ITAR, or sensitive government-furnished information.</p>
     {state === "loading" ? <p role="status">Loading labor classifications…</p> : null}
