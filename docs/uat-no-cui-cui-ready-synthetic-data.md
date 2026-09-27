@@ -106,7 +106,7 @@ For UAT, use the names below as role/persona labels when entering assignments, i
 | `CuiReady` | CUI handling workflows are allowed only after approval gates. | Use only after completing the CUI-ready checklist. |
 | `DemoSandbox` | Demo/training mode for approved synthetic CUI examples. | Use only with approved synthetic demo seed data. |
 
-The existing approved synthetic dataset is [dataset.json](/Users/devups/Development/CodexProjects/Gccs/packages/demo-content/synthetic-cui/dataset.json), version `2026.06.phase1a`.
+The existing approved synthetic dataset is [dataset.json](../packages/demo-content/synthetic-cui/dataset.json), version `2026.06.phase1a`.
 
 ## Local Development Access
 
