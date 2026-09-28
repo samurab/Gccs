@@ -1,8 +1,14 @@
 # FeDril SOC 2 System Boundary Index
 
 Status: **Draft / Ready for review; not approved**
+Scope version: `SOC2-SCOPE-DRAFT-0.2`
+Record updated: September 28, 2026 (America/New_York)
+Repository baseline reviewed: `9dbd825b26f12c7b3dde635734bca23e4da15593`
+Authoritative Story 39 source SHA-256: `72129c1acd3825ae71d85c6879cf2b57761bcb9802bc8a140980cb9926559248`
 
-Assessment date: September 20, 2026. This is a sanitized, point-in-time repository assessment, not a statement of current production configuration, operating effectiveness, SOC 2 readiness, or report issuance. Current release identity is governed by [`docs/release/approved-release.json`](../release/approved-release.json).
+This is a sanitized, point-in-time repository assessment, not a statement of current production configuration, operating effectiveness, SOC 2 readiness, or report issuance. Current release identity is governed by [`docs/release/approved-release.json`](../release/approved-release.json).
+
+Available sources were the current repository, test sources, release manifest, workflow definitions, and read-only GitHub/Azure capability metadata. Live resource configuration, personnel records, contracts, provider assurance reports, customer demand records, protected evidence, authorized AICPA criteria, and qualified reviewer conclusions were unavailable or intentionally not copied into Git.
 
 ## Interpretation
 
