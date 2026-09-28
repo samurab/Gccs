@@ -21,6 +21,7 @@ This is a sanitized coordination checkpoint. It is not protected evidence, manag
 | Status | **In progress — setup gate met; final acceptance blocked** |
 | Design | Candidate scope, domain matrix, defer gates, claim boundaries, and evidence limitations documented |
 | Implementation | Sanitized versioned records prepared on the Story 39.1 branch; merge and governance review pending |
+| Branch / initial commit / PR | `codex/soc2-39-1-scope-readiness` / `890597941d6cc3edd3ea56dc933f36553326247f` / `#130` |
 | Operating evidence | Unavailable; Story 39.1 documentation does not establish recurring control operation |
 | Governance approval | Opaque management-role input reused; protected preservation and qualified independent review unavailable |
 | Staging / production | N/A for documentation-only change; no runtime artifact or configuration changed |

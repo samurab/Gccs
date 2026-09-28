@@ -8,6 +8,10 @@ Repository baseline: `9dbd825b26f12c7b3dde635734bca23e4da15593`
 Authoritative source: local current `docs/development-story-prompts.md`, SHA-256 `72129c1acd3825ae71d85c6879cf2b57761bcb9802bc8a140980cb9926559248`
 Reviewer role: internal senior systems architecture and evidence review; not an independent CPA, attorney, or management approver
 
+Implementation branch: `codex/soc2-39-1-scope-readiness`
+Initial record commit: `890597941d6cc3edd3ea56dc933f36553326247f`
+Pull request: `#130`
+
 This public record is a sanitized coordination artifact. It is not a protected evidence workspace, management assertion, legal conclusion, examination, issued report, certification, general compliance claim, audit-readiness claim, or authorization to process CUI.
 
 ## Critique And Failure Modes
