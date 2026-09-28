@@ -1,0 +1,4 @@
+interface:
+  display_name: "FeDril SOC 2 Story Orchestrator"
+  short_description: "Run and resume FeDril SOC 2 stories with evidence"
+  default_prompt: "Use $fedril-soc2-story-orchestrator to check status and resume the next eligible SOC 2 story."
