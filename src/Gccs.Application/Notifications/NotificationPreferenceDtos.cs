@@ -1,4 +1,23 @@
+using Gccs.Domain.Identity;
+
 namespace Gccs.Application.Notifications;
+
+public static class NotificationPreferenceDefaults
+{
+    public static NotificationPreferenceUpdateRequest ForRole(string roleName)
+    {
+        var normalized = RoleCatalog.TryNormalizeRoleName(roleName, out var canonicalRoleName)
+            ? canonicalRoleName
+            : RoleCatalog.Contributor;
+
+        return normalized switch
+        {
+            RoleCatalog.Auditor => new(false, true, true, false, false, false),
+            RoleCatalog.Contributor => new(true, true, true, true, false, false),
+            _ => new(true, true, true, true, true, true)
+        };
+    }
+}
 
 public sealed record NotificationPreferenceDto(
     Guid Id,

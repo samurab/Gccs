@@ -77,6 +77,22 @@ it("allows inspection without exposing reviewer or admin actions to a read-only 
   expect(screen.getByRole("button", { name: "Report data-handling concern" })).toBeVisible();
   expect(within(screen.getByRole("article")).getByText("Unknown")).toBeVisible();
 });
+it("shows and focuses current classification detail after clearing the review-only filter", async () => {
+  vi.mocked(getClassifiedContent).mockImplementation(async (_route, reviewOnly) => reviewOnly ? [] : [item]);
+  render(<ClassificationReviewPanel group="evidence" tenantId="tenant-1" permissions={["ViewEvidence", "ApproveEvidence"]} onChanged={vi.fn()} />);
+  const user = userEvent.setup();
+
+  await user.click(screen.getByText("Classification review and history", { selector: "summary" }));
+  expect(await screen.findByText(/No records need classification review/)).toBeVisible();
+  await user.click(screen.getByLabelText("Needs classification review only"));
+  await user.click(await screen.findByRole("button", { name: "Inspect Synthetic review item" }));
+
+  const detail = await screen.findByRole("article", { name: "Current classification detail" });
+  expect(within(detail).getByText("Current classification detail")).toBeVisible();
+  expect(detail).toHaveFocus();
+  expect(within(detail).getByLabelText("Reviewed classification")).toHaveValue("Unknown");
+  expect(reviewContentClassification).not.toHaveBeenCalled();
+});
 it("allows reporting while keeping restricted escalation management separate", async () => {
   vi.mocked(getClassifiedContentDetail).mockResolvedValue({ ...item, classification: { ...item.classification, classification: "Prohibited" } });
   render(<ClassificationReviewPanel group="evidence" tenantId="tenant-1" permissions={["ViewEvidence", "ApproveEvidence"]} onChanged={vi.fn()} />);

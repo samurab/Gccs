@@ -3083,18 +3083,42 @@ export function App() {
 
 function NotificationCenter({
   notifications,
-  onMarkRead
-,
-  onOpen}: {
+  onMarkRead,
+  onOpen
+}: {
   notifications: NotificationCenterItem[];
   onMarkRead: (notificationId: string) => Promise<void>;
   onOpen: () => Promise<void>;
 }) {
+  const detailsRef = useRef<HTMLDetailsElement>(null);
   const unreadCount = notifications.filter((notification) => !notification.readAt).length;
   const visibleNotifications = notifications.slice(0, 6);
 
+  useEffect(() => {
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      const details = detailsRef.current;
+      if (details?.open && event.target instanceof Node && !details.contains(event.target)) {
+        details.open = false;
+      }
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      const details = detailsRef.current;
+      if (event.key === "Escape" && details?.open) {
+        details.open = false;
+        details.querySelector("summary")?.focus();
+      }
+    };
+
+    document.addEventListener("pointerdown", closeOnOutsidePointer);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsidePointer);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, []);
+
   return (
-    <details className="notification-center"onToggle={(event) => {
+    <details ref={detailsRef} className="notification-center" onToggle={(event) => {
         if (event.currentTarget.open) {
           void onOpen();
         }
@@ -3116,7 +3140,12 @@ function NotificationCenter({
               role="listitem"
             >
               <div>
-                <strong>{notification.placeholder}</strong>
+                <a
+                  className="notification-center__task-link"
+                  href={getNotificationOpenUrl(notification.linkUrl)}
+                >
+                  <strong>{notification.placeholder}</strong>
+                </a>
                 <small>
                   {notification.sourceType} · {" "}
                   {formatUsDateTime(notification.attemptedAt)}
@@ -4242,6 +4271,10 @@ function ObligationDetailPanel({
   const [selectedRoleName, setSelectedRoleName] = useState(
     canonicalAssignmentRoleName(detail?.assignedRoleName)
   );
+  const [notifyByEmail, setNotifyByEmail] = useState(true);
+  const selectedCandidate = assignmentCandidates.find(
+    (candidate) => candidate.userId === selectedUserId
+  );
 
   if (status === "loading") {
     return (
@@ -4429,11 +4462,13 @@ function ObligationDetailPanel({
         className="owner-assignment-form"
         onSubmit={(event) => {
           event.preventDefault();
-          const formData = new FormData(event.currentTarget);
           const value = ownerKind === "user" ? selectedUserId : selectedRoleName;
-          const notify = formData.get("notify") === "on";
           if (value) {
-            void onOwnerAssign(ownerKind, value, notify);
+            void onOwnerAssign(
+              ownerKind,
+              value,
+              ownerKind === "user" && notifyByEmail && Boolean(selectedCandidate?.assignmentEmailEnabled)
+            );
           }
         }}
       >
@@ -4446,7 +4481,12 @@ function ObligationDetailPanel({
               const nextKind = event.target.value as "user" | "role";
               setOwnerKind(nextKind);
               if (nextKind === "user" && !selectedUserId) {
-                setSelectedUserId(detail.assignedUserId ?? "");
+                const assignedUserId = detail.assignedUserId ?? "";
+                setSelectedUserId(assignedUserId);
+                setNotifyByEmail(
+                  assignmentCandidates.find((candidate) => candidate.userId === assignedUserId)
+                    ?.assignmentEmailEnabled ?? false
+                );
               }
               if (nextKind === "role" && !selectedRoleName) {
                 setSelectedRoleName(canonicalAssignmentRoleName(detail.assignedRoleName));
@@ -4465,7 +4505,14 @@ function ObligationDetailPanel({
               data-testid="obligation-owner-member"
               name="userId"
               value={selectedUserId}
-              onChange={(event) => setSelectedUserId(event.target.value)}
+              onChange={(event) => {
+                const userId = event.target.value;
+                setSelectedUserId(userId);
+                setNotifyByEmail(
+                  assignmentCandidates.find((candidate) => candidate.userId === userId)
+                    ?.assignmentEmailEnabled ?? false
+                );
+              }}
               disabled={!canManageObligations || status === "saving"}
             >
               <option value="">Select member</option>
@@ -4497,14 +4544,22 @@ function ObligationDetailPanel({
           <input
             name="notify"
             type="checkbox"
-            defaultChecked
-            disabled={ownerKind === "role" || !canManageObligations || status === "saving"}
+            checked={ownerKind === "user" && notifyByEmail && Boolean(selectedCandidate?.assignmentEmailEnabled)}
+            onChange={(event) => setNotifyByEmail(event.target.checked)}
+            disabled={
+              ownerKind === "role" ||
+              !selectedCandidate?.assignmentEmailEnabled ||
+              !canManageObligations ||
+              status === "saving"
+            }
           />
           Also send assignment email
         </label>
         <small className="owner-assignment-form__help">
           {ownerKind === "user"
-            ? "The member always receives an in-app notification. Email follows their assignment-email preference."
+            ? selectedCandidate && !selectedCandidate.assignmentEmailEnabled
+              ? `${selectedCandidate.displayName} has assignment emails disabled in their own notification preferences. Your Settings preferences do not control this member. They will still receive an in-app notification.`
+              : "The member always receives an in-app notification. Email follows their assignment-email preference."
             : "Active members of this role receive an in-app notification. Role-assignment email is not sent."}
         </small>
         <button
@@ -8082,6 +8137,7 @@ function ReportsView({
     ...recentReports.filter((report) => !generatedReportIds.has(report.id))
   ];
   const [assessmentId, setAssessmentId] = useState(assessments[0]?.id ?? "");
+  const selectedAssessment = assessments.find((assessment) => assessment.id === assessmentId);
   const publishedSprsRuleSets = sprsRuleSets.filter((ruleSet) => ruleSet.state === "Published");
   const [sprsRuleSetId, setSprsRuleSetId] = useState(publishedSprsRuleSets[0]?.id ?? "");
   const effectiveSprsRuleSetId = sprsRuleSetId || publishedSprsRuleSets[0]?.id || "";
@@ -8130,6 +8186,11 @@ function ReportsView({
       {message ? (<p className={`form-status ${status === "failed" ? "form-status--error" : "form-status--ok"}`}>{message}</p> ): null}
       {canManageReports ? (
         <>
+          {!classificationConfirmed ? (
+            <p className="form-status form-status--notice" role="note">
+              Select a workflow classification above before generating any report.
+            </p>
+          ) : null}
           <div className="report-action-grid report-generation-grid">
             <section className="evidence-metadata">
               <h3>Compliance status</h3>
@@ -8156,6 +8217,11 @@ function ReportsView({
                   ))}
                 </select>
               </label>
+              {assessments.length === 0 ? (
+                <p className="form-status form-status--notice" role="note">
+                  No CMMC assessment is available. A member with CMMC management permission must create one in the CMMC workspace.
+                </p>
+              ) : null}
               <div className="form-actions">
                 <button
                   type="button"
@@ -8179,6 +8245,20 @@ function ReportsView({
                   ))}
                 </select>
               </label>
+              {!assessments.some((assessment) => assessment.level === "Level2") ? (
+                <p className="form-status form-status--notice" role="note">
+                  SPRS readiness needs a Level 2 CMMC assessment.
+                </p>
+              ) : selectedAssessment?.level !== "Level2" ? (
+                <p className="form-status form-status--notice" role="note">
+                  Select a Level 2 CMMC assessment for this report.
+                </p>
+              ) : null}
+              {publishedSprsRuleSets.length === 0 ? (
+                <p className="form-status form-status--notice" role="note">
+                  No published SPRS scoring rule is available. A governed rule publication is needed before generating this report.
+                </p>
+              ) : null}
               <label>
                 <span>Leadership review</span>
                 <select
@@ -8224,7 +8304,7 @@ function ReportsView({
                   type="button"
                   disabled={
                     !classificationConfirmed ||
-                    !assessmentId ||
+                    selectedAssessment?.level !== "Level2" ||
                     !effectiveSprsRuleSetId ||
                     status === "loading" ||
                     selectedSprsRuleSet?.rules.some((rule) =>
@@ -8941,7 +9021,7 @@ function NotificationPreferencesPanel({
         <p className="eyebrow">Notifications</p>
         <h2>Preferences and reminder runs</h2>
         <p className="section-summary">
-          Control assignment, due-date, evidence request, certification renewal, and CMMC affirmation notifications for the active tenant role.
+          Control notifications for your signed-in account in the active tenant. Each member manages their own notification preferences.
         </p>
       </div>
       <div className="settings-workspace">

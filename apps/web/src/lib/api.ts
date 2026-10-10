@@ -631,6 +631,8 @@ export type TenantMember = {
 export type ObligationAssignmentCandidate = {
   userId: string;
   displayName: string;
+  roleName: string;
+  assignmentEmailEnabled: boolean;
 };
 
 export type TenantInvitation = {

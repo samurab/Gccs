@@ -63,6 +63,11 @@ export function ClassificationReviewPanel({ group, tenantId, permissions, onChan
   const [mustReload, setMustReload] = useState(false);
   const [reload, setReload] = useState(0);
   const request = useRef(0);
+  const detailRef = useRef<HTMLElement>(null);
+  const selectedId = selected?.id;
+  useEffect(() => {
+    if (selectedId) detailRef.current?.focus();
+  }, [selectedId]);
   useEffect(() => {
     let active = true;
     if (canRead) void Promise.resolve().then(() => getClassifiedContent(route, reviewOnly, offset))
@@ -157,7 +162,8 @@ export function ClassificationReviewPanel({ group, tenantId, permissions, onChan
         <button type="button" disabled={busy || loading} onClick={refreshList}>Refresh classification list</button>
       </div>
       </div>
-      {selected ? <article aria-label="Current classification detail" className="classification-detail">
+      {selected ? <article ref={detailRef} tabIndex={-1} aria-label="Current classification detail" className="classification-detail">
+        <p className="eyebrow">Current classification detail</p>
         <h3>{selected.title}</h3><p className="classification-reference">{definition.label} · {selected.id} · revision {selected.revision}</p>
         <Metadata value={selected.classification} />
         <button type="button" disabled={busy} onClick={() => void open(selected.id)}>Reload current item</button>

@@ -61,7 +61,11 @@ public sealed record UpdateContractObligationStatusRequest(
 
 public sealed record AssignContractObligationOwnerRequest(Guid? UserId, string? RoleName, bool Notify = false);
 
-public sealed record ObligationAssignmentCandidateDto(Guid UserId, string DisplayName);
+public sealed record ObligationAssignmentCandidateDto(
+    Guid UserId,
+    string DisplayName,
+    string RoleName,
+    bool AssignmentEmailEnabled);
 
 public sealed record ContractObligationDetailResult(Guid TenantId, ContractObligationDetailDto Detail);
 
