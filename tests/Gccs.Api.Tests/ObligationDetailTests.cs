@@ -293,10 +293,87 @@ public sealed class ObligationDetailTests : IClassFixture<WebApplicationFactory<
         var candidate = Assert.Single(candidates ?? []);
         Assert.Equal(scenario.AssigneeUserId, candidate.UserId);
         Assert.Equal("Assigned Owner", candidate.DisplayName);
+        Assert.Equal(RoleCatalog.Contributor, candidate.RoleName);
+        Assert.True(candidate.AssignmentEmailEnabled);
         Assert.DoesNotContain("disabled.member@example.com", responseBody, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("other.tenant@example.com", responseBody, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("mfaEnabled", responseBody, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("lastSignedInAt", responseBody, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Assignment_candidates_expose_server_authoritative_email_preference()
+    {
+        var tenantId = Guid.Parse("90390390-3903-9039-0390-3903903903a3");
+        var scenario = DetailScenario.Create(tenantId);
+        await using var factory = CreateFactory("assignment-candidate-email-preference", dbContext =>
+        {
+            SeedScenario(dbContext, scenario);
+            var membership = dbContext.TenantMemberships.Local.Single(item =>
+                item.TenantId == tenantId && item.UserId == scenario.AssigneeUserId);
+            membership.RoleName = RoleCatalog.Auditor;
+        });
+        using var client = factory.CreateClient();
+        using var request = CreateRequest(
+            HttpMethod.Get,
+            "/api/contract-obligations/assignment-candidates",
+            tenantId,
+            Guid.NewGuid(),
+            Permission.ManageObligations);
+
+        var response = await client.SendAsync(request);
+        var candidate = Assert.Single(
+            await response.Content.ReadFromJsonAsync<ObligationAssignmentCandidateDto[]>(JsonOptions) ?? []);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(RoleCatalog.Auditor, candidate.RoleName);
+        Assert.False(candidate.AssignmentEmailEnabled);
+    }
+
+    [Theory]
+    [InlineData(RoleCatalog.Auditor, true)]
+    [InlineData(RoleCatalog.Contributor, false)]
+    public async Task Assignment_candidates_use_current_tenant_preference_over_role_default(
+        string roleName,
+        bool emailEnabled)
+    {
+        var tenantId = Guid.NewGuid();
+        var otherTenantId = Guid.NewGuid();
+        var scenario = DetailScenario.Create(tenantId);
+        await using var factory = CreateFactory("assignment-candidate-explicit-preference", dbContext =>
+        {
+            SeedScenario(dbContext, scenario);
+            SeedTenant(dbContext, otherTenantId, "Other Tenant");
+            var membership = dbContext.TenantMemberships.Local.Single(item =>
+                item.TenantId == tenantId && item.UserId == scenario.AssigneeUserId);
+            membership.RoleName = roleName;
+            foreach (var preferenceTenantId in new[] { tenantId, otherTenantId })
+            {
+                dbContext.NotificationPreferences.Add(new NotificationPreferenceEntity
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = preferenceTenantId,
+                    UserId = scenario.AssigneeUserId,
+                    RoleName = roleName,
+                    AssignmentNotificationsEnabled = preferenceTenantId == tenantId ? emailEnabled : !emailEnabled,
+                    CreatedAt = DateTimeOffset.UtcNow
+                });
+            }
+        });
+        using var client = factory.CreateClient();
+        using var request = CreateRequest(
+            HttpMethod.Get,
+            "/api/contract-obligations/assignment-candidates",
+            tenantId,
+            Guid.NewGuid(),
+            Permission.ManageObligations);
+
+        var response = await client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var candidate = Assert.Single(
+            await response.Content.ReadFromJsonAsync<ObligationAssignmentCandidateDto[]>(JsonOptions) ?? []);
+        Assert.Equal(roleName, candidate.RoleName);
+        Assert.Equal(emailEnabled, candidate.AssignmentEmailEnabled);
     }
 
     [Fact]

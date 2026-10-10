@@ -87,7 +87,11 @@ test("UAT-09 Compliance Manager can assign an active tenant member and the assig
   );
   expect(candidatesResponse.status()).toBe(200);
   const candidates = await candidatesResponse.json();
-  expect(candidates).toContainEqual(contributor);
+  expect(candidates).toContainEqual(expect.objectContaining({
+    ...contributor,
+    roleName: "Contributor",
+    assignmentEmailEnabled: expect.any(Boolean)
+  }));
   expect(JSON.stringify(candidates)).not.toContain("mfaEnabled");
   expect(JSON.stringify(candidates)).not.toContain("lastSignedInAt");
 

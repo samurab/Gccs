@@ -1830,7 +1830,8 @@ describe("App", () => {
     expect(getNotificationsMock).toHaveBeenCalledTimes(2);
 
     expect(await screen.findByText("Task 'Assigned notification task' was assigned to you.")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Open" })).toHaveAttribute("href", "/api/tasks/16131613-1613-1613-1613-161316131632");
+    expect(screen.getByRole("link", { name: "Task 'Assigned notification task' was assigned to you." })).toHaveAttribute("href", "/app#/calendar");
+    expect(screen.getByRole("link", { name: "Open" })).toHaveAttribute("href", "/app#/calendar");
 
     await user.click(screen.getByRole("button", { name: /mark notification as read/i }));
 
@@ -1863,6 +1864,32 @@ describe("App", () => {
       ),
     ).toBeInTheDocument();
     expect(getNotificationsMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("closes the notification center after an outside click or Escape", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    getNotificationsMock.mockResolvedValue([notification]);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    const dashboardHeading = await screen.findByRole("heading", { name: "Dashboard" });
+    const notificationCenter = screen.getByRole("group");
+    const notificationSummary = screen.getByLabelText(/notifications, 1 unread/i);
+
+    await user.click(notificationSummary);
+    expect(notificationCenter).toHaveAttribute("open");
+
+    await user.click(dashboardHeading);
+    expect(notificationCenter).not.toHaveAttribute("open");
+
+    await user.click(notificationSummary);
+    await user.keyboard("{Escape}");
+    expect(notificationCenter).not.toHaveAttribute("open");
+    expect(notificationSummary).toHaveFocus();
   });
 
   it("opens legacy workspace notifications inside the authenticated app shell", async () => {
@@ -3015,7 +3042,9 @@ describe("App", () => {
     getObligationAssignmentCandidatesMock.mockResolvedValueOnce([
       {
         userId: members[0].userId,
-        displayName: members[0].displayName
+        displayName: members[0].displayName,
+        roleName: members[0].roleName,
+        assignmentEmailEnabled: true
       }
     ]);
     getContractsMock.mockResolvedValueOnce([contract]);
@@ -3048,7 +3077,9 @@ describe("App", () => {
     const assignmentCandidates = [
       {
         userId: "cccccccc-cccc-cccc-cccc-ccccccccccc4",
-        displayName: "Devin Brooks"
+        displayName: "Devin Brooks",
+        roleName: "Contributor",
+        assignmentEmailEnabled: true
       }
     ];
     getComplianceOverviewMock.mockResolvedValueOnce(overview);
@@ -3076,6 +3107,50 @@ describe("App", () => {
     expect(getTenantMembersMock).not.toHaveBeenCalled();
     expect(getTenantInvitationsMock).not.toHaveBeenCalled();
     expect(within(memberSelect).getByRole("option", { name: "Devin Brooks" })).toBeInTheDocument();
+  });
+
+  it("shows when the selected member has assignment email disabled", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    getObligationAssignmentCandidatesMock.mockResolvedValueOnce([
+      {
+        userId: members[0].userId,
+        displayName: members[0].displayName,
+        roleName: "Auditor",
+        assignmentEmailEnabled: false
+      }
+    ]);
+    getContractsMock.mockResolvedValueOnce([contract]);
+    getContractObligationsMock.mockResolvedValueOnce([obligationDashboardItem]);
+    getContractObligationDetailMock.mockResolvedValueOnce(obligationDetail);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /obligations/i }));
+    await user.click(await screen.findByRole("button", { name: /view details/i }));
+    await user.selectOptions(await screen.findByLabelText("Tenant member"), members[0].userId);
+
+    expect(screen.getByLabelText("Also send assignment email")).toBeDisabled();
+    expect(
+      screen.getByText(
+        new RegExp(`${members[0].displayName} has assignment emails disabled in their own notification preferences`, "i")
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Your Settings preferences do not control this member/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /assign owner/i }));
+    expect(assignContractObligationOwnerMock).toHaveBeenCalledWith(
+      obligationDetail.contractClauseId,
+      obligationDetail.obligationId,
+      {
+        userId: members[0].userId,
+        roleName: null,
+        notify: false
+      }
+    );
   });
 
   it("TC-10.3.2 assigns an obligation to a role", async () => {
@@ -4461,6 +4536,56 @@ describe("App", () => {
     ).toBeInTheDocument();
     await user.selectOptions(ownerFilter, "Security");
     expect(ownerFilter).toHaveValue("Security");
+  });
+
+  it("explains report prerequisites without bypassing classification or governance gates", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    const user = userEvent.setup();
+
+    render(<App />);
+    await user.click(await screen.findByRole("link", { name: /reports/i }));
+
+    expect(screen.getByText("Select a workflow classification above before generating any report.")).toBeInTheDocument();
+    expect(screen.getByText(/No CMMC assessment is available/)).toBeInTheDocument();
+    expect(screen.getByText("SPRS readiness needs a Level 2 CMMC assessment.")).toBeInTheDocument();
+    expect(screen.getByText(/No published SPRS scoring rule is available/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Generate readiness" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Generate SPRS report" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Generate supplier report" })).toBeDisabled();
+
+    await user.selectOptions(screen.getByLabelText("Workflow classification"), "Unclassified");
+    expect(screen.queryByText("Select a workflow classification above before generating any report.")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Generate supplier report" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Generate readiness" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Generate SPRS report" })).toBeDisabled();
+    expect(generateSubcontractorComplianceReportMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps SPRS generation disabled for a Level 1 assessment even with a published rule", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    getCmmcAssessmentsMock.mockResolvedValueOnce([cmmcAssessment]);
+    getSprsScoringRuleSetsMock.mockResolvedValueOnce([{
+      id: "published-rule",
+      version: "2026.09-reviewed",
+      state: "Published",
+      rules: []
+    }]);
+    const user = userEvent.setup();
+
+    render(<App />);
+    await user.click(await screen.findByRole("link", { name: /reports/i }));
+    await user.selectOptions(screen.getByLabelText("Workflow classification"), "Unclassified");
+
+    expect(screen.getByRole("button", { name: "Generate readiness" })).toBeEnabled();
+    expect(screen.getByText("SPRS readiness needs a Level 2 CMMC assessment.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Generate SPRS report" })).toBeDisabled();
+    expect(generateSprsReadinessReportMock).not.toHaveBeenCalled();
   });
 
   it("UAT-13 displays the server disclaimer and opens generated report card details", async () => {

@@ -26,6 +26,10 @@ export function getNotificationOpenUrl(linkUrl: string) {
     ? `${workspacePath}${linkUrl.slice(1)}`
     : linkUrl;
 
+  if (normalizedLinkUrl.startsWith("/tasks/")) {
+    return `${workspacePath}#/calendar`;
+  }
+
   return normalizedLinkUrl.startsWith(`${workspacePath}#/`)
     ? normalizedLinkUrl
     : `/api${normalizedLinkUrl}`;

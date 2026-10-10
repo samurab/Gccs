@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Gccs.Application.Compliance;
+using Gccs.Application.Notifications;
 using Gccs.Application.Security;
 using Gccs.Application.Tasks;
 using Gccs.Domain.Common;
@@ -15,8 +16,9 @@ public sealed class EfObligationDetailRepository(
     ICurrentTenantContext tenantContext) : IObligationDetailRepository
 {
     public async Task<IReadOnlyList<ObligationAssignmentCandidateDto>> ListAssignmentCandidatesAsync(
-        CancellationToken cancellationToken = default) =>
-        await dbContext.TenantMemberships
+        CancellationToken cancellationToken = default)
+    {
+        var candidates = await dbContext.TenantMemberships
             .AsNoTracking()
             .Where(membership =>
                 membership.TenantId == tenantContext.TenantId &&
@@ -25,12 +27,31 @@ public sealed class EfObligationDetailRepository(
                 membership.User.Status == Gccs.Domain.Identity.UserStatus.Active)
             .OrderBy(membership => membership.User!.DisplayName)
             .ThenBy(membership => membership.User!.Email)
-            .Select(membership => new ObligationAssignmentCandidateDto(
+            .Select(membership => new
+            {
                 membership.UserId,
-                string.IsNullOrWhiteSpace(membership.User!.DisplayName)
+                DisplayName = string.IsNullOrWhiteSpace(membership.User!.DisplayName)
                     ? membership.User.Email
-                    : membership.User.DisplayName))
+                    : membership.User.DisplayName,
+                membership.RoleName,
+                AssignmentEmailEnabled = dbContext.NotificationPreferences
+                    .Where(preference =>
+                        preference.TenantId == tenantContext.TenantId &&
+                        preference.UserId == membership.UserId)
+                    .Select(preference => (bool?)preference.AssignmentNotificationsEnabled)
+                    .SingleOrDefault()
+            })
             .ToListAsync(cancellationToken);
+
+        return candidates
+            .Select(candidate => new ObligationAssignmentCandidateDto(
+                candidate.UserId,
+                candidate.DisplayName,
+                candidate.RoleName,
+                candidate.AssignmentEmailEnabled ??
+                    NotificationPreferenceDefaults.ForRole(candidate.RoleName).AssignmentNotificationsEnabled))
+            .ToArray();
+    }
 
     public async Task<ContractObligationDetailResult?> FindCurrentTenantAsync(
         Guid contractClauseId,

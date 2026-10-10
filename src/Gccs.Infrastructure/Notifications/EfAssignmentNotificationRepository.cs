@@ -73,7 +73,8 @@ public sealed class EfAssignmentNotificationRepository(GccsDbContext dbContext) 
                     candidate => candidate.TenantId == tenantId && candidate.UserId == assignedUserId,
                     cancellationToken);
             var emailEnabled = preference?.AssignmentNotificationsEnabled ??
-                !string.Equals(recipient?.RoleName, RoleCatalog.Auditor, StringComparison.OrdinalIgnoreCase);
+                NotificationPreferenceDefaults.ForRole(recipient?.RoleName ?? RoleCatalog.Contributor)
+                    .AssignmentNotificationsEnabled;
 
             if (recipient is not null && emailEnabled && !string.IsNullOrWhiteSpace(recipient.Email))
             {
@@ -231,7 +232,8 @@ public sealed class EfAssignmentNotificationRepository(GccsDbContext dbContext) 
                 candidate => candidate.TenantId == tenantId && candidate.UserId == assignedUserId,
                 cancellationToken);
             var emailEnabled = preference?.AssignmentNotificationsEnabled ??
-                !string.Equals(recipient?.RoleName, RoleCatalog.Auditor, StringComparison.OrdinalIgnoreCase);
+                NotificationPreferenceDefaults.ForRole(recipient?.RoleName ?? RoleCatalog.Contributor)
+                    .AssignmentNotificationsEnabled;
             if (recipient is not null && emailEnabled && !string.IsNullOrWhiteSpace(recipient.Email))
             {
                 dbContext.AssignmentEmailDeliveries.Add(new AssignmentEmailDeliveryEntity

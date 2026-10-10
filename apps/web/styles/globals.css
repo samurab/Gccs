@@ -4509,6 +4509,17 @@ main {
   overflow-wrap: anywhere;
 }
 
+.notification-center__task-link {
+  color: inherit;
+  text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
+  text-underline-offset: 2px;
+}
+
+.notification-center__task-link:hover,
+.notification-center__task-link:focus-visible {
+  color: var(--teal);
+}
+
 .notification-center__actions {
   align-items: center;
   display: inline-flex;
@@ -5177,6 +5188,7 @@ dt {
 .invite-form label {
   display: grid;
   gap: 5px;
+  min-width: 0;
 }
 
 .invite-form label span {
@@ -5194,7 +5206,9 @@ dt {
   color: var(--ink);
   font: inherit;
   min-height: 40px;
+  min-width: 0;
   padding: 8px 10px;
+  width: 100%;
 }
 
 .invite-form button {

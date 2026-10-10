@@ -31,7 +31,7 @@ describe("routing", () => {
   it("opens current and legacy workspace notifications inside the authenticated shell", () => {
     expect(getNotificationOpenUrl("/app#/obligations")).toBe("/app#/obligations");
     expect(getNotificationOpenUrl("/#/obligations")).toBe("/app#/obligations");
-    expect(getNotificationOpenUrl("/tasks/task-id")).toBe("/api/tasks/task-id");
+    expect(getNotificationOpenUrl("/tasks/task-id")).toBe("/app#/calendar");
   });
 
   it("renders the dedicated public demo only at /demo", () => {

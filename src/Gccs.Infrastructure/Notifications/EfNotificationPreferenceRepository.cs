@@ -23,7 +23,7 @@ public sealed class EfNotificationPreferenceRepository(GccsDbContext dbContext) 
             return ToDto(entity);
         }
 
-        var defaults = DefaultsFor(roleName);
+        var defaults = NotificationPreferenceDefaults.ForRole(roleName);
         entity = new NotificationPreferenceEntity
         {
             Id = Guid.NewGuid(),
@@ -86,7 +86,7 @@ public sealed class EfNotificationPreferenceRepository(GccsDbContext dbContext) 
         string roleName,
         CancellationToken cancellationToken)
     {
-        var defaults = DefaultsFor(roleName);
+        var defaults = NotificationPreferenceDefaults.ForRole(roleName);
         var entity = new NotificationPreferenceEntity
         {
             Id = Guid.NewGuid(),
@@ -111,17 +111,6 @@ public sealed class EfNotificationPreferenceRepository(GccsDbContext dbContext) 
         dbContext.NotificationPreferences.SingleOrDefaultAsync(
             preference => preference.TenantId == tenantId && preference.UserId == userId,
             cancellationToken);
-
-    private static NotificationPreferenceUpdateRequest DefaultsFor(string roleName)
-    {
-        var normalized = NormalizeRoleName(roleName);
-        return normalized switch
-        {
-            RoleCatalog.Auditor => new(false, true, true, false, false, false),
-            RoleCatalog.Contributor => new(true, true, true, true, false, false),
-            _ => new(true, true, true, true, true, true)
-        };
-    }
 
     private static string NormalizeRoleName(string roleName) =>
         RoleCatalog.TryNormalizeRoleName(roleName, out var normalized) ? normalized : RoleCatalog.Contributor;
