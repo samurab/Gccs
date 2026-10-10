@@ -6608,6 +6608,8 @@ components:
       required:
         - userId
         - displayName
+        - roleName
+        - assignmentEmailEnabled
       properties:
         userId:
           type: string
@@ -6615,6 +6617,12 @@ components:
         displayName:
           type: string
           maxLength: 200
+        roleName:
+          type: string
+          description: Current active tenant membership role.
+        assignmentEmailEnabled:
+          type: boolean
+          description: Current tenant assignment-email preference, falling back to the member role default when no preference exists.
 
     ContractObligation:
       type: object
