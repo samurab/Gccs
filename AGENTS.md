@@ -4,6 +4,55 @@ Use these instructions for work in this repository. Apply verification in
 proportion to the task's risk; do not run release-grade investigation or test
 suites for low-risk work.
 
+## File Preservation and Explicit Permission
+
+- Obtain fresh, explicit user approval that names the exact targets, action,
+  and destination before deleting, trashing, archiving, moving, renaming,
+  hiding, or reducing the accessibility of any file or directory.
+- This rule applies to tracked, untracked, ignored, generated, temporary,
+  cache, evidence, configuration, hidden, and symlink items.
+- Broad instructions such as "clean up," "organize," "deploy," "finish,"
+  "make clean," or general recovery authorization do not authorize source
+  removal.
+- Do not use ignore or exclude rules, sparse checkout, Finder flags, dot
+  prefixes, or access or ownership changes to conceal items or make them
+  inaccessible without the same exact approval.
+- `git clean`, destructive reset or path restoration, shared-branch switches,
+  stash removal, worktree removal or pruning, ref deletion, reflog expiry,
+  garbage collection, and scripts with equivalent effects require fresh,
+  exact permission before they discard or conceal work.
+- A backup, commit, stash, archive, or manifest never authorizes removal of the
+  source.
+- Before requesting approval, report the inventory and current state, active
+  task ownership, destination collisions, sensitivity, reversibility, and
+  retention. Stop when scope or ownership is uncertain or recovery
+  destinations conflict.
+- Delegated agents and tools must follow this rule. Inspect commands and
+  scripts for destructive or concealing side effects before running them.
+- Ordinary requested in-place content edits remain allowed. Do not truncate or
+  replace out-of-scope content, and do not overwrite a conflicting recovery
+  destination.
+- Previously approved backup jobs may continue only within their exact
+  approved scope; they gain no new deletion or pruning authority.
+- This is agent guidance, not operating-system enforcement or an absolute
+  technical prevention mechanism.
+
+## Local Deployment And External Snapshot Coordination
+
+- When explicitly executing a local foreground deployment or release-build
+  command, run
+  its exact argument vector through the FeDril deployment guard:
+  `/opt/homebrew/bin/python3 -I -B '/Users/devups/Library/Application Support/FeDrilProjectRecovery/external-project-snapshots/fedril_deployment_guard.py' -- <command> <args...>`.
+- Resolve the exact command and arguments from the approved workflow or runbook
+  first. Ask the user only when those sources cannot determine them. Do not
+  guess, reconstruct, or substitute a command.
+- The guard covers only the foreground local process tree that preserves the
+  inherited lock descriptor. It does not cover unwrapped commands, detached
+  processes that close descriptors, or the lifetime of remote GitHub Actions
+  workflows.
+- Do not terminate deployments to permit a snapshot. The snapshot runner
+  defers cooperatively and records prolonged deferral separately.
+
 ## Product Invariants
 
 FeDril is a multi-tenant compliance-management SaaS for small U.S. government
@@ -76,10 +125,33 @@ These requirements apply whenever the affected behavior is relevant:
   editing or hard deletion.
 - Keep permissions server-authoritative. The UI must consume server-provided
   permissions and fail closed when permission data is absent or malformed.
+- For SOC 2 Stories 39.1 through 39.23, `Founder authority FR-01` may perform
+  authorized implementation, operation, evidence collection and custody,
+  management decision-making, and explicitly labeled management self-review.
+  FR-01's appointment does not make that self-review independent or establish
+  professional qualification. Keep independent Security/evidence review,
+  qualified CPA review or examination, qualified Legal/Privacy advice,
+  forensic validation, and other separation-of-duties gates unassigned and
+  deferred while eligible external resources are unavailable; do not mark
+  those dependencies fulfilled or `Not Applicable`. When a resource becomes
+  available, verify appointment, competence, independence and conflicts, then
+  record the scoped review as pending; mark the dependency fulfilled only after
+  its review evidence and decision are preserved. Continue other safe,
+  authorized work whose non-review prerequisites are satisfied, and revisit
+  the external dependencies at each story checkpoint, when resources become
+  available, after a material incident, and before acceptance or claims.
 
 ## Change Discipline
 
 - Make small, focused, reviewable changes and avoid unrelated formatting churn.
+- Treat untracked and pending files as user-owned work. Do not relocate or
+  remove them merely to produce a clean checkout.
+- Do not switch a shared primary branch or retire worktrees without fresh
+  approval for the exact targets, confirmed task ownership, and a verified
+  recovery path. Preserve recovery archive sources unless their removal is
+  separately approved.
+- These checkout and recovery safeguards are procedural guidance; they are not
+  technical enforcement by Git or the operating system.
 - Preserve existing public and internal contracts unless a breaking change is
   explicitly requested and approved with a migration and rollback plan.
 - Before changing behavior, identify affected callers, routes, controls,

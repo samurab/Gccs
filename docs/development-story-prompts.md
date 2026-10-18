@@ -5806,6 +5806,30 @@ Copy this contract together with the selected story, or have the executing agent
 9. Close a gap only after an authorized reviewer validates the specific design, implementation or operating deficiency and retest evidence. Record failures, interim safeguards, risk acceptance, reviewer conflicts, deadline, escalation and remaining risk. Acceptance does not erase historical failures or bind the auditor's opinion.
 10. Every execution must end with tasks completed/not completed, changed files/configurations, evidence references, exact verification commands/results, skipped checks, human actions/approvals still required, residual risks, updated register entries and the next unblocked story/task. Draft documentation alone is never completion of an operating control.
 
+#### Current Solo-Readiness Operating Boundary
+
+The canonical management-role decision is `SOC2-ROLE-FR-01` in
+[`docs/soc2/founder-role-concentration-decision.md`](soc2/founder-role-concentration-decision.md).
+Across Stories 39.1 through 39.23, FR-01 may perform authorized implementation,
+operation, evidence collection and custody, management decision-making, and
+explicitly labeled management self-review. Record the management self-review
+result separately and leave it pending until FR-01 actually performs it.
+FR-01's appointment does not satisfy independence, professional qualification,
+external assurance, legal sufficiency, forensic validation, examination, or
+report-issuance requirements. While eligible resources are unavailable, keep
+each applicable external dependency unassigned and deferred, not fulfilled or
+`Not Applicable`. When a resource becomes available, verify appointment,
+competence, independence and conflicts and record the scoped review as pending;
+mark the dependency fulfilled only after its review evidence and decision are
+preserved. Do not repeatedly stop safe, authorized management-side tasks merely
+because those deferred resources remain unavailable; stop at the existing
+independent, qualified, protected-evidence,
+live-risk, destructive-action, examination, claims, and final-acceptance gates.
+Revisit the boundary at each story checkpoint, when a required resource becomes
+available, after a material incident, and before acceptance or external claims.
+Use the existing task statuses and acceptance criteria; this boundary creates no
+new completion state and changes no task ID or requirement.
+
 Proposed artifact names below are logical names in the protected workspace established by 39.2, not instructions to publish them in this repository. Reuse existing records wherever possible. The only document changed by this backlog-authoring task is `docs/development-story-prompts.md`.
 
 ### Story 39.1: Define SOC 2 Scope And Readiness Decision
@@ -5819,7 +5843,7 @@ Proposed artifact names below are logical names in the protected workspace estab
 
 Prompt:
 
-You are helping FeDril establish an evidence-backed, reviewer-supported scope and a measurable proceed/defer decision before committing to an examination. Execute Story 39.1, "Define SOC 2 Scope And Readiness Decision," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
+You are helping FeDril establish an evidence-backed, reviewer-supported scope and a measurable proceed/defer decision before committing to an examination. Execute Story 39.1, "Define SOC 2 Scope And Readiness Decision," using the Shared Execution Contract,Execution Order And Stage Gates, Assurance Program, and Current Solo-Readiness Operating Boundary in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
 
 > Context:
 >
@@ -5858,7 +5882,7 @@ Instructions:
 
 Prompt:
 
-You are helping FeDril coordinate every remediation and evidence obligation without losing failed controls, overdue tasks or traceability. Execute Story 39.2, "Remediate Gaps And Collect Operating Evidence," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
+You are helping FeDril coordinate every remediation and evidence obligation without losing failed controls, overdue tasks or traceability. Execute Story 39.2, "Remediate Gaps And Collect Operating Evidence," using the Shared Execution Contract,Execution Order And Stage Gates, Assurance Program, and Current Solo-Readiness Operating Boundary in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
 
 > Context:
 >
@@ -5897,7 +5921,7 @@ Instructions:
 
 Prompt:
 
-You are helping FeDril govern independent examinations and restricted report use without treating internal artifacts as assurance reports. Execute Story 39.3, "Govern Independent Examination And Report Distribution," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
+You are helping FeDril govern independent examinations and restricted report use without treating internal artifacts as assurance reports. Execute Story 39.3, "Govern Independent Examination And Report Distribution,"using the Shared Execution Contract,Execution Order And Stage Gates, Assurance Program, and Current Solo-Readiness Operating Boundary in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
 
 > Context:
 >
@@ -5936,7 +5960,7 @@ Instructions:
 
 Prompt:
 
-You are helping FeDril resolve the suspected public-repository data exposure and prevent recurrence without spreading sensitive content. Execute Story 39.4, "Investigate Repository Exposure And Govern Containment," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
+You are helping FeDril resolve the suspected public-repository data exposure and prevent recurrence without spreading sensitive content. Execute Story 39.4, "Investigate Repository Exposure And Govern Containment," using the Shared Execution Contract,Execution Order And Stage Gates, Assurance Program, and Current Solo-Readiness Operating Boundary in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
 
 > Context:
 >
@@ -5974,7 +5998,7 @@ Instructions:
 
 Prompt:
 
-You are helping FeDril establish accountable organizational controls and a risk-based security program. Execute Story 39.5, "Establish Governance Risk Policies And Management Oversight," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
+You are helping FeDril establish accountable organizational controls and a risk-based security program. Execute Story 39.5, "Establish Governance Risk Policies And Management Oversight," using the Shared Execution Contract,Execution Order And Stage Gates, Assurance Program, and Current Solo-Readiness Operating Boundary in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
 
 > Context:
 >
@@ -6012,7 +6036,7 @@ Instructions:
 
 Prompt:
 
-You are helping FeDril control employee, contractor, privileged and service access throughout the workforce lifecycle. Execute Story 39.6, "Implement Workforce Access Device Security And Training," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
+You are helping FeDril control employee, contractor, privileged and service access throughout the workforce lifecycle. Execute Story 39.6, "Implement Workforce Access Device Security And Training," using the Shared Execution Contract,Execution Order And Stage Gates, Assurance Program, and Current Solo-Readiness Operating Boundary in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
 
 > Context:
 >
@@ -6051,7 +6075,7 @@ Instructions:
 
 Prompt:
 
-You are helping FeDril prove the existing FeDril security boundaries and remediate actual gaps without duplicating implemented features. Execute Story 39.7, "Verify Application Security And Tenant Data Boundaries," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
+You are helping FeDril prove the existing FeDril security boundaries and remediate actual gaps without duplicating implemented features. Execute Story 39.7, "Verify Application Security And Tenant Data Boundaries," using the Shared Execution Contract,Execution Order And Stage Gates, Assurance Program, and Current Solo-Readiness Operating Boundary in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
 
 > Context:
 >
@@ -6089,7 +6113,7 @@ Instructions:
 
 Prompt:
 
-You are helping FeDril make code, infrastructure, configuration and content changes authorized, tested and traceable. Execute Story 39.8, "Enforce Secure SDLC Change Approval And Separation Of Duties," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
+You are helping FeDril make code, infrastructure, configuration and content changes authorized, tested and traceable. Execute Story 39.8, "Enforce Secure SDLC Change Approval And Separation Of Duties," using the Shared Execution Contract,Execution Order And Stage Gates, Assurance Program, and Current Solo-Readiness Operating Boundary in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
 
 > Context:
 >
@@ -6127,7 +6151,7 @@ Instructions:
 
 Prompt:
 
-You are helping FeDril reconcile live production configuration with approved IaC and restrict unnecessary exposure. Execute Story 39.9, "Harden Production Configuration Networks And Drift Detection," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
+You are helping FeDril reconcile live production configuration with approved IaC and restrict unnecessary exposure. Execute Story 39.9, "Harden Production Configuration Networks And Drift Detection,"using the Shared Execution Contract,Execution Order And Stage Gates, Assurance Program, and Current Solo-Readiness Operating Boundary in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
 
 > Context:
 >
@@ -6165,7 +6189,7 @@ Instructions:
 
 Prompt:
 
-You are helping FeDril minimize long-lived credentials and verify encryption and recoverable key operations. Execute Story 39.10, "Govern Secrets Encryption And Key Lifecycle," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
+You are helping FeDril minimize long-lived credentials and verify encryption and recoverable key operations. Execute Story 39.10, "Govern Secrets Encryption And Key Lifecycle,"using the Shared Execution Contract,Execution Order And Stage Gates, Assurance Program, and Current Solo-Readiness Operating Boundary in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
 
 > Context:
 >
@@ -6203,7 +6227,7 @@ Instructions:
 
 Prompt:
 
-You are helping FeDril detect, prioritize, remediate and independently validate security weaknesses with measurable follow-through. Execute Story 39.11, "Operate Vulnerability Patch And Security Testing Controls," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
+You are helping FeDril detect, prioritize, remediate and independently validate security weaknesses with measurable follow-through. Execute Story 39.11, "Operate Vulnerability Patch And Security Testing Controls,"using the Shared Execution Contract,Execution Order And Stage Gates, Assurance Program, and Current Solo-Readiness Operating Boundary in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
 
 > Context:
 >
@@ -6241,7 +6265,7 @@ Instructions:
 
 Prompt:
 
-You are helping FeDril prove relevant events reach protected storage and produce timely owned responses. Execute Story 39.12, "Validate Audit Integrity Logging Monitoring And Alert Response," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
+You are helping FeDril prove relevant events reach protected storage and produce timely owned responses. Execute Story 39.12, "Validate Audit Integrity Logging Monitoring And Alert Response,"using the Shared Execution Contract,Execution Order And Stage Gates, Assurance Program, and Current Solo-Readiness Operating Boundary in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
 
 > Context:
 >
@@ -6279,7 +6303,7 @@ Instructions:
 
 Prompt:
 
-You are helping FeDril make incident and prohibited-data response executable, rehearsed and legally governed. Execute Story 39.13, "Implement Incident Response And No-CUI Spill Exercises," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
+You are helping FeDril make incident and prohibited-data response executable, rehearsed and legally governed. Execute Story 39.13, "Implement Incident Response And No-CUI Spill Exercises,"using the Shared Execution Contract,Execution Order And Stage Gates, Assurance Program, and Current Solo-Readiness Operating Boundary in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
 
 > Context:
 >
@@ -6317,7 +6341,7 @@ Instructions:
 
 Prompt:
 
-You are helping FeDril show that FeDril can recover its required services and evidence within approved objectives. Execute Story 39.14, "Prove Backup Restoration Business Continuity And Recovery," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
+You are helping FeDril show that FeDril can recover its required services and evidence within approved objectives. Execute Story 39.14, "Prove Backup Restoration Business Continuity And Recovery,"using the Shared Execution Contract,Execution Order And Stage Gates, Assurance Program, and Current Solo-Readiness Operating Boundary in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
 
 > Context:
 >
@@ -6355,7 +6379,7 @@ Instructions:
 
 Prompt:
 
-You are helping FeDril establish accountable third-party oversight without assuming provider assurance transfers to FeDril. Execute Story 39.15, "Govern Vendors Subprocessors And Inherited Controls," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
+You are helping FeDril establish accountable third-party oversight without assuming provider assurance transfers to FeDril. Execute Story 39.15, "Govern Vendors Subprocessors And Inherited Controls,"using the Shared Execution Contract,Execution Order And Stage Gates, Assurance Program, and Current Solo-Readiness Operating Boundary in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
 
 > Context:
 >
@@ -6393,7 +6417,7 @@ Instructions:
 
 Prompt:
 
-You are helping FeDril control non-CUI data from collection through disposal without weakening immutable evidence or customer boundaries. Execute Story 39.16, "Enforce Data Classification Retention Disposal And Customer Responsibilities," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
+You are helping FeDril control non-CUI data from collection through disposal without weakening immutable evidence or customer boundaries. Execute Story 39.16, "Enforce Data Classification Retention Disposal And Customer Responsibilities,"using the Shared Execution Contract,Execution Order And Stage Gates, Assurance Program, and Current Solo-Readiness Operating Boundary in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
 
 > Context:
 >
@@ -6431,7 +6455,7 @@ Instructions:
 
 Prompt:
 
-You are helping FeDril prevent unjustified scope growth while covering any verified commitments that require more than the initial Security scope. Execute Story 39.17, "Decide Additional Trust Categories And Implement Conditional Controls," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
+You are helping FeDril prevent unjustified scope growth while covering any verified commitments that require more than the initial Security scope. Execute Story 39.17, "Decide Additional Trust Categories And Implement Conditional Controls,"using the Shared Execution Contract,Execution Order And Stage Gates, Assurance Program, and Current Solo-Readiness Operating Boundary in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
 
 > Context:
 >
@@ -6469,7 +6493,7 @@ Instructions:
 
 Prompt:
 
-You are helping FeDril make a defensible evidence-backed decision without equating checklist completion with auditor approval. Execute Story 39.18, "Validate Integrated Readiness And Type I Decision Gate," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
+You are helping FeDril make a defensible evidence-backed decision without equating checklist completion with auditor approval. Execute Story 39.18, "Validate Integrated Readiness And Type I Decision Gate,"using the Shared Execution Contract,Execution Order And Stage Gates, Assurance Program, and Current Solo-Readiness Operating Boundary in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
 
 > Context:
 >
@@ -6507,7 +6531,7 @@ Instructions:
 
 Prompt:
 
-You are helping FeDril coordinate a point-in-time examination and accurately govern its actual result when commercially justified. Execute Story 39.19, "Coordinate Optional Type I Examination And Report Acceptance," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
+You are helping FeDril coordinate a point-in-time examination and accurately govern its actual result when commercially justified. Execute Story 39.19, "Coordinate Optional Type I Examination And Report Acceptance,"using the Shared Execution Contract,Execution Order And Stage Gates, Assurance Program, and Current Solo-Readiness Operating Boundary in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
 
 > Context:
 >
@@ -6545,7 +6569,7 @@ Instructions:
 
 Prompt:
 
-You are helping FeDril ensure every scoped control can be tested over the agreed period before relying on period evidence. Execute Story 39.20, "Establish Type II Period Populations And Evidence Entry Gate," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
+You are helping FeDril ensure every scoped control can be tested over the agreed period before relying on period evidence. Execute Story 39.20, "Establish Type II Period Populations And Evidence Entry Gate,"using the Shared Execution Contract,Execution Order And Stage Gates, Assurance Program, and Current Solo-Readiness Operating Boundary in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
 
 > Context:
 >
@@ -6583,7 +6607,7 @@ Instructions:
 
 Prompt:
 
-You are helping FeDril demonstrate actual repeated control operation across the review period, not just policies or a one-time run. Execute Story 39.21, "Operate Type II Controls And Review Failures Throughout The Period," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
+You are helping FeDril demonstrate actual repeated control operation across the review period, not just policies or a one-time run. Execute Story 39.21, "Operate Type II Controls And Review Failures Throughout The Period,"using the Shared Execution Contract,Execution Order And Stage Gates, Assurance Program, and Current Solo-Readiness Operating Boundary in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
 
 > Context:
 >
@@ -6622,7 +6646,7 @@ Instructions:
 
 Prompt:
 
-You are helping FeDril support independent evaluation of the scoped period and preserve accurate findings and report status. Execute Story 39.22, "Coordinate Type II Examination And Resolve Report Findings," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
+You are helping FeDril support independent evaluation of the scoped period and preserve accurate findings and report status. Execute Story 39.22, "Coordinate Type II Examination And Resolve Report Findings,"using the Shared Execution Contract,Execution Order And Stage Gates, Assurance Program, and Current Solo-Readiness Operating Boundary in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
 
 > Context:
 >
@@ -6660,7 +6684,7 @@ Instructions:
 
 Prompt:
 
-You are helping FeDril keep procurement claims accurate and control evidence current after the initial examination. Execute Story 39.23, "Maintain Report Distribution Continuous Readiness And Renewal," using the Shared Execution Contract in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
+You are helping FeDril keep procurement claims accurate and control evidence current after the initial examination. Execute Story 39.23, "Maintain Report Distribution Continuous Readiness And Renewal,"using the Shared Execution Contract,Execution Order And Stage Gates, Assurance Program, and Current Solo-Readiness Operating Boundary in this document and `AGENTS.md`. Read both before acting. Inspect existing implementation and evidence first; complete only the work authorized by this story and the user's execution request. Reuse verified controls and identify unavailable evidence, human approvals and external actions explicitly.
 
 > Context:
 >

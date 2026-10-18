@@ -241,6 +241,8 @@ jobs:
       GCCS_TEST_POSTGRES_CONNECTION: Host=127.0.0.1;Port=5432;Database=gccs;Username=gccs;Password=gccs_dev_password
       MalwareScanning__Host: 127.0.0.1
       MalwareScanning__Port: 3310
+      PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/fedril-playwright-${{ github.run_id }}-${{ github.run_attempt }}-real-stack
+      PLAYWRIGHT_SKIP_BROWSER_GC: "1"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -265,9 +267,31 @@ jobs:
       - name: Install Playwright Chromium
         timeout-minutes: 10
         run: |
-          while IFS= read -r google_chrome_source; do
-            sudo mv "$google_chrome_source" "${google_chrome_source}.disabled"
-          done < <(sudo grep -RIlF "dl.google.com/linux/chrome-stable" /etc/apt/sources.list.d || true)
+          if [[ -e "$PLAYWRIGHT_BROWSERS_PATH" || -L "$PLAYWRIGHT_BROWSERS_PATH" ]]; then
+            echo "::error::Run-specific Playwright browser destination already exists; preserving it."
+            exit 1
+          fi
+          mkdir -- "$PLAYWRIGHT_BROWSERS_PATH"
+
+          mapfile -t google_chrome_sources < <(sudo grep -RIlF "dl.google.com/linux/chrome-stable" /etc/apt/sources.list.d || true)
+          for google_chrome_source in "${google_chrome_sources[@]}"; do
+            if [[ ! -f "$google_chrome_source" || -L "$google_chrome_source" || "$(realpath -- "$google_chrome_source")" != /etc/apt/sources.list.d/* ]]; then
+              echo "::error::APT source is not a regular non-symlink beneath the approved directory."
+              exit 1
+            fi
+            printf 'Selected APT source: %s -> %s\n' "$google_chrome_source" "${google_chrome_source}.disabled"
+            if [[ -e "${google_chrome_source}.disabled" || -L "${google_chrome_source}.disabled" ]]; then
+              echo "::error::APT source destination already exists; preserving source and destination."
+              exit 1
+            fi
+          done
+          for google_chrome_source in "${google_chrome_sources[@]}"; do
+            sudo mv --no-clobber -- "$google_chrome_source" "${google_chrome_source}.disabled"
+            if [[ -e "$google_chrome_source" || -L "$google_chrome_source" ]]; then
+              echo "::error::APT source was not moved; stopping without overwriting destination."
+              exit 1
+            fi
+          done
 
           for attempt in 1 2 3; do
             if npx playwright install --with-deps chromium; then

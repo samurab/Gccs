@@ -29,6 +29,47 @@
 - No broader production launch, CUI processing, certification, government approval, or compliance guarantee is established by application versioning.
 - Mirror immutable releases to an organization-controlled OCI registry only if independent retention, regional replication, or external key management becomes a requirement.
 
+## Local External-Snapshot Coordination
+
+### Partially implemented
+
+The local FeDril deployment guard is present and passed its focused synthetic
+operating-system lock tests on October 11, 2026. The external runner also
+completed one uncontended live interval run with the new shared-lock path. The
+guard has not yet been exercised around a real deployment or release build.
+When either is executed locally in the foreground, wrap its exact argument
+vector as follows:
+
+```bash
+/opt/homebrew/bin/python3 -I -B \
+  '/Users/devups/Library/Application Support/FeDrilProjectRecovery/external-project-snapshots/fedril_deployment_guard.py' \
+  -- <exact-command> <exact-arguments...>
+```
+
+The wrapper takes an exclusive advisory lock and then executes the command
+directly without a shell. External snapshot workers take a shared lock before
+their native sleep assertion and hold it through snapshot I/O, assertion
+release, and deferral-journal recovery. This coordinates wrapped local work; it
+does not change release authorization, environment approvals, tag controls, or
+the immutable-promotion workflow.
+
+The external reviewed-project job is registered with its existing 900-second
+interval and a local-midnight calendar trigger. An uncontended natural interval
+run and the post-registration RunAtLoad run both completed unchanged. The
+separate 23:58 daily wake-only event remains pending user administrator action;
+the non-interactive attempt was denied without changing existing schedules.
+Neither a midnight run nor a real deployment conflict or six-hour production
+deferral has been observed.
+
+### Hidden risks and dependencies
+
+- Resolve the exact local command from the approved workflow or runbook first.
+  Ask the user only if those sources cannot determine it; do not guess it.
+- Unwrapped commands, remote GitHub workflow duration, and detached descendants
+  that close inherited descriptors are outside the guard's coverage.
+- The lock is cooperative advisory state. It does not kill or suspend a
+  deployment, and deployments must not be terminated merely to run a snapshot.
+
 ## Version Rules
 
 Use `MAJOR.MINOR.PATCH`:
