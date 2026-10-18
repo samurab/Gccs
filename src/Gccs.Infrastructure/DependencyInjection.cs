@@ -55,6 +55,7 @@ namespace Gccs.Infrastructure;
 
 public static class DependencyInjection
 {
+    private sealed class DevelopmentObjectWritePersistence;
     public static IServiceCollection AddGccsInfrastructure(this IServiceCollection services, IConfiguration? configuration = null)
     {
         services.AddScoped<IApplicationTransaction, EfApplicationTransaction>();
@@ -109,6 +110,11 @@ public static class DependencyInjection
         services.AddScoped<IClassifiedContentRepository>(provider => new EfClassifiedContentRepository(provider.GetRequiredService<GccsDbContext>(), provider.GetRequiredService<ICurrentTenantContext>()));
         services.AddScoped<ISyntheticContentApprovalRepository, UnavailableSyntheticContentApprovalRepository>();
         services.AddScoped<IClassifiedNoteRepository>(_ => throw new InvalidOperationException("Classified notes require configured persistence."));
+        services.AddScoped<DurableObjectWriteCoordinator>();
+        services.AddScoped<IObjectWriteIntentRepository>(provider => new EfObjectWriteIntentRepository(
+            provider.GetRequiredService<GccsDbContext>(), provider.GetRequiredService<IApplicationTransaction>(),
+            provider.GetRequiredService<IAuditEventWriter>(), provider.GetRequiredService<IObjectCleanupQueue>(),
+            provider.GetService<DevelopmentObjectWritePersistence>() is not null));
         services.AddScoped<IObjectCleanupQueue>(provider => new EfObjectCleanupQueue(
             provider.GetRequiredService<GccsDbContext>(), provider.GetRequiredService<IObjectStorageService>(),
             provider.GetRequiredService<IAuditEventWriter>()));
@@ -628,6 +634,8 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration? configuration = null)
     {
+        // Program registers this method only behind its existing Development/testing/auth gates.
+        services.AddSingleton<DevelopmentObjectWritePersistence>();
         services.AddScoped<DevelopmentTestingContextService>();
 
         var connectionString = configuration?.GetConnectionString("GccsDatabase");

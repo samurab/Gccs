@@ -13,7 +13,8 @@ public sealed class ReportExportService(
     IObjectStorageService objectStorage,
     IAuditEventWriter auditEventWriter,
     IApplicationTransaction transaction,
-    IContentContainmentRepository containment)
+    IContentContainmentRepository containment,
+    DurableObjectWriteCoordinator objectWrites)
 {
     public Task<ReportExportDto?> RequestPdfAsync(
         Guid reportId,
@@ -122,7 +123,7 @@ public sealed class ReportExportService(
 
         var objectName = BuildObjectName(claimed.ReportId, claimed.ExportId, claimed.LeaseId);
         await using var content = new MemoryStream(rendered.Content, writable: false);
-        var stored = await objectStorage.UploadAsync(
+        return await objectWrites.ExecuteAsync(
             new ObjectStorageWriteRequest(
                 claimed.TenantId,
                 ObjectStorageContainer.Reports,
@@ -133,13 +134,8 @@ public sealed class ReportExportService(
                 {
                     ["reportId"] = claimed.ReportId.ToString(),
                     ["renderVersion"] = ReportExportConstants.RenderVersion
-                }),
-            cancellationToken);
-
-        try
+                }), claimed.RequestedByUserId, "ReportExport", claimed.ExportId, async (stored, transactionCancellationToken) =>
         {
-            var ready = await transaction.ExecuteAsync(async transactionCancellationToken =>
-            {
                 if (await reports.GetReportArtifactAsync(claimed.ReportId, transactionCancellationToken) is null) return null;
                 if (await containment.IsBlockedAsync(claimed.TenantId, "Report", claimed.ReportId.ToString(), transactionCancellationToken)) return null;
                 var persisted = await exports.MarkReadyAsync(
@@ -169,21 +165,7 @@ public sealed class ReportExportService(
                     },
                     transactionCancellationToken);
                 return persisted;
-            }, cancellationToken);
-
-            if (ready is not null)
-            {
-                return ready;
-            }
-
-            await DeleteAttemptObjectAsync(claimed.TenantId, objectName, cancellationToken);
-            return null;
-        }
-        catch
-        {
-            await DeleteAttemptObjectAsync(claimed.TenantId, objectName, CancellationToken.None);
-            throw;
-        }
+        }, cancellationToken, resourceLeaseId: claimed.LeaseId);
     }
 
     public Task<ReportExportDto?> MarkFailedAsync(
@@ -229,14 +211,6 @@ public sealed class ReportExportService(
 
     public static string BuildObjectName(Guid reportId, Guid exportId, Guid leaseId) =>
         $"reports/{reportId:D}/exports/{ReportExportConstants.RenderVersion}/{exportId:D}-{leaseId:D}.pdf";
-
-    private Task<bool> DeleteAttemptObjectAsync(
-        Guid tenantId,
-        string objectName,
-        CancellationToken cancellationToken) =>
-        objectStorage.DeleteAsync(
-            new ObjectStorageReadRequest(tenantId, ObjectStorageContainer.Reports, objectName),
-            cancellationToken);
 
     private Task WriteFailureAuditAsync(
         ReportExportDto export,

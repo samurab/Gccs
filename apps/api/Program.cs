@@ -230,8 +230,8 @@ app.UseGccsApiFailureLogging();
 app.UseGccsApiProblemDetails();
 app.UseGccsSecurityHeaders();
 app.UseCors("web");
-app.UseRateLimiter();
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseGccsTenantMembershipAuthorization(builder.Configuration, app.Environment);
 app.UseAuthorization();
 

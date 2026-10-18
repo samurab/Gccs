@@ -197,12 +197,12 @@ public static class ApiSecurityExtensions
             };
             options.AddPolicy("api", httpContext =>
             {
-                var partitionKey =
-                    httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier) ??
-                    httpContext.Request.Headers[TenantSelectionHeader].FirstOrDefault() ??
-                    httpContext.User.FindFirstValue(TenantIdClaimType) ??
-                    httpContext.Connection.RemoteIpAddress?.ToString() ??
-                    "anonymous";
+                var userId = httpContext.User.Identity?.IsAuthenticated is true
+                    ? httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                    : null;
+                var partitionKey = !string.IsNullOrWhiteSpace(userId)
+                    ? $"user:{httpContext.User.FindFirstValue(AuthenticationPlaneClaimType)}:{userId}"
+                    : $"ip:{httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
 
                 return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
                 {
