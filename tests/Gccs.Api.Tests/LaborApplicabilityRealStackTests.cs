@@ -120,7 +120,7 @@ public sealed class LaborApplicabilityRealStackTests : IClassFixture<WebApplicat
 
     [Story32RetainedRollbackFact]
     [Trait("Category", "RetainedLocalProvider")]
-    public async Task Approved_scoped_rollback_deletes_only_the_failed_upload_and_retains_successful_fixture()
+    public async Task Scoped_rollback_retains_failed_upload_for_durable_cleanup_and_successful_fixture()
     {
         var containerName = RequiredEnvironment("GCCS_RETAINED_PROVIDER_CONTAINER");
         var tenantId = Guid.Parse(RequiredEnvironment("GCCS_RETAINED_PROVIDER_TENANT"));
@@ -144,13 +144,13 @@ public sealed class LaborApplicabilityRealStackTests : IClassFixture<WebApplicat
         using (var rejected = await UploadAsync(client, ids, labor.Id, "Synthetic failed replacement.", "replacement.txt"))
             Assert.Equal(HttpStatusCode.InternalServerError, rejected.StatusCode);
         failure.Enabled = false;
-        Assert.Equal(1, await CountTenantBlobsAsync(container, ids.TenantId));
+        Assert.Equal(2, await CountTenantBlobsAsync(container, ids.TenantId));
         using var verification = app.Services.CreateScope();
         var db = verification.ServiceProvider.GetRequiredService<GccsDbContext>();
         Assert.Single(await db.EvidenceFileVersions.Where(x => x.EvidenceItemId == ids.EvidenceId).ToArrayAsync());
         Assert.Single(await db.AuditLogEntries.Where(x => x.TenantId == ids.TenantId &&
             x.EntityType == "EvidenceFileVersion" && x.Action == AuditAction.Uploaded).ToArrayAsync());
-        // No finally cleanup: successful object, DB rows and failure evidence remain retained.
+        // Both provider objects, durable cleanup obligation, DB rows and audit evidence remain retained.
     }
 
     [Story32RealStackFact]
@@ -386,7 +386,9 @@ public sealed class LaborApplicabilityRealStackTests : IClassFixture<WebApplicat
         public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
             DbContextEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default)
         {
-            if (Enabled && eventData.Context!.ChangeTracker.Entries<AuditLogEntryEntity>().Any(x => x.State == EntityState.Added))
+            if (Enabled && eventData.Context!.ChangeTracker.Entries<AuditLogEntryEntity>().Any(x =>
+                x.State == EntityState.Added && x.Entity.EntityType == "EvidenceFileVersion" &&
+                x.Entity.Action == AuditAction.Uploaded))
                 throw new InvalidOperationException("Injected Story 32 audit persistence failure.");
             return ValueTask.FromResult(result);
         }

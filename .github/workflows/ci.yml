@@ -235,6 +235,8 @@ jobs:
     env:
       ASPNETCORE_ENVIRONMENT: Development
       DOTNET_ENVIRONMENT: Development
+      # Every test host shares this fixture DB; none may consume another test's pending cleanup.
+      ObjectCleanupProcessing__Enabled: "false"
       ConnectionStrings__GccsDatabase: Host=127.0.0.1;Port=5432;Database=gccs;Username=gccs;Password=gccs_dev_password
       ConnectionStrings__AzureStorage: DefaultEndpointsProtocol=http;AccountName=gccs;AccountKey=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==;BlobEndpoint=http://127.0.0.1:10000/gccs;
       GCCS_DATABASE: Host=127.0.0.1;Port=5432;Database=gccs;Username=gccs;Password=gccs_dev_password
