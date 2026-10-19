@@ -473,11 +473,11 @@ public sealed class DurableObjectWriteIntentPostgresTests
     public async Task Null_after_saved_business_change_rolls_back_business_and_success_audit()
     {
         await using var f = await Fixture.CreateAsync();
-        var result = await f.Coordinator.ExecuteAsync<Published>(f.Request(), f.User, f.Kind, f.Resource, async (_, token) =>
+        var result = await f.Coordinator.ExecuteAsync<Published>(f.Request(), f.User, f.Kind, f.Resource, async (_, cancellationToken) =>
         {
-            var saved = await f.CreateBusinessAsync(token);
+            var saved = await f.CreateBusinessAsync(cancellationToken);
             await f.Audit.WriteAsync(f.Tenant, f.User, AuditAction.Uploaded, "EvidenceFileVersion", saved.Id.ToString(),
-                "Synthetic premature success before unavailable publication.", cancellationToken: token);
+                "Synthetic premature success before unavailable publication.", cancellationToken: cancellationToken);
             return null;
         });
         Assert.Null(result);
@@ -539,13 +539,13 @@ public sealed class DurableObjectWriteIntentPostgresTests
                 new EfObjectCleanupQueue(db, Storage, audit));
         }
         public ObjectStorageWriteRequest Request() => new(Tenant, Container, ObjectName, new MemoryStream(Encoding.UTF8.GetBytes("synthetic-private-bytes")), "text/plain");
-        public Task<Published?> ExecuteAsync() => Coordinator.ExecuteAsync(Request(), User, Kind, Resource, async (_, token) =>
+        public Task<Published?> ExecuteAsync() => Coordinator.ExecuteAsync(Request(), User, Kind, Resource, async (_, cancellationToken) =>
         {
-            var result = await CreateBusinessAsync(token);
-            await Audit.WriteAsync(Tenant, User, SuccessAction, SuccessEntityType, result.Id.ToString(), "Synthetic publication.", cancellationToken: token);
+            var result = await CreateBusinessAsync(cancellationToken);
+            await Audit.WriteAsync(Tenant, User, SuccessAction, SuccessEntityType, result.Id.ToString(), "Synthetic publication.", cancellationToken: cancellationToken);
             return result;
         }, resourceLeaseId: ResourceLease);
-        public async Task<Published> CreateBusinessAsync(CancellationToken token = default)
+        public async Task<Published> CreateBusinessAsync(CancellationToken cancellationToken = default)
         {
             var id = Guid.NewGuid();
             if (Kind == "EvidenceItem") Db.EvidenceFileVersions.Add(new EvidenceFileVersionEntity { Id = id, EvidenceItemId = Evidence,
@@ -556,11 +556,11 @@ public sealed class DurableObjectWriteIntentPostgresTests
                 ValidationStatus = "accepted", MalwareScanStatus = "clean", NoticeVersion = "synthetic", UploadedAt = DateTimeOffset.UtcNow, UploadedByUserId = User });
             else
             {
-                var export = await Db.ReportExports.SingleAsync(x => x.Id == Export, token);
+                var export = await Db.ReportExports.SingleAsync(x => x.Id == Export, cancellationToken);
                 export.ObjectName = ObjectName; export.Status = ReportExportStatus.Ready; export.ProcessingLeaseId = null; export.ProcessingLeaseUntil = null;
                 id = export.Id;
             }
-            await Db.SaveChangesAsync(token); return new(id);
+            await Db.SaveChangesAsync(cancellationToken); return new(id);
         }
         public Task<bool> HasPublicationAsync() => Kind == "Contract" ? Db.Set<ContractDocumentEntity>().AnyAsync() :
             Kind == "ReportExport" ? Db.ReportExports.AnyAsync(x => x.Status == ReportExportStatus.Ready) : Db.EvidenceFileVersions.AnyAsync();
@@ -749,11 +749,11 @@ public sealed class DurableObjectWriteIntentPostgresTests
     }
     private sealed class LostAcknowledgementStorage(IObjectStorageService inner) : IObjectStorageService
     {
-        public async Task<ObjectStorageWriteResult> UploadAsync(ObjectStorageWriteRequest request, CancellationToken token = default)
-        { await inner.UploadAsync(request, token); throw new IOException("Synthetic lost acknowledgement after real provider completion."); }
-        public Task<ObjectStorageReadResult?> OpenReadAsync(ObjectStorageReadRequest request, CancellationToken token = default) => inner.OpenReadAsync(request, token);
-        public Task<bool> ExistsAsync(ObjectStorageReadRequest request, CancellationToken token = default) => inner.ExistsAsync(request, token);
-        public Task<bool> DeleteAsync(ObjectStorageReadRequest request, CancellationToken token = default) => throw new InvalidOperationException("Real deletion is not authorized by this retained test.");
+        public async Task<ObjectStorageWriteResult> UploadAsync(ObjectStorageWriteRequest request, CancellationToken cancellationToken = default)
+        { await inner.UploadAsync(request, cancellationToken); throw new IOException("Synthetic lost acknowledgement after real provider completion."); }
+        public Task<ObjectStorageReadResult?> OpenReadAsync(ObjectStorageReadRequest request, CancellationToken cancellationToken = default) => inner.OpenReadAsync(request, cancellationToken);
+        public Task<bool> ExistsAsync(ObjectStorageReadRequest request, CancellationToken cancellationToken = default) => inner.ExistsAsync(request, cancellationToken);
+        public Task<bool> DeleteAsync(ObjectStorageReadRequest request, CancellationToken cancellationToken = default) => throw new InvalidOperationException("Real deletion is not authorized by this retained test.");
     }
     private sealed class RetainedStorage : IObjectStorageService
     {

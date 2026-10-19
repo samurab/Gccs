@@ -71,14 +71,14 @@ public sealed class ProductionJwtBoundaryTests(WebApplicationFactory<Program> fa
             var signingKey = scenario == "wrong-signature"
                 ? new SymmetricSecurityKey(RandomNumberGenerator.GetBytes(32)) { KeyId = key.KeyId }
                 : key;
-            var token = new JwtSecurityToken(
+            var jwt = new JwtSecurityToken(
                 issuer: scenario == "wrong-issuer" ? issuer + "/other" : issuer,
                 audience: scenario == "wrong-audience" ? audience + "/other" : audience,
                 claims: [new Claim("oid", userId.ToString()), new Claim("roles", PlatformAuthorization.PlatformOperatorRole)],
                 notBefore: scenario == "future" ? now.AddMinutes(10) : now.AddMinutes(-20),
                 expires: scenario == "expired" ? now.AddMinutes(-10) : now.AddMinutes(20),
                 signingCredentials: new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256));
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", new JwtSecurityTokenHandler().WriteToken(token));
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", new JwtSecurityTokenHandler().WriteToken(jwt));
         }
 
         using var response = await client.SendAsync(request);

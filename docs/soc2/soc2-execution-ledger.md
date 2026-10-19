@@ -1971,3 +1971,14 @@ Protected `S39.7-PROVIDER-DELIVERABLES-20261018-01` retains the exact human appr
 **Next action:** actual scoped management evidence self-review, followed by applicable task/story acceptance decisions when their gates are satisfied. No repeat architecture or exact test-action approval is needed. Deferred independent/qualified review remains distinct; later operating/deployed evidence and release remain separate gates. Before a later rollout, coordinate old cleanup-worker stop/upgrade; preserve unresolved holds; no automatic migration Down or old-binary fallback. Existing monitoring39.12/retention39.16 and unvalidated dependency-observation39.11 handoffs remain; no other story started. KEEP staging. No commit/push/tag/deploy, source disposal, account/permission/secret change or external scan occurred. All source/evidence/fixtures and the mismatch object remain retained; only the single expressly approved provider version was removed.
 
 ---
+
+
+# Story 39.7 stream recovery and failed CI reconciliation — October 18, 2026
+
+**Implemented:** recovered the interrupted execution at candidate `9af030ce`, draft PR #132. CI run `39173982319` finished with failures in backend shard 1, real-stack report verification before browser execution, and Secret scan. Other backend shards and frontend validation passed at that revision; these results do not validate subsequent changes. Failed evidence remains retained.
+
+**Implemented in source / verification pending:** renamed misleading test identifiers without changing the local secret heuristic; retained the exact anchored harmless-prose Gitleaks exception prepared before interruption; updated the real-stack rollback assertions for a persisted cleanup obligation and retained provider/database fixtures together. No new disposal target or operation was added. Local redacted Gitleaks history scan and whitespace validation passed; the hosted test/build rerun remains pending. Protected recovery reference: `stream-recovery-20261018-v1/checkpoint.json`.
+
+**Planned:** push the reviewed correction to the existing feature branch under the recorded hosted-CI action approval, then inspect its actual results. The original primary checkout, local service data and frozen evidence remain preserved.
+
+**Do not claim:** Story 39.4 inherited repository exposure is contained, release-authorized or closed. The later protected exposure checkpoint explicitly preserves the public release/tag hold; incremental checks and general deployment intent do not supersede it. No merge, tag, worker shutdown or Azure deployment is authorized at this boundary. All six Story 39.7 tasks remain Ready For Review; the story remains In Progress and unaccepted. Later evidence self-review and independent/qualified dependencies remain separate and pending/deferred as recorded.

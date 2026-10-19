@@ -17,6 +17,7 @@ using Gccs.Domain.Contracts;
 using Gccs.Domain.Evidence;
 using Gccs.Domain.Identity;
 using Gccs.Domain.Tenancy;
+using Gccs.Domain.Storage;
 using Gccs.Infrastructure.NoCui;
 using Gccs.Infrastructure.Persistence;
 using Gccs.Infrastructure.Persistence.Models;
@@ -154,7 +155,7 @@ public sealed class LaborApplicabilityRealStackTests : IClassFixture<WebApplicat
 
     [Story32RealStackFact]
     [Trait("Category", "RealStackIntegration")]
-    public async Task Wage_upload_uses_PostgreSQL_ClamAV_and_Azurite_and_cleans_up_after_audit_rollback()
+    public async Task Wage_upload_uses_PostgreSQL_ClamAV_and_Azurite_and_retains_durable_cleanup_after_audit_rollback()
     {
         var ids = StoryIds.Create();
         var failure = new AuditFailureInterceptor();
@@ -186,18 +187,27 @@ public sealed class LaborApplicabilityRealStackTests : IClassFixture<WebApplicat
                 Assert.Equal(HttpStatusCode.InternalServerError, rolledBack.StatusCode);
             failure.Enabled = false;
 
-            Assert.Equal(1, await CountTenantBlobsAsync(blobContainer, ids.TenantId));
+            // The failed write remains until the durable cleanup worker can process it.
+            Assert.Equal(2, await CountTenantBlobsAsync(blobContainer, ids.TenantId));
             using var verification = app.Services.CreateScope();
             var db = verification.ServiceProvider.GetRequiredService<GccsDbContext>();
             Assert.Single(await db.EvidenceFileVersions.Where(x => x.EvidenceItemId == ids.EvidenceId).ToArrayAsync());
+            var intents = await db.Set<ObjectWriteIntentEntity>().Where(x => x.TenantId == ids.TenantId).ToArrayAsync();
+            Assert.Equal(2, intents.Length);
+            Assert.Single(intents, x => x.State == ObjectWriteIntentState.Committed);
+            var pending = Assert.Single(intents, x => x.State == ObjectWriteIntentState.CleanupPending);
+            var cleanup = Assert.Single(await db.Set<ObjectCleanupEntity>().Where(x => x.TenantId == ids.TenantId).ToArrayAsync());
+            Assert.Equal(pending.Id, cleanup.ObjectWriteIntentId);
+            Assert.False(string.IsNullOrWhiteSpace(cleanup.ExpectedETag));
+            Assert.Single(await db.AuditLogEntries.Where(x => x.TenantId == ids.TenantId &&
+                x.EntityType == "EvidenceFileVersion" && x.Action == AuditAction.Uploaded).ToArrayAsync());
             Assert.Single(await db.AuditLogEntries.Where(x => x.TenantId == ids.TenantId &&
                 x.EntityType == "EvidenceUploadIntent" && x.Action == AuditAction.Rejected).ToArrayAsync());
         }
         finally
         {
             failure.Enabled = false;
-            await DeleteTenantBlobsAsync(blobContainer, ids.TenantId);
-            await DeleteFixturesAsync(app, ids);
+            // Retain provider bytes, write intents, business rows and audit evidence together.
         }
     }
 
