@@ -26,7 +26,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: "25"
+          node-version: "24.22.1"
 
       - name: Validate approved launch candidate synchronization
         run: npm run check:launch-candidate
@@ -172,7 +172,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: "25"
+          node-version: "24.22.1"
           cache: npm
 
       - name: Restore frontend dependencies
@@ -205,7 +205,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:17
+        image: postgres:17@sha256:a63c1ea3f6a3a5a1621f97d2aba3b30faecfab4224c1b0000cc85ced57bb1939
         env:
           POSTGRES_DB: gccs
           POSTGRES_USER: gccs
@@ -218,7 +218,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
       azurite:
-        image: mcr.microsoft.com/azure-storage/azurite:3.35.0
+        image: mcr.microsoft.com/azure-storage/azurite:3.35.0@sha256:647c63a91102a9d8e8000aab803436e1fc85fbb285e7ce830a82ee5d6661cf37
         env:
           AZURITE_ACCOUNTS: "gccs:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
         ports:
@@ -229,7 +229,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
       clamav:
-        image: clamav/clamav-debian:stable
+        image: clamav/clamav-debian:stable@sha256:d7ede3cefeaf3b8a72ebcdee849d13f504bbca3f3b3cfade5bc7b6ee06a4f62c
         ports:
           - 3310:3310
         options: >-
@@ -258,7 +258,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: "25"
+          node-version: "24.22.1"
           cache: npm
 
       - name: Setup .NET SDK

@@ -337,3 +337,49 @@ test("CI checkouts do not persist credentials beyond source acquisition", () => 
   }
   assert.deepEqual(observed, ["backend-prerequisites", "backend-tests", "frontend", "real-stack-critical-uat", "secret-scan"]);
 });
+
+test("workflow Node setups select the reviewed exact LTS version", async () => {
+  const observed = [];
+  for (const file of (await readdir(new URL("../../.github/workflows/", import.meta.url))).filter(name => /\.ya?ml$/.test(name)).sort()) {
+    const workflow = await readWorkflow(file);
+    const steps = [...workflow.matchAll(/^      - (?:name: [^\n]+\n        )?uses: actions\/setup-node@[^\n]+\n([\s\S]*?)(?=^      - |$(?![\s\S]))/gm)];
+    for (const [, body] of steps) {
+      assert.deepEqual([...body.matchAll(/^          node-version: ([^\n]+)$/gm)].map(match => match[1]), ['"24.22.1"'], file);
+      assert.doesNotMatch(body, /^          (?:node-version-file|check-latest):/m, file);
+    }
+    if (steps.length) observed.push([file, steps.length]);
+  }
+  assert.deepEqual(observed, [
+    ["approved-release-attestation.yml", 1],
+    ["azure-static-web-apps-mango-rock-016ff040f.yml", 1],
+    ["ci.yml", 3],
+    ["production-infrastructure-drift.yml", 1],
+    ["production-release.yml", 1],
+    ["production.yml", 2],
+    ["staging.yml", 1]
+  ]);
+});
+
+test("workflow SDK setups retain the exact repository SDK without roll-forward", async () => {
+  const sdk = JSON.parse(await readFile(new URL("../../global.json", import.meta.url), "utf8")).sdk;
+  assert.equal(sdk.version, "10.0.402");
+  assert.equal(sdk.rollForward, "disable");
+  let setups = 0;
+  for (const file of ["ci.yml", "production.yml", "staging.yml"]) {
+    for (const [, body] of (await readWorkflow(file)).matchAll(/^      - (?:name: [^\n]+\n        )?uses: actions\/setup-dotnet@[^\n]+\n([\s\S]*?)(?=^      - |$(?![\s\S]))/gm)) {
+      assert.match(body, /^          global-json-file: global.json$/m, file);
+      assert.doesNotMatch(body, /^          (?:dotnet-version|dotnet-quality):/m, file);
+      setups += 1;
+    }
+  }
+  assert.equal(setups, 5);
+});
+
+test("CI service images retain their reviewed content digests", () => {
+  const job = deploymentJob(ci, "real-stack-critical-uat");
+  assert.deepEqual([...job.matchAll(/^        image: ([^\n]+)$/gm)].map(match => match[1]), [
+    "postgres:17@sha256:a63c1ea3f6a3a5a1621f97d2aba3b30faecfab4224c1b0000cc85ced57bb1939",
+    "mcr.microsoft.com/azure-storage/azurite:3.35.0@sha256:647c63a91102a9d8e8000aab803436e1fc85fbb285e7ce830a82ee5d6661cf37",
+    "clamav/clamav-debian:stable@sha256:d7ede3cefeaf3b8a72ebcdee849d13f504bbca3f3b3cfade5bc7b6ee06a4f62c"
+  ]);
+});
