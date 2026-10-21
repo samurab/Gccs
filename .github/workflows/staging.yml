@@ -23,6 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      actions: read
       id-token: write
     environment:
       name: staging
@@ -55,13 +56,10 @@ jobs:
       DEMO_REQUESTS_ENDPOINT: ${{ vars.DEMO_REQUESTS_ENDPOINT }}
       DEMO_REQUESTS_SENDER_ADDRESS: ${{ vars.DEMO_REQUESTS_SENDER_ADDRESS }}
       DEMO_REQUESTS_RECIPIENT_ADDRESS: ${{ vars.DEMO_REQUESTS_RECIPIENT_ADDRESS }}
-      DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY: ${{ secrets.DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY }}
-      TASK_SEARCH_CURSOR_SIGNING_KEY: ${{ secrets.TASK_SEARCH_CURSOR_SIGNING_KEY }}
-      TASK_SEARCH_PREVIOUS_CURSOR_SIGNING_KEY: ${{ secrets.TASK_SEARCH_PREVIOUS_CURSOR_SIGNING_KEY }}
       CANDIDATE_TAG: ${{ github.event.inputs.candidate_tag }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 
@@ -88,11 +86,13 @@ jobs:
             test "$(jq -r '.object.type' <<<"$tag_ref")" = "commit"
             test "$(jq -r '.object.sha' <<<"$tag_ref")" = "$commit_sha"
             gh api "repos/${GITHUB_REPOSITORY}/commits/${commit_sha}" --jq '.commit.verification.verified' | grep -Fx true
+            node tools/release/release-evidence.mjs artifact-policy "$GITHUB_REPOSITORY" "$GITHUB_REPOSITORY_ID" "$commit_sha" "refs/tags/$candidate_tag"
             cp tools/release/validate-auth-config.mjs "$RUNNER_TEMP/validate-auth-config.mjs"
             cp tools/release/check-azure-settings.mjs "$RUNNER_TEMP/check-azure-settings.mjs"
             git checkout --detach "$commit_sha"
             bundle_name="fedril-${candidate_tag}"
           else
+            node tools/release/release-evidence.mjs artifact-policy "$GITHUB_REPOSITORY" "$GITHUB_REPOSITORY_ID" "$commit_sha" "$GITHUB_REF"
             release_version="$(jq -r '.version' release/version.json)"
             bundle_name="fedril-staging-${commit_sha}"
           fi
@@ -111,12 +111,12 @@ jobs:
           node tools/release/release-control.mjs migration-diff "$migration_base_ref" "$COMMIT_SHA"
 
       - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v6
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           global-json-file: global.json
 
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: "25"
           cache: npm
@@ -159,7 +159,7 @@ jobs:
             --output "$RUNNER_TEMP/gccs-staging-migrations.sql"
 
       - name: Generate release SBOM
-        uses: anchore/sbom-action@v0
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
         with:
           path: .
           format: spdx-json
@@ -191,6 +191,10 @@ jobs:
           (cd "$RUNNER_TEMP/release-bundle" && sha256sum * > SHA256SUMS)
 
       - name: Validate staging No-CUI and no production data guardrails
+        env:
+          DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY: ${{ secrets.DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY }}
+          TASK_SEARCH_CURSOR_SIGNING_KEY: ${{ secrets.TASK_SEARCH_CURSOR_SIGNING_KEY }}
+          TASK_SEARCH_PREVIOUS_CURSOR_SIGNING_KEY: ${{ secrets.TASK_SEARCH_PREVIOUS_CURSOR_SIGNING_KEY }}
         run: |
           test "$STAGING_CUSTOMER_DATA_MODE" = "synthetic-only"
           test -n "$DEMO_REQUESTS_ENDPOINT"
@@ -234,13 +238,17 @@ jobs:
           echo "API and web artifacts are deployed by the following workflow steps."
 
       - name: Login to Azure staging subscription
-        uses: azure/login@v3
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
       - name: Configure staging runtime dependencies
+        env:
+          DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY: ${{ secrets.DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY }}
+          TASK_SEARCH_CURSOR_SIGNING_KEY: ${{ secrets.TASK_SEARCH_CURSOR_SIGNING_KEY }}
+          TASK_SEARCH_PREVIOUS_CURSOR_SIGNING_KEY: ${{ secrets.TASK_SEARCH_PREVIOUS_CURSOR_SIGNING_KEY }}
         run: |
           malware_scanner_ip="$(az container show \
             --resource-group "$STAGING_RESOURCE_GROUP" \
@@ -325,7 +333,7 @@ jobs:
         run: node "$RUNNER_TEMP/check-azure-settings.mjs" staging
 
       - name: Deploy staging API App Service
-        uses: azure/webapps-deploy@v3
+        uses: azure/webapps-deploy@02a81bead70021f5284939794bcec79c271ab383 # v3
         with:
           app-name: ${{ env.STAGING_API_APP_NAME }}
           package: ${{ runner.temp }}/gccs-api-staging
@@ -340,7 +348,7 @@ jobs:
         run: node tools/release/write-runtime-config.mjs apps/web/dist/runtime-config.js
 
       - name: Deploy staging Static Web App
-        uses: Azure/static-web-apps-deploy@v1
+        uses: Azure/static-web-apps-deploy@1a947af9992250f3bc2e68ad0754c0b0c11566c9 # v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_MANGO_ROCK_016FF040F }}
           action: upload
@@ -397,7 +405,7 @@ jobs:
 
       - name: Upload staging smoke test results
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: staging-smoke-test-results
           path: |
@@ -406,7 +414,7 @@ jobs:
             ${{ runner.temp }}/gccs-staging-migrations.sql
 
       - name: Upload immutable staging bundle
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: ${{ env.BUNDLE_NAME }}
           path: ${{ runner.temp }}/release-bundle
@@ -423,7 +431,7 @@ jobs:
       attestations: write
     steps:
       - name: Download verified staging bundle
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
           name: ${{ needs.staging-deploy.outputs.bundle_name }}
           path: ${{ runner.temp }}/release-bundle
@@ -432,7 +440,7 @@ jobs:
         run: cd "$RUNNER_TEMP/release-bundle" && sha256sum --check SHA256SUMS
 
       - name: Attest candidate build provenance
-        uses: actions/attest-build-provenance@v3
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
         with:
           subject-path: ${{ runner.temp }}/release-bundle/*
 
