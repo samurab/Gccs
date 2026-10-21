@@ -1,3 +1,32 @@
+## Latest Worktree Reconciliation — October 21, 2026
+
+**Implemented locally:** Story39.8 checkout credential settings and exact runtime/
+image selectors are integrated by task, retaining verified release guards.74focused
+tests pass under Node24.22.1; version0.2.1 remains synchronized. The Story39.13
+sanitized summary now reflects its actual scoped fictional-discussion/planning
+adoption, coordination owner and December15planning review. No operational retest,
+full task/story acceptance or new publication/release approval is inferred.
+
+Primary inventory at collection:93pending entries,51identical to existing
+publication-source content. Differences include newer workflow/runtime/docs,
+three older test variants superseded by already tested release corrections, and
+protected governance originals. The stale test variants are retained in primary;
+verified release fixes remain selected. Raw originals are not copied into the
+publication candidate. All primary files, staged index, worktrees, old local
+commits and source metadata remain preserved. No reset, switch, cleanup or removal.
+
+**Held / actual user instruction:** publication/release hold remains in place.
+The user-guide wording was an illustrative example with no approval. Before any
+publication, present exact existing files/versions, destination URL/page and
+finite disclosure-review results for separate actual approval. The general
+organize/commit/deploy request does not itself supply that scoped decision. Known
+inherited artifact/whole-tree redistribution and hosted-runner file-action gates,
+legacy-worker sequencing, current candidate CI/UAT/artifacts and actual promotion
+approval remain unresolved. No public ref, PR update, merge, tag, provider change,
+staging/production deployment or background release runner is claimed.
+
+---
+
 ## Publication content correction — October 21, 2026
 
 **Implemented locally:** finite publication review identified provider-derived
