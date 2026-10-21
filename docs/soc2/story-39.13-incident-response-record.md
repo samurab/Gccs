@@ -9,6 +9,28 @@ existing39.4template family. **Partially implemented:** T04 record templates.
 incident-plan decisions, consolidated exercise report and corrective-action review. **Do not claim:**
 real incident evidence, a completed/accepted exercise, legal-clock decisions or sent messages.
 
+## Scoped Discussion Approval And Follow-Up Planning — October 21, 2026
+
+**Implemented:** `S39.13-TABLETOP-MGMT-20261021-01` records actual management
+self-review of the fictional-discussion record and adoption of seven follow-up
+planning items. FR-01 coordination ownership and a planning review on
+December15,2026 at17:00EST (22:00UTC) are recorded. This time applies to this
+planning review only; the separate Story39.4 review has no supplied time.
+
+**Partially implemented:** T05/T06. Specialist/executor assignments, prerequisites,
+separately authorized retests and actual operating results remain open. Adoption
+of a discussion record does not accept full tasks/story or establish completed
+remediation, recovery, independent review or publication/release authority.
+Original replies, detailed planning records and earlier versions remain protected;
+no raw receipt or identifying incident details are reproduced here. Existing
+intake, No-CUI, preservation and actual release gates remain unchanged.
+
+Earlier pending-discussion-review/coordination/deadline statements below retain
+their historical cutoff and are superseded only within this scoped decision.
+No repeated approval of that record/planning decision is requested.
+
+---
+
 ## Actual Synthetic Tabletop D Response And Full-Story Status Clarification — 2026-10-21
 
 `S39.13-TABLETOP-D-RESPONSE-20261021-01` preserves FR-01's actual response to fictional monitoring
