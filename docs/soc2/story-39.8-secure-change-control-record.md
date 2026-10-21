@@ -4,6 +4,34 @@ Status: **In Progress — T01 definition Accepted; T02–T06 remain open.**
 Recorded October 19, 2026, America/New_York. The backlog's Planned label remains
 source history; this execution record does not accept the story.
 
+## Local Checkout And Runtime Reconciliation — October 21, 2026
+
+**Implemented locally:** six CI/preview checkout declarations now avoid persisting
+Git credentials into later build steps. Ten setup-node declarations select
+Node24.22.1; repository SDK selection is10.0.402 with roll-forward disabled.
+Three CI service images use reviewed content digests. README prerequisites match.
+These finite primary-source changes were merged without replacing the release
+branch's policy/provenance checks, secret scopes, test-worker isolation or browser/
+APT preservation guards. Primary originals and index remain unchanged by this unit.
+
+**Verified locally:** five new regressions failed before their corresponding
+corrections; the resulting workflow/evidence/rollback/release-control population
+passes74tests,0failed/0skipped, executed with the retained Node24.22.1 runtime.
+Canonical release metadata remains0.2.1. Prior app-source tests retain their own
+scope; no application release build, image pull/health test or hosted exercise
+was performed for this reconciliation. Exact SDK availability is a dependency;
+no newer feature-band fallback is selected. Pinning does not prove security
+freshness. Early staging control commands still use runner-provided Node, and
+historical rollback SDK selection follows its checked-out source.
+
+**Partially implemented:** runtime/admission and operating assurance. Actual
+management publication review, inherited-artifact disposition, applicable runner
+file-action authority, candidate CI/UAT/artifacts and release approval remain open.
+No source removal, branch switch, credential/provider action, push, merge, release
+tag or deployment occurred. Technical review is not management or independent
+assurance approval. T01 definition remains its only scoped acceptance; no full
+T04/story acceptance is inferred.
+
 ## Release prerequisite correction — October 21, 2026
 
 **Implemented locally; hosted operation unverified.** The deployment controller now
@@ -444,7 +472,7 @@ by these drafts. The 39.4 exposure hold and KEEP staging remain.
 | T01 / Accepted — definition only | Actual FR-01 review/adoption and nine-area procedure-definition acceptance, bound to the unchanged reviewed hash | No further T01 definition approval requested; identity/reviewer/control/operation checks remain T02–T06; no full story or operating-effectiveness acceptance |
 | T02 / In Progress | Finite source-control/environment observations and access limitations are retained in protected custody; effective identity/reviewer/enforcement verification remains incomplete | Complete identity/workload and independent-reviewer binding; prepare separately authorized allowed/denied tests. Settings are not effective-operation evidence; T02 not accepted |
 | T03 / In Progress | Existing sole-founder conflict and concrete compensating-review decisions mapped; no invented second approver or exception | Appoint/verify an eligible reviewer when available; actual management decides scoped settings/exception only after capability, availability and recovery effects are known |
-| T04 / In Progress | Five local corrections verified, including six secret-consuming scopes and two expected-signer definitions;47tests pass; full source/semantic and technical review passed | Actual workload/reviewer/PR isolation, signed source/ref/run binding, runtime trust and hosted-provider behavior remain open; no same-runner isolation, cryptographic-operation or full-task acceptance/publication claim |
+| T04 / In Progress | Additional checkout/runtime pin corrections and exact release evidence checks are implemented locally;74focused tests pass. Earlier five-correction samples retain historical scope | Actual workload/reviewer/PR isolation, signed source/ref/run binding, runtime trust and hosted-provider behavior remain open; no same-runner isolation, cryptographic-operation or full-task acceptance/publication claim |
 | T05 / In Progress | Eight requirement/source rows and two finite risk-based local change/test samples reconciled with39.11; definitions reused with explicit CI token-only delta | Actual review, enabled asset/scanner population, finding-based gates/reports, suppression decisions and remediation/retest remain open; no current clean-result or new scan claimed |
 | T06 / Blocked | Existing PR check sample indexed; emergency log explicitly says no event/exercise performed | Prepare exact safe synthetic change/denial/emergency scenario after review-model and identity prerequisites; obtain any target-specific external action authority. Capture actual review-to-artifact/deploy/post-check/rollback chain without bypassing exposure/release holds |
 
