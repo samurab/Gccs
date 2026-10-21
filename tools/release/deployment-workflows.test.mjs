@@ -303,3 +303,37 @@ test("artifact policy records its event-derived full ref, SHA and history scope"
   assert.ok(policy.includes('SENSITIVE_ARTIFACT_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}'));
   assert.ok(policy.includes('node tools/security/check-sensitive-artifacts.mjs --changed-since "$SENSITIVE_ARTIFACT_BASE_SHA"'));
 });
+
+test("preview checkout does not persist credentials into later build steps", () => {
+  const job = deploymentJob(previews, "build_and_deploy_job");
+  const checkouts = [...job.matchAll(/^      - uses: actions\/checkout@[^\n]+\n([\s\S]*?)(?=^      - |$(?![\s\S]))/gm)];
+  assert.equal(checkouts.length, 1, "Expected one preview source checkout");
+  const inputs = checkouts[0][1];
+  assert.match(inputs, /^        with:\n/m);
+  assert.deepEqual([...inputs.matchAll(/^          persist-credentials: ([^\n]+)$/gm)].map(match => match[1]), ["false"]);
+  assert.match(inputs, /^          submodules: true$/m);
+  assert.match(inputs, /^          lfs: false$/m);
+  assert.ok(checkouts[0].index < job.indexOf("      - name: Build web artifact"));
+});
+
+test("CI checkouts do not persist credentials beyond source acquisition", () => {
+  const jobs = [...topSection(ci, "jobs").matchAll(/^  ([A-Za-z_][A-Za-z0-9_-]*):$/gm)].map(match => match[1]);
+  const observed = [];
+  for (const name of jobs) {
+    const job = deploymentJob(ci, name);
+    const checkouts = [...job.matchAll(/^      - (?:name: [^\n]+\n        )?uses: actions\/checkout@[^\n]+\n([\s\S]*?)(?=^      - |$(?![\s\S]))/gm)];
+    if (name === "backend") {
+      assert.equal(checkouts.length, 0, "Summary job must not acquire source credentials");
+      continue;
+    }
+    assert.equal(checkouts.length, 1, `${name} has one source checkout`);
+    assert.deepEqual([...checkouts[0][1].matchAll(/^          persist-credentials: ([^\n]+)$/gm)].map(match => match[1]), ["false"], name);
+    if (name === "secret-scan") {
+      assert.match(checkouts[0][1], /^          fetch-depth: 0$/m);
+      assert.match(job, /^          GITHUB_TOKEN: \$\{\{ secrets\.GITHUB_TOKEN \}\}$/m);
+      assert.match(job, /^          GITLEAKS_LICENSE: \$\{\{ secrets\.GITLEAKS_LICENSE \}\}$/m);
+    }
+    observed.push(name);
+  }
+  assert.deepEqual(observed, ["backend-prerequisites", "backend-tests", "frontend", "real-stack-critical-uat", "secret-scan"]);
+});
