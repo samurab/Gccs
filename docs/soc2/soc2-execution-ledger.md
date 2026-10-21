@@ -1,3 +1,151 @@
+## Publication content correction — October 21, 2026
+
+**Implemented locally:** finite publication review identified provider-derived
+control/access details and verbatim intake replies in the new public counterparts.
+Those passages are now summarized with evidence references; the internal originals
+and original local commits remain preserved. No application/workflow/test source
+changed in this content correction. Earlier source-verification results retain
+their exact source scope; they are not publication or deployment evidence.
+
+**Planned:** a separately prepared publication history starts from the existing
+public PR head and introduces only reviewed current versions, grouped by task.
+The original local history is retained; a tip-only redaction would still expose
+its intermediate versions. No history rewrite, reset, source removal or force push
+is authorized or performed. The finite review does not classify inherited content:
+the existing prohibited artifact remains in the ancestor/current tree, and any
+new public commit can create another address/source archive for that tree.
+
+**Actual authority pending:** the exact reviewed set needs management publication
+disposition, including that whole-tree consequence. Hosted-runner file actions,
+merge, release tags/assets, staging, production and incident containment retain
+their own gates. No human approval is inferred from the instruction to fix clearance;
+no new provider run, publication or deployment is claimed. Primary originals remain
+under the other SOC2 chat's ownership and unchanged by this unit.
+
+---
+
+## Release prerequisites corrected locally — October 21, 2026
+
+**Implemented locally / Partially verified:** source commit `35c94d19` adds
+deployment policy checks that bind the
+full branch/tag ref and event history scope, rejecting a same-name branch result
+for a tag. Promotion checks successful approved staging-run metadata and verifies
+each artifact's certificate identity against that run/attempt and dispatch source.
+The controller retains existing signed main ancestry, immutable tags, digest and
+approval checks. See the current Story39.8 release prerequisite correction for
+verification scope and trust dependencies.69focused tests passed;9YAML/18jobs and
+83Bash blocks parsed. Actual cryptographic and hosted allowed/denied behavior remain
+unverified. No prohibited blob was inspected or clearance manufactured.
+
+**Current source ownership:** this chat owns the isolated release branch. Another
+active SOC2 chat owns primary originals; the five previously fingerprinted workflow/
+test/record sources were integrated as a finite snapshot, not a current whole-tree
+synchronization. Earlier91-file hash statements describe their earlier snapshots.
+All sources remain in place. Later primary changes need a new finite reconciliation.
+Local commits are preparation, not publication or deployment evidence.
+
+**Actual decisions already recorded:** Path A remains selected; continued preparation
+while public was permitted; next management review is December15,2026. Those facts
+do not clear the candidate for publication. Do not repeat the resolved choice,
+payer category, reason or review date. Independent SOC2 program acceptance is not
+a universal prerequisite for every application release.
+
+**Remaining release chain:** actual disposition of the finite publication set and
+inherited-artifact incident/containment scope; exact hosted-runner action authority;
+then authorized publication/hosted checks and verified legacy-worker sequencing;
+then fresh signed candidate, authenticated staging evidence and immutable artifacts;
+then actual candidate-specific approval/attestation and protected production gates.
+The0.1.1approval remains unchanged. No new push/merge/tag/deployment or background
+runner is claimed. New code will enforce checks only after authorized publication.
+
+---
+
+## Current versioned release preparation — October 21, 2026
+
+**Implemented locally:** thirteen scoped follow-up commits through `c5ca87b2062a0df3bce84791ac13f4f38e9d342a` are prepared on the existing Story39.7 release branch, extending previously pushed/tested `7fd2ee12ac7b8155931699ea9f1bf8204a17b87f`. Groups: Story39.8 workflow trust/input corrections; SOC2 execution and file-preservation guidance; seven sanitized Story39.8–39.13/39.15 records; bounded Story39.4 publication/containment status; compatible version0.2.1; documentation consistency corrections. This record-only follow-up supplies no new runtime change or approval. Primary originals remain in place; all91 inventoried file hashes are unchanged. No cleanup, move, archive, branch switch, worktree removal, ref deletion or credential/permission mutation occurred.
+
+**Verification:**31 focused workflow tests and21 release/rollback-control tests passed,0failed/0skipped. Nine workflows with18jobs parsed;83Bash run blocks passed syntax checks. Skill/source parity and structural validation passed. Canonical version metadata is synchronized to0.2.1; dependency versions are unchanged. The public task index retains144IDs;48intended rows changed,96otherrows unchanged. Local Markdown file links and scoped whitespace pass. Existing CI fixture/browser corrections remain intact. Source and release technical reviewers found no material surviving issue in their bounded reviews; they are not independent SOC2 reviewers or management approvers.
+
+**Source binding:** current publication-counterpart contract SHA-256 `d59c46a188e3def91925f51848973bff85dbae60362a9c9bd89e58f0d52464ce`. The final one-line citation correction marks an absent historical assessment unavailable; task obligations did not change. Earlier hashes continue to identify their original primary/protected inputs and are not silently replaced. No protected receipt or raw operational evidence was copied wholesale into this candidate.
+
+**Not executed / not established:** new hosted CI, fresh complete application regression/release build, current-version staging UAT, tag/candidate publication, approved-manifest update or production promotion. Prior successful CI39180358383 and artifact-policy39180358296 belong to7fd2ee12; they do not verify these new workflow/version bytes. Existing runtime source matches that prior verified candidate; historical provider/local evidence retains its finite scope. Full task/story acceptance, independent/qualified review and sustained effectiveness remain open.
+
+**Exact held operations:** new public branch publication remains subject to the current Story39.4 publication/containment disposition and per-set content review. Updating draft PR132 would start hosted CI containing file-removal/rename actions. Fresh exact-target authority is absent for that future run; dynamic runner targets must be inventoried before any source removal. User instruction to organize/commit/push/deploy does not grant removal, concealment or review/check bypass. Preserve all current source/outputs and existing release history.
+
+Before merge, establish old cleanup-worker quiescence across the affected environment; retain cleanup pause through migration and verified new-binary rollout. No automatic migration Down or old-binary fallback. Production additionally needs the exact immutable staged candidate, authenticated evidence, actual approval/attestation manifest and protected environment gates. Existing approved0.1.1manifest remains unchanged. A version number and technical review do not supply those decisions.
+
+Next actual decision: review the finite publication set and current hold, then prepare/review exact hosted-runner file-action inventory before dependent publication/CI. Continue only approved scope; source disposal and historical containment are separate exact-target operations. No external run was initiated and no background deployment runner is active.
+
+---
+
+## Current release and publication preparation — October 21, 2026
+
+**Partially implemented:** the current management-policy record permits reviewed source, tests, infrastructure definitions, schemas/migrations, deliberately synthetic fixtures and sanitized summaries as candidate publication classes. This is a format/scope policy, not per-file clearance, restricted-artifact classification, containment, or release approval. Raw evidence, customer/personnel/access records, secrets, database dumps and restricted incident/system details remain excluded. The revised October 19 decision supersedes the earlier narrower publication-class statement only within its actual recorded scope.
+
+**Implemented preparation:** the current local release candidate separates Story 39.7 runtime corrections, Story 39.8 workflow corrections, execution guidance and later sanitized story summaries. Primary originals and protected evidence stay in place. New source publication, tags and deployments have not occurred in this October 21 preparation. Earlier PR #132 remains a draft with successful checks at its historical head; those results are not a fresh test result for the modified candidate.
+
+**Planned:** obtain the concrete current publication/containment decision and exact file-action approvals before dependent external operations. Contents/provenance of the restricted artifact remain unknown; no inspection, history rewrite, visibility/permission/credential change or source disposal is authorized by this record. The exposure remains uncontained; deferred independent and qualified dependencies remain open. Metadata preparation and management self-review do not establish independent validation or final Story 39.4 acceptance.
+
+Complete recent management, billing, access and operational receipts remain in the original protected custody and unchanged primary records. Their detail is deliberately excluded from this public counterpart. Historical sections below retain their own cutoffs; an earlier review date or proposal is not a newly performed decision.
+
+---
+
+## Story 39.15 publication preparation checkpoint — October 21, 2026
+
+**Partially implemented:** Prospective license-validation dependency is a publisher-declared behavior, not verified actual transfer, approved vendor onboarding, or completed diligence.
+
+The public story record and its six task-index rows reflect the current bounded preparation. Independent/qualified review remains unassigned or deferred where stated; no new management self-review or story acceptance is inferred. Complete protected evidence and historical source bindings remain in their original custody. Source document SHA-256: `9fe92fc2de22b54a4904d92c3ad82ac6dc2d372675ca02605a9ff3abb8df3c8d`. These local commits are not publication or deployment evidence; Story 39.4 publication/release holds remain.
+
+---
+
+## Story 39.13 publication preparation checkpoint — October 21, 2026
+
+**Partially implemented:** Four fictional tabletop responses were recorded; consolidated lessons/actions, actual review and whole-task acceptance remain open. Historical cross-story observations retain their own cutoffs.
+
+The public story record and its six task-index rows reflect the current bounded preparation. Independent/qualified review remains unassigned or deferred where stated; no new management self-review or story acceptance is inferred. Complete protected evidence and historical source bindings remain in their original custody. Source document SHA-256: `9fe92fc2de22b54a4904d92c3ad82ac6dc2d372675ca02605a9ff3abb8df3c8d`. These local commits are not publication or deployment evidence; Story 39.4 publication/release holds remain.
+
+---
+
+## Story 39.12 publication preparation checkpoint — October 21, 2026
+
+**Partially implemented:** Inventory and source preparation do not establish live alert delivery, operator response, complete telemetry coverage, or sustained operation.
+
+The public story record and its six task-index rows reflect the current bounded preparation. Independent/qualified review remains unassigned or deferred where stated; no new management self-review or story acceptance is inferred. Complete protected evidence and historical source bindings remain in their original custody. Source document SHA-256: `9fe92fc2de22b54a4904d92c3ad82ac6dc2d372675ca02605a9ff3abb8df3c8d`. These local commits are not publication or deployment evidence; Story 39.4 publication/release holds remain.
+
+---
+
+## Story 39.11 publication preparation checkpoint — October 21, 2026
+
+**Partially implemented:** Source and historical scanner outcomes are bounded by their exact revisions. No new scanner execution, current clean-result claim, suppression approval, or dependency risk acceptance is supplied.
+
+The public story record and its six task-index rows reflect the current bounded preparation. Independent/qualified review remains unassigned or deferred where stated; no new management self-review or story acceptance is inferred. Complete protected evidence and historical source bindings remain in their original custody. Source document SHA-256: `9fe92fc2de22b54a4904d92c3ad82ac6dc2d372675ca02605a9ff3abb8df3c8d`. These local commits are not publication or deployment evidence; Story 39.4 publication/release holds remain.
+
+---
+
+## Story 39.10 publication preparation checkpoint — October 21, 2026
+
+**Partially implemented:** Metadata-only preparation does not establish complete credential populations, rotation, recovery, or actual control effectiveness. No secret values are included.
+
+The public story record and its six task-index rows reflect the current bounded preparation. Independent/qualified review remains unassigned or deferred where stated; no new management self-review or story acceptance is inferred. Complete protected evidence and historical source bindings remain in their original custody. Source document SHA-256: `9fe92fc2de22b54a4904d92c3ad82ac6dc2d372675ca02605a9ff3abb8df3c8d`. These local commits are not publication or deployment evidence; Story 39.4 publication/release holds remain.
+
+---
+
+## Story 39.9 publication preparation checkpoint — October 21, 2026
+
+**Partially implemented:** Source inventories remain separate from current effective production network access and operating-period evidence. No new provider change or acceptance is supplied.
+
+The public story record and its six task-index rows reflect the current bounded preparation. Independent/qualified review remains unassigned or deferred where stated; no new management self-review or story acceptance is inferred. Complete protected evidence and historical source bindings remain in their original custody. Source document SHA-256: `9fe92fc2de22b54a4904d92c3ad82ac6dc2d372675ca02605a9ff3abb8df3c8d`. These local commits are not publication or deployment evidence; Story 39.4 publication/release holds remain.
+
+---
+
+## Story 39.8 publication preparation checkpoint — October 21, 2026
+
+**Partially implemented:** T01 definition Accepted only; T02–T06 and the story remain open. Three local workflow corrections are represented in commit 579951ce; 31 tests passed on the integrated workflow file. Historical 43-case evidence remains its original focused/adjacent population.
+
+The public story record and its six task-index rows reflect the current bounded preparation. Independent/qualified review remains unassigned or deferred where stated; no new management self-review or story acceptance is inferred. Complete protected evidence and historical source bindings remain in their original custody. Source document SHA-256: `9fe92fc2de22b54a4904d92c3ad82ac6dc2d372675ca02605a9ff3abb8df3c8d`. These local commits are not publication or deployment evidence; Story 39.4 publication/release holds remain.
+
+---
+
 ## Current release execution checkpoint — October 18, 2026
 
 Recorded 2026-10-18T21:55:17.078393+00:00. **Planned release; no deployed-effectiveness or story acceptance claim.** The latest user request authorizes commit, push and staging/production release preparation for all pending worktree changes, subject to application-integrity and required release gates. It supersedes historical KEEP staging as release intent only; it does not establish new management evidence self-review, task/story acceptance or independent/qualified review.
