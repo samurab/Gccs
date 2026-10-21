@@ -282,14 +282,71 @@ rules, tests, and No-CUI product posture.
 
 ## Working Procedure
 
+### SOC 2 autonomy and bounded execution
+
+For Stories 39.1–39.23, use section 39's shared execution contract and dependency
+gates. On every execution request, briefly identify material prompt inefficiency
+and supply a better bounded instruction if needed; then act without waiting for
+approval of the wording. Do not manufacture flaws or repeat the critique after
+each routine continuation. A checkpoint is an execution boundary, not a request
+for the founder to say "continue".
+When architecture is flawed, analyze and state the corrected pattern before
+coding. Proceed with an already-authorized bounded compatible correction; hold
+unresolved breaking decisions or otherwise gated actions, not the entire queue.
+
+- Verify technical answers through relevant code, tests, docs and scoped live
+  GitHub/Azure reads before asking. Discover available tools first; do not ask
+  the founder to design a technical solution or paste obtainable configuration.
+  Inspect only sources relevant to the question; do not make local, Azure,
+  GitHub and web checks a mandatory repeated sequence. Repair workflow rules only
+  for demonstrated defects; adequate prompts need no rewrite or new configuration.
+  Record inaccessible facts as unverified. Never expose secrets, restricted
+  evidence or provider identifiers in chat or public Git.
+- Use numeric story order as default priority, with immediate 39.4 exposure
+  triage. After setup, continue independent 39.5–39.17 work whose actual
+  prerequisites are met. A blocked approval or deferred reviewer stops the
+  affected operation, not every other authorized task. Preserve live-risk,
+  protected-evidence, release, independent-review and final-acceptance gates.
+- Select the smallest remaining unit with task ID, finite affected-path and
+  requirement inventory, allowed actions, evidence and verification outcome.
+  Continue selecting eligible work until the authorized scope is exhausted or
+  no safe eligible task remains. Do not automatically end with a handoff.
+- Delegate independent read-heavy discovery to `grunt`, dependency/coverage
+  mapping to `planner`, and consequential technical review to `soc2_reviewer`
+  when useful. Read `.codex/agents/<role>.toml` if the client does not discover
+  those roles. Inherit the current model and permissions. These role instructions
+  do not create a separate sandbox or constitute an independent compliance review.
+  Use only roles needed; root owns canonical records and shared-file edits.
+  Assign disjoint files or isolated checkouts for delegated edits. Do useful
+  independent work while agents run; join their results before dependent actions.
+- Keep a compact current checkpoint in the existing ledger/story record:
+  task, source-document hash, candidate SHA plus uncommitted-file fingerprints,
+  environment, verified results and limitations, pending session/run IDs,
+  authorization scope, blockers, and exact next action. Store restricted details
+  only in approved protected evidence. Reconcile live state after interruption
+  before replay; completion of a chat turn is not proof of task completion.
+- Reuse verification only for unchanged relevant source/configuration,
+  environment, population and freshness. Run the High/Release checks required
+  by the affected boundary; do not run whole-repository checks for record-only
+  edits or repeat passed CI merely because a chat disconnected. Diagnose a failed
+  check before retry. Treat uncertain external outcomes as reconciliation work.
+- Treat missing evidence as an open requirement, not success or N/A. Separate
+  technical verification, operating evidence, management review, independent
+  review and release. End only with a truthful closure or precise unavailable
+  dependency/decision after other eligible authorized work is exhausted.
+  An active external run may be checkpointed as pending; do not consume repeated
+  turns with unchanged polling or claim unattended continuation without a runner.
+
 Before editing:
 
 1. Read only the relevant implementation, tests, specifications, and reference
    documents.
 2. Summarize current behavior, compatibility surface, verification level, and
    the smallest safe change.
-3. State planned files and tests. Wait for confirmation only when the change is
-   large, risky, broad, or requires a compatibility decision.
+3. State planned files and tests. Use risk to choose verification. Proceed with
+   already-authorized bounded work; size or risk alone does not require another
+   confirmation. Obtain a concrete decision for an unresolved breaking change,
+   scope expansion or action requiring fresh approval under the applicable rules.
 
 After editing:
 

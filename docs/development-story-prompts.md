@@ -5755,11 +5755,11 @@ Implement Story 38.3, "Enclave Access, Export, And Support Controls," from `docs
 
 Revision: 2026-09-19. This is the consolidated execution backlog for the SOC 2 program, not evidence that the work has been completed. It expands the original governed Stories 39.1–39.3 in [development-phase-use-cases.md](development-phase-use-cases.md). Stories 39.4–39.23 are new delivery stories defined here; do not assume they already exist in that source backlog or its test inventory. Preserve the original three IDs and titles. Do not register this section with the automatic software story sequence: some tasks require management, legal, cloud-administrator, or independent CPA action.
 
-The [2026-09-19 assessment](soc2-readiness-assessment.md) is the starting evidence snapshot, not a current production-state guarantee. Its 36 checklist items and 15 gap IDs are mapped below. Its proposed story additions are incorporated here. Preserve that historical assessment; record subsequent evidence, decisions, and remediation separately.
+**Unavailable historical evidence:** the referenced 2026-09-19 assessment at `docs/soc2-readiness-assessment.md` is absent from this checkout. The 36 checklist items, 15 gap IDs and proposed story additions below are inherited references, not verified current findings or a production-state guarantee. Preserve the dated original if it becomes available; record subsequent evidence, decisions and remediation separately.
 
 ### Execution Order And Stage Gates
 
-Run the setup portions of 39.1, 39.2, and 39.3 first, then follow 39.4–39.23 in numeric order. **Exception: begin 39.4 exposure triage immediately if exposure is still plausible; do not wait for governance paperwork.** Stories 39.1–39.3 are parent workflows: their setup gates permit child work; their final closure requires child evidence. Do not create a circular dependency by demanding their final closure before starting the children.
+Run the setup portions of 39.1, 39.2, and 39.3 first, then use numeric order as the default priority for eligible work in 39.4–39.23, subject to the independent-work allowance below. **Exception: begin 39.4 exposure triage immediately if exposure is still plausible; do not wait for governance paperwork.** Stories 39.1–39.3 are parent workflows: their setup gates permit child work; their final closure requires child evidence. Do not create a circular dependency by demanding their final closure before starting the children.
 
 | Order | Story | Work and gate | When |
 | --- | --- | --- | --- |
@@ -5804,7 +5804,89 @@ Copy this contract together with the selected story, or have the executing agent
 7. Governance stories create drafts, registers, templates and supported decision records; an agent cannot sign management assertions, perform an independent CPA examination, appoint itself approver, execute a recurring human review merely by documenting it, or claim a report was issued.
 8. Preserve No-CUI, server-side RBAC, tenant isolation, audit atomicity, safe error handling and evidence traceability. SOC 2 does not authorize CUI processing or substitute for CMMC, FedRAMP, legal advice or government approval. Never use “SOC 2 certified”; prefer exact reviewed report wording. No checklist guarantees a favorable opinion or eliminates residual risk.
 9. Close a gap only after an authorized reviewer validates the specific design, implementation or operating deficiency and retest evidence. Record failures, interim safeguards, risk acceptance, reviewer conflicts, deadline, escalation and remaining risk. Acceptance does not erase historical failures or bind the auditor's opinion.
-10. Every execution must end with tasks completed/not completed, changed files/configurations, evidence references, exact verification commands/results, skipped checks, human actions/approvals still required, residual risks, updated register entries and the next unblocked story/task. Draft documentation alone is never completion of an operating control.
+10. At material transitions update the existing register, ledger and applicable story record. Continue the next eligible authorized task without waiting for a "what's next" request. When ending a run, report tasks completed/not completed, changed files/configurations, evidence references, exact verification commands/results, skipped checks, human actions/approvals still required, residual risks and the exact continuation point. Draft documentation alone is never completion of an operating control.
+
+#### Efficient Execution And Recovery — 2026-10-19
+
+**Implemented:** these are agent workflow instructions. **Planned:** any unattended
+supervisor, automatic retry service or background runner; none is established by
+this document. **Do not claim:** guaranteed uninterrupted execution, zero defects,
+fulfilled review or gap closure without evidence. Existing acceptance criteria,
+task IDs, safety rules and final gates remain authoritative.
+
+- Inspect each incoming execution prompt for actual redundancy, ambiguity,
+  conflicting gates or unbounded scope. Briefly give a better operational prompt
+  when needed and execute under existing authorization; do not ask the founder
+  to approve routine wording. Do not turn prompt improvement into a separate task.
+- Read the current contract and selected story once per execution context; use
+  targeted sections and changes thereafter. Reconcile prior evidence rather than
+  redoing a complete readiness assessment at every checkpoint. Remap requirements
+  when the source hash changes without discarding still-valid historical evidence.
+- Root owns the eligible queue and canonical record writes. Use the existing
+  `soc2-program-task-index.csv` for task metadata, evidence inventory for evidence
+  references, execution ledger for the current queue and resume checkpoint, and
+  story records for requirement dispositions. Do not create a competing tracker.
+- Complete bounded units: task ID, explicit affected-path/requirement inventory,
+  allowed targets/actions, acceptance checks, evidence and limitations. Newly
+  discovered in-scope defects are remediated and verified; additional obligations
+  are mapped to their owning story and gate impact, not silently dropped or used
+  to expand the current investigation indefinitely. Critical risks receive prompt
+  triage. Preserve complete affected-boundary verification.
+- Resolve technical questions from code, tests, provider documentation and scoped
+  authorized GitHub/Azure reads. Availability of a connector is not proof of
+  effective permission. Verify actual access without exposing secrets or sensitive
+  identifiers. If access fails, record the unavailable evidence and continue
+  independent local work. Ask only for a genuine unavailable fact, authority,
+  business decision or human review; provide a prepared recommendation.
+- Delegate independent discovery, coverage mapping and technical review using
+  `.codex/agents/` roles when worthwhile. Root retains technical decisions and
+  sole ownership of canonical registers. Do not require all roles for every task,
+  duplicate the same inspection, or treat agent review as independent assurance.
+  Do not create new user-owned chats unless explicitly requested.
+- Before and after external actions, record intent and verified result in the
+  existing checkpoint: source hash, task, candidate SHA/uncommitted fingerprints,
+  environment, evidence references, checks, authorization scope and exact pending
+  run/session identifier. Restrict sensitive details to approved custody. After a
+  disconnect, query actual state first; never blindly repeat a mutation. Reuse
+  passing verification only when relevant inputs, environment and freshness match.
+- A blocked operation remains blocked while other dependency-satisfied authorized
+  work continues. Check deferred review dependencies at story checkpoints, not
+  every tool call. Prepare a single concrete human decision packet where needed.
+  Never infer approval from silence, technical tests, a role appointment or time.
+- Before acceptance, reconcile every requirement with actual evidence and reviewer
+  decision. Track unknown, failed, skipped, deferred and unavailable scope
+  explicitly. Report technical progress separately from story acceptance and
+  release. Do not mark a whole story accepted merely to permit independent work.
+- Repair workflow instructions only for demonstrated defects or missing useful
+  behavior; do not repeat configuration optimization before every story. Inspect
+  only sources relevant to a factual question, rather than mandating a fresh
+  repository/cloud/web inventory every time. Reuse the existing task/register
+  statuses and blocker fields. Technical agent review is not independent assurance,
+  and a cleanup assignment never substitutes for exact file-disposal authorization.
+- For repeated stream failures, retain sanitized failure time, client/version,
+  affected run and checkpoint; investigate supported client/connection/proxy/service
+  evidence without secret-bearing logs or invented root causes. Use at most two
+  retries after an initial transient read failure with short backoff; do not retry
+  denied permissions or interactive-authentication failures unchanged. Mutation
+  outcomes require reconciliation. Do not weaken security or invent configuration
+  settings to suppress transport failures. See the orchestrator recovery procedure.
+
+Reusable execution prompt (applies with every story's existing detailed prompt):
+
+> Act as FeDril's SOC 2 execution lead. Verify the repository root and use
+> $fedril-soc2-story-orchestrator, applicable AGENTS.md and section 39's current
+> contract. Reconcile existing checkpoints with relevant actual state. Repair
+> only demonstrated workflow defects; skip already-implemented instructions and
+> adequate-prompt rewrites. Complete the next dependency-satisfied authorized task,
+> verify its acceptance requirements and keep selecting eligible work without
+> waiting for "what's next". Resolve technical choices from relevant sources and
+> tools; delegate only useful bounded work with clear ownership. Reuse canonical
+> statuses, evidence and valid approvals; checkpoint meaningful transitions and
+> reconcile uncertain operations before retry. Preserve file custody, No-CUI,
+> exposure holds, actual human/independent reviews and release gates. If execution
+> is blocked or limited, save the exact next action and report the minimum genuine
+> decision/access dependency with a prepared recommendation. Do not claim acceptance
+> or background execution without its actual evidence.
 
 #### Current Solo-Readiness Operating Boundary
 
@@ -5867,7 +5949,7 @@ Instructions:
 1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
 2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
 3. Apply the shared safety and change boundaries. Implement only verified, authorized gaps; preserve working controls and document remaining external or recurring work.
-4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
+4. Validate every acceptance criterion against actual evidence and record design/implementation/operating conclusions separately. Apply Efficient Execution And Recovery: checkpoint results and continue the next eligible task within authorized scope without waiting for a continuation request; stop only affected actions at actual gates. Preserve blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
 
 #-----------------------------------------
 
@@ -5906,7 +5988,7 @@ Instructions:
 1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
 2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
 3. Apply the shared safety and change boundaries. Implement only verified, authorized gaps; preserve working controls and document remaining external or recurring work.
-4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
+4. Validate every acceptance criterion against actual evidence and record design/implementation/operating conclusions separately. Apply Efficient Execution And Recovery: checkpoint results and continue the next eligible task within authorized scope without waiting for a continuation request; stop only affected actions at actual gates. Preserve blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
 
 #-----------------------------------------
 
@@ -5945,7 +6027,7 @@ Instructions:
 1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
 2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
 3. Apply the shared safety and change boundaries. Implement only verified, authorized gaps; preserve working controls and document remaining external or recurring work.
-4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
+4. Validate every acceptance criterion against actual evidence and record design/implementation/operating conclusions separately. Apply Efficient Execution And Recovery: checkpoint results and continue the next eligible task within authorized scope without waiting for a continuation request; stop only affected actions at actual gates. Preserve blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
 
 #-----------------------------------------
 
@@ -5983,7 +6065,7 @@ Instructions:
 1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
 2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
 3. Apply the shared safety and change boundaries. Implement only verified, authorized gaps; preserve working controls and document remaining external or recurring work.
-4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
+4. Validate every acceptance criterion against actual evidence and record design/implementation/operating conclusions separately. Apply Efficient Execution And Recovery: checkpoint results and continue the next eligible task within authorized scope without waiting for a continuation request; stop only affected actions at actual gates. Preserve blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
 
 #-----------------------------------------
 
@@ -6021,7 +6103,7 @@ Instructions:
 1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
 2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
 3. Apply the shared safety and change boundaries. Implement only verified, authorized gaps; preserve working controls and document remaining external or recurring work.
-4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
+4. Validate every acceptance criterion against actual evidence and record design/implementation/operating conclusions separately. Apply Efficient Execution And Recovery: checkpoint results and continue the next eligible task within authorized scope without waiting for a continuation request; stop only affected actions at actual gates. Preserve blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
 
 #-----------------------------------------
 
@@ -6060,7 +6142,7 @@ Instructions:
 1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
 2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
 3. Apply the shared safety and change boundaries. Implement only verified, authorized gaps; preserve working controls and document remaining external or recurring work.
-4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
+4. Validate every acceptance criterion against actual evidence and record design/implementation/operating conclusions separately. Apply Efficient Execution And Recovery: checkpoint results and continue the next eligible task within authorized scope without waiting for a continuation request; stop only affected actions at actual gates. Preserve blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
 
 #-----------------------------------------
 
@@ -6098,7 +6180,7 @@ Instructions:
 1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
 2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
 3. Apply the shared safety and change boundaries. Implement only verified, authorized gaps; preserve working controls and document remaining external or recurring work.
-4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
+4. Validate every acceptance criterion against actual evidence and record design/implementation/operating conclusions separately. Apply Efficient Execution And Recovery: checkpoint results and continue the next eligible task within authorized scope without waiting for a continuation request; stop only affected actions at actual gates. Preserve blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
 
 #-----------------------------------------
 
@@ -6136,7 +6218,7 @@ Instructions:
 1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
 2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
 3. Apply the shared safety and change boundaries. Implement only verified, authorized gaps; preserve working controls and document remaining external or recurring work.
-4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
+4. Validate every acceptance criterion against actual evidence and record design/implementation/operating conclusions separately. Apply Efficient Execution And Recovery: checkpoint results and continue the next eligible task within authorized scope without waiting for a continuation request; stop only affected actions at actual gates. Preserve blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
 
 #-----------------------------------------
 
@@ -6174,7 +6256,7 @@ Instructions:
 1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
 2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
 3. Apply the shared safety and change boundaries. Implement only verified, authorized gaps; preserve working controls and document remaining external or recurring work.
-4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
+4. Validate every acceptance criterion against actual evidence and record design/implementation/operating conclusions separately. Apply Efficient Execution And Recovery: checkpoint results and continue the next eligible task within authorized scope without waiting for a continuation request; stop only affected actions at actual gates. Preserve blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
 
 #-----------------------------------------
 
@@ -6212,7 +6294,7 @@ Instructions:
 1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
 2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
 3. Apply the shared safety and change boundaries. Implement only verified, authorized gaps; preserve working controls and document remaining external or recurring work.
-4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
+4. Validate every acceptance criterion against actual evidence and record design/implementation/operating conclusions separately. Apply Efficient Execution And Recovery: checkpoint results and continue the next eligible task within authorized scope without waiting for a continuation request; stop only affected actions at actual gates. Preserve blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
 
 #-----------------------------------------
 
@@ -6250,7 +6332,7 @@ Instructions:
 1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
 2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
 3. Apply the shared safety and change boundaries. Implement only verified, authorized gaps; preserve working controls and document remaining external or recurring work.
-4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
+4. Validate every acceptance criterion against actual evidence and record design/implementation/operating conclusions separately. Apply Efficient Execution And Recovery: checkpoint results and continue the next eligible task within authorized scope without waiting for a continuation request; stop only affected actions at actual gates. Preserve blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
 
 #-----------------------------------------
 
@@ -6288,7 +6370,7 @@ Instructions:
 1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
 2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
 3. Apply the shared safety and change boundaries. Implement only verified, authorized gaps; preserve working controls and document remaining external or recurring work.
-4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
+4. Validate every acceptance criterion against actual evidence and record design/implementation/operating conclusions separately. Apply Efficient Execution And Recovery: checkpoint results and continue the next eligible task within authorized scope without waiting for a continuation request; stop only affected actions at actual gates. Preserve blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
 
 #-----------------------------------------
 
@@ -6326,7 +6408,7 @@ Instructions:
 1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
 2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
 3. Apply the shared safety and change boundaries. Implement only verified, authorized gaps; preserve working controls and document remaining external or recurring work.
-4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
+4. Validate every acceptance criterion against actual evidence and record design/implementation/operating conclusions separately. Apply Efficient Execution And Recovery: checkpoint results and continue the next eligible task within authorized scope without waiting for a continuation request; stop only affected actions at actual gates. Preserve blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
 
 #-----------------------------------------
 
@@ -6364,7 +6446,7 @@ Instructions:
 1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
 2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
 3. Apply the shared safety and change boundaries. Implement only verified, authorized gaps; preserve working controls and document remaining external or recurring work.
-4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
+4. Validate every acceptance criterion against actual evidence and record design/implementation/operating conclusions separately. Apply Efficient Execution And Recovery: checkpoint results and continue the next eligible task within authorized scope without waiting for a continuation request; stop only affected actions at actual gates. Preserve blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
 
 #-----------------------------------------
 
@@ -6402,7 +6484,7 @@ Instructions:
 1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
 2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
 3. Apply the shared safety and change boundaries. Implement only verified, authorized gaps; preserve working controls and document remaining external or recurring work.
-4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
+4. Validate every acceptance criterion against actual evidence and record design/implementation/operating conclusions separately. Apply Efficient Execution And Recovery: checkpoint results and continue the next eligible task within authorized scope without waiting for a continuation request; stop only affected actions at actual gates. Preserve blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
 
 #-----------------------------------------
 
@@ -6440,7 +6522,7 @@ Instructions:
 1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
 2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
 3. Apply the shared safety and change boundaries. Implement only verified, authorized gaps; preserve working controls and document remaining external or recurring work.
-4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
+4. Validate every acceptance criterion against actual evidence and record design/implementation/operating conclusions separately. Apply Efficient Execution And Recovery: checkpoint results and continue the next eligible task within authorized scope without waiting for a continuation request; stop only affected actions at actual gates. Preserve blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
 
 #-----------------------------------------
 
@@ -6478,7 +6560,7 @@ Instructions:
 1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
 2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
 3. Apply the shared safety and change boundaries. Implement only verified, authorized gaps; preserve working controls and document remaining external or recurring work.
-4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
+4. Validate every acceptance criterion against actual evidence and record design/implementation/operating conclusions separately. Apply Efficient Execution And Recovery: checkpoint results and continue the next eligible task within authorized scope without waiting for a continuation request; stop only affected actions at actual gates. Preserve blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
 
 #-----------------------------------------
 
@@ -6516,7 +6598,7 @@ Instructions:
 1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
 2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
 3. Do not perform or simulate a CPA attestation. Coordinate only authorized evidence and documentation work; record actual auditor and management actions separately.
-4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
+4. Validate every acceptance criterion against actual evidence and record design/implementation/operating conclusions separately. Apply Efficient Execution And Recovery: checkpoint results and continue the next eligible task within authorized scope without waiting for a continuation request; stop only affected actions at actual gates. Preserve blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
 
 #-----------------------------------------
 
@@ -6554,7 +6636,7 @@ Instructions:
 1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
 2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
 3. Do not perform or simulate a CPA attestation. Coordinate only authorized evidence and documentation work; record actual auditor and management actions separately.
-4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
+4. Validate every acceptance criterion against actual evidence and record design/implementation/operating conclusions separately. Apply Efficient Execution And Recovery: checkpoint results and continue the next eligible task within authorized scope without waiting for a continuation request; stop only affected actions at actual gates. Preserve blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
 
 #-----------------------------------------
 
@@ -6592,7 +6674,7 @@ Instructions:
 1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
 2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
 3. Apply the shared safety and change boundaries. Implement only verified, authorized gaps; preserve working controls and document remaining external or recurring work.
-4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
+4. Validate every acceptance criterion against actual evidence and record design/implementation/operating conclusions separately. Apply Efficient Execution And Recovery: checkpoint results and continue the next eligible task within authorized scope without waiting for a continuation request; stop only affected actions at actual gates. Preserve blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
 
 #-----------------------------------------
 
@@ -6631,7 +6713,7 @@ Instructions:
 1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
 2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
 3. Apply the shared safety and change boundaries. Implement only verified, authorized gaps; preserve working controls and document remaining external or recurring work.
-4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
+4. Validate every acceptance criterion against actual evidence and record design/implementation/operating conclusions separately. Apply Efficient Execution And Recovery: checkpoint results and continue the next eligible task within authorized scope without waiting for a continuation request; stop only affected actions at actual gates. Preserve blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
 
 #-----------------------------------------
 
@@ -6669,7 +6751,7 @@ Instructions:
 1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
 2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
 3. Do not perform or simulate a CPA attestation. Coordinate only authorized evidence and documentation work; record actual auditor and management actions separately.
-4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
+4. Validate every acceptance criterion against actual evidence and record design/implementation/operating conclusions separately. Apply Efficient Execution And Recovery: checkpoint results and continue the next eligible task within authorized scope without waiting for a continuation request; stop only affected actions at actual gates. Preserve blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
 
 #-----------------------------------------
 
@@ -6708,7 +6790,7 @@ Instructions:
 1. Record task-level owner, reviewer, due date, priority, prerequisites, criterion/control mapping, Type I/II impact and evidence/verification outcome in the shared register.
 2. Produce or update the required deliverables in the approved protected location. Keep only sanitized references in Git; obtain human review for decisions and signatures.
 3. Apply the shared safety and change boundaries. Implement only verified, authorized gaps; preserve working controls and document remaining external or recurring work.
-4. Validate every acceptance criterion against actual evidence, record design/implementation/operating conclusions separately, and hand off the next unblocked task with all blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
+4. Validate every acceptance criterion against actual evidence and record design/implementation/operating conclusions separately. Apply Efficient Execution And Recovery: checkpoint results and continue the next eligible task within authorized scope without waiting for a continuation request; stop only affected actions at actual gates. Preserve blockers and residual risks. Do not mark this story accepted solely because prompts or templates were written.
 
 #-----------------------------------------
 
