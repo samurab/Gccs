@@ -1,3 +1,15 @@
+## Current release and publication preparation — October 21, 2026
+
+**Partially implemented:** the current management-policy record permits reviewed source, tests, infrastructure definitions, schemas/migrations, deliberately synthetic fixtures and sanitized summaries as candidate publication classes. This is a format/scope policy, not per-file clearance, restricted-artifact classification, containment, or release approval. Raw evidence, customer/personnel/access records, secrets, database dumps and restricted incident/system details remain excluded. The revised October 19 decision supersedes the earlier narrower publication-class statement only within its actual recorded scope.
+
+**Implemented preparation:** the current local release candidate separates Story 39.7 runtime corrections, Story 39.8 workflow corrections, execution guidance and later sanitized story summaries. Primary originals and protected evidence stay in place. New source publication, tags and deployments have not occurred in this October 21 preparation. Earlier PR #132 remains a draft with successful checks at its historical head; those results are not a fresh test result for the modified candidate.
+
+**Planned:** obtain the concrete current publication/containment decision and exact file-action approvals before dependent external operations. Contents/provenance of the restricted artifact remain unknown; no inspection, history rewrite, visibility/permission/credential change or source disposal is authorized by this record. The exposure remains uncontained; deferred independent and qualified dependencies remain open. Metadata preparation and management self-review do not establish independent validation or final Story 39.4 acceptance.
+
+Complete recent management, billing, access and operational receipts remain in the original protected custody and unchanged primary records. Their detail is deliberately excluded from this public counterpart. Historical sections below retain their own cutoffs; an earlier review date or proposal is not a newly performed decision.
+
+---
+
 
 
 Publication classification: **Sanitized public reference**. Complete originals and original SHA-256 hashes remain in protected `release-scope-lookups-20261018-v1/primary-source-snapshot-v1`. This counterpart records scope and traceability; it does not establish workforce control effectiveness, review completion or acceptance.
