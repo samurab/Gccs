@@ -118,7 +118,7 @@ public sealed class JwtAuthenticationLoggingTests
     {
         var context = new DefaultHttpContext { RequestServices = services };
         context.Request.Path = "/api/synthetic-path-canary";
-        context.Request.QueryString = new QueryString("?token=synthetic-query-canary");
+        context.Request.QueryString = new QueryString("?token=example-synthetic-query-canary");
         if (authorizationPresent)
         {
             context.Request.Headers.Authorization = "Bearer synthetic-header-canary";

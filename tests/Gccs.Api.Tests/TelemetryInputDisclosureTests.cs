@@ -82,11 +82,11 @@ public sealed class TelemetryInputDisclosureTests(ITestOutputHelper output)
             })).StartAsync();
         using var client = host.GetTestClient();
         using var request = new HttpRequestMessage(HttpMethod.Get,
-            status == 404 ? "/synthetic-unmatched-canary?token=synthetic-query-canary"
-                : "/api/telemetry-check/synthetic-path-canary?token=synthetic-query-canary");
+            status == 404 ? "/synthetic-unmatched-canary?token=example-synthetic-query-canary"
+                : "/api/telemetry-check/synthetic-path-canary?token=example-synthetic-query-canary");
         request.Headers.Add("Authorization", "Bearer synthetic-header-canary");
         request.Headers.Add("User-Agent", "synthetic-agent-canary");
-        request.Headers.Add(ApiCorrelation.HeaderName, "token=synthetic-correlation-canary");
+        request.Headers.Add(ApiCorrelation.HeaderName, "token=example-synthetic-correlation-canary");
         using var response = await client.SendAsync(request);
         Assert.Equal(status, (int)response.StatusCode);
         var provider = host.Services.GetRequiredService<TracerProvider>();
@@ -124,7 +124,7 @@ public sealed class TelemetryInputDisclosureTests(ITestOutputHelper output)
         };
         using var client = new HttpClient(handler);
         using var response = await client.GetAsync(
-            "http://synthetic.invalid/entity-information/v3/entities?ueiSAM=synthetic-uei-canary&api_key=synthetic-key-canary");
+            "http://synthetic.invalid/entity-information/v3/entities?ueiSAM=synthetic-uei-canary&api_key=example-synthetic-key-canary");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         await exported.WaitForExportAsync(ActivityKind.Client);
         Assert.True(provider.ForceFlush());

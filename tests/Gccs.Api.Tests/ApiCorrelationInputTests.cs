@@ -19,7 +19,7 @@ public sealed class ApiCorrelationInputTests
     public static IEnumerable<object?[]> ReplacedInputs => new object?[][]
     {
         [null], [""], ["   "], ["Bearer synthetic-header-canary"],
-        ["token=synthetic-header-canary"], ["synthetic@example.invalid"],
+        ["token=example-synthetic-header-canary"], ["synthetic@example.invalid"],
         ["{\"token\":\"synthetic-header-canary\"}"], ["synthetic/canary"],
         ["synthetic,canary"], ["synthetic\r\ncanary"], ["synthetic\tcanary"],
         ["non-ascii-\u00e9-canary"], [new string('a', 121)]
@@ -65,7 +65,7 @@ public sealed class ApiCorrelationInputTests
     public void First_header_value_policy_is_preserved()
     {
         var context = new DefaultHttpContext();
-        context.Request.Headers[ApiCorrelation.HeaderName] = new StringValues(["first-valid-id", "token=synthetic-header-canary"]);
+        context.Request.Headers[ApiCorrelation.HeaderName] = new StringValues(["first-valid-id", "token=example-synthetic-header-canary"]);
         Assert.Equal("first-valid-id", ApiCorrelation.Ensure(context));
     }
 
@@ -82,13 +82,13 @@ public sealed class ApiCorrelationInputTests
     {
         var context = new DefaultHttpContext();
         var id = ApiCorrelation.Ensure(context);
-        context.TraceIdentifier = "token=synthetic-trace-canary";
+        context.TraceIdentifier = "token=example-synthetic-trace-canary";
         Assert.Equal(id, ApiCorrelation.Get(context));
         Assert.Equal(id, context.TraceIdentifier);
     }
 
     [Theory]
-    [InlineData("token=synthetic-cache-canary")]
+    [InlineData("token=example-synthetic-cache-canary")]
     [InlineData("non-ascii-\u00e9-canary")]
     public void Malformed_cached_value_is_not_trusted(string input)
     {
@@ -104,8 +104,8 @@ public sealed class ApiCorrelationInputTests
     [Fact]
     public void Problem_customizer_establishes_correlation_before_capturing_trace()
     {
-        var context = new DefaultHttpContext { TraceIdentifier = "token=synthetic-trace-canary" };
-        context.Request.Headers[ApiCorrelation.HeaderName] = "token=synthetic-header-canary";
+        var context = new DefaultHttpContext { TraceIdentifier = "token=example-synthetic-trace-canary" };
+        context.Request.Headers[ApiCorrelation.HeaderName] = "token=example-synthetic-header-canary";
         var problem = new ProblemDetails { Status = 400 };
         ApiProblemDetails.Customize(new ProblemDetailsContext { HttpContext = context, ProblemDetails = problem });
         var id = ApiCorrelation.Get(context);
@@ -149,7 +149,7 @@ public sealed class ApiCorrelationInputTests
             })).StartAsync();
         using var client = host.GetTestClient();
         using var request = new HttpRequestMessage(HttpMethod.Get, "/api/correlation-check");
-        request.Headers.Add(ApiCorrelation.HeaderName, "token=synthetic-header-canary");
+        request.Headers.Add(ApiCorrelation.HeaderName, "token=example-synthetic-header-canary");
         using var response = await client.SendAsync(request);
         var body = await response.Content.ReadAsStringAsync();
         Assert.Equal(status, (int)response.StatusCode);

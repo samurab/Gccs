@@ -131,7 +131,7 @@ public sealed class AuditAppendOnlyTests : IClassFixture<WebApplicationFactory<P
 
     [Theory]
     [InlineData("tc-5-1-4-correlation", false)]
-    [InlineData("token=synthetic-audit-canary", true)]
+    [InlineData("token=example-synthetic-audit-canary", true)]
     public async Task TC_5_1_4_Request_metadata_is_captured_when_available(string correlationId, bool replaced)
     {
         var tenantId = Guid.Parse("51515151-5151-5151-5151-5151515151a4");
@@ -253,7 +253,7 @@ public sealed class AuditAppendOnlyTests : IClassFixture<WebApplicationFactory<P
 
     [Theory]
     [InlineData("failed-authorization-correlation", false)]
-    [InlineData("token=synthetic-audit-canary", true)]
+    [InlineData("token=example-synthetic-audit-canary", true)]
     public async Task Failed_authorization_attempt_is_audit_logged_when_tenant_context_is_available(string correlationId, bool replaced)
     {
         var tenantId = Guid.Parse("51515151-5151-5151-5151-5151515151a7");

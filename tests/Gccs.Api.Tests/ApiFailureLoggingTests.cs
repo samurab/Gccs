@@ -71,7 +71,7 @@ public sealed class ApiFailureLoggingTests
             })).StartAsync();
         using var client = host.GetTestClient();
         using var request = new HttpRequestMessage(HttpMethod.Get,
-            "/api/invitations/synthetic-path-canary?token=synthetic-query-canary");
+            "/api/invitations/synthetic-path-canary?token=example-synthetic-query-canary");
         request.Headers.Add(ApiCorrelation.HeaderName, "synthetic-composed-correlation");
 
         using var response = await client.SendAsync(request);
@@ -150,7 +150,7 @@ public sealed class ApiFailureLoggingTests
         var context = new DefaultHttpContext { RequestServices = services };
         context.Request.Method = "POST";
         context.Request.Path = "/api/invitations/synthetic-path-canary";
-        context.Request.QueryString = new QueryString("?token=synthetic-query-canary");
+        context.Request.QueryString = new QueryString("?token=example-synthetic-query-canary");
         context.Request.Headers.Authorization = "Bearer synthetic-header-canary";
         context.Request.Headers[ApiCorrelation.HeaderName] = "synthetic-correlation";
         return context;
