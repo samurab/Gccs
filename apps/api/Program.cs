@@ -125,6 +125,7 @@ builder.Services.AddCors(options =>
 builder.Services.AddOpenApi();
 if (!string.IsNullOrWhiteSpace(builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"]))
 {
+    builder.Services.AddGccsTelemetryPrivacy(builder.Configuration);
     builder.Services.AddApplicationInsightsTelemetry();
 }
 var taskSearchCursorOptions = builder.Configuration
@@ -1415,11 +1416,11 @@ api.MapGet("/compliance/overview", async (
     catch (Exception exception) when (exception is not OperationCanceledException)
     {
         logger.LogError(
-            exception,
-            "Compliance overview failed for tenant {TenantId}. TraceId: {TraceId}. CorrelationId: {CorrelationId}.",
+            "Compliance overview failed for tenant {TenantId}. TraceId: {TraceId}. CorrelationId: {CorrelationId}. ExceptionType: {ExceptionType}.",
             tenantContext.TenantId,
             httpContext.TraceIdentifier,
-            correlationId);
+            correlationId,
+            exception.GetType().Name);
         return ApiProblemDetails.Create(
             httpContext,
             "Compliance overview unavailable",
