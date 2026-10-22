@@ -129,12 +129,13 @@ public sealed class AuditAppendOnlyTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("audit_write_failed", body, StringComparison.OrdinalIgnoreCase);
     }
 
-    [Fact]
-    public async Task TC_5_1_4_Request_metadata_is_captured_when_available()
+    [Theory]
+    [InlineData("tc-5-1-4-correlation", false)]
+    [InlineData("token=synthetic-audit-canary", true)]
+    public async Task TC_5_1_4_Request_metadata_is_captured_when_available(string correlationId, bool replaced)
     {
         var tenantId = Guid.Parse("51515151-5151-5151-5151-5151515151a4");
         var actorUserId = Guid.Parse("51515151-5151-5151-5151-5151515151b4");
-        const string correlationId = "tc-5-1-4-correlation";
         const string sourceIp = "203.0.113.42";
         const string userAgent = "GCCS Story 5.1 Test Agent";
         await using var factory = CreateFactory("tc-5-1-4", dbContext =>
@@ -163,8 +164,12 @@ public sealed class AuditAppendOnlyTests : IClassFixture<WebApplicationFactory<P
 
         Assert.Equal(sourceIp, auditEvent.IpAddress);
         Assert.Equal(userAgent, auditEvent.UserAgent);
-        Assert.Equal(correlationId, auditEvent.CorrelationId);
-        Assert.Contains(correlationId, auditEvent.MetadataJson, StringComparison.Ordinal);
+        var recordedId = response.Headers.GetValues("X-Correlation-ID").Single();
+        if (replaced) Assert.True(Guid.TryParseExact(recordedId, "N", out _));
+        else Assert.Equal(correlationId, recordedId);
+        Assert.Equal(recordedId, auditEvent.CorrelationId);
+        Assert.Contains(recordedId, auditEvent.MetadataJson, StringComparison.Ordinal);
+        if (replaced) Assert.DoesNotContain("canary", auditEvent.MetadataJson, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -246,12 +251,13 @@ public sealed class AuditAppendOnlyTests : IClassFixture<WebApplicationFactory<P
         }
     }
 
-    [Fact]
-    public async Task Failed_authorization_attempt_is_audit_logged_when_tenant_context_is_available()
+    [Theory]
+    [InlineData("failed-authorization-correlation", false)]
+    [InlineData("token=synthetic-audit-canary", true)]
+    public async Task Failed_authorization_attempt_is_audit_logged_when_tenant_context_is_available(string correlationId, bool replaced)
     {
         var tenantId = Guid.Parse("51515151-5151-5151-5151-5151515151a7");
         var actorUserId = Guid.Parse("51515151-5151-5151-5151-5151515151b7");
-        const string correlationId = "failed-authorization-correlation";
         await using var factory = CreateFactory("audit-failed-authorization", dbContext =>
         {
             dbContext.Tenants.Add(CreateTenant(tenantId, "Audit failed authorization tenant"));
@@ -277,7 +283,11 @@ public sealed class AuditAppendOnlyTests : IClassFixture<WebApplicationFactory<P
         Assert.Equal(AuditAction.Rejected, auditEvent.Action);
         Assert.Equal("Authorization", auditEvent.EntityType);
         Assert.Equal("/api/audit-logs", auditEvent.EntityId);
-        Assert.Equal(correlationId, auditEvent.CorrelationId);
+        var recordedId = response.Headers.GetValues("X-Correlation-ID").Single();
+        if (replaced) Assert.True(Guid.TryParseExact(recordedId, "N", out _));
+        else Assert.Equal(correlationId, recordedId);
+        Assert.Equal(recordedId, auditEvent.CorrelationId);
+        if (replaced) Assert.DoesNotContain("canary", auditEvent.MetadataJson, StringComparison.Ordinal);
         Assert.Contains("Authorization attempt was denied", auditEvent.Summary, StringComparison.Ordinal);
     }
 
