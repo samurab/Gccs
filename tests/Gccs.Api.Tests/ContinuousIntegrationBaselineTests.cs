@@ -18,12 +18,22 @@ public sealed class ContinuousIntegrationBaselineTests
         {
             "Backend prerequisites",
             "Restore backend dependencies",
-            ["dotnet restore Gccs.slnx"]
+            [
+                "dotnet restore Gccs.slnx",
+                "--configfile .github/nuget-audit.config",
+                "-p:NuGetAudit=true",
+                "-p:NuGetAuditMode=all",
+                "-warnaserror:NU1900,NU1903,NU1904,NU1905"
+            ]
         },
         {
             "Backend prerequisites",
             "Scan backend dependencies for known vulnerabilities",
-            ["dotnet list Gccs.slnx package --vulnerable --include-transitive"]
+            [
+                "dotnet list Gccs.slnx package --vulnerable --include-transitive",
+                "--no-restore",
+                "--config .github/nuget-audit.config"
+            ]
         },
         {
             "Backend prerequisites",

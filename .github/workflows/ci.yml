@@ -42,10 +42,10 @@ jobs:
           global-json-file: global.json
 
       - name: Restore backend dependencies
-        run: dotnet restore Gccs.slnx
+        run: dotnet restore Gccs.slnx --configfile .github/nuget-audit.config -p:NuGetAudit=true -p:NuGetAuditMode=all -warnaserror:NU1900,NU1903,NU1904,NU1905
 
       - name: Scan backend dependencies for known vulnerabilities
-        run: dotnet list Gccs.slnx package --vulnerable --include-transitive
+        run: dotnet list Gccs.slnx package --vulnerable --include-transitive --no-restore --config .github/nuget-audit.config
 
       - name: Build backend solution
         run: dotnet build Gccs.slnx --no-restore --configuration Release
