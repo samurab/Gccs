@@ -1,5 +1,65 @@
 # Story 39.12: Validate Audit Integrity Logging Monitoring And Alert Response
 
+## Public projection checkpoint — October 23, 2026
+
+**Implemented and published:** the worker/bootstrap, correlation, API exception,
+JWT diagnostic and telemetry corrections through `b4cc43ee` have exact publication
+approval and are on GitHub. CI `39983652302` passed all nine jobs, including backend
+regression and real-stack report authorization. Earlier references to these commits
+as local/unpublished and follow-up compilation pending describe older checkpoints.
+
+**Partially implemented:** the later `d15b8b84` CI run `40008612483` passed backend,
+frontend and secret-scan gates; real-stack application verification was skipped
+after Playwright dependency installation timed out. That overall failure remains
+visible. Neither successful source tests nor this release-checker change proves
+live collection, retention, alert delivery or responder operation.
+
+**Planned:** authorized deployed-consumer and operating checks for the changed
+diagnostics. **Do not claim:** universal redaction, completed monitoring controls,
+independent review, full acceptance, staging or production deployment.
+
+Earlier sections below retain their original observation and approval cutoffs.
+Current publication facts supersede older pending-publication statements only.
+
+## Historical source projections
+
+## Release integration checkpoint — October 22, 2026
+
+**Implemented and published:** `2ac850e9f4f84051435ff99a1a23c478a3c35a63`
+limits selected worker/bootstrap exception logging to fixed context and exception
+type. `e1a820c747df0ce9e534b6781aa6ba960cd5c703` validates correlation syntax and
+length, generating replacement identifiers for invalid values. Valid-looking
+sensitive strings are not classified by this syntax check.
+
+**Implemented locally:** `73b2d61b9da4fef436c8e8aaa09f677085bb3442`
+uses route templates or a fixed unmatched value for API failure diagnostics,
+removes attached exception details from selected JWT/overview logs, suppresses
+handled API exception diagnostics and configures selected telemetry redaction
+before SDK registration. The four new test classes define 41 cases using
+synthetic inputs, in-memory telemetry export and a synthetic HTTP transport.
+`b4cc43ee09dee76b52354ca4d61ab28867e14e89` marks synthetic credential-shaped
+fixtures as examples without changing production code, the credential scanner or
+assertions. These local follow-ups need separate exact publication approval.
+
+**Partially verified:** bounded technical/disclosure reviews and commit artifact
+and whitespace checks passed. Published `e1a820c7` CI run `39806854543` includes a
+retained credential-scanner failure on synthetic fixtures. That run completed
+with 2,064 passed, 46 skipped and one failed backend test; its real-stack job
+timed out installing Playwright dependencies before running tests. Backend
+restore/audit/build succeeded. Fresh integrated follow-up compilation, new cases
+and adjacent error-contract, correlation/audit, overview,
+JWT/auth-routing and endpoint checks remain pending; historical primary results
+are not substituted for that execution.
+
+**Planned:** validate deployed collection and consumers of changed log templates,
+then perform the applicable alert/retention/response checks. **Do not claim:**
+universal redaction of arbitrary tags, baggage or outgoing paths; safe diagnostics
+for all non-API or started-response exceptions; current ingestion, protected
+retention, alert delivery, independent assurance, acceptance or deployment.
+All original source and evidence remain preserved.
+
+## Historical source inventory — October 20, 2026
+
 Status: **In Progress — T01 source mapping prepared; live collection unverified.**
 Recorded October 20, 2026, America/New_York; UTC recording time is in the bound packet.
 Evidence `S39.12-T01-SOURCE-20261020-01`.
