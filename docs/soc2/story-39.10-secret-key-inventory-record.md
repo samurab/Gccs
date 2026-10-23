@@ -1,5 +1,22 @@
 # Story 39.10: Secret and Key Inventory
 
+## Sanitized source checkpoint — October 22, 2026
+
+**Implemented:** the existing source-reference inventory is supplemented by a
+bounded observation of selected storage transport/encryption configuration
+metadata. **Partially implemented:** T03/T04 cover this subset only. Unpopulated
+capability fields remain unknown; they do not prove shared-key access is disabled
+or establish application managed identity.
+**Planned:** metadata-only reconciliation of actual use, custody, access, expiry,
+rotation and recovery, followed by separately authorized verification.
+**Do not claim:** complete credential coverage, disabled shared keys, tested
+transport/access denial, successful rotation/recovery, independent review or
+task/story acceptance. Detailed operational values and custody receipts remain
+protected. The historical source inventory below retains its original cutoff;
+its no-provider-query statement describes that earlier unit only.
+
+## Historical source inventory — October 20, 2026
+
 Status: **In Progress — T01 source references inventoried; live custody/lifecycle unverified.**
 Recorded October 20, 2026, America/New_York. Evidence `S39.10-T01-SOURCE-20261020-01`.
 
