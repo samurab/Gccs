@@ -275,7 +275,7 @@ jobs:
       - name: Install Playwright Chromium
         env:
           PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/fedril-playwright-${{ github.run_id }}-${{ github.run_attempt }}-real-stack
-        timeout-minutes: 10
+        timeout-minutes: 20
         run: |
           if [[ -e "$PLAYWRIGHT_BROWSERS_PATH" || -L "$PLAYWRIGHT_BROWSERS_PATH" ]]; then
             echo "::error::Run-specific Playwright browser destination already exists; preserving it."
