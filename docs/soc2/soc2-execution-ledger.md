@@ -1,3 +1,115 @@
+## Public coordination checkpoint — October 23, 2026
+
+This is the public-safe projection of the continuation records. Read
+[the record boundary](public-record-boundary.md) before further record edits.
+The exact frozen full-source population has 33 files; original payloads and their
+version bindings are excluded from this public projection. Accepted private
+continuation and custody status come from the separately approved manifest;
+this paragraph does not establish that intake or permanent-store acceptance.
+
+**Implemented and published:** exact version 0.2.1 candidates `b4cc43ee` and
+`d15b8b84` are on the existing PR 132 branch. Their corresponding primary-checkout
+alignments completed with no staged differences; 33 governance paths remained
+pending before this reconciliation. All original versions were preserved.
+CI `39983652302` for `b4cc43ee` passed all nine jobs. Its successful real-stack
+report checks are evidence for that candidate, not a production deployment.
+
+**Current retained failure:** CI `40008612483` for `d15b8b84` failed during
+Playwright OS dependency installation at the ten-minute step limit. Package
+downloads were still progressing slowly; no package-resolution or application-test
+failure was shown in that step. Its real-stack API build, migrations and
+transaction/browser checks were skipped. Backend, frontend and secret-scan jobs
+succeeded separately. A proposed twenty-minute install limit preserves the retries,
+filesystem safeguards and tests, but has no fresh successful CI evidence yet.
+
+**Governance:** Story 39.8 T01 procedure-definition acceptance remains scoped.
+Story 39.14 T01 scoped planning is Accepted. T02's conditional design policy is
+adopted within its recorded scope; nine output-class designations, coverage gaps
+and full T02 acceptance remain pending. The optional runtime read is held.
+Story 39.13 discussion/planning approval does not establish operational execution.
+Story 39.16 remains source-only inventory preparation. Technical reviews are not
+independent Security, CPA, Legal/Privacy or forensic assurance.
+
+**Record populations:** the public evidence CSV is a disclosed subset of the
+163-row frozen source register. Existing public rows are retained; selected new
+public-safe summaries preserve their source IDs. It is not the entire private
+register or proof of evidence delivery. All 144 task IDs and task obligations
+remain unchanged. Historical snapshots keep their original cutoffs.
+
+**Held:** source custody/replacement and each public version use their exact
+approval/receipt boundaries. No merge, release tag, staging or production
+deployment is established here. The separate 29 historical output inputs still
+need their reviewed release-lineage/evidence contract. Worker sequencing,
+candidate-specific staging/UAT, immutable artifacts, approval/attestation and
+protected promotion remain separate. Full SOC 2/CPA closure is not a universal
+application-release prerequisite. No guide publication or source disposal follows.
+
+The historical entries below retain their original scope and dates. Statements
+that `b4cc43ee` was unpublished or lacked fresh execution are superseded above.
+
+## Earlier public coordination checkpoints
+
+## Current release integration checkpoint — October 22, 2026
+
+**Published:** exact approved version 0.2.1 candidate
+`e1a820c747df0ce9e534b6781aa6ba960cd5c703` was pushed to the existing PR 132
+branch. Its three commits cover native NuGet audit enforcement, selected worker
+logging privacy and correlation validation. Both exact-candidate artifact-policy
+checks, frontend validation, secret scan and backend restore/audit/build passed.
+CI run `39806854543` completed with failure: four backend shards reported 2,064
+passed, 46 skipped and one failed repository credential-scanner test on nine
+synthetic fixture values. The real-stack job timed out during Playwright dependency
+installation before its tests ran. Both failures remain retained; this is not a
+green release.
+
+**Implemented locally:** three additional story/test commits through
+`b4cc43ee09dee76b52354ca4d61ab28867e14e89` integrate eight remaining stable code
+paths, then correct 16 synthetic example placeholders across five test files.
+The resulting delta from published `e1a820c7` has ten paths. Exact source handoff,
+scoped technical/disclosure review, whitespace and commit artifact checks passed.
+Fresh integrated build/tests and separate exact publication approval remain pending.
+The host/CORS owner's 90-pass batch is historical and includes 75 new configuration
+cases; it does not verify the current combined candidate.
+
+**Preservation and ownership:** the isolated release coordinator owns these
+integration commits and sanitized release records. Primary source, staged index,
+worktrees, refs and protected originals remain intact. The host/CORS owner paused
+its code edits; concurrent governance-record changes mean no global primary freeze
+is asserted. Raw original differences are not automatically missing release work.
+
+**Held:** no merge, release tag, staging deployment or production promotion is
+established by this checkpoint. The inherited artifact/history gate still needs a
+reviewed clean-lineage transition and an approved evidence contract for historical
+inputs. Worker quiescence/migration sequencing, candidate-specific staging/UAT,
+immutable artifacts, approval/attestation and protected promotion gates remain.
+The stricter startup guard also needs every live origin/host entry validated.
+Full SOC 2/CPA closure is not a universal application-release prerequisite.
+No guide publication or source disposal is authorized by these commits.
+
+**Additional sanitized local projections:** finite source checkpoints for
+39.8/39.10 and new public-reference counterparts for 39.14/39.16 now distinguish
+source preparation, scoped management decisions and missing operating evidence.
+The 39.13 status line now agrees with its already recorded discussion-report
+approval and planning adoption. Nine existing task-index rows receive only the
+corresponding finite preparation/reference changes; all 144 task IDs and original
+obligations remain. Source fingerprints and bounded review are retained in the
+existing release plan. These local document changes have no publication approval.
+No protected receipts or private record values are reproduced.
+
+**Historical package check:** maintained records identify a scoped approved
+snapshot of four sanitized governance sources plus their manifest. That set has
+no overlap with the 29 historical output inputs needed for clean-lineage tests.
+Bounded metadata inspection found no approved package covering those exact inputs;
+all 29 Git identities and sizes matched the prepared inventory. Identity metadata
+cannot establish disclosure clearance, custody approval or substantive test results.
+The existing governance snapshot retains its original authority; no broader intake,
+copy, publication, history change or deployment is authorized by its existence.
+
+The entries below retain their historical cutoffs and authority states; this
+checkpoint supersedes their stale descriptions of current publication progress.
+
+---
+
 ## Latest Worktree Reconciliation — October 21, 2026
 
 **Implemented locally:** Story39.8 checkout credential settings and exact runtime/
