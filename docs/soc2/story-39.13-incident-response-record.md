@@ -1,13 +1,16 @@
 # Story 39.13: Incident Record Preparation
 
-Status: **In Progress — T04 format adopted; T05 all four desk-only responses received; report/review remain open.**
+Status: **In Progress — T04 format adopted; scoped discussion-report approval and follow-up planning adopted; T05/T06 acceptance remains open.**
 Updated October 21, 2026, America/New_York; earlier evidence retains its cutoff. Evidence `S39.13-T04-TEMPLATES-20261020-01`.
 
 **Implemented:** seven reuse dispositions and an additive draft extension to the
-existing39.4template family. **Partially implemented:** T04 record templates.
-**Planned:** accepted restricted intake, validated contacts,
-incident-plan decisions, consolidated exercise report and corrective-action review. **Do not claim:**
-real incident evidence, a completed/accepted exercise, legal-clock decisions or sent messages.
+existing 39.4 template family, plus scoped management approval of the fictional-
+discussion record and adoption of seven follow-up planning items described below.
+**Partially implemented:** T04 format and T05/T06 discussion/planning subsets.
+**Planned:** operational role confirmation, permitted restricted intake, separately
+authorized retests and verification of follow-up execution and recovery handoff.
+**Do not claim:** real incident response, completed operational remediation or
+retest, full exercise/task/story acceptance, legal-clock decisions or sent messages.
 
 ## Scoped Discussion Approval And Follow-Up Planning — October 21, 2026
 
