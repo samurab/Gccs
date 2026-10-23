@@ -375,3 +375,18 @@ Read only references relevant to the current task:
 - `docs/development-story-prompts.md`
 - `docs/development-story-test-cases.md`
 - `docs/regression-test-execution-prompts.md`
+
+## Public and protected SOC 2 continuation records
+
+For SOC 2 record work, read `docs/soc2/public-record-boundary.md` and the current
+public ledger cutoff before editing. Repository ledger/story/runbook links are
+public projections. Full private continuation comes only from the operator's
+separately accepted manifest, which identifies the working location, owner,
+permitted data classes and version-preservation rules. Frozen originals remain
+unchanged. If the private binding is unavailable, report that limitation and
+continue eligible independent work; do not reconstruct it from public history.
+Do not recreate private
+working replicas in this public checkout or treat a sanitized projection as the
+complete private evidence register. Record private progress and pending public
+projection separately; new public versions retain exact publication approval.
+This is procedural guidance and grants no intake, removal or deployment authority.
