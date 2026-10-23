@@ -1,5 +1,58 @@
 # Story 39.9: Production Network Baseline
 
+## Public projection checkpoint — October 23, 2026
+
+**Implemented and published:** non-Development host/CORS startup validation and
+synthetic configuration tests are included in published `b4cc43ee`. Its CI run
+`39983652302` passed all nine jobs, including real-stack report authorization.
+Published `d15b8b84` extends the release checker to discover effective public-key
+aliases, reject ambiguous spellings, recheck the relevant key population and
+suppress every CLI failure diagnostic. Each lookup has a 30-second timeout request.
+The retained local checker suite passed 55 tests with no skips.
+
+**Partially implemented:** this checker detects observed name-population drift;
+separate provider reads are not an atomic configuration snapshot. CLI output
+projection does not limit the provider response retrieved internally by Azure CLI.
+Additional HTTPS origins receive syntax validation and a baseline-review reminder,
+not approval. The earlier origin-index-zero limitation is historical.
+
+**Planned:** exact approved live origin/host comparison and rollout validation.
+CI `40008612483` for `d15b8b84` failed at Playwright OS dependency installation;
+its real-stack application checks did not execute. A proposed installation-timeout
+correction has no successful execution evidence at this checkpoint.
+**Do not claim:** deployment, complete network controls, approved extra origins,
+atomic live verification, production effectiveness or whole-story acceptance.
+
+Earlier sections below retain their original observation and approval cutoffs.
+Current publication facts supersede older pending-publication statements only.
+
+## Historical source projections
+
+## Release integration checkpoint — October 22, 2026
+
+**Implemented locally:** commit `b75d05b368125b3152b2f2fd903c211c9a9eb0ae`
+adds non-Development startup validation for explicit HTTPS CORS origins and
+non-universal host entries. Host validation uses the middleware's IDN
+normalization. Development behavior and supported explicit origins, ports,
+subdomain patterns and hosts remain covered by synthetic tests.
+
+**Partially implemented:** the primary source owner's completed verification
+batch reported 90 passed, zero failed and zero skipped, including 75 new
+configuration cases and 15 adjacent cases. Exact source hashes were checked at
+handoff. This is historical primary-checkout evidence, not fresh execution of the
+integrated release candidate. The bounded technical review found no must-fix
+issue; it is not independent SOC 2 assurance.
+
+**Planned:** fresh candidate CI and a nonsecret comparison of every configured
+live origin and host entry before rollout. The existing release checker covers
+only origin index zero. Previously tolerated settings may now prevent startup.
+**Do not claim:** deployed validation, a complete network baseline, provider
+routing effectiveness, story acceptance or production promotion. Live network,
+health-probe and applicable review dependencies remain open. All primary source,
+index and original evidence remain preserved.
+
+## Historical source inventory — October 20, 2026
+
 Status: **In Progress — T01 source inventory prepared; live comparison requires verification.**
 Recorded October 20, 2026, America/New_York. Evidence `S39.9-T01-SOURCE-20261020-01`.
 
