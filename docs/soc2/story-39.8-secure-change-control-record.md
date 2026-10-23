@@ -1,5 +1,24 @@
 # Story 39.8: Enforce Secure SDLC Change Approval And Separation Of Duties
 
+## Sanitized source checkpoint — October 22, 2026
+
+**Implemented:** finite source corrections and bounded deployment-identity,
+configured-target and operation mapping are recorded at their original revisions.
+Management adopted the prospective environment-specific deployment-purpose
+boundary; this does not retrospectively approve historical use.
+**Partially implemented:** effective privilege, credential custody, trusted
+publisher/admission and reviewer arrangements remain incomplete.
+**Planned:** a compatible package/permission design and exact authorized
+allowed/denied verification. **Do not claim:** least privilege, complete effective
+access, verified token exchange, hosted enforcement, independent assurance or
+whole-story acceptance. The thirteen proposed hosted cases remained unexecuted
+at this source checkpoint; later candidate CI results are separate evidence.
+T01 definition acceptance remains limited to that deliverable. Current release
+publication/execution state is recorded in the execution ledger; this checkpoint
+supplies no new publication, role-change or deployment approval.
+
+## Earlier source and release checkpoints
+
 Status: **In Progress — T01 definition Accepted; T02–T06 remain open.**
 Recorded October 19, 2026, America/New_York. The backlog's Planned label remains
 source history; this execution record does not accept the story.
