@@ -1,3 +1,4 @@
+using Azure;
 using Azure.Identity;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
@@ -41,6 +42,7 @@ public sealed class AzureBlobObjectStorageService : IObjectStorageService
                     ? "application/octet-stream"
                     : request.ContentType.Trim()
             },
+            Conditions = request.CreateOnly ? new BlobRequestConditions { IfNoneMatch = ETag.All } : null,
             Metadata = metadata
         };
 
@@ -92,10 +94,24 @@ public sealed class AzureBlobObjectStorageService : IObjectStorageService
         CancellationToken cancellationToken = default)
     {
         var blobName = ObjectStorageNames.BuildTenantBlobName(request.TenantId, request.ObjectName);
-        var response = await GetContainerClient(request.Container)
-            .GetBlobClient(blobName)
-            .DeleteIfExistsAsync(DeleteSnapshotsOption.IncludeSnapshots, cancellationToken: cancellationToken);
-        return response.Value;
+        var blob = GetContainerClient(request.Container).GetBlobClient(blobName);
+        try
+        {
+            var response = await blob.DeleteIfExistsAsync(DeleteSnapshotsOption.IncludeSnapshots,
+                conditions: request.ExpectedETag is null ? null : new BlobRequestConditions { IfMatch = new ETag(request.ExpectedETag) },
+                cancellationToken: cancellationToken);
+            return response.Value;
+        }
+        catch (RequestFailedException exception) when (exception.Status == 412 && !string.IsNullOrWhiteSpace(request.ExpectedETag))
+        {
+            // An already absent version can return 412 for If-Match. Reconcile only absence;
+            // a present/replaced object, failed read or cancellation cannot authorize deletion.
+            cancellationToken.ThrowIfCancellationRequested();
+            var exists = await blob.ExistsAsync(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!exists.Value) return false;
+            throw;
+        }
     }
 
     private BlobContainerClient GetContainerClient(ObjectStorageContainer container) =>

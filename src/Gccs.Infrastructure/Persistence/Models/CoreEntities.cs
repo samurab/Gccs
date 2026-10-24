@@ -848,6 +848,8 @@ public sealed class SolicitationEntity : AuditedEntity
 
 public sealed class ContractDocumentEntity : IClassifiedContentEntity, IContainableContentEntity
 {
+    public Guid? ObjectWriteIntentId { get; set; }
+    public Guid? ObjectWriteIntentTenantId { get; set; }
     public long ClassificationRevision { get; set; }
     public Guid Id { get; set; }
     public Guid ContractId { get; set; }

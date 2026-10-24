@@ -456,6 +456,31 @@ public sealed class EvidenceFileUploadTests : IClassFixture<WebApplicationFactor
     }
 
     [PostgresFact]
+    public async Task Failed_upload_and_unavailable_compensation_leave_a_durable_cleanup_intent()
+    {
+        var tenantId = Guid.NewGuid(); var userId = Guid.NewGuid(); var evidenceId = Guid.NewGuid();
+        var failure = new AuditFailureInterceptor { UploadedOnly = true };
+        await using var factory = CreatePostgresFactory(
+            Environment.GetEnvironmentVariable("GCCS_TEST_POSTGRES_CONNECTION")!, tenantId, userId, evidenceId, failure);
+        using var client = factory.CreateClient();
+        var storage = (InMemoryObjectStorageService)factory.Services.GetRequiredService<IObjectStorageService>();
+        storage.FailDeletes = true;
+        failure.Enabled = true;
+        using var response = await UploadFileBytesAsync(client, tenantId, userId, evidenceId, "Synthetic compensation fixture");
+        failure.Enabled = false;
+        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.Equal(1, storage.Count);
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.False(await db.EvidenceFileVersions.AnyAsync(v => v.EvidenceItemId == evidenceId));
+        Assert.False(await db.AuditLogEntries.AnyAsync(a => a.TenantId == tenantId && a.Action == AuditAction.Uploaded));
+        Assert.Equal(Gccs.Domain.Storage.ObjectWriteIntentState.CleanupPending,
+            (await db.Set<ObjectWriteIntentEntity>().SingleAsync(i => i.TenantId == tenantId)).State);
+        // Retain this fresh synthetic tenant and all evidence; never invoke DeleteTenantAsync here.
+        Assert.Equal(1, await db.Set<ObjectCleanupEntity>().CountAsync(c => c.TenantId == tenantId && c.CompletedAt == null));
+    }
+
+    [PostgresFact]
     public async Task Policy_rejection_rolls_back_business_changes_but_retains_rejection_audit()
     {
         var tenantId = Guid.NewGuid();
@@ -619,10 +644,11 @@ public sealed class EvidenceFileUploadTests : IClassFixture<WebApplicationFactor
     private sealed class AuditFailureInterceptor : SaveChangesInterceptor
     {
         public bool Enabled { get; set; }
+        public bool UploadedOnly { get; set; }
         public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
             DbContextEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default)
         {
-            if (Enabled && eventData.Context!.ChangeTracker.Entries<AuditLogEntryEntity>().Any(e => e.State == EntityState.Added))
+            if (Enabled && eventData.Context!.ChangeTracker.Entries<AuditLogEntryEntity>().Any(e => e.State == EntityState.Added && (!UploadedOnly || e.Entity.Action == AuditAction.Uploaded)))
                 throw new InvalidOperationException("Injected audit persistence failure.");
             return ValueTask.FromResult(result);
         }
@@ -759,11 +785,12 @@ public sealed class EvidenceFileUploadTests : IClassFixture<WebApplicationFactor
         IMalwareScanner? malwareScanner = null) =>
         _factory.WithWebHostBuilder(builder =>
         {
+            var retainedDatabaseName = databaseName + "-" + Guid.NewGuid().ToString("N");
             builder.UseSetting("LocalDependencies:Enabled", "false");
             builder.UseSetting("ConnectionStrings:GccsDatabase", string.Empty);
             builder.ConfigureServices(services =>
             {
-                services.AddDbContext<GccsDbContext>(options => options.UseInMemoryDatabase(databaseName));
+                services.AddDbContext<GccsDbContext>(options => options.UseInMemoryDatabase(retainedDatabaseName));
                 services.AddScoped<NoCuiAcknowledgementService>();
                 services.AddScoped<Gccs.Application.Tenancy.ITenantRepository, Gccs.Infrastructure.Tenancy.EfTenantRepository>();
                 services.AddScoped<Gccs.Application.Tenancy.IDataHandlingNoticeAcknowledgementRepository, Gccs.Infrastructure.Tenancy.EfDataHandlingNoticeAcknowledgementRepository>();
@@ -776,7 +803,6 @@ public sealed class EvidenceFileUploadTests : IClassFixture<WebApplicationFactor
                 using var provider = services.BuildServiceProvider();
                 using var scope = provider.CreateScope();
                 var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
-                dbContext.Database.EnsureDeleted();
                 dbContext.Database.EnsureCreated();
                 seed?.Invoke(dbContext);
                 dbContext.SaveChanges();
@@ -922,7 +948,9 @@ public sealed class EvidenceFileUploadTests : IClassFixture<WebApplicationFactor
             var blobName = ObjectStorageNames.BuildTenantBlobName(request.TenantId, request.ObjectName);
             using var buffer = new MemoryStream();
             request.Content.CopyTo(buffer);
-            _objects[blobName] = new StoredObject(buffer.ToArray(), request.ContentType, DateTimeOffset.UtcNow);
+            var stored = new StoredObject(buffer.ToArray(), request.ContentType, DateTimeOffset.UtcNow);
+            if (request.CreateOnly && !_objects.TryAdd(blobName, stored)) throw new InvalidOperationException("Synthetic create-only conflict.");
+            if (!request.CreateOnly) _objects[blobName] = stored;
 
             return Task.FromResult(new ObjectStorageWriteResult(
                 request.Container,
@@ -964,6 +992,7 @@ public sealed class EvidenceFileUploadTests : IClassFixture<WebApplicationFactor
             ObjectStorageReadRequest request,
             CancellationToken cancellationToken = default)
         {
+            if (request.ExpectedETag is not null && request.ExpectedETag != "\"test\"") throw new InvalidOperationException("Synthetic version mismatch.");
             if (FailDeletes) throw new IOException("synthetic provider failure");
             var blobName = ObjectStorageNames.BuildTenantBlobName(request.TenantId, request.ObjectName);
             return Task.FromResult(_objects.TryRemove(blobName, out _));

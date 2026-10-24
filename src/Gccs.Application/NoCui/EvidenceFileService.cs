@@ -15,7 +15,8 @@ public sealed class EvidenceFileService(
     IObjectStorageService objectStorageService,
     IMalwareScanner malwareScanner,
     IApplicationTransaction transaction,
-    IObjectCleanupQueue cleanup)
+    IObjectCleanupQueue cleanup,
+    DurableObjectWriteCoordinator objectWrites)
 {
     public async Task<EvidenceUploadIntentDto> CreateEvidenceUploadIntentAsync(
         Guid evidenceItemId,
@@ -61,7 +62,8 @@ public sealed class EvidenceFileService(
 
         var objectName = BuildEvidenceObjectName(evidenceItemId, scannedIntent.Id, scannedIntent.FileName);
         content.Position = 0;
-        await objectStorageService.UploadAsync(
+        var storedIntent = scannedIntent with { StorageObjectName = objectName };
+        var version = await objectWrites.ExecuteAsync(
             new ObjectStorageWriteRequest(
                 tenantContext.TenantId,
                 ObjectStorageContainer.Evidence,
@@ -76,15 +78,8 @@ public sealed class EvidenceFileService(
                     ["classification"] = scannedIntent.Classification.Classification.ToString(),
                     ["malwareScanStatus"] = scannedIntent.MalwareScanStatus,
                     ["malwareScanner"] = scanResult.ScannerName
-                }),
-            cancellationToken);
-
-        EvidenceFileVersionDto version;
-        var storedIntent = scannedIntent with { StorageObjectName = objectName };
-        try
+                }), actorUserId, "EvidenceItem", evidenceItemId, async (_, token) =>
         {
-            version = await transaction.ExecuteAsync(async token =>
-            {
                 await classificationPolicy.EnsureAllowedAsync(request.Classification ?? ContentClassificationPolicy.FromLegacyCuiFlag(request.ContainsPotentialCui), TenantDataHandlingWorkflow.EvidenceUpload,
                     actorUserId, "EvidenceItem", evidenceItemId.ToString(), token);
                 var recorded = await repository.RecordAcceptedEvidenceFileVersionAsync(storedIntent, token);
@@ -94,15 +89,7 @@ public sealed class EvidenceFileService(
                     "Evidence file bytes were uploaded to object storage and versioned.",
                     ToAuditMetadata(recorded, "evidence-uploaded"), token);
                 return recorded;
-            }, cancellationToken);
-        }
-        catch
-        {
-            await objectStorageService.DeleteAsync(
-                new ObjectStorageReadRequest(tenantContext.TenantId, ObjectStorageContainer.Evidence, objectName),
-                CancellationToken.None);
-            throw;
-        }
+        }, cancellationToken) ?? throw new InvalidOperationException("The evidence write could not be published.");
 
         return ToAccessDto(version, "Evidence file was uploaded to private object storage.");
     }

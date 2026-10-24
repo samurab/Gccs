@@ -78,15 +78,36 @@ var demoRequestsEnabled = demoOptions.Enabled;
 if (!builder.Environment.IsDevelopment())
 {
     var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
-    if (allowedOrigins is null || allowedOrigins.Length == 0 || allowedOrigins.Any(origin => origin.Contains("localhost", StringComparison.OrdinalIgnoreCase)))
+    if (allowedOrigins is null || allowedOrigins.Length == 0 || allowedOrigins.Any(origin =>
+        string.IsNullOrWhiteSpace(origin) ||
+        origin != origin.Trim() ||
+        !origin.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
+        origin.Contains("localhost", StringComparison.OrdinalIgnoreCase) ||
+        origin.Contains('*') ||
+        // URI normalization can conceal path segments in the configured value.
+        origin.AsSpan("https://".Length).IndexOfAny("/\\?#@") >= 0 ||
+        !Uri.TryCreate(origin, UriKind.Absolute, out var originUri) ||
+        string.IsNullOrEmpty(originUri.Host)))
     {
-        throw new InvalidOperationException("Production CORS origins must be explicitly configured and must not use localhost.");
+        throw new InvalidOperationException("Non-Development CORS origins must be explicit HTTPS origins without localhost, wildcards, credentials, paths, queries, or fragments.");
     }
 
     var allowedHosts = builder.Configuration["AllowedHosts"];
-    if (string.IsNullOrWhiteSpace(allowedHosts) || allowedHosts == "*")
+    if (string.IsNullOrWhiteSpace(allowedHosts) || allowedHosts.Split(';', StringSplitOptions.TrimEntries)
+        .Any(host =>
+        {
+            try
+            {
+                // Match the middleware's IDN normalization before checking universal hosts.
+                return host.Length == 0 || new HostString(host).ToUriComponent() is "*" or "0.0.0.0" or "[::]";
+            }
+            catch (ArgumentException)
+            {
+                return true;
+            }
+        }))
     {
-        throw new InvalidOperationException("Production AllowedHosts must be explicitly configured.");
+        throw new InvalidOperationException("Non-Development AllowedHosts must contain explicit hosts or subdomain patterns without empty entries or universal wildcards.");
     }
 }
 
@@ -104,6 +125,7 @@ builder.Services.AddCors(options =>
 builder.Services.AddOpenApi();
 if (!string.IsNullOrWhiteSpace(builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"]))
 {
+    builder.Services.AddGccsTelemetryPrivacy(builder.Configuration);
     builder.Services.AddApplicationInsightsTelemetry();
 }
 var taskSearchCursorOptions = builder.Configuration
@@ -230,8 +252,8 @@ app.UseGccsApiFailureLogging();
 app.UseGccsApiProblemDetails();
 app.UseGccsSecurityHeaders();
 app.UseCors("web");
-app.UseRateLimiter();
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseGccsTenantMembershipAuthorization(builder.Configuration, app.Environment);
 app.UseAuthorization();
 
@@ -1394,11 +1416,11 @@ api.MapGet("/compliance/overview", async (
     catch (Exception exception) when (exception is not OperationCanceledException)
     {
         logger.LogError(
-            exception,
-            "Compliance overview failed for tenant {TenantId}. TraceId: {TraceId}. CorrelationId: {CorrelationId}.",
+            "Compliance overview failed for tenant {TenantId}. TraceId: {TraceId}. CorrelationId: {CorrelationId}. ExceptionType: {ExceptionType}.",
             tenantContext.TenantId,
             httpContext.TraceIdentifier,
-            correlationId);
+            correlationId,
+            exception.GetType().Name);
         return ApiProblemDetails.Create(
             httpContext,
             "Compliance overview unavailable",

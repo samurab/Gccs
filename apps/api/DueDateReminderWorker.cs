@@ -39,7 +39,7 @@ public sealed class DueDateReminderWorker(
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { return; }
             catch (Exception exception)
             {
-                logger.LogError(exception, "Due-date reminder worker iteration failed. ExceptionType={ExceptionType}", exception.GetType().Name);
+                logger.LogError("Due-date reminder worker iteration failed. ExceptionType={ExceptionType}", exception.GetType().Name);
             }
         }
     }

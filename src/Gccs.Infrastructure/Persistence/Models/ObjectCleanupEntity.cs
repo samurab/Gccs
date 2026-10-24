@@ -4,6 +4,8 @@ namespace Gccs.Infrastructure.Persistence.Models;
 
 public sealed class ObjectCleanupEntity
 {
+    public Guid? ObjectWriteIntentId { get; set; }
+    public string? ExpectedETag { get; set; }
     public Guid Id { get; set; }
     public Guid TenantId { get; set; }
     public Guid ActorUserId { get; set; }

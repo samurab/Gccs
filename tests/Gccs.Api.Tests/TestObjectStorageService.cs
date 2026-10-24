@@ -4,7 +4,7 @@ namespace Gccs.Api.Tests;
 
 internal sealed class TestObjectStorageService : IObjectStorageService
 {
-    private readonly Dictionary<string, StoredObject> _objects = new(StringComparer.Ordinal);
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, StoredObject> _objects = new(StringComparer.Ordinal);
 
     public int Count => _objects.Count;
 
@@ -15,7 +15,9 @@ internal sealed class TestObjectStorageService : IObjectStorageService
         var blobName = ObjectStorageNames.BuildTenantBlobName(request.TenantId, request.ObjectName);
         using var buffer = new MemoryStream();
         await request.Content.CopyToAsync(buffer, cancellationToken);
-        _objects[blobName] = new StoredObject(buffer.ToArray(), request.ContentType, DateTimeOffset.UtcNow);
+        var stored = new StoredObject(buffer.ToArray(), request.ContentType, DateTimeOffset.UtcNow);
+        if (request.CreateOnly && !_objects.TryAdd(blobName, stored)) throw new InvalidOperationException("Synthetic create-only conflict.");
+        if (!request.CreateOnly) _objects[blobName] = stored;
 
         return new ObjectStorageWriteResult(
             request.Container,
@@ -58,7 +60,8 @@ internal sealed class TestObjectStorageService : IObjectStorageService
         CancellationToken cancellationToken = default)
     {
         var blobName = ObjectStorageNames.BuildTenantBlobName(request.TenantId, request.ObjectName);
-        return Task.FromResult(_objects.Remove(blobName));
+        if (request.ExpectedETag is not null && request.ExpectedETag != "\"test\"") throw new InvalidOperationException("Synthetic version mismatch.");
+        return Task.FromResult(_objects.TryRemove(blobName, out _));
     }
 
     private sealed record StoredObject(byte[] Content, string ContentType, DateTimeOffset LastModified);
