@@ -30,6 +30,7 @@ jobs:
       url: ${{ vars.PRODUCTION_WEB_BASE_URL }}
     env:
       APPROVED_RELEASE_MANIFEST: docs/release/approved-release.json
+      DEPLOYMENT_AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
       DOTNET_ENVIRONMENT: Production
       ASPNETCORE_ENVIRONMENT: Production
       Gccs__DataPosture: No-CUI / compliance management only
@@ -207,6 +208,7 @@ jobs:
           test -n "$PRODUCTION_DATABASE_URL"
           sudo apt-get update
           sudo apt-get install --yes postgresql-client
+          node tools/release/check-cleanup-quiescence.mjs production Stopped
           psql "$PRODUCTION_DATABASE_URL" --set ON_ERROR_STOP=on --file "$RUNNER_TEMP/gccs-migrations-production/001-predeploy-compliance-task-search-index.sql"
           psql "$PRODUCTION_DATABASE_URL" --set ON_ERROR_STOP=on --file "$RUNNER_TEMP/gccs-migrations-production/002-ef-core-migrations.sql"
 
@@ -292,6 +294,13 @@ jobs:
         with:
           app-name: ${{ env.PRODUCTION_API_APP_NAME }}
           package: ${{ runner.temp }}/gccs-api-production
+          restart: false
+
+      - name: Start production API with cleanup held
+        run: |
+          node tools/release/check-cleanup-quiescence.mjs production Stopped
+          az webapp start --subscription "$DEPLOYMENT_AZURE_SUBSCRIPTION_ID" --resource-group "$PRODUCTION_RESOURCE_GROUP" --name "$PRODUCTION_API_APP_NAME" --output none
+          node tools/release/check-cleanup-quiescence.mjs production Running
 
       - name: Deploy the staged web artifact
         uses: Azure/static-web-apps-deploy@1a947af9992250f3bc2e68ad0754c0b0c11566c9 # v1

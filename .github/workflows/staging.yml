@@ -34,6 +34,7 @@ jobs:
       release_version: ${{ steps.release_identity.outputs.release_version }}
       bundle_name: ${{ steps.release_identity.outputs.bundle_name }}
     env:
+      DEPLOYMENT_AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
       DOTNET_ENVIRONMENT: Staging
       ASPNETCORE_ENVIRONMENT: Staging
       Gccs__DataPosture: No-CUI / compliance management only
@@ -89,6 +90,12 @@ jobs:
             node tools/release/release-evidence.mjs artifact-policy "$GITHUB_REPOSITORY" "$GITHUB_REPOSITORY_ID" "$commit_sha" "refs/tags/$candidate_tag"
             cp tools/release/validate-auth-config.mjs "$RUNNER_TEMP/validate-auth-config.mjs"
             cp tools/release/check-azure-settings.mjs "$RUNNER_TEMP/check-azure-settings.mjs"
+            if [[ -e "$RUNNER_TEMP/check-cleanup-quiescence.mjs" || -L "$RUNNER_TEMP/check-cleanup-quiescence.mjs" ]]; then
+              echo "::error::Cleanup guard destination already exists; preserving it."
+              exit 1
+            fi
+            cp -n tools/release/check-cleanup-quiescence.mjs "$RUNNER_TEMP/check-cleanup-quiescence.mjs"
+            cmp -s tools/release/check-cleanup-quiescence.mjs "$RUNNER_TEMP/check-cleanup-quiescence.mjs"
             git checkout --detach "$commit_sha"
             bundle_name="fedril-${candidate_tag}"
           else
@@ -222,6 +229,13 @@ jobs:
           grep -R "malware_scanner" infra/terraform/environments/staging/main.tf
           grep -R "secrets" infra/terraform/environments/staging/main.tf
 
+      - name: Login to Azure staging subscription
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
       - name: Apply staging migrations through approved CI/CD
         env:
           STAGING_DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
@@ -229,6 +243,11 @@ jobs:
           test -n "$STAGING_DATABASE_URL"
           sudo apt-get update
           sudo apt-get install --yes postgresql-client
+          cleanup_checker=tools/release/check-cleanup-quiescence.mjs
+          if [[ -f "$RUNNER_TEMP/check-cleanup-quiescence.mjs" ]]; then
+            cleanup_checker="$RUNNER_TEMP/check-cleanup-quiescence.mjs"
+          fi
+          node "$cleanup_checker" staging Stopped
           psql "$STAGING_DATABASE_URL" --set ON_ERROR_STOP=on --file infra/database/predeploy-compliance-task-search-index.sql
           psql "$STAGING_DATABASE_URL" --set ON_ERROR_STOP=on --file "$RUNNER_TEMP/gccs-staging-migrations.sql"
 
@@ -236,13 +255,6 @@ jobs:
         run: |
           echo "Staging database, object storage, cache, queue, malware scanner, network integration, and secrets are provisioned outside this repository workflow."
           echo "API and web artifacts are deployed by the following workflow steps."
-
-      - name: Login to Azure staging subscription
-        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3
-        with:
-          client-id: ${{ vars.AZURE_CLIENT_ID }}
-          tenant-id: ${{ vars.AZURE_TENANT_ID }}
-          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
       - name: Configure staging runtime dependencies
         env:
@@ -337,6 +349,17 @@ jobs:
         with:
           app-name: ${{ env.STAGING_API_APP_NAME }}
           package: ${{ runner.temp }}/gccs-api-staging
+          restart: false
+
+      - name: Start staging API with cleanup held
+        run: |
+          cleanup_checker=tools/release/check-cleanup-quiescence.mjs
+          if [[ -f "$RUNNER_TEMP/check-cleanup-quiescence.mjs" ]]; then
+            cleanup_checker="$RUNNER_TEMP/check-cleanup-quiescence.mjs"
+          fi
+          node "$cleanup_checker" staging Stopped
+          az webapp start --subscription "$DEPLOYMENT_AZURE_SUBSCRIPTION_ID" --resource-group "$STAGING_RESOURCE_GROUP" --name "$STAGING_API_APP_NAME" --output none
+          node "$cleanup_checker" staging Running
 
       - name: Write staging runtime configuration
         env:

@@ -24,6 +24,76 @@ const deploymentJob = (text, name) => {
   return match[1];
 };
 
+const namedStep = (text, name) => {
+  const start = text.indexOf(`      - name: ${name}\n`);
+  assert.ok(start >= 0, `Missing ${name} step`);
+  const end = text.indexOf("      - name:", start + 1);
+  return text.slice(start, end < 0 ? undefined : end);
+};
+
+for (const [environment, workflow, migrationName, apiName] of [
+  ["staging", staging, "Apply staging migrations through approved CI/CD", "Deploy staging API App Service"],
+  ["production", production, "Apply the staged migration artifact", "Deploy the staged API artifact"]
+]) {
+  test(`${environment} fences migrations and API startup with cleanup disabled`, () => {
+    const migration = namedStep(workflow, migrationName);
+    const api = namedStep(workflow, apiName);
+    const start = namedStep(workflow, `Start ${environment} API with cleanup held`);
+    const login = workflow.indexOf(`      - name: Login to Azure ${environment} subscription`);
+    assert.ok(login >= 0 && login < workflow.indexOf(`      - name: ${migrationName}`));
+    assert.ok(migration.indexOf(` ${environment} Stopped`) < migration.indexOf("psql "));
+    assert.ok(migration.includes(` ${environment} Stopped`), "Missing pre-SQL cleanup gate");
+    assert.match(api, /^          restart: false$/m);
+    assert.ok(start.indexOf(` ${environment} Stopped`) >= 0 &&
+      start.indexOf(` ${environment} Stopped`) < start.indexOf("az webapp start"));
+    assert.ok(start.indexOf(` ${environment} Running`) > start.indexOf("az webapp start"));
+    assert.match(start, /az webapp start --subscription "\$DEPLOYMENT_AZURE_SUBSCRIPTION_ID"/);
+    assert.doesNotMatch(start, /if:|always\(\)|continue-on-error/);
+    assert.doesNotMatch(workflow, /ObjectCleanupProcessing(?:__|:)Enabled\s*=\s*true/i);
+    assert.match(workflow, /^      DEPLOYMENT_AZURE_SUBSCRIPTION_ID: \$\{\{ vars\.AZURE_SUBSCRIPTION_ID \}\}$/m);
+  });
+
+  test(`${environment} guard failure executes neither SQL nor API start`, () => {
+    for (const stepName of [migrationName, `Start ${environment} API with cleanup held`]) {
+      const step = namedStep(workflow, stepName);
+      const body = step.split("        run: |\n")[1].split("\n").map(line => line.replace(/^          /, "")).join("\n");
+      const stub = 'sudo() { return 0; }\nnode() { return 17; }\npsql() { printf MIGRATION_BYPASSED; }\naz() { printf START_BYPASSED; }\n';
+      const result = spawnSync("/bin/bash", ["--noprofile", "--norc", "-e", "-c", stub + body], {
+        env: { PATH: "/usr/bin:/bin", RUNNER_TEMP: "/synthetic-runner", STAGING_DATABASE_URL: "synthetic", PRODUCTION_DATABASE_URL: "synthetic" },
+        encoding: "utf8", timeout: 5000, maxBuffer: 64 * 1024
+      });
+      assert.ifError(result.error);
+      assert.equal(result.signal, null);
+      assert.equal(result.status, 17);
+      assert.equal(result.stdout, "");
+      assert.equal(result.stderr, "");
+    }
+  });
+}
+
+test("staging retains the reviewed guard before candidate checkout", () => {
+  const copy = staging.indexOf('cp -n tools/release/check-cleanup-quiescence.mjs "$RUNNER_TEMP/check-cleanup-quiescence.mjs"');
+  assert.ok(copy >= 0 && copy < staging.indexOf("git checkout --detach"));
+  assert.match(staging, /\[\[ -e "\$RUNNER_TEMP\/check-cleanup-quiescence\.mjs" \|\| -L "\$RUNNER_TEMP\/check-cleanup-quiescence\.mjs" \]\]/);
+  assert.match(staging, /cmp -s tools\/release\/check-cleanup-quiescence\.mjs "\$RUNNER_TEMP\/check-cleanup-quiescence\.mjs"/);
+  assert.match(staging, /node "\$cleanup_checker" staging Stopped/);
+});
+
+test("staging refuses to overwrite an existing guard destination", () => {
+  const begin = staging.indexOf('            if [[ -e "$RUNNER_TEMP/check-cleanup-quiescence.mjs"');
+  const end = staging.indexOf('            git checkout --detach', begin);
+  const body = staging.slice(begin, end).split("\n").map(line => line.replace(/^            /, "")).join("\n");
+  const result = spawnSync("/bin/bash", ["--noprofile", "--norc", "-e", "-c",
+    'cp() { printf COPY_BYPASSED; }\ncmp() { printf READBACK_BYPASSED; }\n' + body], {
+    env: { PATH: "/usr/bin:/bin", RUNNER_TEMP: fileURLToPath(new URL("./", import.meta.url)) },
+    encoding: "utf8", timeout: 5000, maxBuffer: 64 * 1024
+  });
+  assert.ifError(result.error);
+  assert.equal(result.status, 1);
+  assert.equal(result.stdout, "::error::Cleanup guard destination already exists; preserving it.\n");
+  assert.equal(result.stderr, "");
+});
+
 test("staging checks exact-ref artifact eligibility before candidate checkout or build", () => {
   const gate = staging.indexOf('node tools/release/release-evidence.mjs artifact-policy');
   assert.ok(gate >= 0 && gate < staging.indexOf('git checkout --detach'), "Candidate policy must pass before source checkout");
