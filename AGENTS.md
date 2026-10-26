@@ -4,6 +4,25 @@ Use these instructions for work in this repository. Apply verification in
 proportion to the task's risk; do not run release-grade investigation or test
 suites for low-risk work.
 
+## Review Scope and Completion
+
+- Report actual findings without a minimum defect count. A review-only request
+  produces findings and proposed corrections; it does not authorize rewriting
+  code. Keep evidence-backed criticism and material limitations explicit.
+- For an implementation request, complete the bounded design, compatible change,
+  relevant verification and checkpoint already authorized. Finish permitted
+  offline preparation before presenting a concrete gated action; do not turn
+  routine stages into repeated requests to approve a plan or say "continue".
+  Respect explicit plan-only, read-only, sequencing and operating holds.
+- Distinguish an actual acceptance requirement from an optional safeguard or
+  unverified assumption. Do not invent impossible sandbox, zero-persistence or
+  exhaustive-proof requirements. Document residual limits and stop an operation
+  when an existing authority, safety or evidence gate actually requires it.
+- Instruction-maintenance requests permit scoped user-owned guidance edits and
+  a recorded rationale, not new cloud activity, publication, restricted intake,
+  source disposition or acceptance. Keep existing exact-action approvals and
+  holds effective. See [the instruction decision](docs/decision-log.md#decision-evidence-based-agent-instructions-and-bounded-execution).
+
 ## File Preservation and Explicit Permission
 
 - Obtain fresh, explicit user approval that names the exact targets, action,
@@ -283,6 +302,8 @@ rules, tests, and No-CUI product posture.
 ## Working Procedure
 
 ### SOC 2 autonomy and bounded execution
+
+Apply [FeDril service scope and proportionate work](docs/development-story-prompts.md#fedril-service-scope-and-proportionate-work) before proposing or selecting SOC 2 work. Record the service risk/dependency or applicable criterion, evidence gap and proportionate outcome in the existing task/story record.
 
 For Stories 39.1–39.23, use section 39's shared execution contract and dependency
 gates. On every execution request, briefly identify material prompt inefficiency

@@ -18,6 +18,8 @@ This skill coordinates them; it does not replace them or broaden authorization.
 
 ## Shared rules
 
+Apply section 39's **FeDril Service Scope And Proportionate Work** rule before proposing or selecting work. Record the concrete service risk/dependency or applicable criterion, evidence gap and proportionate outcome in the existing task/story record. The source is `docs/development-story-prompts.md#fedril-service-scope-and-proportionate-work` in the verified repository; resolve it there for installed skill copies.
+
 - Inspect each incoming execution prompt for material inefficiency. Briefly give
   a better bounded prompt if useful, then proceed under existing authorization.
   Do not manufacture flaws, repeat critique on routine continuation, or wait for
@@ -29,12 +31,28 @@ This skill coordinates them; it does not replace them or broaden authorization.
 - Adequate prompts need no rewrite. Do not repeat workflow optimization or full
   tool inventories before every story. Change instructions only for demonstrated
   defects or useful missing behavior; inspect sources relevant to the question.
+- Match task mode: respect plan-only/read-only requests and explicit sequencing
+  or operating holds. Implementation requests include the authorized design,
+  compatible correction, relevant offline verification and checkpoint. Complete
+  that preparation before presenting a concrete gated decision, rather than
+  repeatedly asking to approve a plan or continue. Do not turn unproved absolute
+  guarantees into new acceptance criteria or silently accept material risks.
 - Use numeric order as default priority and triage plausible 39.4 exposure
   immediately. After setup gates, continue dependency-satisfied independent work
   in 39.5–39.17 as section 39 permits. A deferred reviewer does not suspend all
   management-side work; preserve the exact affected acceptance/release gates.
-- Keep `docs/soc2/soc2-execution-ledger.md` as the coordination checkpoint. Reuse existing canonical SOC 2 records; do not create a second tracker for the same fact. Use the [record template](references/story-record.md) for per-story handoffs and completion records.
-- A story is `Complete` only with evidenced acceptance criteria and applicable gates. Track design, implementation, operating evidence, governance approval, staging, and production independently. A merged change or configured control does not prove operation, approval, an observation period, or assurance.
+- Reuse the existing ledger/story/register records, resolving operative private
+  counterparts through the accepted continuation manifest and repository record
+  boundary. Repository paths are public projections, not automatic write targets;
+  new public versions require exact publication approval. If the private binding
+  is unavailable, preserve that limitation and continue eligible independent work.
+  Do not create another tracker or reconstruct private records from public history.
+  Use the [record template](references/story-record.md) for applicable record fields.
+- A task/story is `Accepted` only with evidenced acceptance criteria and actual
+  applicable decisions/gates. Use section 39's existing statuses; do not add a
+  `Complete` status. Track design, implementation, operating evidence, governance
+  approval, staging and production independently. A merged change or configured
+  control does not prove operation, approval, an observation period or assurance.
 - Place only sanitized references and summaries in Git. Keep restricted evidence in its approved protected workspace. Never inspect or export secret values, customer content, or CUI, and do not put tenant, subscription, resource, user, network, or endpoint identifiers into chat or assessment artifacts.
 - Preserve the No-CUI product posture and existing Clean Architecture, tenant isolation, server RBAC, audit, report immutability, and release boundaries. These are verification targets, not assumed facts.
 - Continue eligible authorized work without waiting for "what's next". Stop only
@@ -56,10 +74,12 @@ This skill coordinates them; it does not replace them or broaden authorization.
    contract, gates and selected story, plus assessment/coverage references relevant
    to its remaining requirements. Use targeted reads thereafter; remap changed
    requirements without invalidating evidence whose relevant inputs still match.
-2. Reconcile the current unit with actual Git, GitHub and Azure read-only state.
-   Reuse its branch, PR, run and evidence; a stale ledger is not reason to recreate
-   them. Read [release and recovery](references/release-and-resume.md) before
-   external mutation or recovery from an uncertain outcome.
+2. Reconcile only state relevant to the current unit and its pending outcomes.
+   Inspect actual GitHub/Azure state when needed and authorized; local-only units
+   do not require unrelated cloud or release discovery. Reuse existing branch,
+   PR, run and evidence; a stale ledger is not reason to recreate them. Read
+   [release and recovery](references/release-and-resume.md) before external mutation
+   or recovery from an uncertain outcome.
 3. Select the smallest eligible unit: stable task ID, finite requirement/affected
    path inventory, permitted files/actions, dependencies, acceptance checks and
    evidence. Use judgment to fix verified in-scope defects. Map unrelated findings

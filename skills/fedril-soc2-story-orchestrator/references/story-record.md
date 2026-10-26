@@ -11,6 +11,7 @@ Create or update the existing canonical story record. Record the exact title fro
 | Task status | Planned / In Progress / Blocked / Ready For Review / Accepted / Deferred / Not Applicable; retain existing story status, with no new completion state |
 | Design / implementation / operating evidence / governance | Separate states and source references |
 | Existing behavior and smallest remaining gap | |
+| FeDril scope justification | Concrete service risk/dependency or applicable Trust Services criterion; evidence gap; proportionate outcome; reasoned applicability decision if uncertain, under section 39's FeDril Service Scope And Proportionate Work rule |
 | Source and evidence references | Sanitized paths, collection date, verified / partially verified / unverified / N/A, access limitation |
 | Branch / commit / PR | Verified identifiers or `none`; never guessed |
 | Dirty-file binding / environment | Relevant uncommitted-file hashes, configuration/environment identity; protected details stay in approved custody |
@@ -36,4 +37,7 @@ Only end execution when the authorized work is exhausted or no safe eligible uni
 remains; a real pending external run remains explicit. Never claim continuation
 after turn completion without an active runner.
 
-For a negative or failed check, record the candidate revision, failure, affected gate, investigation, and verified recovery. Never use `Complete` while a required row lacks evidence.
+For a negative or failed check, record the candidate revision, failure, affected
+gate, investigation and verified recovery. Use `Accepted` only after the required
+evidence and actual applicable decisions/gates are satisfied; technical completion
+alone does not accept the task or story.

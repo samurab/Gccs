@@ -5757,6 +5757,34 @@ Revision: 2026-09-19. This is the consolidated execution backlog for the SOC 2 p
 
 **Unavailable historical evidence:** the referenced 2026-09-19 assessment at `docs/soc2-readiness-assessment.md` is absent from this checkout. The 36 checklist items, 15 gap IDs and proposed story additions below are inherited references, not verified current findings or a production-state guarantee. Preserve the dated original if it becomes available; record subsequent evidence, decisions and remediation separately.
 
+### FeDril Service Scope And Proportionate Work
+
+The owner's goal is a SOC 2 report for the defined FeDril service, examined by an
+independent licensed CPA firm using AICPA standards. AICPA itself does not perform
+the FeDril examination. Final service boundary, report type and Trust Services
+categories require agreement with the CPA; this guidance establishes no auditor
+engagement, current service use, completed control or report.
+
+Include the FeDril application and relevant Azure, GitHub and other service
+dependencies, data, access, deployment/change control, recovery, incident response,
+and vendor, personnel and governance processes only insofar as they support
+operating the scoped service. Scope is not limited to application code. Exclude
+unrelated personal or business systems and generic checklist expansion.
+
+Before proposing or selecting any task, identify in the existing task/story
+record its concrete FeDril risk or dependency, or applicable Trust Services
+criterion; the evidence gap; and the proportionate outcome that closes that gap.
+Reuse existing controls, records, checks and approvals when they suffice. Do not
+add redundant documents, checks or approvals without a real gap, and do not weaken
+necessary security or approval controls. Uncertain applicability requires a
+reasoned scope decision with supporting evidence, remaining uncertainty and the
+applicable decision authority; it is neither automatic implementation nor
+unsupported Not Applicable. Preserve existing N/A and deferral decision gates.
+
+This is implementation guidance only. It does not accept controls, close gaps,
+authorize operational tasks, lift writer pauses, approve publication, or permit
+evidence disposal. Retain historical evidence and exact-action approval gates.
+
 ### Execution Order And Stage Gates
 
 Run the setup portions of 39.1, 39.2, and 39.3 first, then use numeric order as the default priority for eligible work in 39.4–39.23, subject to the independent-work allowance below. **Exception: begin 39.4 exposure triage immediately if exposure is still plausible; do not wait for governance paperwork.** Stories 39.1–39.3 are parent workflows: their setup gates permit child work; their final closure requires child evidence. Do not create a circular dependency by demanding their final closure before starting the children.
@@ -6882,6 +6910,8 @@ The 23-story decomposition, proposed cadences, ordering and safeguards are imple
 ### SOC 2 Readiness Assessment Companion Prompt
 **Status: Ready For Execution**
 
+Apply [FeDril service scope and proportionate work](#fedril-service-scope-and-proportionate-work) to every assessment recommendation and checklist item.
+
 This companion prompt is not a new numbered user story. It refreshes the current-state assessment for parent Stories 39.1–39.3 and delivery Stories 39.4–39.23. Use the sequential stories above for implementation. Assessment is read-only with respect to application and infrastructure changes; its authorized output is a dated report. Record completed assessment runs in the report history; a reusable prompt's status is not a control-completion claim.
 
 Prompt:
@@ -6922,7 +6952,7 @@ Write the final assessment to `docs/soc2-readiness-assessment.md` unless a diffe
 
 FeDril is currently positioned as a No-CUI compliance-readiness operations platform. SOC 2 is intended to establish commercial trust in the FeDril SaaS environment; it does not replace CMMC readiness, FedRAMP authorization, NIST SP 800-171 responsibilities, government approval, or authorization to store or process CUI.
 
-Security is the required baseline Trust Services Criteria category for the candidate SOC 2 scope. Evaluate Availability and Confidentiality separately and recommend adding either category only when supported by verified customer commitments, contractual requirements, data sensitivity, or system behavior. Do not automatically scope Processing Integrity or Privacy, and do not scope all five categories by default.
+Use Security as the candidate baseline for assessment; this does not record an approved category selection. Final categories require agreement with the CPA. Evaluate Availability and Confidentiality separately and recommend adding either category only when supported by verified customer commitments, contractual requirements, data sensitivity, or system behavior. Do not automatically scope Processing Integrity or Privacy, and do not scope all five categories by default.
 
 No security or compliance program can be literally “fail-proof.” Interpret that request as designing the most defensible, sustainable, repeatable, evidence-backed SOC 2 program practicable for FeDril, with explicit residual risks and limitations.
 

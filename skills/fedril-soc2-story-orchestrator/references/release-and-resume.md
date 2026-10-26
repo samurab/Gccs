@@ -1,6 +1,12 @@
 # Release, reconciliation, and failure procedure
 
-Read current `.github/workflows` and release documentation before executing a story. The workflows observed on 2026-09-28 have staging deployment on `main` push or manual dispatch and production promotion by manual protected release tag and approved manifest. This observation is not permanent authority; verify current YAML and live GitHub settings each time. The legacy production workflow is for rollback only.
+Read the relevant current workflows and release documentation before publication,
+release or deployment work, or when reconciling a pending external outcome.
+Local-only instruction, record and offline-test units do not require unrelated
+release/cloud discovery. The workflows observed on 2026-09-28 had staging on
+`main` push/manual dispatch and protected production promotion. That is historical
+context, not current authority: verify the affected YAML and live settings before
+the relevant external action. Keep rollback-only workflows in their approved role.
 
 Inspect existing work and effective authorization first. For deployable changes,
 reuse the isolated branch/PR and tested candidate; implement, verify and review the
@@ -14,17 +20,26 @@ initiated a run, inspect it before any dispatch. Documentation-only work needs
 no application deployment; record N/A with rationale while checking any actual
 publishing trigger. Do not add release work to every technical unit.
 
-At every boundary record implementation, evidence, approvals, and deployment independently. Inspect GitHub PR and workflow run state before retrying a failed or interrupted action; inspect Azure deployment metadata without secrets or customer content. Never recreate a branch, PR, resource, or deployment just because the local record is stale. A merge that changes the tested candidate requires the applicable revalidation before production promotion.
+At each relevant boundary record implementation, evidence, approvals and deployment
+independently. Before retrying an interrupted external action, inspect its actual
+PR/run/deployment state without secrets or customer content. Do not require
+unrelated provider reads for a local unit or recreate an object because a record
+is stale. A merge changing the tested candidate needs applicable revalidation.
 
 ## Dry-run scenarios
 
-Rehearse these as read-only decisions and record the outcome in the ledger:
+Rehearse applicable scenarios as offline/read-only decisions. Record meaningful
+results in the accepted operative checkpoint, or the requested instruction-change
+record for instruction maintenance; never write a public projection by default.
 
 1. Failed check: block merge/promotion; capture failing run and tested revision; repair within story scope and rerun the failed gate.
 2. GitHub or Azure credential unavailable: keep local work, mark external steps unverified, record minimum required access, and stop before dependent mutations.
 3. Dependency, owner approval, reviewer, protected evidence store, or observation period unmet: stop the affected operation, record its exact blocker and consult section 39 for other dependency-satisfied authorized work. Never bypass final acceptance or a live-risk hold.
 4. Interrupted run after dispatch: query live PR/workflow/deployment state first; do not replay a succeeded or still-running action.
-5. Named task thread tool unavailable: continue in this coordinating thread with exact-title record and ready-to-use handoff; never claim a separate UI thread exists.
+5. Named task thread tool unavailable: continue eligible authorized work in this
+   coordinating thread. Preserve the exact-title context; provide a handoff only
+   if actually blocked or finishing the authorized scope. Never claim a separate
+   UI thread exists or create one without the required user request.
 
 No dry-run scenario authorizes bypassing branch protection, environment approval, or governance. Record a scenario's observed tool availability and limitations rather than presenting the rehearsal as a live failure or completed operational control.
 
@@ -50,8 +65,9 @@ register. Diagnose a real failure rather than rerunning setup on every resume.
 
 ## Compact recovery and tooling
 
-Maintain the latest current checkpoint in the existing ledger/story record above
-historical entries. Root alone writes shared records; do not rebuild them from
+Maintain the latest checkpoint in the operative ledger/story record resolved
+through the accepted private/public binding, above its historical entries. Root
+alone writes shared records; do not rebuild them from
 chat summaries or make a second task register. Record task, source hash, candidate
 SHA and relevant dirty-file fingerprints, environment, verified evidence/results,
 pending run/session IDs, exact authorization, held operations and next action.

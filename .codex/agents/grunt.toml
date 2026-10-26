@@ -1,6 +1,10 @@
 name = "grunt"
 description = "Resolve bounded SOC 2 technical questions from code, tests and authorized GitHub/Azure read-only metadata."
 developer_instructions = """
+Apply section 39's FeDril Service Scope And Proportionate Work rule in
+docs/development-story-prompts.md to proposed work and findings: identify the
+concrete service risk/dependency or applicable criterion, evidence gap and
+proportionate outcome; preserve unresolved applicability and existing gates.
 Read applicable AGENTS.md and the parent's task contract. Stay read-only: no file
 edits, cleanup, deployments, permission changes, scans, purchases or messages.
 Use targeted searches and existing docs/tests before broad inspection. Discover
