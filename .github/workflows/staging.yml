@@ -64,6 +64,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Retain current API package guard before source checkout
+        run: |
+          guard_dir="$RUNNER_TEMP/soc2-39.8-package-guard-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          mkdir "$guard_dir"
+          cp -n tools/release/check-api-package.py "$guard_dir/check-api-package.py"
+          cmp -s tools/release/check-api-package.py "$guard_dir/check-api-package.py"
+          guard_sha="$(sha256sum tools/release/check-api-package.py | cut -d ' ' -f 1)"
+          printf '%s  %s\n' "$guard_sha" "$guard_dir/check-api-package.py" | sha256sum --check --status
+          echo "API_PACKAGE_GUARD=$guard_dir/check-api-package.py" >> "$GITHUB_ENV"
+          echo "API_PACKAGE_GUARD_SHA256=$guard_sha" >> "$GITHUB_ENV"
+
       - name: Resolve and validate release identity
         id: release_identity
         env:
@@ -175,7 +186,9 @@ jobs:
 
       - name: Package immutable deployment artifacts
         run: |
-          mkdir -p "$RUNNER_TEMP/release-bundle"
+          printf '%s  %s\n' "$API_PACKAGE_GUARD_SHA256" "$API_PACKAGE_GUARD" | sha256sum --check --status
+          python3 -I -B "$API_PACKAGE_GUARD" --check-tree "$RUNNER_TEMP/gccs-api-staging"
+          mkdir "$RUNNER_TEMP/release-bundle"
           (cd "$RUNNER_TEMP/gccs-api-staging" && zip -X -q -r "$RUNNER_TEMP/release-bundle/fedril-api.zip" .)
           (cd apps/web/dist && zip -X -q -r "$RUNNER_TEMP/release-bundle/fedril-web.zip" .)
           mkdir -p "$RUNNER_TEMP/release-migrations"
@@ -196,6 +209,9 @@ jobs:
               node tools/release/release-control.mjs metadata
           fi
           (cd "$RUNNER_TEMP/release-bundle" && sha256sum * > SHA256SUMS)
+          api_sha="$(awk '$2 == "fedril-api.zip" {print $1}' "$RUNNER_TEMP/release-bundle/SHA256SUMS")"
+          python3 -I -B "$API_PACKAGE_GUARD" "$RUNNER_TEMP/release-bundle/fedril-api.zip" "$api_sha" --publish-root "$RUNNER_TEMP/gccs-api-staging"
+          echo "API_PACKAGE_SHA256=$api_sha" >> "$GITHUB_ENV"
 
       - name: Validate staging No-CUI and no production data guardrails
         env:
@@ -344,11 +360,16 @@ jobs:
           STAGING_CUSTOMER_AUDIENCE: ${{ env.FEDRIL_CUSTOMER_AUDIENCE }}
         run: node "$RUNNER_TEMP/check-azure-settings.mjs" staging
 
+      - name: Recheck original staging API ZIP immediately before deployment
+        run: |
+          printf '%s  %s\n' "$API_PACKAGE_GUARD_SHA256" "$API_PACKAGE_GUARD" | sha256sum --check --status
+          python3 -I -B "$API_PACKAGE_GUARD" "$RUNNER_TEMP/release-bundle/fedril-api.zip" "$API_PACKAGE_SHA256" --publish-root "$RUNNER_TEMP/gccs-api-staging"
+
       - name: Deploy staging API App Service
         uses: azure/webapps-deploy@02a81bead70021f5284939794bcec79c271ab383 # v3
         with:
           app-name: ${{ env.STAGING_API_APP_NAME }}
-          package: ${{ runner.temp }}/gccs-api-staging
+          package: ${{ runner.temp }}/release-bundle/fedril-api.zip
           restart: false
 
       - name: Start staging API with cleanup held

@@ -36,6 +36,11 @@ jobs:
           npm run check:release-control
           npm run test:release-control
 
+      - name: Test API package preservation guards
+        run: |
+          python3 -I -B tools/release/check-api-package.test.py
+          python3 -I -B tools/release/api-package-workflows.test.py
+
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
@@ -332,7 +337,7 @@ jobs:
         run: >
           dotnet test tests/Gccs.Api.Tests/Gccs.Api.Tests.csproj
           --no-restore
-          --filter "FullyQualifiedName~ReportPostgresTransactionTests|FullyQualifiedName~ContractExtractionPostgresTransactionTests|FullyQualifiedName~AiOutputPostgresTests|FullyQualifiedName~FedRampPersistenceTests|FullyQualifiedName~LaborApplicabilityWageDeterminationTests|FullyQualifiedName~LaborApplicabilityRealStackTests"
+          --filter "FullyQualifiedName~ReportPostgresTransactionTests|FullyQualifiedName~ContractExtractionPostgresTransactionTests|FullyQualifiedName~AiOutputPostgresTests|FullyQualifiedName~FedRampPersistenceTests|FullyQualifiedName~LaborApplicabilityWageDeterminationTests|FullyQualifiedName~LaborApplicabilityRealStackTests|FullyQualifiedName~DemoRequestRetentionPostgresTests"
 
       - name: Run real-stack report authorization tests
         env:

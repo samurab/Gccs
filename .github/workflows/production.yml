@@ -57,6 +57,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Retain current API package guard before source checkout
+        run: |
+          guard_dir="$RUNNER_TEMP/soc2-39.8-package-guard-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          mkdir "$guard_dir"
+          cp -n tools/release/check-api-package.py "$guard_dir/check-api-package.py"
+          cmp -s tools/release/check-api-package.py "$guard_dir/check-api-package.py"
+          guard_sha="$(sha256sum tools/release/check-api-package.py | cut -d ' ' -f 1)"
+          printf '%s  %s\n' "$guard_sha" "$guard_dir/check-api-package.py" | sha256sum --check --status
+          echo "API_PACKAGE_GUARD=$guard_dir/check-api-package.py" >> "$GITHUB_ENV"
+          echo "API_PACKAGE_GUARD_SHA256=$guard_sha" >> "$GITHUB_ENV"
+
       - name: Validate approved launch candidate input
         env:
           REQUESTED_LAUNCH_CANDIDATE_TAG: ${{ github.event.inputs.launch_candidate_tag }}
@@ -176,6 +187,23 @@ jobs:
           if grep -R "Local test context" apps/web/dist; then exit 1; fi
           if grep -R "/api/development/testing-context" apps/web/dist; then exit 1; fi
 
+      - name: Package explicitly classified legacy source rebuild
+        id: legacy_api_package
+        run: |
+          printf '%s  %s\n' "$API_PACKAGE_GUARD_SHA256" "$API_PACKAGE_GUARD" | sha256sum --check --status
+          python3 -I -B "$API_PACKAGE_GUARD" --check-tree "$RUNNER_TEMP/gccs-api-production"
+          archive_dir="$RUNNER_TEMP/soc2-39.8-api-legacy-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          mkdir "$archive_dir"
+          api_zip="$archive_dir/fedril-api-legacy-rebuild.zip"
+          (cd "$RUNNER_TEMP/gccs-api-production" && zip -X -q -r "$api_zip" .)
+          api_sha="$(sha256sum "$api_zip" | cut -d ' ' -f 1)"
+          python3 -I -B "$API_PACKAGE_GUARD" "$api_zip" "$api_sha" --publish-root "$RUNNER_TEMP/gccs-api-production"
+          printf '%s  %s\n' "$api_sha" fedril-api-legacy-rebuild.zip > "$archive_dir/SHA256SUMS"
+          printf 'classification=legacy-source-rebuild\nsource_sha=%s\napi_sha256=%s\n' "$(git rev-parse HEAD)" "$api_sha" > "$archive_dir/package-evidence.txt"
+          echo "path=$api_zip" >> "$GITHUB_OUTPUT"
+          echo "API_PACKAGE_PATH=$api_zip" >> "$GITHUB_ENV"
+          echo "API_PACKAGE_SHA256=$api_sha" >> "$GITHUB_ENV"
+
       - name: Preserve effective legacy authentication metadata for repeated recovery
         env:
           FEDRIL_API_BASE_URL: ${{ env.PRODUCTION_API_BASE_URL }}
@@ -278,11 +306,16 @@ jobs:
           PRODUCTION_CUSTOMER_AUDIENCE: ${{ env.FEDRIL_CUSTOMER_AUDIENCE }}
         run: node "$RUNNER_TEMP/check-azure-settings.mjs" production
 
+      - name: Recheck legacy rebuild API ZIP immediately before deployment
+        run: |
+          printf '%s  %s\n' "$API_PACKAGE_GUARD_SHA256" "$API_PACKAGE_GUARD" | sha256sum --check --status
+          python3 -I -B "$API_PACKAGE_GUARD" "$API_PACKAGE_PATH" "$API_PACKAGE_SHA256" --publish-root "$RUNNER_TEMP/gccs-api-production"
+
       - name: Deploy production API App Service
         uses: azure/webapps-deploy@02a81bead70021f5284939794bcec79c271ab383 # v3
         with:
           app-name: ${{ env.PRODUCTION_API_APP_NAME }}
-          package: ${{ runner.temp }}/gccs-api-production
+          package: ${{ steps.legacy_api_package.outputs.path }}
 
       - name: Deploy production Static Web App
         uses: Azure/static-web-apps-deploy@1a947af9992250f3bc2e68ad0754c0b0c11566c9 # v1
@@ -327,6 +360,8 @@ jobs:
             echo "deployment_time_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
             echo "artifact_tag=${{ github.event.inputs.launch_candidate_tag }}"
             echo "artifact_sha=$(git rev-parse HEAD)"
+            echo "artifact_classification=legacy-source-rebuild"
+            echo "api_package_sha256=$API_PACKAGE_SHA256"
             echo "operator=${{ github.actor }}"
             echo "environment=production"
             echo "workflow=${{ github.workflow }}"
@@ -348,3 +383,5 @@ jobs:
             ${{ runner.temp }}/production-deployment-evidence.txt
             ${{ runner.temp }}/production-health.json
             ${{ runner.temp }}/gccs-production-migrations.sql
+            ${{ runner.temp }}/soc2-39.8-api-legacy-${{ github.run_id }}-${{ github.run_attempt }}/SHA256SUMS
+            ${{ runner.temp }}/soc2-39.8-api-legacy-${{ github.run_id }}-${{ github.run_attempt }}/package-evidence.txt
