@@ -73,3 +73,81 @@ Approval status:
 Review date:
 
 Before MVP launch candidate tagging.
+
+## Decision: Evidence-Based Agent Instructions And Bounded Execution
+
+Date: 2026-10-23, America/New_York
+
+Status: **Implemented locally — instruction maintenance only.**
+
+Context:
+
+The user requested a review and direct correction of previous instructions, then
+provided replacement AGENTS.md instructions. The available global/project
+guidance and SOC 2 orchestration sources contained conflicting critique rules,
+unnecessary discovery steps, ambiguous public-record write targets and a status
+name inconsistent with section 39. The review covered these maintained sources;
+historical chat messages and platform instructions were not rewritten.
+
+Chosen approach:
+
+| Previous instruction or ambiguity | Corrected operating rule | Reason |
+| --- | --- | --- |
+| Always find three flaws and rewrite the code. | Report evidence-backed findings without a quota; edit only within the requested task. | Avoid invented defects and unauthorized changes during read-only reviews. |
+| Reject first and always use critique/solution/rationale headings. | Evaluate first; acknowledge sound approaches and use concise, task-appropriate explanations. | Evidence determines the conclusion; a fixed response ceremony does not improve correctness. |
+| Routine stages can end with another plan or offer to continue. | Finish already-authorized design, compatible implementation, relevant verification and checkpoint before presenting an actual gated decision. | Reduce repeated plan/continue loops while respecting plan-only requests and holds. |
+| Reconcile Git, GitHub and Azure and read release workflows for every story. | Inspect only relevant state and pending outcomes; perform provider/release discovery when needed and authorized. | Local instruction/offline units do not need unrelated live access. |
+| The repository ledger is an automatic coordination write target. | Resolve operative private records through the accepted manifest; keep public projections separately approved. | Prevent private working context from being reconstructed or written into public Git. |
+| Use a story Complete status. | Use section 39's existing Accepted status only after evidenced criteria and actual applicable decisions. | Keep status vocabulary and acceptance distinct from technical progress. |
+| Missing thread tooling suggests an immediate handoff. | Continue eligible authorized work in the coordinating thread; hand off only when actually needed. | Tool availability should not create an artificial execution boundary. |
+| Procedural controls or synthetic passes can imply absolute runtime guarantees. | State the exact tested boundary, residual limits and unverified scope; do not invent new absolute-proof requirements. | Avoid both assurance overclaims and requirements that the task never imposed. |
+
+Maintained locations:
+
+- Global user guidance: `~/.codex/AGENTS.md`.
+- Project guidance: [AGENTS.md](../AGENTS.md).
+- Repository and matching installed copies of the
+  [SOC 2 orchestrator](../skills/fedril-soc2-story-orchestrator/SKILL.md) and its
+  [recovery reference](../skills/fedril-soc2-story-orchestrator/references/release-and-resume.md)
+  and [record template](../skills/fedril-soc2-story-orchestrator/references/story-record.md).
+- This decision is the change note; it does not replace the SOC 2 evidence/task
+  registers or the separately governed private continuation records.
+
+Preserved boundaries:
+
+File-preservation approval rules, deployment/snapshot coordination, No-CUI,
+architecture, tenant/RBAC/audit invariants, exact publication/intake/runtime holds,
+human acceptance and independent/qualified review gates remain applicable.
+Section 39 task IDs, obligations and acceptance criteria are unchanged. Managed
+Headroom blocks and RTK.md are unchanged. Existing adequate agent-role guidance
+was reviewed without adding mandatory delegation ceremonies.
+
+Authority and risks:
+
+The user authorized instruction reevaluation and updates. That authorization is
+not a new operational risk acceptance, provider action, evidence intake,
+publication, release or acceptance decision. Instructions remain procedural;
+they do not enforce an OS sandbox, prevent transport failure or guarantee work
+after a turn ends. Global guidance applies beyond this repository where loaded;
+project-specific operating gates remain scoped to the project.
+
+Validation:
+
+Both repository and installed skill copies passed structural validation. The
+skill and its two reference files match their installed copies. Ten scoped
+Markdown links, whitespace checks and preservation comparisons passed; the
+original decision-log content remains intact. A separate technical evaluator
+reviewed eight offline decision scenarios covering implementation continuation,
+review-only scope, protected/public records, bounded claims, uncertain external
+outcomes, file-action authority, unavailable thread tooling and pending acceptance.
+It found no remaining substantive instruction conflict in that finite review.
+These are simulated decisions, not executed provider actions or independent
+compliance review. No application builds or broad regression tests ran for this
+instruction-only change; no application behavior or SOC 2 readiness is established.
+
+Review trigger:
+
+Revisit on a demonstrated instruction conflict or workflow failure, or an
+explicit user request. Do not rewrite adequate prompts or repeat this audit on
+every continuation. New user instructions and actual scoped approvals govern
+their applicable work; general requests to improve instructions do not lift holds.

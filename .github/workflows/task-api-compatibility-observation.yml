@@ -22,7 +22,7 @@ jobs:
       APPLICATION_INSIGHTS_APP_NAME: gccs-api-production
     steps:
       - name: Login to Azure production subscription
-        uses: azure/login@v3
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS_GCCS_PRODUCTION }}
 
@@ -50,7 +50,7 @@ jobs:
 
       - name: Upload compatibility retirement evidence
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: task-api-retirement-evidence-${{ github.run_id }}
           path: ${{ runner.temp }}/task-api-retirement-evidence.json

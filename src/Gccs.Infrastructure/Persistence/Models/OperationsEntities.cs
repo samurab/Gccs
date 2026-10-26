@@ -76,6 +76,8 @@ public sealed class EvidenceRequestEntity : AuditedEntity
 
 public sealed class EvidenceFileVersionEntity : IClassifiedContentEntity, IContainableContentEntity
 {
+    public Guid? ObjectWriteIntentId { get; set; }
+    public Guid? ObjectWriteIntentTenantId { get; set; }
     public long ClassificationRevision { get; set; }
     public Guid Id { get; set; }
     public Guid EvidenceItemId { get; set; }
@@ -993,6 +995,7 @@ public sealed class ReportEntity : AuditedEntity, IClassifiedContentEntity, ICon
 
 public sealed class ReportExportEntity : AuditedEntity
 {
+    public Guid? ObjectWriteIntentId { get; set; }
     public Guid Id { get; set; }
     public Guid TenantId { get; set; }
     public Guid ReportId { get; set; }

@@ -7,7 +7,6 @@ on:
 
 permissions:
   contents: read
-  security-events: write
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -20,12 +19,14 @@ jobs:
     timeout-minutes: 80
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: "25"
+          node-version: "24.22.1"
 
       - name: Validate approved launch candidate synchronization
         run: npm run check:launch-candidate
@@ -35,16 +36,21 @@ jobs:
           npm run check:release-control
           npm run test:release-control
 
+      - name: Test API package preservation guards
+        run: |
+          python3 -I -B tools/release/check-api-package.test.py
+          python3 -I -B tools/release/api-package-workflows.test.py
+
       - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v6
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           global-json-file: global.json
 
       - name: Restore backend dependencies
-        run: dotnet restore Gccs.slnx
+        run: dotnet restore Gccs.slnx --configfile .github/nuget-audit.config -p:NuGetAudit=true -p:NuGetAuditMode=all -warnaserror:NU1900,NU1903,NU1904,NU1905
 
       - name: Scan backend dependencies for known vulnerabilities
-        run: dotnet list Gccs.slnx package --vulnerable --include-transitive
+        run: dotnet list Gccs.slnx package --vulnerable --include-transitive --no-restore --config .github/nuget-audit.config
 
       - name: Build backend solution
         run: dotnet build Gccs.slnx --no-restore --configuration Release
@@ -63,7 +69,7 @@ jobs:
           --output "$RUNNER_TEMP/gccs-idempotent-migrations.sql"
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v4
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4
         with:
           terraform_version: "1.9.8"
 
@@ -84,7 +90,7 @@ jobs:
 
       - name: Upload backend prerequisite results
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: backend-prerequisite-results
           path: TestResults/extraction-evaluation
@@ -99,10 +105,12 @@ jobs:
         shard: [0, 1, 2, 3]
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v6
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           global-json-file: global.json
 
@@ -135,7 +143,7 @@ jobs:
 
       - name: Upload backend test results
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: backend-test-results-${{ matrix.shard }}
           path: TestResults/backend/${{ matrix.shard }}
@@ -162,12 +170,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: "25"
+          node-version: "24.22.1"
           cache: npm
 
       - name: Restore frontend dependencies
@@ -190,7 +200,7 @@ jobs:
 
       - name: Upload frontend test results
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: frontend-test-results
           path: apps/web/TestResults/web
@@ -200,7 +210,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:17
+        image: postgres:17@sha256:a63c1ea3f6a3a5a1621f97d2aba3b30faecfab4224c1b0000cc85ced57bb1939
         env:
           POSTGRES_DB: gccs
           POSTGRES_USER: gccs
@@ -213,7 +223,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
       azurite:
-        image: mcr.microsoft.com/azure-storage/azurite:3.35.0
+        image: mcr.microsoft.com/azure-storage/azurite:3.35.0@sha256:647c63a91102a9d8e8000aab803436e1fc85fbb285e7ce830a82ee5d6661cf37
         env:
           AZURITE_ACCOUNTS: "gccs:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
         ports:
@@ -224,7 +234,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
       clamav:
-        image: clamav/clamav-debian:stable
+        image: clamav/clamav-debian:stable@sha256:d7ede3cefeaf3b8a72ebcdee849d13f504bbca3f3b3cfade5bc7b6ee06a4f62c
         ports:
           - 3310:3310
         options: >-
@@ -235,24 +245,29 @@ jobs:
     env:
       ASPNETCORE_ENVIRONMENT: Development
       DOTNET_ENVIRONMENT: Development
+      # Every test host shares this fixture DB; none may consume another test's pending cleanup.
+      ObjectCleanupProcessing__Enabled: "false"
       ConnectionStrings__GccsDatabase: Host=127.0.0.1;Port=5432;Database=gccs;Username=gccs;Password=gccs_dev_password
       ConnectionStrings__AzureStorage: DefaultEndpointsProtocol=http;AccountName=gccs;AccountKey=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==;BlobEndpoint=http://127.0.0.1:10000/gccs;
       GCCS_DATABASE: Host=127.0.0.1;Port=5432;Database=gccs;Username=gccs;Password=gccs_dev_password
       GCCS_TEST_POSTGRES_CONNECTION: Host=127.0.0.1;Port=5432;Database=gccs;Username=gccs;Password=gccs_dev_password
       MalwareScanning__Host: 127.0.0.1
       MalwareScanning__Port: 3310
+      PLAYWRIGHT_SKIP_BROWSER_GC: "1"
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: "25"
+          node-version: "24.22.1"
           cache: npm
 
       - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v6
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           global-json-file: global.json
 
@@ -263,11 +278,35 @@ jobs:
           dotnet tool restore
 
       - name: Install Playwright Chromium
-        timeout-minutes: 10
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/fedril-playwright-${{ github.run_id }}-${{ github.run_attempt }}-real-stack
+        timeout-minutes: 20
         run: |
-          while IFS= read -r google_chrome_source; do
-            sudo mv "$google_chrome_source" "${google_chrome_source}.disabled"
-          done < <(sudo grep -RIlF "dl.google.com/linux/chrome-stable" /etc/apt/sources.list.d || true)
+          if [[ -e "$PLAYWRIGHT_BROWSERS_PATH" || -L "$PLAYWRIGHT_BROWSERS_PATH" ]]; then
+            echo "::error::Run-specific Playwright browser destination already exists; preserving it."
+            exit 1
+          fi
+          mkdir -- "$PLAYWRIGHT_BROWSERS_PATH"
+
+          mapfile -t google_chrome_sources < <(sudo grep -RIlF "dl.google.com/linux/chrome-stable" /etc/apt/sources.list.d || true)
+          for google_chrome_source in "${google_chrome_sources[@]}"; do
+            if [[ ! -f "$google_chrome_source" || -L "$google_chrome_source" || "$(realpath -- "$google_chrome_source")" != /etc/apt/sources.list.d/* ]]; then
+              echo "::error::APT source is not a regular non-symlink beneath the approved directory."
+              exit 1
+            fi
+            printf 'Selected APT source: %s -> %s\n' "$google_chrome_source" "${google_chrome_source}.disabled"
+            if [[ -e "${google_chrome_source}.disabled" || -L "${google_chrome_source}.disabled" ]]; then
+              echo "::error::APT source destination already exists; preserving source and destination."
+              exit 1
+            fi
+          done
+          for google_chrome_source in "${google_chrome_sources[@]}"; do
+            sudo mv --no-clobber -- "$google_chrome_source" "${google_chrome_source}.disabled"
+            if [[ -e "$google_chrome_source" || -L "$google_chrome_source" ]]; then
+              echo "::error::APT source was not moved; stopping without overwriting destination."
+              exit 1
+            fi
+          done
 
           for attempt in 1 2 3; do
             if npx playwright install --with-deps chromium; then
@@ -298,14 +337,16 @@ jobs:
         run: >
           dotnet test tests/Gccs.Api.Tests/Gccs.Api.Tests.csproj
           --no-restore
-          --filter "FullyQualifiedName~ReportPostgresTransactionTests|FullyQualifiedName~ContractExtractionPostgresTransactionTests|FullyQualifiedName~AiOutputPostgresTests|FullyQualifiedName~FedRampPersistenceTests|FullyQualifiedName~LaborApplicabilityWageDeterminationTests|FullyQualifiedName~LaborApplicabilityRealStackTests"
+          --filter "FullyQualifiedName~ReportPostgresTransactionTests|FullyQualifiedName~ContractExtractionPostgresTransactionTests|FullyQualifiedName~AiOutputPostgresTests|FullyQualifiedName~FedRampPersistenceTests|FullyQualifiedName~LaborApplicabilityWageDeterminationTests|FullyQualifiedName~LaborApplicabilityRealStackTests|FullyQualifiedName~DemoRequestRetentionPostgresTests"
 
       - name: Run real-stack report authorization tests
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/fedril-playwright-${{ github.run_id }}-${{ github.run_attempt }}-real-stack
         run: npm run test:e2e:real
 
       - name: Upload real-stack browser artifacts
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: real-stack-critical-uat
           path: output/playwright
@@ -315,8 +356,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Test repository artifact policy
@@ -328,6 +370,7 @@ jobs:
         run: node tools/security/check-sensitive-artifacts.mjs --changed-since "$SENSITIVE_ARTIFACT_BASE_SHA"
 
       - name: Scan repository for committed secrets
-        uses: gitleaks/gitleaks-action@v3
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}

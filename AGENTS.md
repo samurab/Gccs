@@ -4,6 +4,74 @@ Use these instructions for work in this repository. Apply verification in
 proportion to the task's risk; do not run release-grade investigation or test
 suites for low-risk work.
 
+## Review Scope and Completion
+
+- Report actual findings without a minimum defect count. A review-only request
+  produces findings and proposed corrections; it does not authorize rewriting
+  code. Keep evidence-backed criticism and material limitations explicit.
+- For an implementation request, complete the bounded design, compatible change,
+  relevant verification and checkpoint already authorized. Finish permitted
+  offline preparation before presenting a concrete gated action; do not turn
+  routine stages into repeated requests to approve a plan or say "continue".
+  Respect explicit plan-only, read-only, sequencing and operating holds.
+- Distinguish an actual acceptance requirement from an optional safeguard or
+  unverified assumption. Do not invent impossible sandbox, zero-persistence or
+  exhaustive-proof requirements. Document residual limits and stop an operation
+  when an existing authority, safety or evidence gate actually requires it.
+- Instruction-maintenance requests permit scoped user-owned guidance edits and
+  a recorded rationale, not new cloud activity, publication, restricted intake,
+  source disposition or acceptance. Keep existing exact-action approvals and
+  holds effective. See [the instruction decision](docs/decision-log.md#decision-evidence-based-agent-instructions-and-bounded-execution).
+
+## File Preservation and Explicit Permission
+
+- Obtain fresh, explicit user approval that names the exact targets, action,
+  and destination before deleting, trashing, archiving, moving, renaming,
+  hiding, or reducing the accessibility of any file or directory.
+- This rule applies to tracked, untracked, ignored, generated, temporary,
+  cache, evidence, configuration, hidden, and symlink items.
+- Broad instructions such as "clean up," "organize," "deploy," "finish,"
+  "make clean," or general recovery authorization do not authorize source
+  removal.
+- Do not use ignore or exclude rules, sparse checkout, Finder flags, dot
+  prefixes, or access or ownership changes to conceal items or make them
+  inaccessible without the same exact approval.
+- `git clean`, destructive reset or path restoration, shared-branch switches,
+  stash removal, worktree removal or pruning, ref deletion, reflog expiry,
+  garbage collection, and scripts with equivalent effects require fresh,
+  exact permission before they discard or conceal work.
+- A backup, commit, stash, archive, or manifest never authorizes removal of the
+  source.
+- Before requesting approval, report the inventory and current state, active
+  task ownership, destination collisions, sensitivity, reversibility, and
+  retention. Stop when scope or ownership is uncertain or recovery
+  destinations conflict.
+- Delegated agents and tools must follow this rule. Inspect commands and
+  scripts for destructive or concealing side effects before running them.
+- Ordinary requested in-place content edits remain allowed. Do not truncate or
+  replace out-of-scope content, and do not overwrite a conflicting recovery
+  destination.
+- Previously approved backup jobs may continue only within their exact
+  approved scope; they gain no new deletion or pruning authority.
+- This is agent guidance, not operating-system enforcement or an absolute
+  technical prevention mechanism.
+
+## Local Deployment And External Snapshot Coordination
+
+- When explicitly executing a local foreground deployment or release-build
+  command, run
+  its exact argument vector through the FeDril deployment guard:
+  `/opt/homebrew/bin/python3 -I -B '/Users/devups/Library/Application Support/FeDrilProjectRecovery/external-project-snapshots/fedril_deployment_guard.py' -- <command> <args...>`.
+- Resolve the exact command and arguments from the approved workflow or runbook
+  first. Ask the user only when those sources cannot determine them. Do not
+  guess, reconstruct, or substitute a command.
+- The guard covers only the foreground local process tree that preserves the
+  inherited lock descriptor. It does not cover unwrapped commands, detached
+  processes that close descriptors, or the lifetime of remote GitHub Actions
+  workflows.
+- Do not terminate deployments to permit a snapshot. The snapshot runner
+  defers cooperatively and records prolonged deferral separately.
+
 ## Product Invariants
 
 FeDril is a multi-tenant compliance-management SaaS for small U.S. government
@@ -76,10 +144,33 @@ These requirements apply whenever the affected behavior is relevant:
   editing or hard deletion.
 - Keep permissions server-authoritative. The UI must consume server-provided
   permissions and fail closed when permission data is absent or malformed.
+- For SOC 2 Stories 39.1 through 39.23, `Founder authority FR-01` may perform
+  authorized implementation, operation, evidence collection and custody,
+  management decision-making, and explicitly labeled management self-review.
+  FR-01's appointment does not make that self-review independent or establish
+  professional qualification. Keep independent Security/evidence review,
+  qualified CPA review or examination, qualified Legal/Privacy advice,
+  forensic validation, and other separation-of-duties gates unassigned and
+  deferred while eligible external resources are unavailable; do not mark
+  those dependencies fulfilled or `Not Applicable`. When a resource becomes
+  available, verify appointment, competence, independence and conflicts, then
+  record the scoped review as pending; mark the dependency fulfilled only after
+  its review evidence and decision are preserved. Continue other safe,
+  authorized work whose non-review prerequisites are satisfied, and revisit
+  the external dependencies at each story checkpoint, when resources become
+  available, after a material incident, and before acceptance or claims.
 
 ## Change Discipline
 
 - Make small, focused, reviewable changes and avoid unrelated formatting churn.
+- Treat untracked and pending files as user-owned work. Do not relocate or
+  remove them merely to produce a clean checkout.
+- Do not switch a shared primary branch or retire worktrees without fresh
+  approval for the exact targets, confirmed task ownership, and a verified
+  recovery path. Preserve recovery archive sources unless their removal is
+  separately approved.
+- These checkout and recovery safeguards are procedural guidance; they are not
+  technical enforcement by Git or the operating system.
 - Preserve existing public and internal contracts unless a breaking change is
   explicitly requested and approved with a migration and rollback plan.
 - Before changing behavior, identify affected callers, routes, controls,
@@ -210,14 +301,73 @@ rules, tests, and No-CUI product posture.
 
 ## Working Procedure
 
+### SOC 2 autonomy and bounded execution
+
+Apply [FeDril service scope and proportionate work](docs/development-story-prompts.md#fedril-service-scope-and-proportionate-work) before proposing or selecting SOC 2 work. Record the service risk/dependency or applicable criterion, evidence gap and proportionate outcome in the existing task/story record.
+
+For Stories 39.1–39.23, use section 39's shared execution contract and dependency
+gates. On every execution request, briefly identify material prompt inefficiency
+and supply a better bounded instruction if needed; then act without waiting for
+approval of the wording. Do not manufacture flaws or repeat the critique after
+each routine continuation. A checkpoint is an execution boundary, not a request
+for the founder to say "continue".
+When architecture is flawed, analyze and state the corrected pattern before
+coding. Proceed with an already-authorized bounded compatible correction; hold
+unresolved breaking decisions or otherwise gated actions, not the entire queue.
+
+- Verify technical answers through relevant code, tests, docs and scoped live
+  GitHub/Azure reads before asking. Discover available tools first; do not ask
+  the founder to design a technical solution or paste obtainable configuration.
+  Inspect only sources relevant to the question; do not make local, Azure,
+  GitHub and web checks a mandatory repeated sequence. Repair workflow rules only
+  for demonstrated defects; adequate prompts need no rewrite or new configuration.
+  Record inaccessible facts as unverified. Never expose secrets, restricted
+  evidence or provider identifiers in chat or public Git.
+- Use numeric story order as default priority, with immediate 39.4 exposure
+  triage. After setup, continue independent 39.5–39.17 work whose actual
+  prerequisites are met. A blocked approval or deferred reviewer stops the
+  affected operation, not every other authorized task. Preserve live-risk,
+  protected-evidence, release, independent-review and final-acceptance gates.
+- Select the smallest remaining unit with task ID, finite affected-path and
+  requirement inventory, allowed actions, evidence and verification outcome.
+  Continue selecting eligible work until the authorized scope is exhausted or
+  no safe eligible task remains. Do not automatically end with a handoff.
+- Delegate independent read-heavy discovery to `grunt`, dependency/coverage
+  mapping to `planner`, and consequential technical review to `soc2_reviewer`
+  when useful. Read `.codex/agents/<role>.toml` if the client does not discover
+  those roles. Inherit the current model and permissions. These role instructions
+  do not create a separate sandbox or constitute an independent compliance review.
+  Use only roles needed; root owns canonical records and shared-file edits.
+  Assign disjoint files or isolated checkouts for delegated edits. Do useful
+  independent work while agents run; join their results before dependent actions.
+- Keep a compact current checkpoint in the existing ledger/story record:
+  task, source-document hash, candidate SHA plus uncommitted-file fingerprints,
+  environment, verified results and limitations, pending session/run IDs,
+  authorization scope, blockers, and exact next action. Store restricted details
+  only in approved protected evidence. Reconcile live state after interruption
+  before replay; completion of a chat turn is not proof of task completion.
+- Reuse verification only for unchanged relevant source/configuration,
+  environment, population and freshness. Run the High/Release checks required
+  by the affected boundary; do not run whole-repository checks for record-only
+  edits or repeat passed CI merely because a chat disconnected. Diagnose a failed
+  check before retry. Treat uncertain external outcomes as reconciliation work.
+- Treat missing evidence as an open requirement, not success or N/A. Separate
+  technical verification, operating evidence, management review, independent
+  review and release. End only with a truthful closure or precise unavailable
+  dependency/decision after other eligible authorized work is exhausted.
+  An active external run may be checkpointed as pending; do not consume repeated
+  turns with unchanged polling or claim unattended continuation without a runner.
+
 Before editing:
 
 1. Read only the relevant implementation, tests, specifications, and reference
    documents.
 2. Summarize current behavior, compatibility surface, verification level, and
    the smallest safe change.
-3. State planned files and tests. Wait for confirmation only when the change is
-   large, risky, broad, or requires a compatibility decision.
+3. State planned files and tests. Use risk to choose verification. Proceed with
+   already-authorized bounded work; size or risk alone does not require another
+   confirmation. Obtain a concrete decision for an unresolved breaking change,
+   scope expansion or action requiring fresh approval under the applicable rules.
 
 After editing:
 
@@ -246,3 +396,18 @@ Read only references relevant to the current task:
 - `docs/development-story-prompts.md`
 - `docs/development-story-test-cases.md`
 - `docs/regression-test-execution-prompts.md`
+
+## Public and protected SOC 2 continuation records
+
+For SOC 2 record work, read `docs/soc2/public-record-boundary.md` and the current
+public ledger cutoff before editing. Repository ledger/story/runbook links are
+public projections. Full private continuation comes only from the operator's
+separately accepted manifest, which identifies the working location, owner,
+permitted data classes and version-preservation rules. Frozen originals remain
+unchanged. If the private binding is unavailable, report that limitation and
+continue eligible independent work; do not reconstruct it from public history.
+Do not recreate private
+working replicas in this public checkout or treat a sanitized projection as the
+complete private evidence register. Record private progress and pending public
+projection separately; new public versions retain exact publication approval.
+This is procedural guidance and grants no intake, removal or deployment authority.

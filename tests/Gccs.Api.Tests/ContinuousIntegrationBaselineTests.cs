@@ -4,6 +4,8 @@ namespace Gccs.Api.Tests;
 
 public sealed class ContinuousIntegrationBaselineTests
 {
+    private const string GitleaksAction = "gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e";
+
     private static readonly string[] RequiredBranchProtectionChecks =
     [
         "Backend validation",
@@ -16,12 +18,22 @@ public sealed class ContinuousIntegrationBaselineTests
         {
             "Backend prerequisites",
             "Restore backend dependencies",
-            ["dotnet restore Gccs.slnx"]
+            [
+                "dotnet restore Gccs.slnx",
+                "--configfile .github/nuget-audit.config",
+                "-p:NuGetAudit=true",
+                "-p:NuGetAuditMode=all",
+                "-warnaserror:NU1900,NU1903,NU1904,NU1905"
+            ]
         },
         {
             "Backend prerequisites",
             "Scan backend dependencies for known vulnerabilities",
-            ["dotnet list Gccs.slnx package --vulnerable --include-transitive"]
+            [
+                "dotnet list Gccs.slnx package --vulnerable --include-transitive",
+                "--no-restore",
+                "--config .github/nuget-audit.config"
+            ]
         },
         {
             "Backend prerequisites",
@@ -117,7 +129,7 @@ public sealed class ContinuousIntegrationBaselineTests
         {
             "Secret scan",
             "Scan repository for committed secrets",
-            ["gitleaks/gitleaks-action@v3"]
+            [GitleaksAction]
         }
     };
 
@@ -177,7 +189,7 @@ public sealed class ContinuousIntegrationBaselineTests
 
         AssertCiStepContains("Backend prerequisites", "Scan backend dependencies for known vulnerabilities", "dotnet list Gccs.slnx package --vulnerable --include-transitive");
         AssertCiStepContains("Frontend validation", "Scan frontend dependencies for known vulnerabilities", "npm audit --audit-level=high");
-        AssertCiStepContains("Secret scan", "Scan repository for committed secrets", "gitleaks/gitleaks-action@v3");
+        AssertCiStepContains("Secret scan", "Scan repository for committed secrets", GitleaksAction);
     }
 
     [Fact]
@@ -291,10 +303,11 @@ public sealed class ContinuousIntegrationBaselineTests
 
         Assert.Contains("permissions:", workflow);
         Assert.Contains("contents: read", workflow);
-        Assert.Contains("security-events: write", workflow);
+        Assert.DoesNotContain("security-events: write", workflow);
+        Assert.DoesNotContain("write-all", workflow);
         AssertCiStepContains("Backend prerequisites", "Scan backend dependencies for known vulnerabilities", "dotnet list Gccs.slnx package --vulnerable --include-transitive");
         AssertCiStepContains("Frontend validation", "Scan frontend dependencies for known vulnerabilities", "npm audit --audit-level=high");
-        AssertCiStepContains("Secret scan", "Scan repository for committed secrets", "gitleaks/gitleaks-action@v3");
+        AssertCiStepContains("Secret scan", "Scan repository for committed secrets", GitleaksAction);
         AssertCiStepContains("Secret scan", "Scan repository for committed secrets", "GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}");
     }
 
