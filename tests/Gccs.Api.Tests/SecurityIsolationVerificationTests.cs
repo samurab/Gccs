@@ -174,16 +174,36 @@ public sealed class SecurityIsolationVerificationTests : IClassFixture<WebApplic
     [Fact]
     public void TC_17_2_4_Security_verification_results_are_documented()
     {
-        var artifact = File.ReadAllText(Path.Combine(
-            FindRepositoryRoot(),
-            "artifacts",
-            "test-results",
-            "tc-17.2-security-and-tenant-isolation-verification.md"));
+        var root = FindRepositoryRoot();
+        var evidence = Assert.Single(File.ReadLines(Path.Combine(root, "docs", "soc2", "soc2-evidence-inventory.csv"))
+            .Where(row => row.StartsWith("SOC2-20260927-E009,", StringComparison.Ordinal)));
 
-        Assert.Contains("Cross-tenant API access", artifact, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("server-side RBAC", artifact, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("tenant-owned query filtering", artifact, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("audit logging", artifact, StringComparison.OrdinalIgnoreCase);
+        // The dated inventory locates implementation sources; it is not private evidence delivery.
+        Assert.Contains("Enforce tenant isolation RBAC sessions and No-CUI", evidence, StringComparison.Ordinal);
+        Assert.Contains("Tenant context authorization error audit and isolation test sources exist", evidence, StringComparison.Ordinal);
+        Assert.Contains("Repository implementation or configuration", evidence, StringComparison.Ordinal);
+        Assert.Contains("tests/Gccs.Api.Tests/SecurityBoundaryTests.cs", evidence, StringComparison.Ordinal);
+        Assert.Contains("tests/Gccs.Api.Tests/SecurityIsolationVerificationTests.cs", evidence, StringComparison.Ordinal);
+        Assert.Contains("Partially verified", evidence, StringComparison.Ordinal);
+        Assert.Contains("full endpoint inventory and deployed production behavior not verified", evidence, StringComparison.Ordinal);
+
+        var boundary = File.ReadAllText(Path.Combine(root, "docs", "soc2", "public-record-boundary.md"));
+        Assert.Contains("public evidence CSV is a disclosed subset", boundary, StringComparison.Ordinal);
+        Assert.Contains("not the entire private register or proof of evidence delivery", boundary, StringComparison.Ordinal);
+        Assert.Contains("Source tests do not establish deployed operation", boundary, StringComparison.Ordinal);
+        Assert.Contains("Management self-review is not independent", boundary, StringComparison.Ordinal);
+
+        // Scoped recorded results are separate from the pointer and remain bounded by their limitations.
+        var results = File.ReadAllText(Path.Combine(root, "docs", "soc2", "story-39.7-application-security-boundaries-record.md"));
+        Assert.Contains("current-binary CI-pattern4-shard regression", results, StringComparison.Ordinal);
+        Assert.Contains("1,952passed/0failed/4skipped", results, StringComparison.Ordinal);
+        Assert.Contains("matched endpoint names and401responses", results, StringComparison.Ordinal);
+        Assert.Contains("LocalDocker/PostgresIntegration categories and two explicit file-disposal/spawned-cleanup classes excluded", results, StringComparison.Ordinal);
+        Assert.Contains("finite synthetic local PostgreSQL/Azurite/recording-provider proof", results, StringComparison.Ordinal);
+        Assert.Contains("Source/deployed equivalence and agreed-period effectiveness remain unestablished", results, StringComparison.Ordinal);
+        Assert.Contains("Story39.7 remains In Progress and unaccepted", results, StringComparison.Ordinal);
+        Assert.Contains("All tasks being Ready For Review does not accept a task or the story", results, StringComparison.Ordinal);
+        Assert.Contains("No release/full-regression/frontend build is claimed", results, StringComparison.Ordinal);
     }
 
     private WebApplicationFactory<Program> CreateFactory(string databaseName, Action<GccsDbContext>? seed = null) =>

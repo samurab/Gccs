@@ -3,6 +3,11 @@ import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { createHash } from "node:crypto";
+import { bootstrapFromEnvironment } from "./protected/inline-bootstrap.mjs";
+import { EXPECTED_HELPERS } from "./protected/admission.mjs";
+import { bindWorkflowBootstrap } from "./protected/workflow-bootstrap-binding.mjs";
+import { controlledGitArgv, gitEnvironment } from "./protected/native-checkout.mjs";
 
 const readWorkflow = name => readFile(new URL(`../../.github/workflows/${name}`, import.meta.url), "utf8");
 const staging = await readWorkflow("staging.yml");
@@ -10,6 +15,14 @@ const production = await readWorkflow("production-release.yml");
 const rollback = await readWorkflow("production.yml");
 const previews = await readWorkflow("azure-static-web-apps-mango-rock-016ff040f.yml");
 const ci = await readWorkflow("ci.yml");
+const readTool = name => readFile(new URL(name, import.meta.url), "utf8");
+const bootstrapSource = await readTool("./protected/inline-bootstrap.mjs");
+const runnerSource = await readTool("./protected/runner.mjs");
+const compositionSource = await readTool("./protected/composition.mjs");
+const finiteSource = await readTool("./protected/finite-canonical-transport.mjs");
+const nativeSource = await readTool("./protected/native-checkout.mjs");
+const artifactHistorySource = await readTool("../security/finite-artifact-history.mjs");
+const snapshotSource = await readTool("./protected/migration-source-snapshots.mjs");
 
 // These checks deliberately target the checked-in workflow structure; they do
 // not attempt to implement a YAML parser or execute GitHub expression syntax.
@@ -22,6 +35,11 @@ const deploymentJob = (text, name) => {
   const match = text.match(new RegExp(`^  ${name}:\\n([\\s\\S]*?)(?=^  [a-z][a-z_-]*:\\n|$(?![\\s\\S]))`, "m"));
   assert.ok(match, `Missing ${name} job`);
   return match[1];
+};
+
+const assertBefore = (text, earlier, later) => {
+  const first = text.indexOf(earlier), second = text.indexOf(later);
+  assert.ok(first >= 0 && second >= 0 && first < second, `${earlier} must precede ${later}`);
 };
 
 const namedStep = (text, name) => {
@@ -71,56 +89,92 @@ for (const [environment, workflow, migrationName, apiName] of [
   });
 }
 
-test("staging retains the reviewed guard before candidate checkout", () => {
-  const copy = staging.indexOf('cp -n tools/release/check-cleanup-quiescence.mjs "$RUNNER_TEMP/check-cleanup-quiescence.mjs"');
-  assert.ok(copy >= 0 && copy < staging.indexOf("git checkout --detach"));
-  assert.match(staging, /\[\[ -e "\$RUNNER_TEMP\/check-cleanup-quiescence\.mjs" \|\| -L "\$RUNNER_TEMP\/check-cleanup-quiescence\.mjs" \]\]/);
-  assert.match(staging, /cmp -s tools\/release\/check-cleanup-quiescence\.mjs "\$RUNNER_TEMP\/check-cleanup-quiescence\.mjs"/);
+test("staging retains the externally pinned cleanup guard before candidate preparation", () => {
+  const bootstrap = staging.indexOf("const admissionResult = await bootstrapFromEnvironment(process.env)");
+  const prepare = staging.indexOf("      - name: Prepare verified workflow and candidate sources with snapshot comparison");
+  assert.ok(bootstrap >= 0 && prepare > bootstrap);
+  assert.ok(EXPECTED_HELPERS.includes("tools/release/check-cleanup-quiescence.mjs"));
+  assertBefore(bootstrapSource, "admission.hash(bytes) !== selected.carrier.helperSha256[path]", "await put(destination, bytes");
+  assert.match(bootstrapSource, /raw\(repository, workflowSha, path, 1024 \* 1024\)/);
+  assert.match(bootstrapSource, /await put\(destination, bytes, \{ flag: 'wx', mode: 0o600 \}\)/);
+  assert.match(staging, /cleanup_checker="\$FEDRIL_TRUSTED_ROOT\/tools\/release\/check-cleanup-quiescence\.mjs"/);
   assert.match(staging, /node "\$cleanup_checker" staging Stopped/);
+  assert.doesNotMatch(staging, /cp .*check-cleanup-quiescence|git checkout --detach/);
 });
 
-test("staging refuses to overwrite an existing guard destination", () => {
-  const begin = staging.indexOf('            if [[ -e "$RUNNER_TEMP/check-cleanup-quiescence.mjs"');
-  const end = staging.indexOf('            git checkout --detach', begin);
-  const body = staging.slice(begin, end).split("\n").map(line => line.replace(/^            /, "")).join("\n");
-  const result = spawnSync("/bin/bash", ["--noprofile", "--norc", "-e", "-c",
-    'cp() { printf COPY_BYPASSED; }\ncmp() { printf READBACK_BYPASSED; }\n' + body], {
-    env: { PATH: "/usr/bin:/bin", RUNNER_TEMP: fileURLToPath(new URL("./", import.meta.url)) },
-    encoding: "utf8", timeout: 5000, maxBuffer: 64 * 1024
-  });
-  assert.ifError(result.error);
-  assert.equal(result.status, 1);
-  assert.equal(result.stdout, "::error::Cleanup guard destination already exists; preserving it.\n");
-  assert.equal(result.stderr, "");
+test("trusted bootstrap preserves existing closure roots and helper destinations", async () => {
+  const bytes = Buffer.from("synthetic helper"), hash = createHash("sha256").update(bytes).digest("hex");
+  const env = { GITHUB_REPOSITORY: "owner/repository", GITHUB_REPOSITORY_ID: "1", GITHUB_SHA: "a".repeat(40),
+    GITHUB_EVENT_NAME: "push", GITHUB_REF: "refs/heads/release-main", GITHUB_RUN_ID: "2", GITHUB_RUN_ATTEMPT: "1",
+    FEDRIL_WORKFLOW_SHA: "a".repeat(40), FEDRIL_WORKFLOW_REF: "owner/repository/.github/workflows/ci.yml@refs/heads/release-main",
+    FEDRIL_MODE: "ci", PROTECTED_ASSERTIONS_APP_ID: "3", FEDRIL_COMPARISON_BASE_SHA: "0".repeat(40),
+    RUNNER_TEMP: "/synthetic-temp", GITHUB_ENV: "/synthetic-env", GH_TOKEN: "synthetic-token" };
+  for (const collision of ["root", "helper"]) {
+    const calls = [];
+    await assert.rejects(bootstrapFromEnvironment(env, {
+      read: async () => ({ sha: env.GITHUB_SHA, commit: { tree: { sha: "b".repeat(40) } } }),
+      wait: async () => ({ checkRunId: 4, carrier: { helperSha256: Object.fromEntries(EXPECTED_HELPERS.map(path => [path, hash])) } }),
+      raw: async () => { calls.push("raw"); return bytes; },
+      makeDirectory: async (path, options) => {
+        calls.push(["mkdir", path, options]);
+        if (collision === "root") { assert.equal(options.recursive, undefined); throw new Error("synthetic EEXIST"); }
+      },
+      put: async (path, value, options) => {
+        assert.equal(options.flag, "wx"); calls.push(["put", path]);
+        if (path.endsWith(EXPECTED_HELPERS[0])) throw new Error("synthetic EEXIST");
+      },
+      append: async () => { assert.fail("A collision must not publish the trusted root"); },
+    }), /protected_bootstrap_held_reconcile_no_retry/);
+    if (collision === "root") assert.equal(calls.length, 1);
+    else {
+      assert.equal(calls.filter(call => call === "raw").length, 1);
+      assert.equal(calls.filter(call => Array.isArray(call) && call[0] === "put").length, 2);
+    }
+  }
 });
 
-test("staging checks exact-ref artifact eligibility before candidate checkout or build", () => {
-  const gate = staging.indexOf('node tools/release/release-evidence.mjs artifact-policy');
-  assert.ok(gate >= 0 && gate < staging.indexOf('git checkout --detach'), "Candidate policy must pass before source checkout");
-  assert.ok(gate < staging.indexOf('npm ci'), "Candidate policy must pass before build inputs run");
+test("staging admits source before acquisition and exact-ref artifact eligibility before candidate execution", () => {
+  const prepare = staging.indexOf("      - name: Prepare verified workflow and candidate sources with snapshot comparison");
+  const gate = staging.indexOf('node "$FEDRIL_TRUSTED_ROOT/tools/release/release-evidence.mjs" artifact-policy');
+  assertBefore(staging, "const admissionResult = await bootstrapFromEnvironment(process.env)", "      - name: Prepare verified workflow and candidate sources with snapshot comparison");
+  assert.ok(gate > prepare && gate < staging.indexOf("dotnet restore") && gate < staging.indexOf("npm ci"));
+  assert.ok(gate < staging.indexOf("Login to Azure staging subscription"));
   assert.match(staging, /artifact-policy "\$GITHUB_REPOSITORY" "\$GITHUB_REPOSITORY_ID" "\$commit_sha" "refs\/tags\/\$candidate_tag"/);
   assert.match(staging, /artifact-policy "\$GITHUB_REPOSITORY" "\$GITHUB_REPOSITORY_ID" "\$commit_sha" "\$GITHUB_REF"/);
+  assertBefore(runnerSource, "const selected = await reconcileExactAdmission", "await native.materializeCandidate");
+  assertBefore(compositionSource, "plan = helpers.planCanonicalTransport", "await callbacks.checkoutExact");
+  assert.doesNotMatch(runnerSource, /execFile|spawn|npm ci|dotnet build/);
 });
 
 test("production binds artifact policy and verified provenance to the approved staging run before mutations", () => {
-  const runGate = production.indexOf('node tools/release/release-evidence.mjs staging-run');
-  const provenanceGate = production.indexOf('node tools/release/release-evidence.mjs attestation');
-  const download = production.indexOf('gh release download');
+  const runGate = production.indexOf('node "$FEDRIL_TRUSTED_ROOT/tools/release/release-evidence.mjs" staging-run');
+  const provenanceGate = production.indexOf('node "$FEDRIL_TRUSTED_ROOT/tools/release/release-evidence.mjs" attestation');
+  const download = production.indexOf("gh release download");
   assert.ok(runGate >= 0 && runGate < download, "Validate the live staging run before download");
-  assert.ok(provenanceGate > runGate && provenanceGate < production.indexOf('unzip -q'), "Validate verified provenance before extraction");
+  assert.ok(provenanceGate > runGate && provenanceGate < production.indexOf("unzip -q"), "Validate provenance before extraction");
   assert.match(production, /artifact-policy "\$GITHUB_REPOSITORY" "\$GITHUB_REPOSITORY_ID" "\$commit_sha" "refs\/tags\/\$tag"/);
-  assert.match(production, /git merge-base --is-ancestor "\$staging_workflow_sha" origin\/release-main/);
   assert.match(production, /commits\/\$\{staging_workflow_sha\}/);
+  assertBefore(runnerSource, "validateStagingRun(document.stagingRun", "await prepareTrustedWorkflow");
+  assert.match(compositionSource, /source\.mode === 'production' && source\.trustedStagingWorkflowSha === null/);
+  assert.match(finiteSource, /stagingWorkflowSha/);
+  assert.doesNotMatch(production, /git fetch .*--tags|origin\/main/);
   for (const workflow of [staging, production]) assert.match(workflow, /^      actions: read$/m);
 });
 
-test("every CI job inherits the read-only contents token", () => {
+test("CI jobs retain read-only contents and only admission consumers gain read-only check/action access", () => {
   assert.equal(topSection(ci, "permissions").trim(), "contents: read");
   const jobs = [...topSection(ci, "jobs").matchAll(/^  ([A-Za-z_][A-Za-z0-9_-]*):$/gm)].map(match => match[1]);
-  assert.deepEqual(jobs, ["backend-prerequisites", "backend-tests", "backend", "frontend", "real-stack-critical-uat", "secret-scan"]);
-  for (const job of jobs) {
-    assert.doesNotMatch(deploymentJob(ci, job), /^    permissions:/m, `${job} must inherit the read-only workflow token`);
+  assert.deepEqual(jobs, ["protected-admission", "backend-prerequisites", "backend-tests", "backend", "frontend", "real-stack-critical-uat", "secret-scan"]);
+  for (const name of jobs) {
+    const job = deploymentJob(ci, name);
+    if (["protected-admission", "secret-scan"].includes(name)) {
+      const permissions = job.match(/^    permissions:\n((?:      [^\n]+\n)*)/m)?.[1];
+      assert.equal(permissions?.trim(), "contents: read\n      checks: read\n      actions: read");
+    } else assert.doesNotMatch(job, /^    permissions:/m);
+    assert.doesNotMatch(job, /^      (?:contents|checks|actions|id-token): write$/m);
   }
+  for (const name of ["backend-prerequisites", "backend-tests", "secret-scan"]) assert.match(deploymentJob(ci, name), /^    needs: protected-admission$/m);
+  assert.doesNotMatch(deploymentJob(ci, "protected-admission"), /^    if:|continue-on-error/m);
 });
 
 test("third-party workflow actions use full immutable commits", async () => {
@@ -357,7 +411,7 @@ for (const [name, workflow, jobName] of [
     for (const suffix of ["CLIENT_ID", "TENANT_ID", "TENANT_SUBDOMAIN", "API_SCOPE", "AUTHORITY", "AUDIENCE"]) {
       assert.match(job, new RegExp(`^      FEDRIL_CUSTOMER_${suffix}: \\$\\{\\{ vars\\.[A-Z_]+ \\}\\}$`, "m"));
     }
-    const validation = job.indexOf("node tools/release/validate-auth-config.mjs");
+    const validation = job.indexOf('node "$FEDRIL_TRUSTED_ROOT/tools/release/validate-auth-config.mjs"');
     assert.ok(validation >= 0, "Missing preflight validation");
     const mutations = [...job.matchAll(/psql |az webapp config appsettings set|uses: azure\/webapps-deploy@|uses: Azure\/static-web-apps-deploy@/g)];
     assert.ok(mutations.length >= 3, "Expected migration and application publishing steps");
@@ -369,11 +423,21 @@ for (const [name, workflow, jobName] of [
   });
 }
 
-test("artifact policy records its event-derived full ref, SHA and history scope", async () => {
+test("artifact policy binds actual event metadata before exact checkout and complete finite history inspection", async () => {
   const policy = await readWorkflow("repository-artifact-policy.yml");
   assert.ok(policy.includes("run-name: artifact-policy ${{ github.ref }} ${{ github.sha }} ${{ github.event.before || 'none' }}"));
-  assert.ok(policy.includes('SENSITIVE_ARTIFACT_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}'));
-  assert.ok(policy.includes('node tools/security/check-sensitive-artifacts.mjs --changed-since "$SENSITIVE_ARTIFACT_BASE_SHA"'));
+  assert.ok(policy.includes("ARTIFACT_COMPARISON_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before || '0000000000000000000000000000000000000000' }}"));
+  assert.ok(policy.includes("ARTIFACT_PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || '' }}"));
+  const capture = policy.indexOf('node "$helper_dir/finite-artifact-history.mjs" capture');
+  const checkout = policy.indexOf("      - name: Checkout exact event source without broad history");
+  const verify = policy.indexOf('node "$ARTIFACT_HISTORY_HELPER" verify');
+  const scan = policy.indexOf('node tools/security/check-sensitive-artifacts.mjs --changed-since "$ARTIFACT_BASE_COMMIT_SHA"');
+  assert.ok(capture >= 0 && capture < checkout && checkout < verify && verify < scan);
+  assert.match(policy, /^          ref: \$\{\{ env\.ARTIFACT_TIP_COMMIT_SHA \}\}$/m);
+  assert.match(policy, /^          fetch-depth: 1$/m);
+  assert.doesNotMatch(policy, /fetch-depth: 0|fetch .*--tags|git fetch --all/);
+  assert.match(artifactHistorySource, /JSON\.stringify\(observed\) !== JSON\.stringify\(expected\)/);
+  assert.match(artifactHistorySource, /completeEventHistoryAvailable: true/);
 });
 
 test("preview checkout does not persist credentials into later build steps", () => {
@@ -388,26 +452,37 @@ test("preview checkout does not persist credentials into later build steps", () 
   assert.ok(checkouts[0].index < job.indexOf("      - name: Build web artifact"));
 });
 
-test("CI checkouts do not persist credentials beyond source acquisition", () => {
+test("CI source acquisition preserves credential isolation for checkout and controlled finite history", () => {
   const jobs = [...topSection(ci, "jobs").matchAll(/^  ([A-Za-z_][A-Za-z0-9_-]*):$/gm)].map(match => match[1]);
   const observed = [];
   for (const name of jobs) {
     const job = deploymentJob(ci, name);
     const checkouts = [...job.matchAll(/^      - (?:name: [^\n]+\n        )?uses: actions\/checkout@[^\n]+\n([\s\S]*?)(?=^      - |$(?![\s\S]))/gm)];
-    if (name === "backend") {
-      assert.equal(checkouts.length, 0, "Summary job must not acquire source credentials");
+    if (["backend", "protected-admission", "secret-scan"].includes(name)) {
+      assert.equal(checkouts.length, 0, `${name} does not use actions/checkout`);
+      if (name === "secret-scan") {
+        assert.match(job, /ci-runner\.mjs" prepare "\$FEDRIL_TRUSTED_ROOT\/admission-context\.json"/);
+        assert.match(job, /^          GITHUB_TOKEN: \$\{\{ secrets\.GITHUB_TOKEN \}\}$/m);
+        assert.match(job, /^          GITLEAKS_LICENSE: \$\{\{ secrets\.GITLEAKS_LICENSE \}\}$/m);
+        assert.match(job, /--log-opts="--full-history -m \$CI_TESTED_SHA"/);
+        assert.doesNotMatch(job, /fetch-depth: 0|git fetch .*--tags|--log-opts="--all/);
+      }
       continue;
     }
     assert.equal(checkouts.length, 1, `${name} has one source checkout`);
     assert.deepEqual([...checkouts[0][1].matchAll(/^          persist-credentials: ([^\n]+)$/gm)].map(match => match[1]), ["false"], name);
-    if (name === "secret-scan") {
-      assert.match(checkouts[0][1], /^          fetch-depth: 0$/m);
-      assert.match(job, /^          GITHUB_TOKEN: \$\{\{ secrets\.GITHUB_TOKEN \}\}$/m);
-      assert.match(job, /^          GITLEAKS_LICENSE: \$\{\{ secrets\.GITLEAKS_LICENSE \}\}$/m);
-    }
     observed.push(name);
   }
-  assert.deepEqual(observed, ["backend-prerequisites", "backend-tests", "frontend", "real-stack-critical-uat", "secret-scan"]);
+  assert.deepEqual(observed, ["backend-prerequisites", "backend-tests", "frontend", "real-stack-critical-uat"]);
+  const args = controlledGitArgv("/synthetic-root", ["git", "fetch", "--no-tags", "https://github.com/owner/repository.git", "a".repeat(40)]);
+  assert.ok(args.includes("credential.helper="));
+  assert.ok(args.includes("core.hooksPath=/synthetic-root/empty-hooks"));
+  assert.ok(args.includes("core.attributesFile=/dev/null"));
+  assert.equal(gitEnvironment.GIT_CONFIG_GLOBAL, "/dev/null");
+  assert.equal(gitEnvironment.GIT_CONFIG_NOSYSTEM, "1");
+  for (const key of ["HOME", "GH_TOKEN", "GITHUB_TOKEN", "HTTPS_PROXY", "GIT_CONFIG_COUNT", "GIT_SSH_COMMAND"]) assert.equal(Object.hasOwn(gitEnvironment, key), false);
+  assert.throws(() => controlledGitArgv("/synthetic-root", ["sh", "-c", "unsafe"]));
+  assert.match(nativeSource, /config\['persist-credentials'\] !== false/);
 });
 
 test("workflow Node setups select the reviewed exact LTS version", async () => {
@@ -424,11 +499,12 @@ test("workflow Node setups select the reviewed exact LTS version", async () => {
   assert.deepEqual(observed, [
     ["approved-release-attestation.yml", 1],
     ["azure-static-web-apps-mango-rock-016ff040f.yml", 1],
-    ["ci.yml", 3],
+    ["ci.yml", 5],
     ["production-infrastructure-drift.yml", 1],
     ["production-release.yml", 1],
     ["production.yml", 2],
-    ["staging.yml", 1]
+    ["repository-artifact-policy.yml", 1],
+    ["staging.yml", 2]
   ]);
 });
 
@@ -439,7 +515,7 @@ test("workflow SDK setups retain the exact repository SDK without roll-forward",
   let setups = 0;
   for (const file of ["ci.yml", "production.yml", "staging.yml"]) {
     for (const [, body] of (await readWorkflow(file)).matchAll(/^      - (?:name: [^\n]+\n        )?uses: actions\/setup-dotnet@[^\n]+\n([\s\S]*?)(?=^      - |$(?![\s\S]))/gm)) {
-      assert.match(body, /^          global-json-file: global.json$/m, file);
+      assert.match(body, file === "staging.yml" ? /^          global-json-file: fedril-source\/global.json$/m : /^          global-json-file: global.json$/m, file);
       assert.doesNotMatch(body, /^          (?:dotnet-version|dotnet-quality):/m, file);
       setups += 1;
     }
@@ -457,30 +533,64 @@ test("CI service images retain their reviewed content digests", () => {
 });
 
 
-test("canonical branch identity is exact across CI, preview and promotion", async () => {
-  assert.match(topSection(ci, "on"), /branches: \["release-main"\]/);
+test("canonical source remains exact while CI retains existing main coverage", async () => {
+  assert.match(topSection(ci, "on"), /^    branches: \["main", "release-main"\]$/m);
+  assert.match(topSection(ci, "on"), /^  pull_request:$/m);
   assert.match(topSection(previews, "on"), /^      - release-main$/m);
   const approved = await readWorkflow("approved-release-attestation.yml");
   assert.match(topSection(approved, "on"), /^  workflow_dispatch:$/m);
-  assert.match(staging, /git fetch origin release-main --tags/);
-  assert.match(staging, /git merge-base --is-ancestor "\$commit_sha" origin\/release-main/);
-  assert.match(production, /git merge-base --is-ancestor "\$commit_sha" origin\/release-main/);
-  for (const workflow of [staging, production]) assert.doesNotMatch(workflow, /origin\/main\b/);
+  for (const workflow of [staging, production]) {
+    assert.match(workflow, /FEDRIL_WORKFLOW_SHA: \$\{\{ github\.workflow_sha \}\}/);
+    assert.match(workflow, /FEDRIL_WORKFLOW_REF: \$\{\{ github\.workflow_ref \}\}/);
+    assert.doesNotMatch(workflow, /origin\/main\b|git fetch .*--tags|git merge-base/);
+  }
+  assert.match(finiteSource, /refs\/heads\/release-main/);
+  assert.match(finiteSource, /candidateSha/);
+  assert.match(compositionSource, /checkout\.headSha !== bootstrap\.workflowSha/);
 });
 
-test("endpoint migration comparison is explicit and pins the approved rollback tag", () => {
-  const step = namedStep(staging, "Enforce expand-only candidate migrations");
+test("snapshot migration comparison pins approved rollback endpoints without claiming Git merge-base equivalence", () => {
   assert.match(topSection(staging, "on"), /default: merge-base/);
-  assert.match(step, /migration_base_ref="\$\(jq -r '\.rollback\.sourceTag' docs\/release\/approved-release\.json\)"/);
-  assert.match(step, /refs\/tags\/\$\{migration_base_ref\}\^\{commit\}/);
-  assert.match(step, /migration-diff "\$migration_base_ref" "\$COMMIT_SHA" --approved-endpoints "\$MIGRATION_BASELINE_SHA"/);
-  assert.match(step, /"\$MIGRATION_COMPARISON" == "merge-base" && -z "\$MIGRATION_BASELINE_SHA"/);
-  assert.match(step, /else[\s\S]*exit 1/);
+  assertBefore(staging, "Prepare verified workflow and candidate sources with snapshot comparison", "dotnet restore");
+  assert.match(runnerSource, /mode === 'merge-base' && requestedBaseline === ''/);
+  assert.match(runnerSource, /mode === 'approved-endpoints' && requestedBaseline === baseline\.sourceCommitSha/);
+  assert.match(runnerSource, /if \(!\(\(mode === 'merge-base'[\s\S]*?\)\)\) fail\(\)/);
+  assert.match(runnerSource, /baselineRef\.commitSha !== baseline\.sourceCommitSha \|\| baselineRef\.tag !== approvedManifest\.rollback\.sourceTag/);
+  assert.match(runnerSource, /hash\(baselineBytes\) !== carrier\.baselineSnapshot\.sha256/);
+  assert.match(runnerSource, /source-only-staging/);
+  assert.match(snapshotSource, /validateMigrationSourceEdits/);
+  assert.match(snapshotSource, /validateMigrationDeletions/);
+  assert.doesNotMatch(runnerSource, /git merge-base|migration-diff/);
 });
 
 
-test("staging and approval attestation require manual exact canonical source before checkout", async t => {
-  for (const workflow of [staging, await readWorkflow("approved-release-attestation.yml")]) {
+test("staging bootstrap and approval attestation require manual exact canonical source before checkout", async t => {
+  assert.match(topSection(staging, "on"), /^  workflow_dispatch:$/m);
+  assert.doesNotMatch(topSection(staging, "on"), /^  (push|pull_request|workflow_run|schedule):/m);
+  for (const mode of ["staging", "production"]) {
+    const workflowPath = mode === "staging" ? ".github/workflows/staging.yml" : ".github/workflows/production-release.yml";
+    const policy = { schemaVersion: 1, repository: "owner/repository", event: "workflow_dispatch", ref: "refs/heads/release-main",
+      workflowPath, workflowSha: "a".repeat(40), canonicalAuthoritySha256: "b".repeat(64) };
+    const bytes = Buffer.from(JSON.stringify(policy)), pin = createHash("sha256").update(bytes).digest("hex");
+    const context = { repository: policy.repository, event: policy.event, ref: policy.ref,
+      workflowRef: `${policy.repository}/${workflowPath}@${policy.ref}`, workflowSha: policy.workflowSha, sourceSha: policy.workflowSha };
+    await t.test(`${mode} accepts the exact approved dispatch source`, () => {
+      const allowed = bindWorkflowBootstrap(bytes, pin, context, mode);
+      assert.equal(allowed.checkout.ref, policy.workflowSha); assert.equal(allowed.checkout["persist-credentials"], false);
+    });
+    for (const [event, ref] of [["push", policy.ref], [policy.event, "refs/heads/main"], [policy.event, "refs/tags/v0.2.0-rc.1"],
+      [policy.event, "refs/heads/release-main-extra"], [policy.event, "refs/heads/release-main\n"], [policy.event, ""]]) {
+      await t.test(`${mode} rejects ${JSON.stringify([event, ref])}`, () => {
+        assert.throws(() => bindWorkflowBootstrap(bytes, pin, { ...context, event, ref }, mode));
+      });
+    }
+    await t.test(`${mode} rejects altered policy pin, workflow SHA or source identity`, () => {
+      assert.throws(() => bindWorkflowBootstrap(bytes, "0".repeat(64), context, mode));
+      assert.throws(() => bindWorkflowBootstrap(bytes, pin, { ...context, workflowSha: "c".repeat(40) }, mode));
+      assert.throws(() => bindWorkflowBootstrap(bytes, pin, { ...context, sourceSha: "c".repeat(40) }, mode));
+    });
+  }
+  for (const workflow of [await readWorkflow("approved-release-attestation.yml")]) {
     const events = topSection(workflow, "on");
     assert.match(events, /^  workflow_dispatch:$/m);
     assert.doesNotMatch(events, /^  (push|pull_request|workflow_run|schedule):/m);

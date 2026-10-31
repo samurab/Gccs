@@ -235,6 +235,77 @@ public sealed class LocalDependencyConfigurationTests : IClassFixture<WebApplica
         Assert.Equal(4, findings.Count);
     }
 
+    [Theory]
+    [InlineData("const", "token", "env.GH_TOKEN")]
+    [InlineData("let", "secret", "env.SERVICE_SECRET")]
+    [InlineData("var", "password", "env.SERVICE_PASSWORD")]
+    public void Secret_scanner_allows_bare_workflow_JavaScript_environment_references(string declaration, string name, string reference)
+    {
+        var findings = new List<string>();
+        var source = string.Concat(declaration, " ", name, " = ", reference, ";");
+        AddSecretFindings(findings, ".github/workflows/synthetic.yml", source);
+        Assert.Empty(findings);
+    }
+
+    [Theory]
+    [InlineData(" || \"production-value\";")]
+    [InlineData(" ?? \"production-value\";")]
+    [InlineData(" + \"production-value\";")]
+    [InlineData("||\"production-value\";")]
+    [InlineData("\n|| \"production-value\";")]
+    public void Secret_scanner_does_not_exempt_environment_reference_fallbacks_or_concatenation(string suffix)
+    {
+        var findings = new List<string>();
+        var source = string.Concat("const to", "ken = env.GH_TOKEN", suffix);
+        AddSecretFindings(findings, ".github/workflows/synthetic.yml", source);
+        Assert.Single(findings);
+    }
+
+    [Theory]
+    [InlineData("production-value")]
+    [InlineData("env.GH_TOKEN")]
+    public void Secret_scanner_keeps_quoted_workflow_assignments(string literal)
+    {
+        var findings = new List<string>();
+        var source = string.Concat("const to", "ken = \"", literal, "\";");
+        AddSecretFindings(findings, ".github/workflows/synthetic.yml", source);
+        Assert.Single(findings);
+    }
+
+    [Fact]
+    public void Secret_scanner_does_not_skip_a_second_secret_on_the_same_workflow_line()
+    {
+        var findings = new List<string>();
+        var source = string.Concat("const to", "ken = env.GH_TOKEN; const se", "cret = \"production-value\";");
+        AddSecretFindings(findings, ".github/workflows/synthetic.yml", source);
+        Assert.Single(findings);
+
+        findings.Clear();
+        source = string.Concat("const to", "ken = env.GH_TOKEN; const unrelated = \"", "gh", "p_", new string('A', 36), "\";");
+        AddSecretFindings(findings, ".github/workflows/synthetic.yml", source);
+        Assert.Contains("GitHub token", Assert.Single(findings));
+    }
+
+    [Theory]
+    [InlineData("synthetic.cs")]
+    [InlineData("synthetic.json")]
+    [InlineData("docs/synthetic.yml")]
+    public void Secret_scanner_keeps_environment_assignments_outside_workflow_JavaScript(string path)
+    {
+        var findings = new List<string>();
+        AddSecretFindings(findings, path, string.Concat("const to", "ken = env.GH_TOKEN;"));
+        Assert.Single(findings);
+    }
+
+    [Fact]
+    public void Customer_data_scanner_still_checks_lines_with_environment_references()
+    {
+        var findings = new List<string>();
+        var source = string.Concat("const to", "ken = env.GH_TOKEN; ", "123", "-45-", "6789");
+        AddCustomerDataFindings(findings, ".github/workflows/synthetic.yml", source);
+        Assert.Contains("SSN", Assert.Single(findings));
+    }
+
     [Fact]
     public void Customer_data_scanner_accepts_reserved_domains_but_not_suffix_lookalikes()
     {
@@ -357,7 +428,8 @@ public sealed class LocalDependencyConfigurationTests : IClassFixture<WebApplica
             foreach (Match match in pattern.Matches(content))
             {
                 var value = match.Groups["value"].Success ? match.Groups["value"].Value : match.Value;
-                if (IsCSharpAssignedCredentialFalsePositive(relativePath, name, match.Value, value, content.AsSpan(0, match.Index)))
+                if (IsCSharpAssignedCredentialFalsePositive(relativePath, name, match.Value, value, content.AsSpan(0, match.Index)) ||
+                    IsWorkflowJavaScriptEnvironmentReference(relativePath, name, match, content.AsSpan(0, match.Index), content.AsSpan(match.Index + match.Length)))
                 {
                     continue;
                 }
@@ -370,6 +442,24 @@ public sealed class LocalDependencyConfigurationTests : IClassFixture<WebApplica
                 findings.Add($"{relativePath}: possible {name} '{Redact(value)}'");
             }
         }
+    }
+
+    private static bool IsWorkflowJavaScriptEnvironmentReference(string relativePath, string findingName, Match match,
+        ReadOnlySpan<char> precedingText, ReadOnlySpan<char> followingText)
+    {
+        var path = relativePath.Replace('\\', '/');
+        if (!string.Equals(findingName, "assigned credential", StringComparison.Ordinal) ||
+            !path.StartsWith(".github/workflows/", StringComparison.Ordinal) ||
+            !(path.EndsWith(".yml", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
+        // Exempt this complete unquoted expression, never a line or a fallback value.
+        var following = followingText.TrimStart();
+        return following.Length > 0 && following[0] == ';' &&
+            Regex.IsMatch(precedingText.ToString(), @"(?:\A|[;\r\n])[ \t]*(?:const|let|var)[ \t]+\z", RegexOptions.CultureInvariant) &&
+            Regex.IsMatch(match.Value, @"\A(?:password|secret|token|api[_-]?key|client[_-]?secret)[ \t]*=[ \t]*env\.[A-Z_][A-Z0-9_]*\z", RegexOptions.CultureInvariant);
     }
 
     private static bool IsCSharpAssignedCredentialFalsePositive(string relativePath, string findingName, string matchText, string value, ReadOnlySpan<char> precedingText)

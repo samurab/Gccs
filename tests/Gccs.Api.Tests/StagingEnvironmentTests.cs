@@ -132,12 +132,23 @@ public sealed class StagingEnvironmentTests
     public void TC_PR_3_1_Staging_smoke_evidence_records_pipeline_guardrails_health_and_blockers()
     {
         var root = FindRepositoryRoot();
-        var evidence = File.ReadAllText(Path.Combine(root, "docs", "production-readiness-staging-smoke-evidence.md"));
+        var evidenceBytes = File.ReadAllBytes(Path.Combine(root, "docs", "production-readiness-staging-smoke-evidence.md"));
+        Assert.Equal("61134c76617fa81fe00b4c2feacbdabd6c08b35b411a6a14cae944643fec0687",
+            Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(evidenceBytes)).ToLowerInvariant());
+        var evidence = System.Text.Encoding.UTF8.GetString(evidenceBytes);
+
+        // Preserve the adopted public version's provenance and its limits; do not recreate private evidence.
+        Assert.Contains("Sanitized review draft — not adopted or approved for publication", evidence);
+        Assert.Contains("Derived from `docs/production-readiness-staging-smoke-evidence.md`", evidence);
+        Assert.Contains("original SHA-256 `8a0ea9b9e67a7d6797e794ae4f8a2d4b174cbda126363396127a2b97baca12e9`", evidence);
+        Assert.Contains("neither a verbatim historical evidence record nor an executable runbook", evidence);
+        Assert.Contains("Reserved-example placeholders are not actual targets or fresh operating evidence", evidence);
+        Assert.Contains("Original dates, candidate identities, approvals, restrictions, self-review limits and unverified scope remain effective", evidence);
+        Assert.Contains("do not prove complete confidentiality or claim clearance", evidence);
 
         Assert.Contains("Story: PR-3.1 - Deploy And Smoke Test Staging.", evidence);
         Assert.Contains("Evidence date: 2026-07-01.", evidence);
         Assert.Contains("Approved deployment path: `.github/workflows/staging.yml`.", evidence);
-        Assert.Contains("Resource group: `gccs-staging-rg`.", evidence);
         Assert.Contains("No-CUI / compliance management only", evidence);
 
         foreach (var requiredSignal in new[] { "postgresql", "redis", "object-storage", "background-jobs" })
@@ -158,21 +169,11 @@ public sealed class StagingEnvironmentTests
             Assert.Contains(guardrail, evidence);
         }
 
-        Assert.Contains("Evidence status: Passed", evidence);
-        Assert.Contains("GitHub Actions run", evidence);
+        // These are the recorded artifact schema and guardrails, not a current run or blocker-closure assertion.
         Assert.Contains("staging-smoke-test-results/staging-health.json", evidence);
         Assert.Contains("\"status\":\"ok\"", evidence);
-
-        foreach (var closedBlocker in new[]
-        {
-            "STAGE-GAP-001",
-            "STAGE-GAP-002",
-            "STAGE-GAP-003",
-            "Closed on 2026-07-01"
-        })
-        {
-            Assert.Contains(closedBlocker, evidence);
-        }
+        Assert.Contains("service = gccs-api", evidence);
+        Assert.Contains("dataPosture = No-CUI / compliance management only", evidence);
     }
 
     private static string FindRepositoryRoot()
