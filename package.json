@@ -1,0 +1,64 @@
+{
+  "name": "gccs",
+  "version": "0.2.1",
+  "private": true,
+  "workspaces": [
+    "apps/web",
+    "marketing/demo-video"
+  ],
+  "scripts": {
+    "dev": "node tools/dev/start-local.mjs",
+    "dev:web": "npm --workspace apps/web run dev",
+    "build:web": "npm --workspace apps/web run build",
+    "lint:web": "npm --workspace apps/web run lint",
+    "test:e2e": "playwright test",
+    "test:e2e:real": "playwright test --config playwright.real.config.ts",
+    "test:e2e:staging:auth": "node tools/testing/capture-staging-auth.mjs",
+    "test:e2e:staging": "node tools/testing/run-staging-tests.mjs",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:headed:slow": "PLAYWRIGHT_SLOW_MO=1000 playwright test --headed --workers=1",
+    "test:e2e:debug": "PWDEBUG=1 playwright test --debug --workers=1",
+    "test:e2e:ui": "playwright test --ui",
+    "test:web": "npm --workspace apps/web run test:run",
+    "demo:video:start": "npm --workspace marketing/demo-video run demo:start",
+    "demo:video:stop": "npm --workspace marketing/demo-video run demo:stop",
+    "demo:video:seed": "npm --workspace marketing/demo-video run demo:seed",
+    "demo:video:capture": "npm --workspace marketing/demo-video run capture",
+    "narration:auditions": "npm --workspace marketing/demo-video run narration:auditions",
+    "narration:generate": "npm --workspace marketing/demo-video run narration:generate",
+    "narration:validate": "npm --workspace marketing/demo-video run narration:validate",
+    "captions:generate": "npm --workspace marketing/demo-video run captions:generate",
+    "video:preview": "npm --workspace marketing/demo-video run video:preview",
+    "video:render": "npm --workspace marketing/demo-video run video:render",
+    "video:validate:draft": "npm --workspace marketing/demo-video run media:validate -- --require-render",
+    "video:validate": "npm --workspace marketing/demo-video run validate",
+    "demo:video:clean": "npm --workspace marketing/demo-video run clean",
+    "sync:launch-candidate": "node tools/release/sync-approved-launch-candidate.mjs --write",
+    "check:launch-candidate": "node tools/release/sync-approved-launch-candidate.mjs --check",
+    "check:release-control": "node tools/release/release-control.mjs check",
+    "test:release-control": "node --test tools/release/*.test.mjs",
+    "check:sensitive-artifacts": "node tools/security/check-sensitive-artifacts.mjs --staged",
+    "test:sensitive-artifacts": "node --test tools/security/check-sensitive-artifacts.test.mjs",
+    "lint:openapi": "redocly lint docs/api/openapi.yaml --extends=spec",
+    "test": "npm run test:api && npm run test:web",
+    "restore:api": "dotnet restore Gccs.slnx",
+    "build:api": "dotnet build Gccs.slnx",
+    "test:api": "dotnet test Gccs.slnx"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.0",
+    "@redocly/cli": "2.51.2",
+    "playwright": "^1.61.0"
+  },
+  "overrides": {
+    "@remotion/media": {
+      "zod": "4.6.7"
+    },
+    "@remotion/studio": {
+      "zod": "4.6.7"
+    },
+    "@remotion/studio-server": {
+      "zod": "4.6.7"
+    }
+  }
+}

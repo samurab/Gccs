@@ -1,0 +1,3 @@
+Synthetic FCI-only MFA configuration summary. No customer data.
+Purpose: No-CUI UAT evidence-upload and data-handling notice testing.
+Environment: Synthetic Tenant A only.

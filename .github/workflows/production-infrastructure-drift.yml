@@ -1,0 +1,143 @@
+name: Production infrastructure drift
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 13 * * 1"
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: production-infrastructure-drift
+  cancel-in-progress: false
+
+jobs:
+  public-settings:
+    name: Check ${{ matrix.environment }} public runtime settings
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - environment: staging
+            argument: staging
+          - environment: Production
+            argument: production
+    environment: ${{ matrix.environment }}
+    env:
+      STAGING_API_APP_NAME: ${{ vars.STAGING_API_APP_NAME }}
+      STAGING_RESOURCE_GROUP: ${{ vars.STAGING_RESOURCE_GROUP }}
+      STAGING_API_BASE_URL: ${{ vars.STAGING_API_BASE_URL }}
+      STAGING_WEB_BASE_URL: ${{ vars.STAGING_WEB_BASE_URL }}
+      STAGING_MSAL_TENANT_ID: ${{ vars.STAGING_MSAL_TENANT_ID }}
+      STAGING_MSAL_API_SCOPE: ${{ vars.STAGING_MSAL_API_SCOPE }}
+      STAGING_CUSTOMER_AUTHORITY: ${{ vars.STAGING_CUSTOMER_AUTHORITY }}
+      STAGING_CUSTOMER_AUDIENCE: ${{ vars.STAGING_CUSTOMER_AUDIENCE }}
+      PRODUCTION_API_APP_NAME: ${{ vars.PRODUCTION_API_APP_NAME }}
+      PRODUCTION_RESOURCE_GROUP: ${{ vars.PRODUCTION_RESOURCE_GROUP }}
+      PRODUCTION_API_BASE_URL: ${{ vars.PRODUCTION_API_BASE_URL }}
+      PRODUCTION_WEB_BASE_URL: ${{ vars.PRODUCTION_WEB_BASE_URL }}
+      PRODUCTION_MSAL_TENANT_ID: ${{ vars.PRODUCTION_MSAL_TENANT_ID }}
+      PRODUCTION_MSAL_API_SCOPE: ${{ vars.PRODUCTION_MSAL_API_SCOPE }}
+      PRODUCTION_CUSTOMER_AUTHORITY: ${{ vars.PRODUCTION_CUSTOMER_AUTHORITY }}
+      PRODUCTION_CUSTOMER_AUDIENCE: ${{ vars.PRODUCTION_CUSTOMER_AUDIENCE }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: "24.22.1"
+      - name: Login with environment-scoped identity
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Compare allowlisted public settings without exposing values
+        env:
+          TARGET_ENVIRONMENT: ${{ matrix.argument }}
+        run: node tools/release/check-azure-settings.mjs "$TARGET_ENVIRONMENT"
+
+  plan:
+    runs-on: ubuntu-latest
+    environment: Production
+    env:
+      ARM_USE_OIDC: "true"
+      ARM_CLIENT_ID: ${{ vars.AZURE_PRODUCTION_TERRAFORM_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_alert_email_address: ${{ vars.PRODUCTION_ALERT_EMAIL_ADDRESS }}
+      TF_VAR_production_service_plan_id: ${{ vars.PRODUCTION_SERVICE_PLAN_ID }}
+      PRODUCTION_TF_STATE_RESOURCE_GROUP: ${{ vars.PRODUCTION_TF_STATE_RESOURCE_GROUP }}
+      PRODUCTION_TF_STATE_STORAGE_ACCOUNT: ${{ vars.PRODUCTION_TF_STATE_STORAGE_ACCOUNT }}
+      PRODUCTION_TF_STATE_CONTAINER: ${{ vars.PRODUCTION_TF_STATE_CONTAINER }}
+      PRODUCTION_TF_STATE_KEY: ${{ vars.PRODUCTION_TF_STATE_KEY }}
+    steps:
+      - name: Require approved production state baseline
+        env:
+          PRODUCTION_TERRAFORM_STATE_READY: ${{ vars.PRODUCTION_TERRAFORM_STATE_READY }}
+        run: |
+          if [ "$PRODUCTION_TERRAFORM_STATE_READY" != "true" ]; then
+            echo "::error::Production drift detection is blocked until the remote state import and zero-drift baseline are reviewed and PRODUCTION_TERRAFORM_STATE_READY is true."
+            exit 1
+          fi
+          for variable in \
+            ARM_CLIENT_ID \
+            ARM_TENANT_ID \
+            ARM_SUBSCRIPTION_ID \
+            TF_VAR_alert_email_address \
+            TF_VAR_production_service_plan_id \
+            PRODUCTION_TF_STATE_RESOURCE_GROUP \
+            PRODUCTION_TF_STATE_STORAGE_ACCOUNT \
+            PRODUCTION_TF_STATE_CONTAINER \
+            PRODUCTION_TF_STATE_KEY; do
+            if [ -z "${!variable}" ]; then
+              echo "::error::Required production drift variable $variable is not configured."
+              exit 1
+            fi
+          done
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4
+        with:
+          terraform_version: "1.9.8"
+
+      - name: Login with short-lived Azure identity
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3
+        with:
+          client-id: ${{ vars.AZURE_PRODUCTION_TERRAFORM_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Initialize restricted remote state
+        run: |
+          terraform -chdir=infra/terraform/environments/production init \
+            -backend-config="resource_group_name=$PRODUCTION_TF_STATE_RESOURCE_GROUP" \
+            -backend-config="storage_account_name=$PRODUCTION_TF_STATE_STORAGE_ACCOUNT" \
+            -backend-config="container_name=$PRODUCTION_TF_STATE_CONTAINER" \
+            -backend-config="key=$PRODUCTION_TF_STATE_KEY" \
+            -backend-config="use_azuread_auth=true"
+
+      - name: Fail on configuration drift
+        run: |
+          set +e
+          terraform -chdir=infra/terraform/environments/production plan \
+            -detailed-exitcode \
+            -lock-timeout=5m \
+            -no-color \
+            -out="$RUNNER_TEMP/production.tfplan"
+          plan_exit="$?"
+          set -e
+          if [ "$plan_exit" -eq 0 ]; then
+            echo "No production infrastructure drift detected."
+            exit 0
+          fi
+          if [ "$plan_exit" -eq 2 ]; then
+            echo "Production infrastructure differs from the reviewed Terraform configuration."
+            exit 1
+          fi
+          echo "Terraform plan failed with exit code $plan_exit."
+          exit "$plan_exit"

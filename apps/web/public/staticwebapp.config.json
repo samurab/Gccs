@@ -1,0 +1,28 @@
+{
+  "routes": [
+    {
+      "route": "/runtime-config.js",
+      "headers": {
+        "Cache-Control": "no-store, no-cache, must-revalidate"
+      }
+    }
+  ],
+  "navigationFallback": {
+    "rewrite": "/index.html",
+    "exclude": [
+      "/assets/*",
+      "/captions/*",
+      "/landing/compliance-operations-hero.png",
+      "/videos/*",
+      "/F.png",
+      "/F.svg",
+      "/company-logo.svg",
+      "/favicon.png",
+      "/favicon.svg"
+    ]
+  },
+  "mimeTypes": {
+    ".mp4": "video/mp4",
+    ".vtt": "text/vtt"
+  }
+}

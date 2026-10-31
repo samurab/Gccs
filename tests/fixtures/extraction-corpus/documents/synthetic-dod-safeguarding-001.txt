@@ -1,0 +1,7 @@
+Synthetic DoD Safeguarding Purchase Order
+
+Line 1: This synthetic purchase order is for non-CUI extraction evaluation only.
+Line 2: FAR 52.204-21, Basic Safeguarding of Covered Contractor Information Systems, applies to contractor information systems that process, store, or transmit Federal Contract Information.
+Line 3: The substance of FAR 52.204-21 must be included in subcontracts where Federal Contract Information is handled.
+Line 4: FAR 52.204-25, Prohibition on Contracting for Certain Telecommunications and Video Surveillance Services or Equipment, applies to covered telecommunications equipment and services.
+Line 5: The contractor must flow down FAR 52.204-25 as required by the clause.

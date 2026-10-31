@@ -1,0 +1,4914 @@
+import { getFreshAccessToken, isAuthenticationSessionChanging, isMsalConfigured } from "../authSession";
+import { getApiBaseUrl } from "../runtimeConfig";
+
+const selectedTenantStorageKey = "gccs.selectedTenantId";
+const developmentRoleStorageKey = "gccs.developmentRole";
+const developmentUserIdStorageKey = "gccs.developmentUserId";
+const developmentUserEmailStorageKey = "gccs.developmentUserEmail";
+
+export type ModuleStatus = {
+  key: string;
+  name: string;
+  purpose: string;
+  status: string;
+};
+
+export type ObligationSummary = {
+  id: string;
+  source: string;
+  title: string;
+  ownerFunction: string;
+  riskLevel: string;
+  sourceUrl: string;
+  lastReviewedAt: string;
+};
+
+export type ComplianceDashboardAlert = {
+  alertType: string;
+  severity: string;
+  title: string;
+  message: string;
+  entityType: string;
+  entityId: string;
+  detectedUtc: string;
+};
+
+export type ReadinessScore = {
+  score: number | null;
+  controlsTotal: number;
+  controlsApplicable: number;
+  controlsImplemented: number;
+  controlsNotApplicable: number;
+  status: string;
+};
+
+export type ContractRiskIndicator = {
+  level: string;
+  activeContracts: number;
+  highRiskObligations: number;
+  overduePoams: number;
+  openPoams: number;
+  missingEvidenceControls: number;
+  openHighRiskTasks: number;
+  overdueHighRiskTasks: number;
+};
+
+export type ClauseLibraryItem = {
+  id: string;
+  source: string;
+  number: string;
+  title: string;
+  category: string;
+  plainEnglishSummary: string;
+  sourceUrl: string;
+  lastReviewedAt: string;
+  reviewedByUserId: string | null;
+  reviewState: string;
+  clauseTextVersion: string;
+  clauseEffectiveAt: string | null;
+  supersededByClauseId: string | null;
+  supersededAt: string | null;
+  confidence: string;
+  requiresFlowDown: boolean;
+  isMappable: boolean;
+};
+
+export type ClauseSearchParams = {
+  query?: string;
+  category?: string;
+  sourceFamily?: string;
+  obligationArea?: string;
+  requiresFlowDown?: boolean;
+  includeDrafts?: boolean;
+};
+
+export type ComplianceOverview = {
+  productPromise: string;
+  mvpDataPosture: string;
+  readinessScore: ReadinessScore;
+  contractRiskIndicator: ContractRiskIndicator;
+  modules: ModuleStatus[];
+  priorityObligations: ObligationSummary[];
+  alerts: ComplianceDashboardAlert[];
+};
+
+export type CurrentUserAccess = {
+  canApproveCuiReadiness?: boolean;
+  tenantId: string | null;
+  userId: string | null;
+  userEmail: string | null;
+  roles: string[];
+  permissions: string[];
+  rolePermissionMatrix: Record<string, string[]>;
+};
+
+export type AssistantWorkflowContext = |"obligation" | "contract" | "evidence" | "cmmc" | "ssp" | "poam" | "labor" | "subcontractor";
+export type AssistantDraftActionType = |"Task" | "EvidenceRequest" | "Note" | "ReviewItem";
+export type AssistantFeedbackType = |"Helpful" | "Incorrect" | "MissingSource" | "NeedsExpertReview";
+export type AssistantCitation = {
+  sourceId: string;
+  title: string;
+  sourceType: string;
+  sourceUrl: string | null;
+  tenantRecordReference: string | null;
+  excerptPointer: string;
+  version: string;
+  lastReviewedAt: string | null;
+};
+export type GuardedAssistantAnswer = {
+  id: string;
+  tenantId: string;
+  workflowContext: AssistantWorkflowContext;
+  status: "Draft" | "NeedsReview" | "Blocked" | string;
+  answer: string;
+  citations: AssistantCitation[];
+  supportStatus: "SourceSupported" | "NeedsReview" | "Unsupported" | string;
+  draftLabel: string;
+  requiresReview: boolean;
+  escalationRecommended: boolean;
+  blockedReason: string | null;
+  createdAt: string;
+  humanReviewStatus: string;
+  reviewedByUserId: string | null;
+  reviewedAt: string | null;
+  reviewDecision: string | null;
+  reviewNotes: string | null;
+  prompt: string;
+  promptWasRedacted: boolean;
+  promptMetadata: string;
+  modelConfiguration: string;
+  retrievalPolicy: string;
+  classification: string;
+  result: string;
+  reviewState: |"Draft" | "NeedsReview" | "Approved" | "Rejected" | "Superseded" | "Archived";
+  rejectionReason: string | null;
+  retainUntil: string;
+  version: number;
+};
+export type AiOutputReviewResult = { answer: GuardedAssistantAnswer; review: { id: string; newState: string; createdAt: string } ;};
+export type AiOutputReviewHistory = {
+  id: string;
+  tenantId: string;
+  answerId: string;
+  previousState: string;
+  newState: string;
+  reviewerUserId: string | null;
+  note: string | null;
+  rejectionReason: string | null;
+  createdAt: string;
+};
+export type AiDeliverableType = |"Report" | "Policy" | "Ssp" | "Poam" | "CustomerDeliverable";
+export type AiOutputUsage = {
+  id: string;
+  tenantId: string;
+  answerId: string;
+  deliverableType: AiDeliverableType;
+  deliverableId: string;
+  linkedByUserId: string;
+  linkedAt: string;
+};
+export type AiOutputExport = { tenantId: string; logCount: number; exportedAt: string; logs: unknown[] ;};
+export type AssistantDraftAction = {
+  id: string;
+  tenantId: string;
+  answerId: string;
+  actionType: AssistantDraftActionType;
+  title: string;
+  body: string;
+  status: "Draft";
+  createdByUserId: string;
+  createdAt: string;
+};
+export type AssistantFeedback = {
+  id: string;
+  tenantId: string;
+  answerId: string;
+  actorUserId: string;
+  feedbackType: AssistantFeedbackType;
+  reason: string;
+  createdAt: string;
+};
+export type ExpertReviewItem = {
+  id: string;
+  tenantId: string;
+  sourceType: |"clause_candidate" | "suggested_obligation" | "assistant_answer" | string;
+  sourceId: string;
+  reason: string;
+  priority: string;
+  topic: string;
+  assignedExpertUserId: string | null;
+  dueAt: string | null;
+  status: string;
+  createdByUserId: string;
+  createdAt: string;
+  resolvedByUserId: string | null;
+  resolvedAt: string | null;
+  resolutionDecision: string | null;
+  resolutionNotes: string | null;
+};
+export type AssistantExpertReviewEscalation = {
+  reviewItem: ExpertReviewItem;
+  feedback: AssistantFeedback | null;
+  created: boolean;
+};
+export type AssistantExpertReviewQueueItem = {
+  reviewItem: ExpertReviewItem;
+  answer: GuardedAssistantAnswer | null;
+};
+
+export type SharedPortalPackage = {
+  id: string;
+  tenantId: string;
+  packageId: string;
+  invitationId: string;
+  version: number;
+  state: "Active" | "Superseded" | "Expired" | "Revoked" | "Archived";
+  expiresAt: string;
+  reviewDueAt: string;
+  externalReviewApprovedAt: string;
+  externalReviewApprovedByUserId: string | null;
+  externalReviewApprovalReason: string;
+  approvedSourceVersion: number;
+  approvedSourceFingerprint: string;
+  reminderAt: string;
+  reminderSentAt: string | null;
+  supersedesSharedPackageId: string | null;
+  replacementSharedPackageId: string | null;
+  replacementPackageId: string | null;
+  revocationReason: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+};
+
+export type PortalPackageActivity = {
+  id: string;
+  sharedPackageId: string;
+  tenantId: string;
+  activityType: |"Access" | "Comment" | "Download" | "ExpirationReminder" | "Expiration" | "Supersede" | "Revocation" | "Reissue" | "Archive";
+  actorUserId: string;
+  occurredAt: string;
+  detail: string | null;
+};
+
+export type PortalPackageActivityReport = {
+  tenantId: string;
+  activities: PortalPackageActivity[];
+};
+
+export type PortalPackageReviewMessage = {
+  id: string;
+  kind: "Comment" | "Question";
+  body: string;
+  createdAt: string;
+};
+
+export type PortalReviewPackage = {
+  sharedPackageId: string;
+  packageId: string;
+  sourceKind: string;
+  title: string;
+  version: number;
+  status: "Approved";
+  classification: "Unclassified" | "Fci";
+  contractId: string | null;
+  evidenceItemIds: string[];
+  evidenceReferences: Array<{
+    id: string;
+    name: string;
+    type: string;
+    classification: "Unclassified" | "Fci";
+    approvedAt: string | null;
+    expiresAt: string | null;
+  }>;
+  generatedAt: string;
+  reviewDueAt: string;
+  externalReviewApprovedAt: string;
+  approvedSourceVersion: number;
+  approvedSourceFingerprint: string;
+  shareState: "Active";
+  downloadAvailable: boolean;
+  reviewerMessages: PortalPackageReviewMessage[];
+};
+
+export type ExternalPortalRole = |"PrimeReviewer" | "AuditorReviewer" | "AdvisorReviewer" | "PackageRecipient";
+export type ExternalPortalInvitation = {
+  id: string;
+  tenantId: string;
+  email: string;
+  role: ExternalPortalRole;
+  packageIds: string[];
+  contractIds: string[];
+  expiresAt: string;
+  canDownload: boolean;
+  strongAuthenticationRequired: boolean;
+  status: "Pending" | "Accepted" | "Revoked";
+  externalUserId: string | null;
+  lastAccessedAt: string | null;
+  revokedAt: string | null;
+  revocationReason: string | null;
+  resendCount: number;
+  lastResentAt: string | null;
+  version: number;
+  createdAt: string;
+  updatedAt: string | null;
+};
+
+export type ExternalPortalAccessHistory = {
+  id: string;
+  invitationId: string;
+  tenantId: string;
+  actorUserId: string;
+  packageId: string;
+  contractId: string | null;
+  allowed: boolean;
+  resultCode: string;
+  occurredAt: string;
+};
+
+export type TenantWorkspace = {
+  membershipId: string;
+  tenantId: string;
+  displayName: string;
+  tenantStatus: string;
+  dataHandlingMode: string;
+  membershipStatus: string;
+  roleName: string;
+  lastAccessedAt: string | null;
+  isSelectable: boolean;
+  unavailableReason: string | null;
+};
+
+export type TenantWorkspaceList = {
+  preferredTenantId: string | null;
+  tenants: TenantWorkspace[];
+};
+
+export type TenantWorkspaceSelection = {
+  tenantId: string;
+  displayName: string;
+  roleName: string;
+  dataHandlingMode: string;
+};
+
+export type DevelopmentTenantOption = {
+  tenantId: string;
+  displayName: string;
+  tenantStatus: string;
+  dataHandlingMode: string;
+  isSelectable: boolean;
+  unavailableReason: string | null;
+};
+
+export type DevelopmentTestingContext = {
+  tenants: DevelopmentTenantOption[];
+  personas: DevelopmentPersonaOption[];
+  roles: string[];
+};
+
+export type DevelopmentPersonaOption = {
+  tenantId: string;
+  userId: string;
+  email: string;
+  displayName: string;
+  roleName: string;
+};
+
+export type PlatformAccess = {
+  userId: string | null;
+  userEmail: string | null;
+  canProvisionTenants: boolean;
+  canViewPlatformCustomers?: boolean;
+  canManageTenantOnboarding?: boolean;
+  canManageTenantSubscriptions?: boolean;
+  canManageDemoRequests: boolean;
+  demoRequestDeliveryMode?: "DevelopmentCapture" | "ExternalEmail" | "Disabled";
+  invitationDeliveryMode?: "ExternalEmail" | "Disabled";
+  pilotTrialDateRules?: {
+    minimumEndsOn: string;
+    maximumEndsOn: string;
+    maximumPilotDays: number;
+  };
+  permissions: string[];
+};
+
+export type PlatformDemoRequest = {
+  id: string; firstName: string; lastName: string; email: string; phone: string | null;
+  company: string; referralSource: string | null; employeeCount: string | null; message: string | null;
+  preferredStartAt: string | null; preferredTimeZone: string | null;
+  receivedAt: string; deliveryStatus: string; deliveryAttemptCount: number;
+  nextDeliveryAttemptAt: string | null; sentAt: string | null; deliveryFailureCode: string | null;
+  acknowledgementStatus: string;
+  schedulingStatus: "Requested" | "Confirmed" | string;
+  confirmedStartAt: string | null; confirmedEndAt: string | null; confirmedTimeZone: string | null;
+  durationMinutes: number | null; meetingMethod: string | null; meetingJoinUrl: string | null;
+  appointmentConfirmationStatus: string;
+  followUpRequests?: DemoFollowUpOperationsItem[];
+};
+
+export type DemoFollowUpOperationsItem = {
+  id: string;
+  status: "Pending" | "Responded" | "Expired" | string;
+  requestedAt: string;
+  expiresAt: string;
+  requestedByUserId: string;
+  deliveryStatus: string;
+  respondedAt: string | null;
+  workflows: string[];
+  otherWorkflow: string | null;
+  goals: string | null;
+  challenges: string | null;
+  currentProcess: string | null;
+  additionalContext: string | null;
+  noCuiNoticeVersion: string;
+};
+
+export type PlatformDemoRequestPage = {
+  items: PlatformDemoRequest[]; page: number; pageSize: number; totalCount: number;
+  hasNextPage: boolean; hasPreviousPage: boolean;
+};
+export type PlatformDemoRequestCalendarItem = {
+  id: string; firstName: string; lastName: string; company: string;
+  preferredStartAt: string; preferredTimeZone: string | null; receivedAt: string;
+  deliveryStatus: string; schedulingStatus: "Requested" | "Confirmed" | string;
+  confirmedStartAt: string | null; confirmedEndAt: string | null; confirmedTimeZone: string | null;
+  durationMinutes: number | null; meetingMethod: string | null;
+};
+export type PlatformDemoRequestCalendarRange = {
+  items: PlatformDemoRequestCalendarItem[]; from: string; to: string;
+};
+export type DemoRequestResponseReceipt = {
+  status: "Queued" | "AlreadyQueued" | "AlreadyPending";
+  templateKey: string;
+  queuedAt: string;
+  followUpRequestId?: string | null;
+  expiresAt?: string | null;
+};
+export type DemoFollowUpDevelopmentPreview = {
+  url: string;
+  expiresAt: string;
+};
+export type ConfirmDemoAppointmentRequest = {
+  confirmedLocalStart: string;
+  timeZone: string;
+  meetingMethod: |"ConnectionDetailsToFollow" | "MicrosoftTeams" | "Zoom" | "GoogleMeet" | "Phone";
+  meetingJoinUrl: string | null;
+};
+export type DemoAppointmentConfirmationReceipt = {
+  appointmentId: string; demoRequestId: string; schedulingStatus: "Confirmed";
+  confirmedStartAt: string; confirmedEndAt: string; timeZone: string; durationMinutes: number;
+  meetingMethod: string; emailStatus: "Queued"; confirmedAt: string;
+};
+
+export type PlatformTenantProvisioningRequest = {
+  onboardingType: "Pilot" | "Paid";
+  customerReference: string;
+  displayName: string;
+  ownerEmail: string;
+  ownerDisplayName: string;
+  trialEndsAt: string | null;
+  planCode: string | null;
+  subscriptionReference: string | null;
+  setupReason: string;
+  confirmsNoCui: boolean;
+  commercialApprovalConfirmed: boolean;
+};
+
+export type PlatformTenantProvisioningResult = {
+  onboardingId: string;
+  tenantId: string;
+  displayName: string;
+  onboardingType: "Pilot" | "Paid";
+  onboardingStatus: string;
+  tenantStatus: string;
+  dataHandlingMode: string;
+  customerReference: string;
+  ownerEmail: string;
+  ownerDisplayName: string;
+  ownerRoleName: string;
+  invitationId: string;
+  invitationStatus: string;
+  invitationDeliveryStatus: string;
+  invitationNotificationSentAt: string | null;
+  invitationExpiresAt: string;
+  trialEndsAt: string | null;
+  planCode: string | null;
+  subscriptionReference: string | null;
+  setupReason: string;
+  createdAt: string;
+  cancelledAt: string | null;
+  cancelledByUserId: string | null;
+  cancellationReason: string | null;
+  subscription: TenantSubscription | null;
+  isReplay: boolean;
+};
+
+export type TenantSubscription = {
+  id: string;
+  tenantId: string;
+  tenantKind: "ContractorWorkspace" | "PartnerOrganization" | "Internal";
+  plan: "PilotEvaluation" | "CommercialStandard" | "Partner" | "Internal";
+  planCode: string;
+  status: |"Pending" | "Active" | "GracePeriod" | "Expired" | "Cancelled" | "Converted";
+  effectiveStatus: |"Pending" | "Active" | "GracePeriod" | "Expired" | "Cancelled" | "Converted";
+  accessLevel: "Full" | "ReadOnly" | "Denied";
+  startsAt: string;
+  endsAt: string | null;
+  graceEndsAt: string | null;
+  externalCustomerReference: string | null;
+  externalSubscriptionReference: string | null;
+  statusReason: string;
+  version: number;
+};
+
+export type PlatformTenantOnboardingPage = {
+  items: PlatformTenantProvisioningResult[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+};
+
+export type PlatformCustomerAttention =
+  | "PendingOwnerAcceptance"
+  | "InvitationDeliveryFailed"
+  | "PilotExpiring"
+  | "GracePeriod"
+  | "Expired"
+  | "SubscriptionMissing";
+
+export type PlatformCustomerSummary = {
+  tenantId: string;
+  displayName: string;
+  customerReference: string | null;
+  customerType: "Pilot" | "Paid" | null;
+  tenantStatus: string;
+  dataPosture: string;
+  onboardingStatus: string | null;
+  ownerEmail: string | null;
+  invitationStatus: string | null;
+  invitationDeliveryStatus: string | null;
+  subscription: TenantSubscription | null;
+  attention: PlatformCustomerAttention[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type PlatformCustomerPage = {
+  items: PlatformCustomerSummary[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+};
+
+export type PlatformCustomerDetail = {
+  customer: PlatformCustomerSummary;
+  ownerDisplayName: string | null;
+  invitationId: string | null;
+  invitationNotificationSentAt: string | null;
+  invitationExpiresAt: string | null;
+  invitationAcceptedAt: string | null;
+  planCode: string | null;
+  subscriptionReference: string | null;
+  setupReason: string | null;
+  cancelledAt: string | null;
+  cancellationReason: string | null;
+  lifecycle: Array<{
+    eventType: string;
+    summary: string;
+    occurredAt: string;
+    actorUserId: string | null;
+  }>;
+};
+
+export type PlatformCustomerQuery = {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  customerType?: "Pilot" | "Paid";
+  tenantStatus?: string;
+  onboardingStatus?: string;
+  subscriptionStatus?: string;
+  attention?: PlatformCustomerAttention;
+  sort?: |"UpdatedDescending" | "NameAscending" | "CreatedDescending" | "PilotEndAscending";
+};
+
+export type PlatformPilotSubscription = {
+  tenantId: string;
+  displayName: string;
+  customerReference: string;
+  subscription: TenantSubscription;
+};
+
+export type PlatformPilotSubscriptionPage = {
+  items: PlatformPilotSubscription[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+};
+
+export type TenantMember = {
+  membershipId: string;
+  tenantId: string;
+  userId: string;
+  email: string;
+  displayName: string;
+  userStatus: string;
+  membershipStatus: string;
+  roleName: string;
+  mfaEnabled: boolean;
+  lastSignedInAt: string | null;
+  lastAccessedAt: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+};
+
+export type ObligationAssignmentCandidate = {
+  userId: string;
+  displayName: string;
+  roleName: string;
+  assignmentEmailEnabled: boolean;
+};
+
+export type TenantInvitation = {
+  invitationId: string;
+  tenantId: string;
+  email: string;
+  roleName: string;
+  status: "Pending" | "Accepted" | "Expired" | "Revoked" | string;
+  expiresAt: string;
+  acceptedAt: string | null;
+  acceptedByUserId: string | null;
+  revokedAt: string | null;
+  revokedByUserId: string | null;
+  notificationSentAt: string | null;
+  notificationPlaceholder: string;
+  deliveryStatus: |"Queued" | "Processing" | "RetryScheduled" | "Sent" | "Failed" | "Cancelled" | string;
+  deliveryAttemptCount: number;
+  nextDeliveryAttemptAt: string | null;
+  lastDeliveryAttemptAt: string | null;
+  deliveryFailureCode: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+};
+
+export type InvitationAcceptanceContext = {
+  invitationId: string;
+  tenantDisplayName: string;
+  email: string;
+  roleName: string;
+  status: string;
+  expiresAt: string;
+};
+
+export type RevokeTenantInvitationRequest = {
+  reason: string;
+};
+
+export type Tenant = {
+  id: string;
+  displayName: string;
+  status: string;
+  dataPosture: string;
+  dataHandlingMode: "DemoSandbox" | "NoCui" | "CuiReady" | string;
+  trialEndsAt: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+};
+
+export type TenantDataHandlingModeHistory = {
+  id: string;
+  tenantId: string;
+  previousMode: string | null;
+  newMode: string;
+  actorUserId: string;
+  changedAt: string;
+  reason: string;
+  approvalRecordReference: string | null;
+};
+
+export type UpdateTenantDataHandlingModeRequest = {
+  dataHandlingMode: "DemoSandbox" | "NoCui" | "CuiReady" | string;
+  reason: string;
+  approvalRecordReference?: string | null;
+};
+
+export type CuiReadyApprovalChecklistItem = {
+  supportingRecordId?: string | null;
+  supportingVersion?: string | null;
+  id: string;
+  checklistId: string;
+  itemKey: string;
+  section: string;
+  description: string;
+  isRequired: boolean;
+  status: "NotStarted" | "InProgress" | "Complete" | "NotApplicable" | string;
+  owner: string | null;
+  evidenceLink: string | null;
+  reviewerUserId: string | null;
+  reviewedAt: string | null;
+  notes: string | null;
+};
+
+export type CuiReadyApprovalChecklist = {
+  id: string;
+  tenantId: string;
+  version: number;
+  state: "Draft" | "InReview" | "Approved" | "Rejected" | "Superseded" | string;
+  rejectionReason: string | null;
+  reviewNotes: string | null;
+  reviewedByUserId: string | null;
+  reviewedAt: string | null;
+  createdAt: string;
+  createdByUserId: string | null;
+  updatedAt: string | null;
+  updatedByUserId: string | null;
+  items: CuiReadyApprovalChecklistItem[];
+};
+
+export type UpdateCuiReadyChecklistItemRequest = {
+  supportingRecordId?: string | null;
+  supportingVersion?: string | null;
+  status: "NotStarted" | "InProgress" | "Complete" | "NotApplicable" | string;
+  owner: string | null;
+  evidenceLink: string | null;
+  reviewerUserId: string | null;
+  reviewedAt: string | null;
+  notes: string | null;
+};
+
+export type ReviewCuiReadyChecklistRequest = {
+  reason: string | null;
+};
+
+export type SharedResponsibilityMatrixRow = {
+  category: string;
+  responsibility: |"FeDril" | "Customer" | "Shared" | "ThirdPartyProvider" | "NotApplicable" | string;
+  notes: string;
+  sourceReference: string;
+  effectiveAt: string;
+  reviewOwner: string;
+  version: string;
+};
+
+export type SharedResponsibilityMatrix = {
+  matrixId: string;
+  version: string;
+  title: string;
+  state: "Published" | "Draft" | "Retired" | string;
+  effectiveAt: string;
+  reviewOwner: string;
+  reviewedAt: string;
+  sourceReference: string;
+  rows: SharedResponsibilityMatrixRow[];
+};
+
+export type SharedResponsibilityMatrixAcknowledgement = {
+  id: string;
+  tenantId: string;
+  matrixId: string;
+  matrixVersion: string;
+  matrixTitle: string;
+  acknowledgedByUserId: string;
+  acknowledgedAt: string;
+  status: "Current" | "Outdated" | string;
+};
+
+export type AcknowledgeSharedResponsibilityMatrixRequest = {
+  matrixId: string;
+  matrixVersion: string;
+  acknowledged: boolean;
+};
+
+export type DataHandlingNotice = {
+  noticeId: string;
+  version: string;
+  mode: "DemoSandbox" | "NoCui" | "CuiReady" | string;
+  workflowContexts: string[];
+  title: string;
+  body: string;
+  state: string;
+  owner: string;
+  reviewer: string;
+  reviewedAt: string;
+  effectiveAt: string;
+  sourceReference: string;
+};
+
+export type DataHandlingNoticeAcknowledgement = {
+  id: string;
+  tenantId: string;
+  userId: string;
+  mode: "DemoSandbox" | "NoCui" | "CuiReady" | string;
+  workflowContext: string;
+  noticeId: string;
+  noticeVersion: string;
+  acknowledgedAt: string;
+  status: "Current" | "Outdated" | string;
+};
+
+export type AcknowledgeDataHandlingNoticeRequest = {
+  mode: "DemoSandbox" | "NoCui" | "CuiReady" | string;
+  workflowContext: string;
+  noticeId: string;
+  noticeVersion: string;
+  acknowledged: boolean;
+};
+
+export type CuiSupportEscalation = {
+  id: string;
+  tenantId: string;
+  sourceWorkflow: string;
+  affectedEntityType: string;
+  affectedEntityId: string;
+  category: |"AccidentalCuiUpload" | "SuspectedCui" | "ProhibitedData" | "Misclassification" | "CustomerQuestion" | "ClassificationQuestion" | string;
+  severity: "Low" | "Medium" | "High" | "Critical" | string;
+  status: |"Submitted" | "Triage" | "Contained" | "CustomerActionRequired" | "Resolved" | "Closed" | "Reopened" | string;
+  owner: string | null;
+  description: string;
+  isAffectedContentBlocked: boolean;
+  statusNote: string | null;
+  statusChangedAt: string | null;
+  statusChangedByUserId: string | null;
+  createdAt: string;
+  createdByUserId: string;
+  updatedAt: string | null;
+  updatedByUserId: string | null;
+  slaDueAt: string;
+  slaState: string;
+  resolutions: CuiSupportEscalationResolution[];
+  events: CuiSupportEscalationEvent[];
+};
+export type CuiSupportEscalationEvent = { id: string; status: string; note: string; occurredAt: string; actorUserId: string ;};
+export type CuiSupportEscalationReport = { openCount: number; resolvedCount: number; overdueCount: number; byStatus: Record<string, number>; bySeverity: Record<string, number> ;};
+
+export type CuiSupportEscalationResolution = {
+  id: string;
+  escalationId: string;
+  resolutionType: |"FalsePositive" | "ContentRemoved" | "ApprovedForUse" | "ReferredToCustomer" | string;
+  summary: string;
+  resolvedAt: string;
+  resolvedByUserId: string;
+};
+
+export type CreateCuiSupportEscalationRequest = {
+  sourceWorkflow: string;
+  affectedEntityType: string;
+  affectedEntityId: string;
+  category: |"AccidentalCuiUpload" | "SuspectedCui" | "ProhibitedData" | "Misclassification" | "CustomerQuestion" | "ClassificationQuestion" | string;
+  severity: "Low" | "Medium" | "High" | "Critical" | string;
+  description: string;
+};
+
+export type UpdateCuiSupportEscalationRequest = {
+  owner: string;
+  severity: "Low" | "Medium" | "High" | "Critical" | string;
+  status: "Submitted" | "Triage" | "Contained" | "Resolved" | string;
+};
+
+export type ChangeCuiSupportEscalationStatusRequest = {
+  status: "Submitted" | "Triage" | "Contained" | "Resolved" | string;
+  note: string;
+};
+
+export type ResolveCuiSupportEscalationRequest = {
+  resolutionType: |"FalsePositive" | "ContentRemoved" | "ApprovedForUse" | "ReferredToCustomer" | string;
+  summary: string;
+};
+
+export type NotificationCenterItem = {
+  id: string;
+  tenantId: string;
+  userId: string;
+  sourceTaskId: string;
+  sourceType: string;
+  linkUrl: string;
+  category: string;
+  status: string;
+  placeholder: string;
+  attemptedAt: string;
+  readAt: string | null;
+};
+
+export type NotificationPreference = {
+  id: string;
+  tenantId: string;
+  userId: string;
+  roleName: string;
+  assignmentNotificationsEnabled: boolean;
+  dueSoonNotificationsEnabled: boolean;
+  overdueNotificationsEnabled: boolean;
+  evidenceRequestNotificationsEnabled: boolean;
+  certificationRenewalNotificationsEnabled: boolean;
+  cmmcAffirmationNotificationsEnabled: boolean;
+  createdAt: string;
+  updatedAt: string | null;
+};
+
+export type NotificationPreferenceUpdateRequest = Omit<
+  NotificationPreference,
+  "id" | "tenantId" | "userId" | "roleName" | "createdAt" | "updatedAt"
+>;
+
+export type DueDateReminderRunResult = {
+  upcomingSelected: number;
+  overdueSelected: number;
+  created: number;
+  skipped: number;
+  failed: number;
+  items: Array<{
+    taskId: string;
+    title: string;
+    category: string;
+    status: string;
+    placeholder: string;
+    failureMessage: string | null;
+  }>;
+};
+
+export type RunDueDateReminderRequest = {
+  leadTimeDays?: number | null;
+  simulatedFailureTaskId?: string | null;
+};
+
+export type CreateTenantInvitationRequest = {
+  email: string;
+  roleName: string;
+  expiresInDays: number;
+};
+
+export type NoCuiAcknowledgementStatus = {
+  isAcknowledged: boolean;
+  noticeVersion: string;
+  noticeCopy: string;
+  tenantId: string | null;
+  acknowledgedByUserId: string | null;
+  acknowledgedAt: string | null;
+};
+
+export type EvidenceUploadIntent = {
+  id: string;
+  evidenceItemId: string;
+  tenantId: string;
+  createdByUserId: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  status: string;
+  validationStatus: string;
+  malwareScanStatus: string;
+  message: string;
+  noticeVersion: string;
+  attestationText: string;
+  expiresAt: string;
+  classification: ContentClassification;
+};
+
+export type EvidenceFileAccess = {
+  evidenceItemId: string;
+  versionId: string;
+  versionNumber: number;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  validationStatus: string;
+  malwareScanStatus: string;
+  isUsable: boolean;
+  classification: ContentClassification;
+  message: string;
+};
+
+export type EvidenceMetadata = {
+  id: string;
+  tenantId: string;
+  title: string;
+  type: string;
+  ownerFunction: string;
+  status: string;
+  effectiveAt: string | null;
+  expiresAt: string | null;
+  tags: string[];
+  description: string;
+  obligationIds: string[];
+  controlIds: string[];
+  contractIds: string[];
+  vendorIds: string[];
+  subcontractorIds: string[];
+  employeeIds: string[];
+  reportIds: string[];
+  classification: ContentClassification;
+  createdAt: string;
+  updatedAt: string | null;
+};
+
+export type UpsertEvidenceMetadataRequest = Omit<EvidenceMetadata, "id" | "tenantId" | "createdAt" | "updatedAt">;
+
+export type ControlSummary = {
+  total: number;
+  implemented: number;
+  partiallyImplemented: number;
+  notStarted: number;
+  notApplicable: number;
+  needsReview: number;
+  completionPercentage: number;
+};
+
+export type CmmcAssessment = {
+  id: string;
+  tenantId: string;
+  name: string;
+  type: string;
+  level: string;
+  framework: string;
+  status: string;
+  startedAt: string;
+  completedAt: string | null;
+  affirmationDueAt: string | null;
+  ownerFunction: string;
+  companyProfileId: string | null;
+  contractIds: string[];
+  controlSummary: ControlSummary;
+  openPoamItemCount: number;
+  overduePoamItemCount: number;
+  createdAt: string;
+  updatedAt: string | null;
+};
+
+export type UpsertCmmcAssessmentRequest = Omit<
+  CmmcAssessment,
+  |"id" | "tenantId" | "controlSummary" | "openPoamItemCount" | "overduePoamItemCount" | "createdAt" | "updatedAt"
+>;
+
+export type CmmcControlStatus = {
+  assessmentId: string;
+  controlId: string;
+  title: string;
+  family: string;
+  requirement: string;
+  assessmentObjective: string;
+  sourceName: string;
+  sourceUrl: string;
+  sourceLastReviewedAt: string;
+  sourceConfidence: string;
+  status: string;
+  result: string;
+  evidenceItemIds: string[];
+  taskIds: string[];
+  assetIds: string[];
+  poamItemIds: string[];
+  assessedByUserId: string | null;
+  assessedAt: string | null;
+  notes: string;
+  implementationDetails: string;
+  isInherited: boolean;
+  inheritedFrom: string | null;
+  espResponsible: boolean;
+  espName: string | null;
+  reviewedBy?: string | null;
+  reviewedAtUtc?: string | null;
+  reviewStatus?: string;
+  reviewNotes?: string;
+  linkedEvidence?: Array<{
+    id: string;
+    title: string;
+    reviewStatus: string;
+    reviewedBy: string | null;
+    reviewedAtUtc: string | null;
+  }>;
+  openPoamItems?: Array<{
+    id: string;
+    title: string;
+    severity: string;
+    status: string;
+    dueDate: string;
+  }>;
+  statusHistory: CmmcControlStatusHistory[];
+};
+
+export type CmmcControlLibrary = {
+  controlId: string;
+  title: string;
+  family: string;
+  cmmcLevel: string;
+  requirement: string;
+  assessmentObjective: string;
+  sourceName: string;
+  sourceUrl: string;
+  sourceLastReviewedAt: string;
+  sourceConfidence: string;
+};
+
+export type CmmcControlStatusHistory = {
+  id: string;
+  status: string;
+  result: string;
+  changedByUserId: string;
+  changedAt: string;
+  notes: string | null;
+};
+
+export type CmmcResponsibilityMatrixRow = {
+  assessmentId: string;
+  controlId: string;
+  title: string;
+  family: string;
+  responsibilityType: string;
+  ownerFunction: string;
+  provider: string | null;
+  evidenceStatus: string;
+  notes: string;
+};
+
+export type CmmcReadinessGap = {
+  assessmentId: string;
+  controlId: string;
+  title: string;
+  family: string;
+  priority: string;
+  reasonCodes: string[];
+  controlStatus: string;
+  assessmentResult: string;
+  evidenceStatus: string;
+  poamRiskLevel: string | null;
+  poamTargetCompletionAt: string | null;
+  isPoamOverdue: boolean;
+  isCuiRelevant: boolean;
+  isInherited: boolean;
+  hasAssessmentObjectiveCoverage: boolean;
+};
+
+export type CreatePoamFromGapRequest = {
+  ownerFunction: string;
+  targetCompletionAt: string;
+  ownerUserId?: string | null;
+};
+
+export type CmmcPoamItem = {
+  id: string;
+  tenantId: string;
+  assessmentId: string;
+  controlId: string;
+  weakness: string;
+  plannedRemediation: string;
+  riskLevel: string;
+  status: string;
+  ownerUserId: string | null;
+  ownerFunction: string;
+  targetCompletionAt: string;
+  completedAt: string | null;
+  remediationTaskId: string | null;
+  evidenceItemIds: string[];
+  isOverdue: boolean;
+  createdAt: string;
+  updatedAt: string | null;
+};
+
+export type UpsertCmmcPoamItemRequest = Omit<CmmcPoamItem, "id" | "tenantId" | "assessmentId" | "isOverdue" | "createdAt" | "updatedAt">;
+
+export type SprsScoringRuleSet = {
+  id: string;
+  version: string;
+  state: string;
+  sourceName: string;
+  sourceUrl: string;
+  sourceSha256: string | null;
+  effectiveDate: string | null;
+  lastReviewedAt: string | null;
+  owner: string;
+  reviewer: string | null;
+  reviewDate: string | null;
+  maximumScore: number;
+  rules: Array<{
+    requirementId: string;
+    title: string;
+    ruleType: string;
+    conditionalDeductions: Array<{ code: string; deduction: number; when: string ;}> | null;
+  }>;
+};
+
+export type SprsScoreCalculationLineItem = {
+  requirementId: string;
+  controlId: string | null;
+  title: string;
+  ruleDeduction: number;
+  appliedDeduction: number;
+  reason: string;
+  applicabilityRationale: string | null;
+  controlStatus: string | null;
+  assessmentResult: string | null;
+};
+
+export type SprsUnresolvedGap = {
+  requirementId: string;
+  controlId: string | null;
+  title: string;
+  reason: string;
+};
+
+export type SprsScoreCalculation = {
+  id: string;
+  tenantId: string;
+  assessmentId: string;
+  ruleSetId: string;
+  ruleSetVersion: string;
+  ruleSetSourceUrl: string;
+  ruleSetSourceSha256: string;
+  maximumScore: number;
+  score: number;
+  totalDeduction: number;
+  lineItems: SprsScoreCalculationLineItem[];
+  unresolvedGaps: SprsUnresolvedGap[];
+  manualNotes: string;
+  manualNotesClassification: ContentClassification | null;
+  generatedByUserId: string;
+  generatedAt: string;
+};
+
+export type CreateSprsScoreCalculationRequest = {
+  ruleSetId: string;
+  manualNotes: string | null;
+  conditionalDeductionSelections: Array<{ requirementId: string; optionCode: string ;}>;
+  manualNotesClassification: {
+    classification: string;
+    source: "UserSelected";
+    reason: string;
+  } | null;
+};
+
+export type SspSectionType = |"SystemDescription" | "AuthorizationBoundary" | "Environment" | "Interconnections" | "Users" | "Roles" | "DataTypes" | "CuiHandlingPosture" | "ControlImplementationNarratives" | "InheritedResponsibilities" | "ExternalServiceProviders" | "EvidenceReferences";
+export type SspSectionStatus = |"Draft" | "InReview" | "Approved" | "Superseded" | "Archived";
+export type SspLinkedRecordType = |"CompanyProfile" | "SystemBoundary" | "Asset" | "CmmcControl" | "ResponsibilityMatrix" | "Policy" | "PoamItem" | "Evidence";
+export type SspLinkedRecord = { recordType: SspLinkedRecordType; recordId: string; relationship: string ;};
+export type SspSourceReference = { source: string; sourceUrl: string; lastReviewedAt: string ;};
+export type SspSectionHistory = { status: SspSectionStatus; actorUserId: string; actorName: string; changedAt: string; notes: string | null ;};
+export type SspSection = {
+  id: string; tenantId: string; sectionType: SspSectionType; title: string; owner: string; status: SspSectionStatus;
+  reviewer: string | null; reviewDate: string | null; approvalRationale: string | null; isRequired: boolean; version: number;
+  linkedRecords: SspLinkedRecord[]; sourceReferences: SspSourceReference[]; history: SspSectionHistory[];
+  createdAt: string; updatedAt: string;
+};
+export type CreateSspSectionRequest = Pick<SspSection, "sectionType" | "title" | "owner" | "linkedRecords" | "sourceReferences">;
+export type UpdateSspSectionRequest = CreateSspSectionRequest & { expectedVersion: number ;};
+export type SspSectionStatusRequest = { status: SspSectionStatus; actorName: string; expectedVersion: number; reviewDate?: string | null; reviewer?: string | null; approvalRationale?: string | null ;};
+export type SspNarrativeStatus = |"Draft" | "Approved" | "Superseded" | "Archived";
+export type SspNarrativeSourceType = |"Evidence" | "GeneratedPolicy" | "Clause" | "Obligation";
+export type SspNarrativeSource = {
+  sourceType: SspNarrativeSourceType; recordId: string; label: string; summary: string; sourceUrl: string;
+  fingerprint: string; classification: string;
+};
+export type SspNarrative = {
+  id: string; tenantId: string; sectionId: string; generatedText: string; editedText: string | null; approvedText: string | null;
+  status: SspNarrativeStatus; aiAssisted: boolean; draftOnly: boolean; reviewerNotes: string | null;
+  reviewerUserId: string | null; reviewer: string | null; reviewDate: string | null; version: number;
+  classification: ContentClassification; sourceRecords: SspNarrativeSource[]; createdAt: string; updatedAt: string;
+};
+export type SspNarrativeComparison = {
+  sectionId: string; approvedNarrativeId: string | null; draftNarrativeId: string; currentApprovedText: string | null;
+  proposedText: string; currentApprovedReviewerUserId: string | null; currentApprovedReviewer: string | null;
+  currentApprovedReviewDate: string | null; proposedReviewerNotes: string | null;
+  proposedSources: SspNarrativeSource[]; currentApprovedSources: SspNarrativeSource[];
+};
+export type GenerateSspNarrativeRequest = {
+  sources: Array<{ sourceType: SspNarrativeSourceType; recordId: string }>;
+  generationMode?: "Deterministic" | "AiAssisted";
+};
+export type EditSspNarrativeRequest = {
+  editedText: string; reviewerNotes: string | null; expectedVersion: number;
+  classification: { classification: "Unclassified" | "Fci" | "Cui"; source: "UserSelected" ;};
+};
+export type SspExportFormat = "HumanReadable" | "MachineReadable" | "Both";
+export type SspExportPackageStatus = |"InternalReview" | "ExternalShareApproved" | "Shared";
+export type SspExportEvidenceReference = {
+  id: string; title: string; status: string; classification: string; ownerFunction: string;
+  approvedAt: string; approvedByUserId: string; effectiveAt: string | null; expiresAt: string | null;
+};
+export type SspExportPoamReference = {
+  id: string; assessmentId: string; controlId: string; weakness: string; plannedRemediation: string;
+  status: string; ownerFunction: string; targetCompletionAt: string;
+};
+export type SspExportSection = {
+  sectionId: string; sectionType: SspSectionType; title: string; status: SspSectionStatus; owner: string;
+  reviewer: string | null; reviewDate: string | null; sourceReferences: SspSourceReference[];
+  approvedNarrativeText: string | null; approvedNarrativeId: string | null; narrativeReviewer: string | null;
+  narrativeReviewDate: string | null; narrativeSources: SspNarrativeSource[];
+};
+export type SspExportHistory = { id: string; action: string; actorUserId: string; actorName: string; occurredAt: string; notes: string | null ;};
+export type SspExportPackage = {
+  id: string; tenantId: string; tenantName: string; generatedAt: string; packageVersion: string; systemBoundary: string;
+  reviewer: string; format: SspExportFormat; languagePolicyVersion: string; disclaimer: string; humanReadableReport: string; machineReadableMetadata: Record<string, unknown>;
+  sections: SspExportSection[]; includedEvidence: SspExportEvidenceReference[]; poamReferences: SspExportPoamReference[];
+  status: SspExportPackageStatus; externalShareApprovedByUserId: string | null; externalShareApprovedAt: string | null;
+  externalShareApprovalReason: string | null; sharedByUserId: string | null; sharedAt: string | null;
+  sharedRecipient: string | null; sharedPurpose: string | null; history: SspExportHistory[];
+};
+export type SspExportPolicy = { requireIndependentApproval: boolean; version: number; updatedAt: string | null; updatedByUserId: string | null };
+export type UpdateSspExportPolicyRequest = { requireIndependentApproval: boolean; expectedVersion: number; reason: string };
+export type CreateSspExportPackageRequest = {
+  packageVersion: string; systemBoundary: string; reviewer: string; format: SspExportFormat;
+  externalShareRequested: boolean; evidenceItemIds: string[]; poamItemIds: string[];
+};
+
+export type Subcontractor = {
+  id: string;
+  tenantId: string;
+  name: string;
+  uei: string | null;
+  cageCode: string | null;
+  samRegistrationStatus: string | null;
+  samRegistrationExpiresAt: string | null;
+  samSource: string | null;
+  samRetrievedAt: string | null;
+  samNaicsCodes: SubcontractorSamNaicsCode[];
+  samExclusionStatus: string | null;
+  status: string;
+  roleDescription: string;
+  smallBusinessStatus: string;
+  cmmcStatus: string;
+  insuranceExpiresAt: string | null;
+  ndaStatus: string;
+  workshareDescription: string;
+  worksharePercentage: number | null;
+  hasFciAccess: boolean;
+  hasCuiAccess: boolean;
+  hasExportControlledAccess: boolean;
+  requiredCmmcLevel: string | null;
+  contactName: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  contactTitle: string | null;
+  ownerFunction: string;
+  contractIds: string[];
+  createdAt: string;
+  updatedAt: string | null;
+};
+
+export type SubcontractorSamNaicsCode = {
+  code: string;
+  title: string;
+};
+
+export type SubcontractorEntityLookupResult = {
+  legalBusinessName: string;
+  uei: string;
+  cageCode: string | null;
+  registrationStatus: string | null;
+  samRegistrationExpiresAt: string | null;
+  naicsCodes: SubcontractorSamNaicsCode[];
+  exclusionStatus: string | null;
+  source: string;
+  retrievedAt: string;
+};
+
+export type SubcontractorEntityLookupRequest = {
+  uei: string | null;
+  legalBusinessName: string | null;
+};
+
+export type ApplySubcontractorEntityLookupRequest = {
+  result: SubcontractorEntityLookupResult;
+  selectedFields: string[];
+};
+
+export type UpsertSubcontractorRequest = {
+  name: string;
+  uei: string | null;
+  cageCode: string | null;
+  status: string;
+  roleDescription: string;
+  smallBusinessStatus: string;
+  cmmcStatus: string;
+  insuranceExpiresAt: string | null;
+  ndaStatus: string;
+  workshareDescription: string;
+  worksharePercentage: number | null;
+  hasFciAccess: boolean;
+  hasCuiAccess: boolean;
+  hasExportControlledAccess: boolean;
+  requiredCmmcLevel: string | null;
+  contactName: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  contactTitle: string | null;
+  contractIds: string[];
+  naicsCodes?: string[];
+  certifications?: string[];
+  ownerFunction?: string | null;
+};
+
+export type SubcontractorFlowDown = {
+  id: string;
+  subcontractorId: string;
+  contractId: string | null;
+  contractClauseId: string | null;
+  obligationId: string | null;
+  clauseNumber: string;
+  title: string;
+  status: string;
+  sentAt: string | null;
+  acknowledgedAt: string | null;
+  signedAt: string | null;
+  waivedAt: string | null;
+  signedEvidenceItemId: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+};
+
+export type UpsertSubcontractorFlowDownRequest = Omit<
+  SubcontractorFlowDown,
+  "id" | "subcontractorId" | "createdAt" | "updatedAt"
+>;
+
+export type SubcontractorEvidenceRequest = {
+  id: string;
+  tenantId: string;
+  subcontractorId: string;
+  requestedItem: string;
+  requestedEvidenceTypes: string[];
+  dueDate: string;
+  status: string;
+  ownerFunction: string | null;
+  recipientName: string | null;
+  recipientEmail: string | null;
+  obligationId: string | null;
+  relatedFlowDownClauseId: string | null;
+  receivedEvidenceItemId: string | null;
+  completedAt: string | null;
+  isOverdue: boolean;
+  createdAt: string;
+  updatedAt: string | null;
+};
+
+export type UpsertSubcontractorEvidenceRequestRequest = Omit<
+  SubcontractorEvidenceRequest,
+  |"id" | "tenantId" | "subcontractorId" | "ownerFunction" | "isOverdue" | "completedAt" | "createdAt" | "updatedAt"
+> & {
+  ownerFunction?: string | null;
+};
+
+export type SupplierObligation = {
+  id: string;
+  tenantId: string;
+  subcontractorId: string;
+  subcontractorName: string;
+  contractId: string | null;
+  contractNumber: string | null;
+  flowDownClauseId: string | null;
+  contractClauseId: string | null;
+  obligationId: string | null;
+  clauseNumber: string;
+  title: string;
+  ownerFunction: string;
+  dueDate: string;
+  status: string;
+  requiredEvidenceTypes: string[];
+  receivedEvidenceItemId: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+};
+
+export type UpsertSupplierObligationRequest = {
+  relatedFlowDownClauseId: string;
+  requestedItem: string;
+  requiredEvidenceTypes: string[];
+  dueDate: string;
+  status: string;
+  ownerFunction: string;
+  obligationId?: string | null;
+  receivedEvidenceItemId?: string | null;
+};
+
+export type BulkCreateSupplierObligationsRequest = {
+  contractId: string;
+  dueDate: string;
+  ownerFunction: string;
+  requiredEvidenceTypes: string[];
+  status: string;
+};
+
+export type PolicyTemplateSourceReference = {
+  sourceName: string;
+  sourceUrl: string;
+  lastReviewedAt: string;
+};
+
+export type PolicyTemplate = {
+  id: string;
+  tenantId: string;
+  title: string;
+  category: string;
+  body: string;
+  placeholders: string[];
+  sourceReferences: PolicyTemplateSourceReference[];
+  version: string;
+  status: string;
+  ownerFunction: string;
+  lastReviewedAt: string | null;
+  reviewerUserId: string | null;
+  requiresExpertReview: boolean;
+  createdAt: string;
+  updatedAt: string | null;
+};
+
+export type PolicyTemplateVersion = {
+  id: string;
+  templateId: string;
+  version: string;
+  bodyPreview: string;
+  status: string;
+  createdAt: string;
+  createdByUserId: string;
+};
+
+export type UpsertPolicyTemplateRequest = Omit<PolicyTemplate, "id" | "tenantId" | "createdAt" | "updatedAt">;
+
+export type ChangePolicyTemplateLifecycleRequest = {
+  status: string;
+  reviewerUserId: string | null;
+  reviewedAt: string | null;
+};
+
+export type GeneratedPolicy = {
+  id: string;
+  tenantId: string;
+  sourceTemplateId: string;
+  sourceTemplateVersion: string;
+  generatedAt: string;
+  title: string;
+  body: string;
+  status: string;
+  approvedByUserId: string | null;
+  approvedAt: string | null;
+  reviewDueAt: string | null;
+  evidenceItemId: string | null;
+  placeholderValues: Record<string, string>;
+  missingPlaceholders: string[];
+  classification: ContentClassification;
+  classificationRevision: number;
+  createdAt: string;
+  updatedAt: string | null;
+};
+
+export type UpdateGeneratedPolicyRequest = {
+  title: string;
+  body: string;
+  classification: GeneratedPolicyClassificationRequest;
+};
+
+export type GeneratedPolicyClassificationRequest = Pick<ContentClassification, "classification" | "source"> & Partial<Omit<ContentClassification, "classification" | "source">>;
+
+export type PolicyApprovalRequest = {
+  decision: string;
+  reviewDueAt: string | null;
+  obligationIds: string[];
+  controlIds: string[];
+  reason?: string | null;
+};
+
+export type PolicyRevision = {
+  id: string;
+  generatedPolicyId: string;
+  title: string;
+  body: string;
+  status: string;
+  preservedAt: string;
+  preservedByUserId: string;
+};
+
+export type EvidenceRequest = {
+  id: string;
+  tenantId: string;
+  requesterUserId: string;
+  assigneeUserId: string | null;
+  assigneeSubcontractorId: string | null;
+  dueDate: string;
+  status: string;
+  priority: string;
+  instructions: string;
+  relatedRecordType: string;
+  relatedRecordId: string;
+  submittedEvidenceItemId: string | null;
+  submissionComment: string | null;
+  reviewComment: string | null;
+  createdAt: string;
+};
+
+export type CreateEvidenceRequestRequest = Omit<
+  EvidenceRequest,
+  |"id" | "tenantId" | "requesterUserId" | "status" | "submittedEvidenceItemId" | "submissionComment" | "reviewComment" | "createdAt"
+>;
+
+export type EvidenceRequestDashboardItem = EvidenceRequest & {
+  isOverdue: boolean;
+};
+
+export type EvidenceRequestDashboardQuery = {
+  status?: string;
+  dueFrom?: string;
+  dueTo?: string;
+  assigneeUserId?: string;
+  relatedRecordType?: string;
+  priority?: string;
+};
+
+export type SubmitEvidenceRequestRequest = {
+  evidenceItemId: string;
+  containsPotentialCui: boolean;
+  comment?: string | null;
+};
+
+export type ReviewEvidenceRequestRequest = {
+  decision: string;
+  comment: string;
+};
+
+export type ApprovedEvidencePackage = {
+  classification?: ContentClassification | null;
+  reportId: string;
+  tenantId: string;
+  type: string;
+  title: string;
+  status: string;
+  generatedAt: string;
+  generatedByUserId: string;
+  disclaimer: string;
+  evidenceItems: Array<{
+    evidenceItemId: string;
+    name: string;
+    type: string;
+    status: string;
+    approvedAt: string | null;
+    approvedByUserId: string | null;
+  }>;
+};
+
+export type ReportHistoryItem = {
+  classification?: ContentClassification | null;
+  id: string;
+  tenantId: string;
+  type: string;
+  status: string;
+  title: string;
+  generatedAt: string;
+  generatedByUserId: string;
+  archivedAt?: string | null;
+  archivedByUserId?: string | null;
+  archiveReason?: string | null;
+  disclaimer: string;
+};
+
+export type ReportArtifactDetail = ReportHistoryItem & {
+  snapshot: Record<string, unknown>;
+};
+
+export type ReportExport = {
+  id: string;
+  tenantId: string;
+  reportId: string;
+  status: "Queued" | "Processing" | "Ready" | "Failed";
+  format: "pdf";
+  fileName: string;
+  contentType: string;
+  contentLength: number | null;
+  requestedAt: string;
+  completedAt: string | null;
+  failureCode: string | null;
+};
+
+export type ComplianceStatusReport = {
+  classification?: ContentClassification | null;
+  id: string;
+  tenantId: string;
+  type: string;
+  status: string;
+  title: string;
+  generatedAt: string;
+  generatedByUserId: string;
+  disclaimer: string;
+  snapshot: Record<string, unknown>;
+  exportHtml?: string;
+  exportCsv?: string;
+};
+
+export type CmmcReadinessReport = ComplianceStatusReport;
+export type SprsReadinessReport = ComplianceStatusReport & {
+  isReplay: boolean;
+};
+export type SubcontractorComplianceReport = ComplianceStatusReport;
+
+export type SprsReadinessReportRequest = {
+  ruleSetId: string;
+  reviewerNotes: string | null;
+  leadershipReviewStatus: "Pending" | "Reviewed" | "NeedsChanges" | null;
+  conditionalDeductionSelections: Array<{ requirementId: string; optionCode: string ;}> | null;
+};
+
+export type EvidencePackageGenerateRequest = {
+  title: string;
+  obligationIds: string[];
+  contractIds: string[];
+  controlIds: string[];
+  subcontractorIds: string[];
+  includeDraftOrRejectedEvidence: boolean;
+};
+
+export type EvidencePackageReport = {
+  classification?: ContentClassification | null;
+  id: string;
+  tenantId: string;
+  type: string;
+  status: string;
+  title: string;
+  generatedAt: string;
+  generatedByUserId: string;
+  disclaimer: string;
+  manifest: {
+    title: string;
+    generatedAt: string;
+    scope: {
+      obligationIds: string[];
+      contractIds: string[];
+      controlIds: string[];
+      subcontractorIds: string[];
+      includesDraftOrRejectedEvidence: boolean;
+    };
+    items: Array<{
+      evidenceItemId: string;
+      title: string;
+      type: string;
+      status: string;
+      approvedAt: string | null;
+      approvedByUserId: string | null;
+      obligationIds: string[];
+      contractIds: string[];
+      controlIds: string[];
+      subcontractorIds: string[];
+      manifestedAt: string;
+    }>;
+  };
+  exportHtml: string;
+};
+
+export type AuditLogEntry = {
+  id: string;
+  tenantId: string;
+  actorUserId: string | null;
+  action: string;
+  eventType: string;
+  classification: string | null;
+  mode: string | null;
+  result: string;
+  entityType: string;
+  entityId: string;
+  occurredAt: string;
+  ipAddress: string;
+  userAgent: string;
+  correlationId: string;
+  summary: string;
+  metadata: Record<string, string>;
+};
+
+export type CuiAuditExportRequest = {
+  action?: string | null;
+  eventType?: string | null;
+  classification?: string | null;
+  mode?: string | null;
+  actorUserId?: string | null;
+  entityType?: string | null;
+  from?: string | null;
+  to?: string | null;
+  result?: string | null;
+};
+
+export type CuiAuditExport = {
+  tenantId: string;
+  generatedByUserId: string;
+  generatedAt: string;
+  filters: CuiAuditExportRequest;
+  events: AuditLogEntry[];
+};
+
+export type CompanyNaicsCode = {
+  code: string;
+  title: string;
+  isPrimary: boolean;
+  sizeStandard: string | null;
+  qualifiesAsSmall: boolean | null;
+  lastCheckedAt: string | null;
+};
+
+export type CompanyCertification = {
+  id: string | null;
+  type: string;
+  status: string;
+  issuer: string;
+  effectiveAt: string | null;
+  expiresAt: string | null;
+  referenceNumber: string | null;
+};
+
+export type CompanyLocation = {
+  name: string;
+  street1: string;
+  street2: string | null;
+  city: string;
+  stateOrProvince: string;
+  postalCode: string;
+  country: string;
+  isPlaceOfPerformance: boolean;
+};
+
+export type ItEnvironmentSummary = {
+  description: string;
+  usesExternalServiceProvider: boolean;
+  externalServiceProviderName: string | null;
+  keySystems: string[];
+};
+
+export type CompanyProfile = {
+  id: string;
+  tenantId: string;
+  legalEntityName: string;
+  doingBusinessAs: string | null;
+  uei: string | null;
+  cageCode: string | null;
+  samRegistrationExpiresAt: string | null;
+  naicsCodes: CompanyNaicsCode[];
+  certifications: CompanyCertification[];
+  agencyCustomers: string[];
+  contractorRole: string;
+  productsAndServices: string;
+  employeeRange: string;
+  revenueRange: string;
+  locations: CompanyLocation[];
+  itEnvironment: ItEnvironmentSummary;
+  dataHandlingPosture: string;
+  completionPercentage: number;
+  isComplete: boolean;
+  validationErrors: Record<string, string[]>;
+  createdAt: string;
+  updatedAt: string | null;
+};
+
+export type CompanyEntityAddress = {
+  street1: string;
+  street2: string | null;
+  city: string;
+  stateOrProvince: string;
+  postalCode: string;
+  country: string;
+};
+
+export type CompanyEntityLookupResult = {
+  legalBusinessName: string;
+  uei: string;
+  cageCode: string | null;
+  registrationStatus: string | null;
+  samRegistrationExpiresAt: string | null;
+  address: CompanyEntityAddress | null;
+  naicsCodes: CompanyNaicsCode[];
+  source: string;
+  retrievedAt: string;
+};
+
+export type CompanyEntityLookupRequest = {
+  uei: string | null;
+  legalBusinessName: string | null;
+};
+
+export type ApplyCompanyEntityLookupRequest = {
+  result: CompanyEntityLookupResult;
+  selectedFields: string[];
+  confirmOverwrite: boolean;
+};
+
+export type ContractRecord = {
+  id: string;
+  tenantId: string;
+  contractNumber: string;
+  title: string;
+  agencyOrPrimeName: string;
+  relationship: string;
+  kind: string;
+  status: string;
+  awardedAt: string | null;
+  periodOfPerformanceStart: string;
+  periodOfPerformanceEnd: string;
+  placeOfPerformance: string;
+  description: string;
+  dataHandlingPosture: string;
+  createdAt: string;
+  updatedAt: string | null;
+};
+
+export type UpsertContractRequest = Omit<ContractRecord, "id" | "tenantId" | "createdAt" | "updatedAt">;
+
+export type ApplicabilityFact = {
+  tenantId: string;
+  key: string;
+  value: string;
+  isUnknown: boolean;
+  sourceType: string;
+  sourceId: string;
+  lastUpdatedAt: string | null;
+};
+
+export type LaborApplicabilityStatus = "Draft" | "Active" | "Inactive";
+export type LaborApplicabilityReviewStatus = |"Draft" | "PendingReview" | "Reviewed" | "Rejected";
+export type LaborApplicability = {
+  id: string; tenantId: string; contractId: string; taskId: string | null;
+  scaApplicable: boolean; dbaApplicable: boolean; otherFarPart22Obligations: string | null;
+  placeOfPerformance: string; contractPeriodStart: string; contractPeriodEnd: string;
+  wageDeterminationReference: string | null; wageDeterminationEvidenceItemId: string | null;
+  sourceContractClauseId: string | null; sourceClause: string | null; rationale: string | null;
+  ownerFunction: string; status: LaborApplicabilityStatus; reviewStatus: LaborApplicabilityReviewStatus;
+  reviewNotes: string | null; reviewedByUserId: string | null; reviewedAt: string | null;
+  reviewTask: { id: string; tenantId: string; contractId: string; title: string; description: string; status: string; dueAt: string | null ;} | null;
+  createdAt: string; updatedAt: string | null; laborStandard: string;
+};
+export type UpsertLaborApplicabilityRequest = Omit<LaborApplicability,
+  |"id" | "tenantId" | "taskId" | "status" | "reviewedByUserId" | "reviewedAt" | "reviewTask" | "createdAt" | "updatedAt" | "laborStandard">;
+
+export type LaborCategory = {
+  id: string; tenantId: string; contractId: string; title: string;
+  wageDeterminationClassification: string; hourlyWage: number; fringeRate: number;
+  fringeDescription: string; effectiveStart: string; effectiveEnd: string | null;
+  sourceReference: string; isActive: boolean; createdAt: string; updatedAt: string | null;
+};
+export type LaborCategoryRequest = Omit<LaborCategory, "id" | "tenantId" | "isActive" | "createdAt" | "updatedAt">;
+export type LaborClassificationHistory = {
+  id: string; assignmentId: string; priorCategoryId: string | null; priorCategoryTitle: string | null;
+  newCategoryId: string; newCategoryTitle: string; actorUserId: string; changedAt: string; reason: string;
+};
+export type LaborClassificationReviewStatus = |"PendingReview" | "Reviewed" | "Rejected";
+export type LaborEmployeeAssignment = {
+  id: string; tenantId: string; contractId: string; employeeId: string;
+  employeeName: string | null; employeeEmail: string | null; categoryId: string;
+  laborCategoryTitle: string; workLocation: string; effectiveStart: string; effectiveEnd: string | null;
+  status: "Active" | "Inactive"; sourceReference: string; evidenceItemIds: string[];
+  history: LaborClassificationHistory[]; reviewStatus: LaborClassificationReviewStatus;
+  reviewNotes: string | null; reviewedByUserId: string | null; reviewedAt: string | null;
+};
+export type LaborEmployeeAssignmentRequest = {
+  employeeId: string; contractId: string; categoryId: string; workLocation: string;
+  effectiveStart: string; effectiveEnd: string | null; sourceReference: string; evidenceItemIds: string[];
+};
+export type LaborEmployeeOption = { id: string; tenantId: string; employeeNumber: string; name: string; email: string ;};
+
+export type EsrsApplicability = {
+  id: string;
+  tenantId: string;
+  contractId: string;
+  taskId: string;
+  contractType: string;
+  agency: string;
+  subcontractingPlanType: string;
+  primeOrLowerTierRole: string;
+  reportType: "Isr" | "Ssr";
+  periodStart: string;
+  periodEnd: string;
+  dueDate: string;
+  sourceClause: string | null;
+  rationale: string | null;
+  status: "Open" | "InProgress" | "Completed" | "Canceled";
+  ownerFunction: string;
+  assignedToUserId: string | null;
+  reviewedByUserId: string;
+  reviewedAt: string;
+  createdAt: string;
+  updatedAt: string | null;
+  isOverdue: boolean;
+};
+
+export type UpsertEsrsApplicabilityRequest = Omit<
+  EsrsApplicability,
+  |"id" | "tenantId" | "taskId" | "status" | "reviewedByUserId" | "reviewedAt" | "createdAt" | "updatedAt" | "isOverdue"
+>;
+
+export type EsrsScheduleTemplate = {
+  key: string;
+  reportType: "Isr" | "Ssr";
+  periodStart: string;
+  periodEnd: string;
+  dueDate: string;
+  sourceCitation: string;
+  sourceUrl: string;
+  guidance: string;
+};
+
+export type SubcontractingReportDataReviewStatus = |"Draft" | "PendingReview" | "Reviewed" | "Accepted" | "Rejected";
+export type SprReportingRole = "PrimeContractor" | "Subcontractor";
+export type SprReportingPeriod = "March31" | "September30" | "Final";
+export type SprSchemaProfile = {
+  id: string; version: string; state: "Draft" | "Approved" | "Published" | "Superseded" | "Retired";
+  sourceName: string; sourceUrl: string; sourcePublishedDate: string | null; effectiveDate: string | null;
+  retiredDate: string | null; lastReviewedAt: string | null; owner: string; reviewer: string | null;
+  reviewDate: string | null; definitionSha256: string; priorFiscalYearsAllowed: number;
+  wholeDollarAmounts: boolean; eligibilityConfirmationRequired: boolean;
+  reportingPeriods: SprReportingPeriod[]; categories: string[];
+};
+export type SubcontractingReportDataRow = {
+  id: string; tenantId: string; contractId: string; subcontractorId: string; reportType: "Isr" | "Ssr";
+  reportPeriodStart: string; reportPeriodEnd: string; rowPeriodStart: string; rowPeriodEnd: string;
+  socioeconomicCategory: string; planCategory: string; amount: number; supportingEvidenceItemIds: string[];
+  sourceReference: string | null; reviewStatus: SubcontractingReportDataReviewStatus;
+  reviewedByUserId: string | null; reviewedAt: string | null; reviewerNotes: string | null;
+  reportingRole: SprReportingRole | null; reportingFiscalYear: number | null; reportingPeriod: SprReportingPeriod | null;
+  reportingEntityUei: string | null; primeContractPiid: string | null; subcontractNumber: string | null;
+  sprEligibilityConfirmed: boolean; sprEligibilityBasis: string | null; sprReadinessStatus: "NeedsVerification" | "Ready";
+  sprSchemaProfileId: string | null; sprSchemaVersion: string | null; sprSchemaSourceUrl: string | null;
+  sprSchemaDefinitionSha256: string | null; sprReadinessBlockers: string[];
+  version: number; createdAt: string; updatedAt: string | null; isPackageEligible: boolean;
+};
+export type UpsertSubcontractingReportDataRowRequest = Omit<SubcontractingReportDataRow,
+  |"id" | "tenantId" | "reviewStatus" | "reviewedByUserId" | "reviewedAt" | "reviewerNotes" |
+  "version" | "createdAt" | "updatedAt" | "isPackageEligible" | "sprReadinessStatus" | "sprReadinessBlockers" |
+  "sprSchemaProfileId" | "sprSchemaVersion" | "sprSchemaSourceUrl" | "sprSchemaDefinitionSha256"> & { expectedVersion?: number | null };
+export type SprSchemaReference = { id: string; version: string; sourceUrl: string; definitionSha256: string ;};
+export type SprReportPackage = {
+  id: string; tenantId: string; contractId: string; reportType: "Isr" | "Ssr"; periodStart: string; periodEnd: string;
+  status: "Draft" | "InReview" | "Approved" | "Superseded" | "Archived"; version: number;
+  notSubmittedDisclaimer: string; reviewerName: string | null; reviewerUserId: string | null;
+  approvedAt: string | null; reviewNotes: string | null; generatedAt: string; updatedAt: string | null;
+  snapshot: { contractId: string; reportType: "Isr" | "Ssr"; periodStart: string; periodEnd: string;
+    rowCount: number; totalSpend: number; spendSummaries: { socioeconomicCategory: string; totalSpend: number; subcontractorCount: number ;}[];
+    evidenceReferences: { rowId: string; evidenceItemId: string }[]; exceptions: string[]; schemaProfiles: SprSchemaReference[] ;};
+};
+export type SprManualSubmissionReceipt = {
+  id: string; tenantId: string; packageId: string; submittedAt: string; confirmationReference: string;
+  outcome: "Submitted" | "Accepted" | "Rejected" | "Corrected"; notes: string | null;
+  evidenceItemId: string | null; supersedesReceiptId: string | null; recordedByUserId: string; recordedAt: string;
+};
+export type SprSubmissionCapability = { enabled: boolean; reason: string };
+
+export type ContractDocument = {
+  id: string;
+  contractId: string;
+  type: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  storageUri: string | null;
+  extractedTextHash: string | null;
+  validationStatus: string;
+  malwareScanStatus: string;
+  noticeVersion: string;
+  uploadedAt: string;
+  uploadedByUserId: string;
+  containsPotentialCui: boolean;
+  classification: ContentClassification;
+};
+
+export type ContractDocumentUploadRequest = {
+  type: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  containsPotentialCui: boolean;
+  classification: ContentClassification;
+};
+
+export type ContentClassification = {
+  classification: |"Unclassified" | "Fci" | "Cui" | "SyntheticCui" | "Prohibited" | "Unknown" | string;
+  source: |"UserSelected" | "SystemSuggested" | "AdminReviewed" | "ImportedDemoSeed" | string;
+  confidence: number | null;
+  reviewedByUserId: string | null;
+  reviewedAt: string | null;
+  reason: string | null;
+  isApprovedDemoContent: boolean;
+};
+
+export type ContentClassificationReviewItem = {
+  tenantId: string;
+  entityType: string;
+  entityId: string;
+  title: string;
+  classification: ContentClassification;
+  createdAt: string;
+  reviewRoute: string;
+};
+
+export type ClassifiedContentRoute = |"evidence-items" | "evidence-file-versions" | "notes" | "contract-documents" | "extraction-jobs" | "reports";
+export type ClassifiedContent = {
+  entityType: string;
+  id: string;
+  title: string;
+  classification: ContentClassification;
+  revision: number;
+  createdAt: string;
+};
+export type ClassificationHistory = {
+  id: string;
+  previousClassification: string | null;
+  newClassification: string;
+  source: string;
+  confidence: number | null;
+  reviewedByUserId: string | null;
+  reviewedAt: string | null;
+  reason: string | null;
+  changedByUserId: string;
+  changedAt: string;
+  revision: number | null;
+  previousMetadata: ContentClassification | null;
+};
+
+export const getClassifiedContent = (route: ClassifiedContentRoute, reviewOnly = true, offset = 0) =>
+  getRequiredJson<ClassifiedContent[]>(`/api/classified-content/${route}?reviewOnly=${reviewOnly}&offset=${offset}`);
+export const getClassifiedContentDetail = (route: ClassifiedContentRoute, id: string) =>
+  getRequiredJson<ClassifiedContent>(`/api/classified-content/${route}/${encodeURIComponent(id)}`);
+export const getClassificationHistory = (route: ClassifiedContentRoute, id: string, offset = 0) =>
+  getRequiredJson<ClassificationHistory[]>(`/api/classified-content/${route}/${encodeURIComponent(id)}/history?offset=${offset}`);
+export const reviewContentClassification = (route: ClassifiedContentRoute, id: string, expectedRevision: number, classification: string, reason: string) =>
+  patchJsonResult<ClassifiedContent>(`/api/classified-content/${route}/${encodeURIComponent(id)}/classification`,
+    { expectedRevision, classification: { classification, reason } });
+
+export type ReclassifyContentRequest = {
+  classification: ContentClassification;
+};
+
+export type SyntheticDemoDatasetMetadata = {
+  datasetId: string;
+  version: string;
+  name: string;
+  purpose: string;
+  limitations: string[];
+  owner: string;
+  sourceBasis: string;
+  reviewedAt: string | null;
+  approvedReviewer: string;
+  reviewStatus: string;
+  approvedForImport: boolean;
+};
+
+export type SyntheticDemoDatasetRecord = {
+  recordId: string;
+  recordType: string;
+  title: string;
+  datasetVersion: string;
+  syntheticLabel: string;
+  classification: ContentClassification;
+  sampleText: string;
+};
+
+export type SyntheticDemoDatasetDefinition = {
+  metadata: SyntheticDemoDatasetMetadata;
+  records: SyntheticDemoDatasetRecord[];
+};
+
+export type SyntheticDemoDatasetPrecheckResult = {
+  allowed: boolean;
+  datasetId: string;
+  version: string;
+  reviewStatus: string;
+  approvedReviewer: string;
+  reviewedAt: string | null;
+  recordCount: number;
+  recordTypes: string[];
+  errors: string[];
+};
+
+export type DemoTenantSeedResult = {
+  succeeded: boolean;
+  action: string;
+  datasetId: string;
+  datasetVersion: string;
+  createdCount: number;
+  deletedCount: number;
+  recordTypes: string[];
+  recordIds: Record<string, string>;
+};
+
+export type ExtractionJob = {
+  classification?: ContentClassification | null;
+  id: string;
+  tenantId: string;
+  sourceDocumentId: string;
+  requestedByUserId: string;
+  status: string;
+  requestedAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+  failureReason: string | null;
+};
+
+export type ClauseCandidate = {
+  id: string;
+  tenantId: string;
+  extractionJobId: string;
+  sourceDocumentId: string;
+  normalizedCitation: string;
+  rawExtractedText: string;
+  detectedTitle: string | null;
+  confidence: number;
+  locationMetadata: string;
+  matchMethod: string;
+  clauseLibraryId: string | null;
+  reviewStatus: string;
+  reviewedByUserId: string | null;
+  reviewedAt: string | null;
+  decisionNote: string | null;
+  decisionReason: string | null;
+  createdAt: string;
+};
+
+export type ContractDocumentExtractionResults = {
+  latestJobClassification?: ContentClassification | null;
+  contractId: string;
+  sourceDocumentId: string;
+  latestJobStatus: string | null;
+  failureReason: string | null;
+  candidateCount: number;
+  candidates: ClauseCandidate[];
+};
+
+export type ClauseCandidateEditRequest = {
+  normalizedCitation: string;
+  clauseLibraryId?: string | null;
+};
+
+export type ClauseCandidateReviewRequest = {
+  clauseLibraryId?: string | null;
+  reason: string;
+  decisionNote?: string | null;
+};
+
+export type ClauseCandidateStateChangeRequest = {
+  reason: string;
+  decisionNote?: string | null;
+};
+
+export type ContractDeliverable = {
+  id: string;
+  contractId: string;
+  name: string;
+  description: string;
+  dueAt: string | null;
+  ownerFunction: string;
+  status: string;
+  isOverdue: boolean;
+};
+
+export type UpsertContractDeliverableRequest = Omit<ContractDeliverable, "id" | "contractId" | "isOverdue">;
+
+export type CalendarEvent = {
+  id: string;
+  title: string;
+  date: string;
+  category: string;
+  status: string;
+  riskLevel: string;
+  ownerFunction: string;
+  module: string;
+  relatedEntityType: string | null;
+  relatedEntityId: string | null;
+  contractId: string | null;
+  isOverdue: boolean;
+};
+
+export type CalendarEventQueryParams = {
+  from: string;
+  to?: string;
+  owner?: string;
+  status?: string;
+  risk?: string;
+  contractId?: string;
+  module?: string;
+};
+
+export type ContractClause = {
+  id: string;
+  contractId: string;
+  clauseLibraryId: string;
+  clauseNumber: string;
+  title: string;
+  source: string;
+  sourceUrl: string;
+  lastReviewedAt: string;
+  reviewedByUserId: string | null;
+  nextReviewDueAt: string | null;
+  confidence: string;
+  requiresExpertReview: boolean;
+  reviewState: string;
+  attachmentReason: string;
+  sourceDocumentReference: string | null;
+  attachedAt: string;
+  attachedByUserId: string;
+};
+
+export type GeneratedContractObligations = {
+  contractClauseId: string;
+  obligationIds: string[];
+  tasksCreated: number;
+};
+
+export type ContractObligationDashboardItem = {
+  id: string;
+  contractId: string;
+  contractNumber: string;
+  contractTitle: string;
+  contractClauseId: string;
+  clauseNumber: string;
+  obligationId: string;
+  source: string;
+  sourceUrl: string;
+  title: string;
+  plainEnglishSummary: string;
+  requiredAction: string;
+  ownerFunction: string;
+  assignedUserId: string | null;
+  assignedUserDisplayName: string | null;
+  assignedRoleName: string | null;
+  riskLevel: string;
+  status: string;
+  statusCode: string;
+  dueAt: string | null;
+  module: string;
+  isOverdue: boolean;
+  isHighRisk: boolean;
+  evidenceExamples: string[];
+  confidence: string;
+  lastReviewedAt: string;
+  requiresExpertReview: boolean;
+};
+
+export type LinkedObligationTask = {
+  id: string;
+  title: string;
+  status: string;
+  statusCode: string;
+  dueAt: string | null;
+  ownerFunction: string;
+  riskLevel: string;
+};
+
+export type LinkedObligationEvidence = {
+  id: string;
+  name: string;
+  status: string;
+  type: string;
+  expiresAt: string | null;
+  originalFileName: string | null;
+};
+
+export type ContractObligationDetail = ContractObligationDashboardItem & {
+  clauseTitle: string;
+  triggerCondition: string;
+  flowDownRequired: boolean;
+  flowDownRequirement: string;
+  linkedTasks: LinkedObligationTask[];
+  linkedEvidence: LinkedObligationEvidence[];
+};
+
+export type ContractObligationQueryParams = {
+  contractId?: string;
+  riskLevel?: string;
+  owner?: string;
+  status?: string;
+  module?: string;
+  dueDate?: string;
+  source?: string;
+};
+
+export type AttachContractClauseRequest = {
+  clauseLibraryId: string;
+  attachmentReason: string;
+  sourceDocumentReference: string | null;
+};
+
+export type RemoveContractClauseRequest = {
+  reason: string;
+};
+
+export type UpsertCompanyProfileRequest = Omit<
+  CompanyProfile,
+  |"id" | "tenantId" | "completionPercentage" | "isComplete" | "validationErrors" | "createdAt" | "updatedAt"
+> & {
+  completeProfile: boolean;
+};
+
+export type PagedResult<T> = {
+  items: T[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+};
+
+export type AuditLogQueryParams = {
+  page?: number;
+  pageSize?: number;
+  actorUserId?: string;
+  action?: string;
+  eventType?: string;
+  classification?: string;
+  mode?: string;
+  result?: string;
+  entityType?: string;
+  from?: string;
+  to?: string;
+};
+
+export type ApiMutationResult<T> = {
+  data: T | null;
+  error: string | null;
+  errorSummary?: string;
+  errors?: Record<string, string[]>;
+};
+
+export const fallbackOverview: ComplianceOverview = {
+  productPromise:
+    "Connect to the FeDril API to load source-backed modules, obligations, review metadata, and tenant-scoped compliance workflow state.",
+  mvpDataPosture: "No-CUI / compliance management only",
+  readinessScore: {
+    score: null,
+    controlsTotal: 0,
+    controlsApplicable: 0,
+    controlsImplemented: 0,
+    controlsNotApplicable: 0,
+    status: "Not started"
+  },
+  contractRiskIndicator: {
+    level: "Low",
+    activeContracts: 0,
+    highRiskObligations: 0,
+    overduePoams: 0,
+    openPoams: 0,
+    missingEvidenceControls: 0,
+    openHighRiskTasks: 0,
+    overdueHighRiskTasks: 0
+  },
+  modules: [],
+  priorityObligations: [],
+  alerts: []
+};
+
+export const fallbackAccess: CurrentUserAccess = {
+  tenantId: null,
+  userId: null,
+  userEmail: null,
+  roles: [],
+  permissions: [],
+  rolePermissionMatrix: {}
+};
+
+export const fallbackNoCuiAcknowledgementStatus: NoCuiAcknowledgementStatus = {
+  isAcknowledged: false,
+  noticeVersion: "no-cui-mvp-v1",
+  noticeCopy:
+    "The FeDril MVP is compliance management only and is not ready to store CUI. Do not upload CUI, classified information, ITAR/export-controlled technical data, SSNs, payroll, bank or tax details, protected medical or disability data, passwords, secrets, private keys, unrestricted security logs, or other prohibited sensitive content.",
+  tenantId: null,
+  acknowledgedByUserId: null,
+  acknowledgedAt: null
+};
+
+export const fallbackAuditLogs: PagedResult<AuditLogEntry> = {
+  items: [],
+  page: 1,
+  pageSize: 5,
+  totalCount: 0,
+  hasNextPage: false,
+  hasPreviousPage: false
+};
+
+export async function getComplianceOverview(): Promise<ComplianceOverview> {
+  return normalizeComplianceOverview(await getRequiredJson<ComplianceOverview>("/api/compliance/overview"));
+}
+
+export async function getCurrentUserAccess(): Promise<CurrentUserAccess> {
+  return normalizeCurrentUserAccess(await getRequiredJson<CurrentUserAccess>("/api/me/access"));
+}
+
+export function askAssistant(question: string, workflowContext: AssistantWorkflowContext): Promise<ApiMutationResult<GuardedAssistantAnswer>> {
+  return postJsonResult<GuardedAssistantAnswer>("/api/assistant/questions", { question, workflowContext });
+}
+
+export function getGuardedAssistantAnswer(answerId: string): Promise<GuardedAssistantAnswer> {
+  return getRequiredJson<GuardedAssistantAnswer>(`/api/assistant/answers/${answerId}`);
+}
+
+export function createAssistantDraftAction(
+  answerId: string,
+  actionType: AssistantDraftActionType,
+  title: string,
+  body: string
+): Promise<ApiMutationResult<AssistantDraftAction>> {
+  return postJsonResult<AssistantDraftAction>(`/api/assistant/answers/${answerId}/actions`, { actionType, title, body });
+}
+
+export function submitAssistantFeedback(
+  answerId: string,
+  feedbackType: AssistantFeedbackType,
+  reason: string
+): Promise<ApiMutationResult<AssistantFeedback>> {
+  return postJsonResult<AssistantFeedback>(`/api/assistant/answers/${answerId}/feedback`, { feedbackType, reason });
+}
+
+export function escalateAssistantAnswer(
+  answerId: string,
+  reason: string
+): Promise<ApiMutationResult<AssistantExpertReviewEscalation>> {
+  return postJsonResult<AssistantExpertReviewEscalation>(`/api/assistant/answers/${answerId}/expert-review`, { reason });
+}
+
+export function getAssistantExpertReviewItems(): Promise<AssistantExpertReviewQueueItem[]> {
+  return getRequiredJson<AssistantExpertReviewQueueItem[]>("/api/assistant/expert-review-items");
+}
+
+export function reviewAiOutput(answerId: string, state: string, note: string, reason: string | null,
+  expectedVersion: number): Promise<ApiMutationResult<AiOutputReviewResult>> {
+  return postJsonResult<AiOutputReviewResult>(`/api/assistant/outputs/${answerId}/reviews`,
+    { state, note, reason, expectedVersion });
+}
+
+export function getAiOutputs(includeArchived = false): Promise<GuardedAssistantAnswer[]> {
+  return getRequiredJson<GuardedAssistantAnswer[]>(`/api/assistant/outputs?includeArchived=${includeArchived}`);
+}
+
+export function getAiOutputReviewHistory(answerId: string): Promise<AiOutputReviewHistory[]> {
+  return getRequiredJson<AiOutputReviewHistory[]>(`/api/assistant/outputs/${answerId}/reviews`);
+}
+
+export function linkAiOutputToDeliverable(answerId: string, deliverableType: AiDeliverableType,
+  deliverableId: string): Promise<ApiMutationResult<AiOutputUsage>> {
+  return postJsonResult<AiOutputUsage>(`/api/assistant/outputs/${answerId}/deliverable-uses`,
+    { deliverableType, deliverableId });
+}
+
+export function exportAiOutputs(includeArchived = false): Promise<AiOutputExport> {
+  return getRequiredJson<AiOutputExport>(`/api/assistant/outputs/export?includeArchived=${includeArchived}`);
+}
+
+export function resolveExpertReviewItem(
+  itemId: string,
+  decision: string,
+  notes: string
+): Promise<ApiMutationResult<ExpertReviewItem>> {
+  return postJsonResult<ExpertReviewItem>(`/api/expert-review-items/${itemId}/resolve`, { decision, notes });
+}
+
+export function assignExpertReviewItem(
+  itemId: string,
+  assignedExpertUserId: string,
+  dueAt: string | null
+): Promise<ApiMutationResult<ExpertReviewItem>> {
+  return postJsonResult<ExpertReviewItem>(`/api/expert-review-items/${itemId}/assign`, { assignedExpertUserId, dueAt });
+}
+
+export async function getMyTenantWorkspaces(): Promise<TenantWorkspaceList> {
+  return getRequiredJson<TenantWorkspaceList>("/api/me/tenants");
+}
+
+export async function selectMyTenantWorkspace(
+  tenantId: string
+): Promise<ApiMutationResult<TenantWorkspaceSelection>> {
+  return postJsonResult<TenantWorkspaceSelection>("/api/me/tenant-selection", { tenantId });
+}
+
+export async function getDevelopmentTestingContext(): Promise<DevelopmentTestingContext> {
+  return getRequiredJson<DevelopmentTestingContext>("/api/development/testing-context");
+}
+
+export async function getPlatformAccess(): Promise<PlatformAccess> {
+  return getRequiredJson<PlatformAccess>("/api/platform/me/access");
+}
+
+export async function getPlatformDemoRequests(page = 1, pageSize = 25): Promise<PlatformDemoRequestPage> {
+  return getRequiredJson<PlatformDemoRequestPage>(`/api/platform/demo-requests?page=${page}&pageSize=${pageSize}`);
+}
+export async function getPlatformDemoRequestCalendar(from: string, to: string): Promise<PlatformDemoRequestCalendarRange> {
+  const parameters = new URLSearchParams({ from, to });
+  return getRequiredJson<PlatformDemoRequestCalendarRange>(`/api/platform/demo-requests/calendar?${parameters}`);
+}
+export async function queuePlatformDemoRequestResponse(requestId: string, templateKey: string): Promise<ApiMutationResult<DemoRequestResponseReceipt>> {
+  return postJsonResult<DemoRequestResponseReceipt>(`/api/platform/demo-requests/${requestId}/responses`, { templateKey });
+}
+export async function createDevelopmentDemoFollowUpPreview(requestId: string, followUpRequestId: string): Promise<ApiMutationResult<DemoFollowUpDevelopmentPreview>> {
+  return postJsonResult<DemoFollowUpDevelopmentPreview>(`/api/platform/demo-requests/${requestId}/follow-ups/${followUpRequestId}/development-preview`, {});
+}
+export async function confirmPlatformDemoAppointment(requestId: string, request: ConfirmDemoAppointmentRequest): Promise<ApiMutationResult<DemoAppointmentConfirmationReceipt>> {
+  return postJsonResult<DemoAppointmentConfirmationReceipt>(`/api/platform/demo-requests/${requestId}/appointment-confirmation`, request);
+}
+
+export async function provisionPlatformTenant(
+  request: PlatformTenantProvisioningRequest,
+  idempotencyKey: string
+): Promise<ApiMutationResult<PlatformTenantProvisioningResult>> {
+  const path = "/api/platform/tenants";
+  const apiBaseUrl = getApiBaseUrl();
+
+  try {
+    const apiHeaders = await getApiHeaders();
+    const response = await fetch(`${apiBaseUrl}${path}`, {
+      method: "POST",
+      headers: {
+        ...(apiHeaders ?? {}),
+        "Content-Type": "application/json",
+        "Idempotency-Key": idempotencyKey
+      },
+      body: JSON.stringify(request)
+    });
+
+    if (!response.ok) {
+      return { data: null, error: await readErrorMessage(response) };
+    }
+
+    return { data: await response.json(), error: null };
+  } catch {
+    return { data: null, error: "The platform API could not be reached." };
+  }
+}
+
+export async function resendPlatformTenantInvitation(
+  invitationId: string
+): Promise<ApiMutationResult<TenantInvitation>> {
+  return postJsonResult<TenantInvitation>(`/api/platform/tenant-invitations/${invitationId}/resend`, {});
+}
+
+export async function getPlatformTenantOnboardings(
+  page = 1,
+  pageSize = 25,
+  status?: string
+): Promise<PlatformTenantOnboardingPage> {
+  const parameters = new URLSearchParams({
+    page: page.toString(),
+    pageSize: pageSize.toString()
+  });
+  if (status) parameters.set("status", status);
+  return getRequiredJson<PlatformTenantOnboardingPage>(`/api/platform/tenant-onboardings?${parameters}`);
+}
+
+export async function getPlatformCustomers(query: PlatformCustomerQuery = {}): Promise<PlatformCustomerPage> {
+  const parameters = new URLSearchParams({
+    page: (query.page ?? 1).toString(),
+    pageSize: (query.pageSize ?? 25).toString()
+  });
+  for (const [key, value] of Object.entries(query)) {
+    if (key !== "page" && key !== "pageSize" && value) parameters.set(key, String(value));
+  }
+  return getRequiredJson<PlatformCustomerPage>(`/api/platform/customers?${parameters}`);
+}
+
+export async function getPlatformCustomer(tenantId: string): Promise<PlatformCustomerDetail> {
+  return getRequiredJson<PlatformCustomerDetail>(`/api/platform/customers/${encodeURIComponent(tenantId)}`);
+}
+
+export async function getPlatformPilotSubscriptions(
+  page = 1,
+  pageSize = 25
+): Promise<PlatformPilotSubscriptionPage> {
+  const parameters = new URLSearchParams({
+    page: page.toString(),
+    pageSize: pageSize.toString()
+  });
+  return getRequiredJson<PlatformPilotSubscriptionPage>(`/api/platform/tenant-subscriptions/pilots?${parameters}`);
+}
+
+export async function cancelPlatformTenantOnboarding(
+  onboardingId: string,
+  reason: string
+): Promise<ApiMutationResult<PlatformTenantProvisioningResult>> {
+  return postJsonResult<PlatformTenantProvisioningResult>(
+    `/api/platform/tenant-onboardings/${onboardingId}/cancel`,
+    { reason }
+  );
+}
+
+export async function correctPlatformOwnerInvitation(
+  onboardingId: string,
+  expectedInvitationId: string,
+  newOwnerEmail: string,
+  reason: string
+): Promise<ApiMutationResult<PlatformTenantProvisioningResult>> {
+  return postJsonResult<PlatformTenantProvisioningResult>(
+    `/api/platform/tenant-onboardings/${onboardingId}/owner-invitation/correct`,
+    { expectedInvitationId, newOwnerEmail, reason }
+  );
+}
+
+export async function extendPlatformPilotSubscription(
+  tenantId: string,
+  newEndsOn: string,
+  reason: string,
+  expectedVersion: number,
+  idempotencyKey: string
+): Promise<ApiMutationResult<TenantSubscription>> {
+  return postJsonResult<TenantSubscription>(`/api/platform/tenant-subscriptions/${tenantId}/extend`, {
+    newEndsOn, reason, expectedVersion
+  }, { "Idempotency-Key": idempotencyKey });
+}
+
+export async function expirePlatformPilotSubscription(
+  tenantId: string,
+  reason: string,
+  expectedVersion: number,
+  idempotencyKey: string
+): Promise<ApiMutationResult<TenantSubscription>> {
+  return postJsonResult<TenantSubscription>(`/api/platform/tenant-subscriptions/${tenantId}/expire`, {
+    reason, expectedVersion
+  }, { "Idempotency-Key": idempotencyKey });
+}
+
+export async function cancelPlatformPilotSubscription(
+  tenantId: string,
+  reason: string,
+  expectedVersion: number,
+  idempotencyKey: string
+): Promise<ApiMutationResult<TenantSubscription>> {
+  return postJsonResult<TenantSubscription>(`/api/platform/tenant-subscriptions/${tenantId}/cancel`, {
+    reason, expectedVersion
+  }, { "Idempotency-Key": idempotencyKey });
+}
+
+export async function convertPlatformPilotSubscription(
+  tenantId: string,
+  planCode: string,
+  externalSubscriptionReference: string,
+  reason: string,
+  expectedVersion: number,
+  idempotencyKey: string
+): Promise<ApiMutationResult<TenantSubscription>> {
+  return postJsonResult<TenantSubscription>(`/api/platform/tenant-subscriptions/${tenantId}/convert`, {
+    planCode, externalSubscriptionReference, reason, expectedVersion
+  }, { "Idempotency-Key": idempotencyKey });
+}
+
+export async function getInvitationAcceptanceContext(token: string): Promise<InvitationAcceptanceContext> {
+  return getRequiredJson<InvitationAcceptanceContext>(`/api/invitations/${encodeURIComponent(token)}`);
+}
+
+export async function acceptTenantInvitation(
+  token: string,
+  displayName: string
+): Promise<ApiMutationResult<TenantInvitation>> {
+  return postJsonResult<TenantInvitation>(`/api/invitations/${encodeURIComponent(token)}/accept`, { displayName });
+}
+
+export function selectTenant(tenantId: string) {
+  window.localStorage.setItem(selectedTenantStorageKey, tenantId);
+}
+
+export function getSelectedTenantId(): string | null {
+  try {
+    return window.localStorage.getItem(selectedTenantStorageKey);
+  } catch {
+    return null;
+  }
+}
+
+export function getSelectedDevelopmentRole(): string {
+  try {
+    return (window.localStorage.getItem(developmentRoleStorageKey) ?? import.meta.env.VITE_GCCS_DEV_ROLE ?? "Owner");
+  } catch {
+    return import.meta.env.VITE_GCCS_DEV_ROLE ?? "Owner";
+  }
+}
+
+export function getSelectedDevelopmentUserId(): string | null {
+  try {
+    return window.localStorage.getItem(developmentUserIdStorageKey);
+  } catch {
+    return null;
+  }
+}
+
+export function getSelectedDevelopmentUserEmail(): string | null {
+  try {
+    return window.localStorage.getItem(developmentUserEmailStorageKey);
+  } catch {
+    return null;
+  }
+}
+
+export function selectDevelopmentTestingContext(
+  tenantId: string,
+  role: string,
+  userId?: string | null,
+  email?: string | null
+) {
+  window.localStorage.setItem(selectedTenantStorageKey, tenantId);
+  window.localStorage.setItem(developmentRoleStorageKey, role);
+  if (userId) {
+    window.localStorage.setItem(developmentUserIdStorageKey, userId);
+  } else {
+    window.localStorage.removeItem(developmentUserIdStorageKey);
+  }
+  if (email) {
+    window.localStorage.setItem(developmentUserEmailStorageKey, email);
+  } else {
+    window.localStorage.removeItem(developmentUserEmailStorageKey);
+  }
+}
+
+export function selectDevelopmentInvitationIdentity(email: string) {
+  window.localStorage.removeItem(developmentUserIdStorageKey);
+  window.localStorage.setItem(developmentUserEmailStorageKey, email.trim().toLowerCase());
+}
+
+function normalizeComplianceOverview(overview: ComplianceOverview): ComplianceOverview {
+  const readinessScore = overview.readinessScore ?? fallbackOverview.readinessScore;
+  const controlsTotal = Number.isFinite(readinessScore.controlsTotal) ? readinessScore.controlsTotal : 0;
+  const controlsNotApplicable = Number.isFinite(readinessScore.controlsNotApplicable) ? readinessScore.controlsNotApplicable : 0;
+
+  return {
+    ...overview,
+    readinessScore: {
+      ...readinessScore,
+      controlsTotal,
+      controlsApplicable: Number.isFinite(readinessScore.controlsApplicable)
+        ? readinessScore.controlsApplicable
+        : Math.max(0, controlsTotal - controlsNotApplicable),
+      controlsImplemented: Number.isFinite(readinessScore.controlsImplemented) ? readinessScore.controlsImplemented : 0,
+      controlsNotApplicable
+    },
+    contractRiskIndicator: overview.contractRiskIndicator ?? fallbackOverview.contractRiskIndicator,
+    modules: Array.isArray(overview.modules) ? overview.modules : [],
+    priorityObligations: Array.isArray(overview.priorityObligations) ? overview.priorityObligations : [],
+    alerts: Array.isArray(overview.alerts) ? overview.alerts : []
+  };
+}
+
+function normalizeCurrentUserAccess(access: CurrentUserAccess): CurrentUserAccess {
+  const explicitPermissions = Array.isArray(access.permissions) ? access.permissions : [];
+  const roles = Array.isArray(access.roles) ? access.roles : [];
+  const rolePermissionMatrix = access.rolePermissionMatrix ?? {};
+  const permissions = [...new Set(explicitPermissions)].sort((left, right) => left.localeCompare(right));
+
+  return {
+    ...access,
+    roles,
+    permissions,
+    rolePermissionMatrix
+  };
+}
+
+export async function getTenantMembers(): Promise<TenantMember[]> {
+  return getJson<TenantMember[]>("/api/tenant-members", []);
+}
+
+export async function updateTenantMemberStatus(
+  membershipId: string,
+  status: "Active" | "Suspended" | "Deactivated",
+  reason = "",
+): Promise<ApiMutationResult<TenantMember>> {
+  return patchJsonResult<TenantMember>(
+    `/api/tenant-members/${encodeURIComponent(membershipId)}/status`,
+    { status, reason },
+  );
+}
+
+export async function getObligationAssignmentCandidates(): Promise<ObligationAssignmentCandidate[]> {
+  return getJson<ObligationAssignmentCandidate[]>("/api/contract-obligations/assignment-candidates", []);
+}
+
+export async function getTenantInvitations(): Promise<TenantInvitation[]> {
+  return getJson<TenantInvitation[]>("/api/tenant-invitations", []);
+}
+
+export async function getTenant(tenantId: string): Promise<Tenant | null> {
+  return getJson<Tenant | null>(`/api/tenants/${tenantId}`, null);
+}
+
+export async function getTenantDataHandlingModeHistory(tenantId: string): Promise<TenantDataHandlingModeHistory[]> {
+  return getJson<TenantDataHandlingModeHistory[]>(`/api/tenants/${tenantId}/data-handling-mode/history`, []);
+}
+
+export async function getCuiReadyApprovalChecklists(tenantId: string): Promise<CuiReadyApprovalChecklist[]> {
+  return getJson<CuiReadyApprovalChecklist[]>(`/api/tenants/${tenantId}/cui-ready-checklists`, []);
+}
+
+export async function getPublishedSharedResponsibilityMatrix(): Promise<SharedResponsibilityMatrix | null> {
+  return getJson<SharedResponsibilityMatrix | null>("/api/shared-responsibility-matrix/published", null);
+}
+
+export async function getSharedResponsibilityMatrixAcknowledgements(
+  tenantId: string
+): Promise<SharedResponsibilityMatrixAcknowledgement[]> {
+  return getJson<SharedResponsibilityMatrixAcknowledgement[]>(
+    `/api/tenants/${tenantId}/shared-responsibility-matrix/acknowledgements`,
+    []
+  );
+}
+
+export async function getPublishedDataHandlingNotice(mode: string, workflowContext: string): Promise<DataHandlingNotice | null> {
+  return getJson<DataHandlingNotice | null>(
+    `/api/data-handling-notices/published?mode=${encodeURIComponent(mode)}&workflowContext=${encodeURIComponent(workflowContext)}`,
+    null
+  );
+}
+
+export async function getDataHandlingNoticeAcknowledgements(
+  tenantId: string,
+  mode: string,
+  workflowContext: string
+): Promise<DataHandlingNoticeAcknowledgement[]> {
+  return getJson<DataHandlingNoticeAcknowledgement[]>(
+    `/api/tenants/${tenantId}/data-handling-notice-acknowledgements?mode=${encodeURIComponent(mode)}&workflowContext=${encodeURIComponent(workflowContext)}`,
+    []
+  );
+}
+
+export async function getNotifications(): Promise<NotificationCenterItem[]> {
+  return getJson<NotificationCenterItem[]>("/api/notifications", []);
+}
+
+export async function getCuiSupportEscalations(tenantId: string): Promise<CuiSupportEscalation[]> {
+  return getRequiredJson<CuiSupportEscalation[]>(`/api/tenants/${tenantId}/cui-support-escalations`);
+}
+export async function getCuiSupportEscalationReport(tenantId: string): Promise<CuiSupportEscalationReport> {
+  return getRequiredJson<CuiSupportEscalationReport>(`/api/tenants/${tenantId}/cui-support-escalations/report`);
+}
+
+export async function markNotificationRead(notificationId: string): Promise<ApiMutationResult<NotificationCenterItem>> {
+  return postJsonResult<NotificationCenterItem>(`/api/notifications/${notificationId}/read`, {});
+}
+
+export async function getNotificationPreferences(): Promise<NotificationPreference | null> {
+  return getJson<NotificationPreference | null>("/api/notification-preferences", null);
+}
+
+export async function updateNotificationPreferences(
+  request: NotificationPreferenceUpdateRequest
+): Promise<ApiMutationResult<NotificationPreference>> {
+  return putJsonResult<NotificationPreference>("/api/notification-preferences", request);
+}
+
+export async function runDueDateReminders(
+  request: RunDueDateReminderRequest
+): Promise<ApiMutationResult<DueDateReminderRunResult>> {
+  return postJsonResult<DueDateReminderRunResult>("/api/notifications/due-date-reminders", request);
+}
+
+export async function getAuditLogs(params: AuditLogQueryParams = {}): Promise<PagedResult<AuditLogEntry>> {
+  const searchParams = new URLSearchParams();
+  searchParams.set("page", String(params.page ?? 1));
+  searchParams.set("pageSize", String(params.pageSize ?? 5));
+
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== "") {
+      searchParams.set(key, String(value));
+    }
+  }
+
+  return getRequiredJson<PagedResult<AuditLogEntry>>(`/api/audit-logs?${searchParams.toString()}`);
+}
+
+export async function getAuditLogEntityTypes(): Promise<string[]> {
+  return getRequiredJson<string[]>("/api/audit-logs/entity-types");
+}
+
+export async function exportCuiAuditLogs(request: CuiAuditExportRequest): Promise<ApiMutationResult<CuiAuditExport>> {
+  return postJsonResult<CuiAuditExport>("/api/audit-logs/cui-export", request);
+}
+
+export async function getNoCuiAcknowledgementStatus(): Promise<NoCuiAcknowledgementStatus> {
+  return getRequiredJson<NoCuiAcknowledgementStatus>("/api/no-cui-acknowledgement");
+}
+
+export async function getEvidenceItems(tag?: string): Promise<EvidenceMetadata[]> {
+  const query = tag ? `?tag=${encodeURIComponent(tag)}` : "";
+  return getJson<EvidenceMetadata[]>(`/api/evidence-items${query}`, []);
+}
+
+export async function getCmmcAssessments(): Promise<CmmcAssessment[]> {
+  return getJson<CmmcAssessment[]>("/api/cmmc/assessments", []);
+}
+
+export async function getCmmcControlLibrary(): Promise<CmmcControlLibrary[]> {
+  return getJson<CmmcControlLibrary[]>("/api/cmmc/controls", []);
+}
+
+export async function getCmmcControlStatuses(assessmentId: string): Promise<CmmcControlStatus[]> {
+  return getJson<CmmcControlStatus[]>(`/api/cmmc/assessments/${assessmentId}/controls`, []);
+}
+
+export async function getCmmcResponsibilityMatrix(assessmentId: string): Promise<CmmcResponsibilityMatrixRow[]> {
+  return getJson<CmmcResponsibilityMatrixRow[]>(`/api/cmmc/assessments/${assessmentId}/responsibility-matrix`, []);
+}
+
+export async function exportCmmcResponsibilityMatrix(assessmentId: string): Promise<string> {
+  return getText(`/api/cmmc/assessments/${assessmentId}/responsibility-matrix/export`, "");
+}
+
+export async function getCmmcReadinessGaps(assessmentId: string): Promise<CmmcReadinessGap[]> {
+  return getJson<CmmcReadinessGap[]>(`/api/cmmc/assessments/${assessmentId}/gaps`, []);
+}
+
+export async function getCmmcPoamItems(assessmentId: string): Promise<CmmcPoamItem[]> {
+  return getJson<CmmcPoamItem[]>(`/api/cmmc/assessments/${assessmentId}/poam-items`, []);
+}
+
+export async function getSprsScoringRuleSets(): Promise<SprsScoringRuleSet[]> {
+  return getJson<SprsScoringRuleSet[]>("/api/cmmc/sprs/rule-sets", []);
+}
+
+export async function getSprsScoreCalculations(assessmentId: string): Promise<SprsScoreCalculation[]> {
+  return getJson<SprsScoreCalculation[]>(`/api/cmmc/assessments/${assessmentId}/sprs-calculations`, []);
+}
+
+export async function getSspSections(): Promise<SspSection[]> {
+  return getRequiredJson<SspSection[]>("/api/compliance/ssp/sections");
+}
+
+export async function createSspSection(request: CreateSspSectionRequest): Promise<ApiMutationResult<SspSection>> {
+  return postJsonResult<SspSection>("/api/compliance/ssp/sections", request);
+}
+
+export async function updateSspSection(sectionId: string, request: UpdateSspSectionRequest): Promise<ApiMutationResult<SspSection>> {
+  return putJsonResult<SspSection>(`/api/compliance/ssp/sections/${sectionId}`, request);
+}
+
+export async function changeSspSectionStatus(sectionId: string, request: SspSectionStatusRequest): Promise<ApiMutationResult<SspSection>> {
+  return postJsonResult<SspSection>(`/api/compliance/ssp/sections/${sectionId}/status`, request);
+}
+
+export async function getSspNarratives(sectionId: string): Promise<SspNarrative[]> {
+  return getRequiredJson<SspNarrative[]>(`/api/compliance/ssp/sections/${sectionId}/narratives`);
+}
+
+export async function generateSspNarrative(sectionId: string, request: GenerateSspNarrativeRequest): Promise<ApiMutationResult<SspNarrative>> {
+  return postJsonResult<SspNarrative>(`/api/compliance/ssp/sections/${sectionId}/narratives`, request);
+}
+
+export async function editSspNarrative(sectionId: string, narrativeId: string, request: EditSspNarrativeRequest): Promise<ApiMutationResult<SspNarrative>> {
+  return putJsonResult<SspNarrative>(`/api/compliance/ssp/sections/${sectionId}/narratives/${narrativeId}`, request);
+}
+
+export async function approveSspNarrative(sectionId: string, narrativeId: string, reviewDate: string, expectedVersion: number): Promise<ApiMutationResult<SspNarrative>> {
+  return postJsonResult<SspNarrative>(`/api/compliance/ssp/sections/${sectionId}/narratives/${narrativeId}/approve`, { reviewDate, expectedVersion });
+}
+
+export async function compareSspNarrative(sectionId: string, narrativeId: string): Promise<SspNarrativeComparison> {
+  return getRequiredJson<SspNarrativeComparison>(`/api/compliance/ssp/sections/${sectionId}/narratives/${narrativeId}/comparison`);
+}
+
+export async function getSspExportPackages(): Promise<SspExportPackage[]> {
+  return getRequiredJson<SspExportPackage[]>("/api/compliance/ssp/export-packages");
+}
+
+export async function createSspExportPackage(request: CreateSspExportPackageRequest): Promise<ApiMutationResult<SspExportPackage>> {
+  return postJsonResult<SspExportPackage>("/api/compliance/ssp/export-packages", request);
+}
+
+export async function getSspExportPolicy(): Promise<SspExportPolicy> {
+  return getRequiredJson<SspExportPolicy>("/api/compliance/ssp/export-policy");
+}
+
+export async function updateSspExportPolicy(request: UpdateSspExportPolicyRequest): Promise<ApiMutationResult<SspExportPolicy>> {
+  return putJsonResult<SspExportPolicy>("/api/compliance/ssp/export-policy", request);
+}
+
+export async function getSubcontractors(): Promise<Subcontractor[]> {
+  return getJson<Subcontractor[]>("/api/subcontractors", []);
+}
+
+export async function searchSubcontractorEntity(
+  subcontractorId: string,
+  request: SubcontractorEntityLookupRequest
+): Promise<ApiMutationResult<SubcontractorEntityLookupResult[]>> {
+  return postJsonResult<SubcontractorEntityLookupResult[]>(`/api/subcontractors/${subcontractorId}/sam-lookup/search`, request);
+}
+
+export async function applySubcontractorEntityLookup(
+  subcontractorId: string,
+  request: ApplySubcontractorEntityLookupRequest
+): Promise<ApiMutationResult<Subcontractor>> {
+  return postJsonResult<Subcontractor>(`/api/subcontractors/${subcontractorId}/sam-lookup/apply`, request);
+}
+
+export async function getSubcontractorFlowDowns(
+  subcontractorId: string,
+  contractId?: string
+): Promise<SubcontractorFlowDown[]> {
+  const query = contractId ? `?contractId=${encodeURIComponent(contractId)}` : "";
+  return getJson<SubcontractorFlowDown[]>(`/api/subcontractors/${subcontractorId}/flow-downs${query}`, []);
+}
+
+export async function createSubcontractorFlowDown(
+  subcontractorId: string,
+  request: UpsertSubcontractorFlowDownRequest
+): Promise<ApiMutationResult<SubcontractorFlowDown>> {
+  return postJsonResult<SubcontractorFlowDown>(`/api/subcontractors/${subcontractorId}/flow-downs`, request);
+}
+
+export async function updateSubcontractorFlowDown(
+  subcontractorId: string,
+  flowDownId: string,
+  request: UpsertSubcontractorFlowDownRequest
+): Promise<ApiMutationResult<SubcontractorFlowDown>> {
+  return putJsonResult<SubcontractorFlowDown>(`/api/subcontractors/${subcontractorId}/flow-downs/${flowDownId}`, request);
+}
+
+export async function getSubcontractorSupplierObligations(
+  subcontractorId: string,
+  contractId?: string
+): Promise<SupplierObligation[]> {
+  const query = contractId ? `?contractId=${encodeURIComponent(contractId)}` : "";
+  return getJson<SupplierObligation[]>(`/api/subcontractors/${subcontractorId}/supplier-obligations${query}`, []);
+}
+
+export async function getContractSupplierObligations(contractId: string): Promise<SupplierObligation[]> {
+  return getJson<SupplierObligation[]>(`/api/contracts/${contractId}/supplier-obligations`, []);
+}
+
+export async function createSupplierObligation(
+  subcontractorId: string,
+  request: UpsertSupplierObligationRequest
+): Promise<ApiMutationResult<SupplierObligation>> {
+  return postJsonResult<SupplierObligation>(`/api/subcontractors/${subcontractorId}/supplier-obligations`, request);
+}
+
+export async function bulkCreateSupplierObligations(
+  subcontractorId: string,
+  request: BulkCreateSupplierObligationsRequest
+): Promise<ApiMutationResult<SupplierObligation[]>> {
+  return postJsonResult<SupplierObligation[]>(
+    `/api/subcontractors/${subcontractorId}/supplier-obligations/bulk-from-flow-downs`,
+    request
+  );
+}
+
+export async function updateSupplierObligation(
+  subcontractorId: string,
+  supplierObligationId: string,
+  request: UpsertSupplierObligationRequest
+): Promise<ApiMutationResult<SupplierObligation>> {
+  return putJsonResult<SupplierObligation>(
+    `/api/subcontractors/${subcontractorId}/supplier-obligations/${supplierObligationId}`,
+    request
+  );
+}
+
+export async function getPolicyTemplates(includeReviewStates = false): Promise<PolicyTemplate[]> {
+  return getJson<PolicyTemplate[]>(`/api/policy-templates?includeReviewStates=${includeReviewStates}`, []);
+}
+
+export async function getPolicyTemplateVersions(templateId: string): Promise<PolicyTemplateVersion[]> {
+  return getJson<PolicyTemplateVersion[]>(`/api/policy-templates/${templateId}/versions`, []);
+}
+
+export async function createPolicyTemplate(request: UpsertPolicyTemplateRequest): Promise<ApiMutationResult<PolicyTemplate>> {
+  return postJsonResult<PolicyTemplate>("/api/policy-templates", request);
+}
+
+export async function changePolicyTemplateLifecycle(
+  templateId: string,
+  request: ChangePolicyTemplateLifecycleRequest
+): Promise<ApiMutationResult<PolicyTemplate>> {
+  return putJsonResult<PolicyTemplate>(`/api/policy-templates/${templateId}/lifecycle`, request);
+}
+
+export async function generateDraftPolicyFromTemplate(templateId: string, classification: GeneratedPolicyClassificationRequest): Promise<ApiMutationResult<GeneratedPolicy>> {
+  return postJsonResult<GeneratedPolicy>(`/api/policy-templates/${templateId}/generate`, { classification });
+}
+
+export async function getGeneratedPolicy(policyId: string): Promise<GeneratedPolicy | null> {
+  return getJson<GeneratedPolicy | null>(`/api/generated-policies/${policyId}`, null);
+}
+
+export async function updateGeneratedPolicy(
+  policyId: string,
+  request: UpdateGeneratedPolicyRequest
+): Promise<ApiMutationResult<GeneratedPolicy>> {
+  return putJsonResult<GeneratedPolicy>(`/api/generated-policies/${policyId}`, request);
+}
+
+export async function reviewGeneratedPolicy(
+  policyId: string,
+  request: PolicyApprovalRequest
+): Promise<ApiMutationResult<GeneratedPolicy>> {
+  return putJsonResult<GeneratedPolicy>(`/api/generated-policies/${policyId}/review`, request);
+}
+
+export async function getGeneratedPolicyRevisions(policyId: string): Promise<PolicyRevision[]> {
+  return getJson<PolicyRevision[]>(`/api/generated-policies/${policyId}/revisions`, []);
+}
+
+export async function createEvidenceRequest(request: CreateEvidenceRequestRequest): Promise<ApiMutationResult<EvidenceRequest>> {
+  return postJsonResult<EvidenceRequest>("/api/evidence-requests", request);
+}
+
+export async function getEvidenceRequests(query: EvidenceRequestDashboardQuery = {}): Promise<EvidenceRequestDashboardItem[]> {
+  const params = new URLSearchParams();
+  Object.entries(query).forEach(([key, value]) => {
+    if (value !== undefined && value !== "") {
+      params.set(key, value);
+    }
+  });
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  return getJson<EvidenceRequestDashboardItem[]>(`/api/evidence-requests${suffix}`, []);
+}
+
+export async function sendEvidenceRequestReminders(evidenceRequestIds: string[]): Promise<ApiMutationResult<{ count: number }>> {
+  return postJsonResult<{ count: number }>("/api/evidence-requests/reminders", { evidenceRequestIds });
+}
+
+export async function submitEvidenceRequest(
+  requestId: string,
+  request: SubmitEvidenceRequestRequest
+): Promise<ApiMutationResult<EvidenceRequest>> {
+  return putJsonResult<EvidenceRequest>(`/api/evidence-requests/${requestId}/submit`, request);
+}
+
+export async function reviewEvidenceRequest(
+  requestId: string,
+  request: ReviewEvidenceRequestRequest
+): Promise<ApiMutationResult<EvidenceRequest>> {
+  return putJsonResult<EvidenceRequest>(`/api/evidence-requests/${requestId}/review`, request);
+}
+
+export async function getSubcontractorEvidenceRequests(subcontractorId: string): Promise<SubcontractorEvidenceRequest[]> {
+  return getJson<SubcontractorEvidenceRequest[]>(`/api/subcontractors/${subcontractorId}/evidence-requests`, []);
+}
+
+export async function createSubcontractorEvidenceRequest(
+  subcontractorId: string,
+  request: UpsertSubcontractorEvidenceRequestRequest
+): Promise<ApiMutationResult<SubcontractorEvidenceRequest>> {
+  return postJsonResult<SubcontractorEvidenceRequest>(`/api/subcontractors/${subcontractorId}/evidence-requests`, request);
+}
+
+export async function getCompanyProfile(): Promise<CompanyProfile | null> {
+  const apiBaseUrl = getApiBaseUrl();
+
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/company-profile`, {
+      headers: await getApiHeaders()
+    });
+
+    if (response.status === 204) {
+      return null;
+    }
+
+    if (!response.ok) {
+      return null;
+    }
+
+    return response.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function getContracts(): Promise<ContractRecord[]> {
+  return getJson<ContractRecord[]>("/api/contracts", []);
+}
+
+export async function getContractDocuments(contractId: string): Promise<ContractDocument[]> {
+  return getJson<ContractDocument[]>(`/api/contracts/${contractId}/documents`, []);
+}
+
+export async function getContractDeliverables(contractId: string): Promise<ContractDeliverable[]> {
+  return getJson<ContractDeliverable[]>(`/api/contracts/${contractId}/deliverables`, []);
+}
+
+export async function getCalendarEvents(params: CalendarEventQueryParams): Promise<CalendarEvent[]> {
+  const searchParams = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== "") {
+      searchParams.set(key, value);
+    }
+  }
+
+  return getJson<CalendarEvent[]>(`/api/calendar/events?${searchParams.toString()}`, []);
+}
+
+export async function getContractClauses(contractId: string): Promise<ContractClause[]> {
+  return getJson<ContractClause[]>(`/api/contracts/${contractId}/clauses`, []);
+}
+
+export async function getContractObligations(
+  params: ContractObligationQueryParams = {}
+): Promise<ContractObligationDashboardItem[]> {
+  const searchParams = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== "") {
+      searchParams.set(key, value);
+    }
+  }
+
+  const queryString = searchParams.toString();
+  return getJson<ContractObligationDashboardItem[]>(`/api/contract-obligations${queryString ? `?${queryString}` : ""}`, []);
+}
+
+export async function getContractObligationDetail(
+  contractClauseId: string,
+  obligationId: string
+): Promise<ContractObligationDetail | null> {
+  return getJson<ContractObligationDetail | null>(
+    `/api/contract-obligations/${contractClauseId}/${encodeURIComponent(obligationId)}`,
+    null
+  );
+}
+
+export async function updateContractObligationStatus(
+  contractClauseId: string,
+  obligationId: string,
+  status: string
+): Promise<ApiMutationResult<ContractObligationDetail>> {
+  const apiBaseUrl = getApiBaseUrl();
+
+  try {
+    const apiHeaders = await getApiHeaders();
+    const response = await fetch(
+      `${apiBaseUrl}/api/contract-obligations/${contractClauseId}/${encodeURIComponent(obligationId)}/status`,
+      {
+        method: "PATCH",
+        headers: {
+          ...(apiHeaders ?? {}),
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ status })
+      }
+    );
+
+    if (!response.ok) {
+      return { data: null, error: await readErrorMessage(response) };
+    }
+
+    return { data: await response.json(), error: null };
+  } catch {
+    return { data: null, error: "The API request could not be completed." };
+  }
+}
+
+export async function assignContractObligationOwner(
+  contractClauseId: string,
+  obligationId: string,
+  request: { userId?: string | null; roleName?: string | null; notify?: boolean ;}
+): Promise<ApiMutationResult<ContractObligationDetail>> {
+  const apiBaseUrl = getApiBaseUrl();
+
+  try {
+    const apiHeaders = await getApiHeaders();
+    const response = await fetch(
+      `${apiBaseUrl}/api/contract-obligations/${contractClauseId}/${encodeURIComponent(obligationId)}/owner`,
+      {
+        method: "PATCH",
+        headers: {
+          ...(apiHeaders ?? {}),
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(request)
+      }
+    );
+
+    if (!response.ok) {
+      return { data: null, error: await readErrorMessage(response) };
+    }
+
+    return { data: await response.json(), error: null };
+  } catch {
+    return { data: null, error: "The API request could not be completed." };
+  }
+}
+
+export async function searchClauseLibrary(params: ClauseSearchParams = {}): Promise<ClauseLibraryItem[]> {
+  const searchParams = new URLSearchParams();
+
+  if (params.query) {
+    searchParams.set("query", params.query);
+  }
+
+  if (params.category) {
+    searchParams.set("category", params.category);
+  }
+
+  if (params.sourceFamily) {
+    searchParams.set("sourceFamily", params.sourceFamily);
+  }
+
+  if (params.obligationArea) {
+    searchParams.set("obligationArea", params.obligationArea);
+  }
+
+  if (params.requiresFlowDown !== undefined) {
+    searchParams.set("requiresFlowDown", String(params.requiresFlowDown));
+  }
+
+  if (params.includeDrafts !== undefined) {
+    searchParams.set("includeDrafts", String(params.includeDrafts));
+  }
+
+  const queryString = searchParams.toString();
+  return getJson<ClauseLibraryItem[]>(`/api/clauses${queryString ? `?${queryString}` : ""}`, []);
+}
+
+export async function getContract(contractId: string): Promise<ContractRecord | null> {
+  const apiBaseUrl = getApiBaseUrl();
+
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/contracts/${contractId}`, {
+      headers: await getApiHeaders()
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    return response.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function getApplicabilityFacts(contractId: string): Promise<ApplicabilityFact[]> {
+  return getRequiredJson<ApplicabilityFact[]>(
+    `/api/applicability-facts?contractId=${encodeURIComponent(contractId)}`
+  );
+}
+
+export async function saveCompanyProfile(
+  request: UpsertCompanyProfileRequest
+): Promise<ApiMutationResult<CompanyProfile>> {
+  return putJsonResult<CompanyProfile>("/api/company-profile", request);
+}
+
+export async function searchCompanyEntity(
+  request: CompanyEntityLookupRequest
+): Promise<ApiMutationResult<CompanyEntityLookupResult[]>> {
+  return postJsonResult<CompanyEntityLookupResult[]>("/api/company-profile/sam-lookup/search", request);
+}
+
+export async function applyCompanyEntityLookup(
+  request: ApplyCompanyEntityLookupRequest
+): Promise<ApiMutationResult<CompanyProfile>> {
+  return postJsonResult<CompanyProfile>("/api/company-profile/sam-lookup/apply", request);
+}
+
+export async function createContract(request: UpsertContractRequest): Promise<ApiMutationResult<ContractRecord>> {
+  return postJsonResult<ContractRecord>("/api/contracts", request);
+}
+
+export async function updateContract(
+  contractId: string,
+  request: UpsertContractRequest
+): Promise<ApiMutationResult<ContractRecord>> {
+  return putJsonResult<ContractRecord>(`/api/contracts/${contractId}`, request);
+}
+
+export const getContractLaborApplicabilities = (contractId: string) =>
+  getRequiredJson<LaborApplicability[]>(`/api/contracts/${contractId}/labor-applicabilities`);
+
+export const createLaborApplicability = (contractId: string, request: UpsertLaborApplicabilityRequest) =>
+  postJsonResult<LaborApplicability>(`/api/contracts/${contractId}/labor-applicabilities`, request);
+
+export const updateLaborApplicability = (contractId: string, applicabilityId: string, request: UpsertLaborApplicabilityRequest) =>
+  putJsonResult<LaborApplicability>(`/api/contracts/${contractId}/labor-applicabilities/${applicabilityId}`, request);
+
+export const updateLaborApplicabilityStatus = (contractId: string, applicabilityId: string, status: LaborApplicabilityStatus) =>
+  patchJsonResult<LaborApplicability>(`/api/contracts/${contractId}/labor-applicabilities/${applicabilityId}/status`, { status });
+
+export const uploadLaborWageDetermination = (
+  contractId: string, applicabilityId: string, file: File, classification: string,
+  classificationReason: string, noCuiAttestation: boolean
+) => {
+  const form = new FormData();
+  form.set("file", file); form.set("classification", classification);
+  form.set("classificationReason", classificationReason.trim());
+  form.set("noCuiAttestation", String(noCuiAttestation));
+  form.set("containsPotentialCui", String(classification === "Cui"));
+  return postFormResult<EvidenceFileAccess>(`/api/contracts/${contractId}/labor-applicabilities/${applicabilityId}/wage-determination/file`, form);
+};
+
+export const getContractLaborCategories = (contractId: string) =>
+  getRequiredJson<LaborCategory[]>(`/api/contracts/${contractId}/labor-categories`);
+export const createLaborCategory = (contractId: string, request: LaborCategoryRequest) =>
+  postJsonResult<LaborCategory>(`/api/contracts/${contractId}/labor-categories`, request);
+export const deactivateLaborCategory = (contractId: string, categoryId: string) =>
+  postJsonResult<LaborCategory>(`/api/contracts/${contractId}/labor-categories/${categoryId}/deactivate`, {});
+export const getLaborClassificationEmployees = () =>
+  getRequiredJson<LaborEmployeeOption[]>("/api/labor-classification/employees");
+export const getContractLaborAssignments = (contractId: string) =>
+  getRequiredJson<LaborEmployeeAssignment[]>(`/api/contracts/${contractId}/labor-assignments`);
+export const createLaborAssignment = (contractId: string, request: LaborEmployeeAssignmentRequest) =>
+  postJsonResult<LaborEmployeeAssignment>(`/api/contracts/${contractId}/labor-assignments`, request);
+export const deactivateLaborAssignment = (contractId: string, assignmentId: string) =>
+  postJsonResult<LaborEmployeeAssignment>(`/api/contracts/${contractId}/labor-assignments/${assignmentId}/deactivate`, {});
+export const reclassifyLaborAssignment = (contractId: string, assignmentId: string, newCategoryId: string, reason: string) =>
+  postJsonResult<LaborEmployeeAssignment>(`/api/contracts/${contractId}/labor-assignments/${assignmentId}/reclassify`, { newCategoryId, reason });
+export const reviewLaborAssignment = (contractId: string, assignmentId: string, status: Exclude<LaborClassificationReviewStatus, "PendingReview">, notes: string) =>
+  postJsonResult<LaborEmployeeAssignment>(`/api/contracts/${contractId}/labor-assignments/${assignmentId}/review`, { status, notes });
+
+export const getContractEsrsApplicabilities = (contractId: string) =>
+  getRequiredJson<EsrsApplicability[]>(`/api/contracts/${contractId}/subcontracting-plan-reporting-applicabilities`);
+
+export const getEsrsScheduleTemplates = (fiscalYear: number) =>
+  getRequiredJson<EsrsScheduleTemplate[]>(`/api/subcontracting-plan-reports/schedule-templates?fiscalYear=${fiscalYear}`);
+
+export const createEsrsApplicability = (contractId: string, request: UpsertEsrsApplicabilityRequest) =>
+  postJsonResult<EsrsApplicability>(`/api/contracts/${contractId}/subcontracting-plan-reporting-applicabilities`, request);
+
+export const updateEsrsApplicability = (contractId: string, applicabilityId: string, request: UpsertEsrsApplicabilityRequest) =>
+  putJsonResult<EsrsApplicability>(`/api/contracts/${contractId}/subcontracting-plan-reporting-applicabilities/${applicabilityId}`, request);
+
+export const updateEsrsApplicabilityStatus = (contractId: string, applicabilityId: string, status: EsrsApplicability["status"]) =>
+  patchJsonResult<EsrsApplicability>(`/api/contracts/${contractId}/subcontracting-plan-reporting-applicabilities/${applicabilityId}/status`, { status });
+
+export const getContractEsrsReportData = (contractId: string) =>
+  getRequiredJson<SubcontractingReportDataRow[]>(`/api/contracts/${contractId}/esrs-report-data`);
+
+export const getContractSubcontractingPlanReportData = (contractId: string) =>
+  getRequiredJson<SubcontractingReportDataRow[]>(`/api/contracts/${contractId}/subcontracting-plan-report-data`);
+
+export const getCurrentSprSchemaProfile = () =>
+  getRequiredJson<SprSchemaProfile>("/api/subcontracting-plan-reports/schema-profiles/current");
+
+export const createContractEsrsReportData = (contractId: string, request: UpsertSubcontractingReportDataRowRequest) =>
+  postJsonResult<SubcontractingReportDataRow>(`/api/contracts/${contractId}/esrs-report-data`, request);
+
+export const createContractSubcontractingPlanReportData = (contractId: string, request: UpsertSubcontractingReportDataRowRequest) =>
+  postJsonResult<SubcontractingReportDataRow>(`/api/contracts/${contractId}/subcontracting-plan-report-data`, request);
+
+export const updateContractEsrsReportData = (contractId: string, rowId: string, request: UpsertSubcontractingReportDataRowRequest) =>
+  putJsonResult<SubcontractingReportDataRow>(`/api/contracts/${contractId}/esrs-report-data/${rowId}`, request);
+
+export const updateContractSubcontractingPlanReportData = (contractId: string, rowId: string, request: UpsertSubcontractingReportDataRowRequest) =>
+  putJsonResult<SubcontractingReportDataRow>(`/api/contracts/${contractId}/subcontracting-plan-report-data/${rowId}`, request);
+
+export const reviewContractEsrsReportData = (contractId: string, rowId: string,
+  status: "Reviewed" | "Accepted" | "Rejected", reviewerNotes: string | null, expectedVersion: number) =>
+  patchJsonResult<SubcontractingReportDataRow>(`/api/contracts/${contractId}/esrs-report-data/${rowId}/review`, { status, reviewerNotes, expectedVersion });
+
+export const reviewContractSubcontractingPlanReportData = (contractId: string, rowId: string,
+  status: "Reviewed" | "Accepted" | "Rejected", reviewerNotes: string | null, expectedVersion: number) =>
+  patchJsonResult<SubcontractingReportDataRow>(`/api/contracts/${contractId}/subcontracting-plan-report-data/${rowId}/review`, { status, reviewerNotes, expectedVersion });
+
+export const importEsrsReportDataCsv = (csvContent: string) =>
+  postJsonResult<SubcontractingReportDataRow[]>("/api/esrs/report-data/import", { csvContent });
+
+export const importSubcontractingPlanReportDataCsv = (csvContent: string) =>
+  postJsonResult<SubcontractingReportDataRow[]>("/api/subcontracting-plan-reports/report-data/import", { csvContent });
+
+export async function downloadEsrsReportDataTemplate(): Promise<ApiMutationResult<{ blob: Blob; fileName: string }>> {
+  const apiBaseUrl = getApiBaseUrl();
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/esrs/report-data/import-template`, { headers: await getApiHeaders() });
+    if (!response.ok) return { data: null, error: await readErrorMessage(response) };
+    return { data: { blob: await response.blob(), fileName: "subcontracting-report-data-template.csv" }, error: null };
+  } catch { return { data: null, error: "The import template could not be downloaded." }; }
+}
+
+export async function downloadSubcontractingPlanReportDataTemplate(): Promise<ApiMutationResult<{ blob: Blob; fileName: string }>> {
+  const apiBaseUrl = getApiBaseUrl();
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/subcontracting-plan-reports/report-data/import-template`, { headers: await getApiHeaders() });
+    if (!response.ok) return { data: null, error: await readErrorMessage(response) };
+    const disposition = response.headers.get("content-disposition") ?? "";
+    const fileName = disposition.match(/filename\*?=(?:UTF-8''|")?([^";]+)/i)?.[1] ?? "sam-gov-spr-report-data-template.csv";
+    return { data: { blob: await response.blob(), fileName: decodeURIComponent(fileName.replace(/"/g, "")),
+      },
+      error: null,
+    };
+  } catch {
+    return {
+      data: null,
+      error: "The SAM.gov SPR import template could not be downloaded.",
+    };
+  }
+}
+
+export const getSprReportPackages = () =>
+  getRequiredJson<SprReportPackage[]>(
+    "/api/subcontracting-plan-reports/packages",
+  );
+
+export const getSharedPortalPackages = () =>
+  getRequiredJson<SharedPortalPackage[]>("/api/portal/shared-packages");
+
+export const getPortalReviewPackages = (invitationId: string) =>
+  getRequiredJson<PortalReviewPackage[]>(
+    `/api/external-portal/invitations/${encodeURIComponent(invitationId)}/packages`,
+  );
+
+export const createPortalReviewMessage = (
+  invitationId: string,
+  sharedPackageId: string,
+  kind: "Comment" | "Question",
+  body: string,
+) =>
+  postJsonResult<PortalPackageReviewMessage>(
+    `/api/external-portal/invitations/${encodeURIComponent(invitationId)}/packages/${encodeURIComponent(sharedPackageId)}/messages`,
+    { kind, body },
+  );
+
+export async function downloadPortalReviewPackage(
+  invitationId: string,
+  sharedPackageId: string,
+): Promise<ApiMutationResult<{ blob: Blob; fileName: string }>> {
+  const apiBaseUrl = getApiBaseUrl();
+  try {
+    const path = `/api/external-portal/invitations/${encodeURIComponent(invitationId)}/packages/${encodeURIComponent(sharedPackageId)}/download`;
+    const response = await fetch(`${apiBaseUrl}${path}`, { headers: await getApiHeaders() });
+    if (!response.ok) return { data: null, error: await readErrorMessage(response) };
+    const disposition = response.headers.get("content-disposition") ?? "";
+    const encodedName = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+    const plainName = disposition.match(/filename="?([^";]+)"?/i)?.[1];
+    return {
+      data: {
+        blob: await response.blob(),
+        fileName: decodeURIComponent(
+          encodedName ?? plainName ?? "fedril-portal-package.html",
+        ),
+      },
+      error: null,
+    };
+  } catch {
+    return { data: null, error: "The portal package could not be downloaded." };
+  }
+}
+
+export const getExternalPortalInvitations = () =>
+  getRequiredJson<ExternalPortalInvitation[]>("/api/portal/invitations");
+
+export const createExternalPortalInvitation = (request: {
+  email: string;
+  role: ExternalPortalRole;
+  packageIds: string[];
+  contractIds: string[];
+  expiresAt: string;
+  canDownload: boolean;
+  strongAuthenticationRequired: boolean;
+}) =>
+  postJsonResult<ExternalPortalInvitation>("/api/portal/invitations", request);
+
+export const resendExternalPortalInvitation = (invitationId: string) =>
+  postJsonResult<ExternalPortalInvitation>(
+    `/api/portal/invitations/${invitationId}/resend`,
+    {},
+  );
+
+export const extendExternalPortalInvitation = (
+  invitationId: string,
+  expiresAt: string,
+) =>
+  postJsonResult<ExternalPortalInvitation>(
+    `/api/portal/invitations/${invitationId}/extend`,
+    { expiresAt },
+  );
+
+export const revokeExternalPortalInvitation = (
+  invitationId: string,
+  reason: string,
+) =>
+  postJsonResult<ExternalPortalInvitation>(
+    `/api/portal/invitations/${invitationId}/revoke`,
+    { reason },
+  );
+
+export const getExternalPortalAccessHistory = (invitationId: string) =>
+  getRequiredJson<ExternalPortalAccessHistory[]>(
+    `/api/portal/invitations/${invitationId}/access-history`,
+  );
+
+export const getPortalPackageActivityReport = () =>
+  getRequiredJson<PortalPackageActivityReport>(
+    "/api/portal/shared-packages/activity-report",
+  );
+
+export const expireSharedPortalPackage = (sharedPackageId: string) =>
+  postJsonResult<SharedPortalPackage>(
+    `/api/portal/shared-packages/${sharedPackageId}/expire`,
+    {},
+  );
+
+export const revokeSharedPortalPackage = (
+  sharedPackageId: string,
+  reason: string,
+) =>
+  postJsonResult<SharedPortalPackage>(
+    `/api/portal/shared-packages/${sharedPackageId}/revoke`,
+    { reason },
+  );
+
+export const supersedeSharedPortalPackage = (
+  sharedPackageId: string,
+  replacementSharedPackageId: string,
+) =>
+  postJsonResult<SharedPortalPackage>(
+    `/api/portal/shared-packages/${sharedPackageId}/supersede`,
+    { replacementSharedPackageId },
+  );
+
+export const reissueSharedPortalPackage = (
+  sharedPackageId: string,
+  replacementPackageId: string,
+  expiresAt: string,
+  expirationReminderDays = 7,
+  reviewDueAt?: string,
+  approvalReason?: string,
+) =>
+  postJsonResult<SharedPortalPackage>(
+    `/api/portal/shared-packages/${sharedPackageId}/reissue`,
+    {
+      replacementPackageId,
+      expiresAt,
+      expirationReminderDays,
+      reviewDueAt,
+      approvalReason,
+    },
+  );
+
+export const archiveSharedPortalPackage = (sharedPackageId: string) =>
+  postJsonResult<SharedPortalPackage>(
+    `/api/portal/shared-packages/${sharedPackageId}/archive`,
+    {},
+  );
+
+export const getSprSubmissionCapability = () =>
+  getRequiredJson<SprSubmissionCapability>(
+    "/api/subcontracting-plan-reports/submission-capability",
+  );
+
+export const createSprReportPackage = (
+  contractId: string,
+  reportType: "Isr" | "Ssr",
+  periodStart: string,
+  periodEnd: string,
+) =>
+  postJsonResult<SprReportPackage>(
+    "/api/subcontracting-plan-reports/packages",
+    { contractId, reportType, periodStart, periodEnd },
+  );
+
+export const reviewSprReportPackage = (
+  packageId: string,
+  action: "begin-review" | "approve" | "supersede" | "archive",
+  reviewerName: string,
+  reviewNotes: string | null,
+) =>
+  postJsonResult<SprReportPackage>(
+    `/api/subcontracting-plan-reports/packages/${packageId}/${action}`,
+    { reviewerName, reviewNotes },
+  );
+
+export const getSprManualSubmissionReceipts = (packageId: string) =>
+  getRequiredJson<SprManualSubmissionReceipt[]>(
+    `/api/subcontracting-plan-reports/packages/${packageId}/manual-submission-receipts`,
+  );
+
+export const createSprManualSubmissionReceipt = (
+  packageId: string,
+  request: {
+    submittedAt: string;
+    confirmationReference: string;
+    outcome: SprManualSubmissionReceipt["outcome"];
+    notes: string | null;
+    evidenceItemId: string | null;
+    supersedesReceiptId?: string | null;
+  },
+) =>
+  postJsonResult<SprManualSubmissionReceipt>(
+    `/api/subcontracting-plan-reports/packages/${packageId}/manual-submission-receipts`,
+    request,
+  );
+
+export async function downloadSprReportPackage(packageId: string, format: "Html" | "Json"):
+  Promise<ApiMutationResult<{ blob: Blob; fileName: string }>> {
+  const apiBaseUrl = getApiBaseUrl();
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/subcontracting-plan-reports/packages/${packageId}/export?format=${format}`,
+      { headers: await getApiHeaders() });
+    if (!response.ok) return { data: null, error: await readErrorMessage(response) };
+    const disposition = response.headers.get("content-disposition") ?? "";
+    const fileName = disposition.match(/filename\*?=(?:UTF-8''|")?([^";]+)/i)?.[1] ?? `sam-gov-spr-package.${format.toLowerCase()}`;
+    return { data: { blob: await response.blob(), fileName: decodeURIComponent(fileName.replace(/"/g, "")),
+      },
+      error: null,
+    };
+  } catch {
+    return {
+      data: null,
+      error: "The SPR preparation package could not be downloaded.",
+    };
+  }
+}
+
+export async function createContractDocument(
+  contractId: string,
+  request: ContractDocumentUploadRequest,
+): Promise<ApiMutationResult<ContractDocument>> {
+  return postJsonResult<ContractDocument>(
+    `/api/contracts/${contractId}/documents`,
+    request,
+  );
+}
+
+export async function uploadContractDocumentFile(
+  contractId: string,
+  documentType: string,
+  file: File,
+  classification: string,
+  noCuiAttestation: boolean,
+): Promise<ApiMutationResult<ContractDocument>> {
+  const form = new FormData();
+  form.set("file", file);
+  form.set("documentType", documentType);
+  form.set("classification", classification);
+  form.set(
+    "classificationReason",
+    `User selected ${classification} for contract document upload.`,
+  );
+  form.set("noCuiAttestation", String(noCuiAttestation));
+  form.set("containsPotentialCui", String(classification === "Cui"));
+  return postFormResult<ContractDocument>(
+    `/api/contracts/${contractId}/documents/file`,
+    form,
+  );
+}
+
+export async function startContractDocumentExtraction(
+  contractId: string,
+  documentId: string,
+  classification: string,
+): Promise<ApiMutationResult<ExtractionJob>> {
+  return postJsonResult<ExtractionJob>(
+    `/api/contracts/${contractId}/documents/${documentId}/extraction-jobs`,
+    { classification: { classification } },
+  );
+}
+
+export async function getContractDocumentExtractionResults(
+  contractId: string,
+  documentId: string,
+  reviewStatus?: string,
+): Promise<ContractDocumentExtractionResults | null> {
+  const query =
+    reviewStatus && reviewStatus !== "all"
+      ? `?reviewStatus=${encodeURIComponent(reviewStatus)}`
+      : "";
+  return getJson<ContractDocumentExtractionResults | null>(
+    `/api/contracts/${contractId}/documents/${documentId}/extraction-results${query}`,
+    null,
+  );
+}
+
+export async function editClauseCandidate(
+  contractId: string,
+  documentId: string,
+  candidateId: string,
+  request: ClauseCandidateEditRequest,
+): Promise<ApiMutationResult<ClauseCandidate>> {
+  return patchJsonResult<ClauseCandidate>(
+    `/api/contracts/${contractId}/documents/${documentId}/clause-candidates/${candidateId}`,
+    request,
+  );
+}
+
+export async function acceptClauseCandidate(
+  contractId: string,
+  documentId: string,
+  candidateId: string,
+  request: ClauseCandidateReviewRequest,
+): Promise<ApiMutationResult<ClauseCandidate>> {
+  return postJsonResult<ClauseCandidate>(
+    `/api/contracts/${contractId}/documents/${documentId}/clause-candidates/${candidateId}/accept`,
+    request,
+  );
+}
+
+export async function rejectClauseCandidate(
+  contractId: string,
+  documentId: string,
+  candidateId: string,
+  request: ClauseCandidateReviewRequest,
+): Promise<ApiMutationResult<ClauseCandidate>> {
+  return postJsonResult<ClauseCandidate>(
+    `/api/contracts/${contractId}/documents/${documentId}/clause-candidates/${candidateId}/reject`,
+    request,
+  );
+}
+
+export async function markClauseCandidateNeedsClarification(
+  contractId: string,
+  documentId: string,
+  candidateId: string,
+  request: ClauseCandidateStateChangeRequest,
+): Promise<ApiMutationResult<ClauseCandidate>> {
+  return postJsonResult<ClauseCandidate>(
+    `/api/contracts/${contractId}/documents/${documentId}/clause-candidates/${candidateId}/needs-clarification`,
+    request,
+  );
+}
+
+export async function supersedeClauseCandidate(
+  contractId: string,
+  documentId: string,
+  candidateId: string,
+  request: ClauseCandidateStateChangeRequest,
+): Promise<ApiMutationResult<ClauseCandidate>> {
+  return postJsonResult<ClauseCandidate>(
+    `/api/contracts/${contractId}/documents/${documentId}/clause-candidates/${candidateId}/supersede`,
+    request,
+  );
+}
+
+export async function deleteContractDocument(contractId: string, documentId: string): Promise<ApiMutationResult<null>> {
+  const apiBaseUrl = getApiBaseUrl();
+
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/contracts/${contractId}/documents/${documentId}`, {
+      method: "DELETE",
+      headers: await getApiHeaders()
+    });
+
+    if (!response.ok) {
+      return { data: null, error: await readErrorMessage(response) };
+    }
+
+    return { data: null, error: null };
+  } catch {
+    return { data: null, error: "The API request could not be completed." };
+  }
+}
+
+export async function createContractDeliverable(
+  contractId: string,
+  request: UpsertContractDeliverableRequest
+): Promise<ApiMutationResult<ContractDeliverable>> {
+  return postJsonResult<ContractDeliverable>(`/api/contracts/${contractId}/deliverables`, request);
+}
+
+export async function updateContractDeliverable(
+  contractId: string,
+  deliverableId: string,
+  request: UpsertContractDeliverableRequest
+): Promise<ApiMutationResult<ContractDeliverable>> {
+  return putJsonResult<ContractDeliverable>(`/api/contracts/${contractId}/deliverables/${deliverableId}`, request);
+}
+
+export async function attachContractClause(
+  contractId: string,
+  request: AttachContractClauseRequest
+): Promise<ApiMutationResult<ContractClause>> {
+  return postJsonResult<ContractClause>(`/api/contracts/${contractId}/clauses`, request);
+}
+
+export async function generateContractClauseObligations(
+  contractId: string,
+  contractClauseId: string
+): Promise<ApiMutationResult<GeneratedContractObligations>> {
+  return postJsonResult<GeneratedContractObligations>(
+    `/api/contracts/${contractId}/clauses/${contractClauseId}/obligations/generate`,
+    {}
+  );
+}
+
+export async function removeContractClause(
+  contractId: string,
+  contractClauseId: string,
+  request: RemoveContractClauseRequest
+): Promise<ApiMutationResult<ContractClause>> {
+  const apiBaseUrl = getApiBaseUrl();
+
+  try {
+    const apiHeaders = await getApiHeaders();
+    const response = await fetch(`${apiBaseUrl}/api/contracts/${contractId}/clauses/${contractClauseId}`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        ...(apiHeaders ?? {})
+      },
+      body: JSON.stringify(request)
+    });
+
+    if (!response.ok) {
+      return { data: null, error: await readErrorMessage(response) };
+    }
+
+    return { data: await response.json(), error: null };
+  } catch {
+    return { data: null, error: "The API request could not be completed." };
+  }
+}
+
+export async function acknowledgeNoCuiNotice(noticeVersion: string): Promise<ApiMutationResult<NoCuiAcknowledgementStatus>> {
+  return postJsonResult<NoCuiAcknowledgementStatus>("/api/no-cui-acknowledgement", {
+    acknowledged: true,
+    noticeVersion
+  });
+}
+
+export async function createEvidenceMetadata(
+  request: UpsertEvidenceMetadataRequest
+): Promise<ApiMutationResult<EvidenceMetadata>> {
+  return postJsonResult<EvidenceMetadata>("/api/evidence-items", request);
+}
+
+export async function createCmmcAssessment(
+  request: UpsertCmmcAssessmentRequest
+): Promise<ApiMutationResult<CmmcAssessment>> {
+  return postJsonResult<CmmcAssessment>("/api/cmmc/assessments", request);
+}
+
+export async function updateCmmcAssessment(
+  assessmentId: string,
+  request: UpsertCmmcAssessmentRequest
+): Promise<ApiMutationResult<CmmcAssessment>> {
+  return putJsonResult<CmmcAssessment>(`/api/cmmc/assessments/${assessmentId}`, request);
+}
+
+export async function createCmmcPoamItem(
+  assessmentId: string,
+  request: UpsertCmmcPoamItemRequest
+): Promise<ApiMutationResult<CmmcPoamItem>> {
+  return postJsonResult<CmmcPoamItem>(`/api/cmmc/assessments/${assessmentId}/poam-items`, request);
+}
+
+export async function createCmmcPoamItemFromGap(
+  assessmentId: string,
+  controlId: string,
+  request: CreatePoamFromGapRequest
+): Promise<ApiMutationResult<CmmcPoamItem>> {
+  return postJsonResult<CmmcPoamItem>(
+    `/api/cmmc/assessments/${assessmentId}/gaps/${encodeURIComponent(controlId)}/poam-item`,
+    request
+  );
+}
+
+export async function createSprsScoreCalculation(
+  assessmentId: string,
+  request: CreateSprsScoreCalculationRequest
+): Promise<ApiMutationResult<SprsScoreCalculation>> {
+  return postJsonResult<SprsScoreCalculation>(`/api/cmmc/assessments/${assessmentId}/sprs-calculations`, request);
+}
+
+export async function createSubcontractor(request: UpsertSubcontractorRequest): Promise<ApiMutationResult<Subcontractor>> {
+  return postJsonResult<Subcontractor>("/api/subcontractors", request);
+}
+
+export async function getApprovedEvidencePackages(): Promise<ApprovedEvidencePackage[]> {
+  return getJson<ApprovedEvidencePackage[]>("/api/reports/approved-evidence-packages", []);
+}
+
+export async function getRecentReports(limit = 25): Promise<ReportHistoryItem[]> {
+  return getJson<ReportHistoryItem[]>(`/api/reports/recent?limit=${encodeURIComponent(limit)}`, []);
+}
+
+export async function getReportArtifact(reportId: string): Promise<ReportArtifactDetail> {
+  return getRequiredJson<ReportArtifactDetail>(`/api/reports/${reportId}`);
+}
+
+export async function archiveReport(
+  reportId: string,
+  reason: string
+): Promise<ApiMutationResult<ReportArtifactDetail>> {
+  return postJsonResult<ReportArtifactDetail>(`/api/reports/${reportId}/archive`, { reason });
+}
+
+export async function restoreReport(
+  reportId: string,
+  reason: string
+): Promise<ApiMutationResult<ReportArtifactDetail>> {
+  return postJsonResult<ReportArtifactDetail>(`/api/reports/${reportId}/restore`, { reason });
+}
+
+export async function requestReportPdfExport(reportId: string): Promise<ApiMutationResult<ReportExport>> {
+  return postJsonResult<ReportExport>(`/api/reports/${reportId}/exports/pdf`, {});
+}
+
+export async function getReportExport(exportId: string): Promise<ReportExport> {
+  return getRequiredJson<ReportExport>(`/api/report-exports/${exportId}`);
+}
+
+export async function downloadReportExport(exportId: string): Promise<{ blob: Blob; fileName: string }> {
+  const path = `/api/report-exports/${exportId}/content`;
+  const apiBaseUrl = getApiBaseUrl();
+  let response: Response;
+  try {
+    response = await fetch(`${apiBaseUrl}${path}`, { headers: await getApiHeaders() });
+  } catch {
+    throw new ApiRequestError("The API request could not be completed.", path);
+  }
+
+  if (!response.ok) {
+    throw new ApiRequestError(await readErrorMessage(response), path, response.status);
+  }
+
+  const disposition = response.headers.get("content-disposition") ?? "";
+  const utf8Name = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+  const quotedName = disposition.match(/filename="([^"]+)"/i)?.[1];
+  return {
+    blob: await response.blob(),
+    fileName: utf8Name
+      ? decodeURIComponent(utf8Name)
+      : (quotedName ?? `report-${exportId}.pdf`),
+  };
+}
+
+export async function getEvidencePackage(
+  reportId: string,
+): Promise<EvidencePackageReport> {
+  return getRequiredJson<EvidencePackageReport>(
+    `/api/reports/evidence-packages/${reportId}`,
+  );
+}
+
+export async function generateComplianceStatusReport(
+  classification: string,
+): Promise<ApiMutationResult<ComplianceStatusReport>> {
+  return postJsonResult<ComplianceStatusReport>(
+    "/api/reports/compliance-status",
+    { classification: { classification } },
+  );
+}
+
+export async function generateCmmcReadinessReport(
+  assessmentId: string,
+  classification: string,
+): Promise<ApiMutationResult<CmmcReadinessReport>> {
+  return postJsonResult<CmmcReadinessReport>(
+    `/api/reports/cmmc-readiness?assessmentId=${encodeURIComponent(assessmentId)}`,
+    { classification: { classification } },
+  );
+}
+
+export async function generateSprsReadinessReport(
+  assessmentId: string,
+  request: SprsReadinessReportRequest,
+  classification: string,
+  idempotencyKey: string,
+): Promise<ApiMutationResult<SprsReadinessReport>> {
+  return postJsonResult<SprsReadinessReport>(
+    `/api/reports/sprs-readiness?assessmentId=${encodeURIComponent(assessmentId)}`,
+    { ...request, classification: { classification } },
+    { "Idempotency-Key": idempotencyKey },
+  );
+}
+
+export async function generateSubcontractorComplianceReport(
+  classification: string,
+  contractId?: string,
+): Promise<ApiMutationResult<SubcontractorComplianceReport>> {
+  const query = contractId
+    ? `?contractId=${encodeURIComponent(contractId)}`
+    : "";
+  return postJsonResult<SubcontractorComplianceReport>(
+    `/api/reports/subcontractor-compliance${query}`,
+    { classification: { classification } },
+  );
+}
+
+export async function generateEvidencePackage(
+  request: EvidencePackageGenerateRequest,
+  classification: string,
+): Promise<ApiMutationResult<EvidencePackageReport>> {
+  return postJsonResult<EvidencePackageReport>(
+    "/api/reports/evidence-packages",
+    { ...request, classification: { classification } },
+  );
+}
+
+export async function updateEvidenceMetadata(
+  evidenceItemId: string,
+  request: UpsertEvidenceMetadataRequest,
+): Promise<ApiMutationResult<EvidenceMetadata>> {
+  return putJsonResult<EvidenceMetadata>(
+    `/api/evidence-items/${evidenceItemId}`,
+    request,
+  );
+}
+
+export type ClassifiedNote = {
+  id: string;
+  title: string;
+  body: string;
+  revision: number;
+  createdAt: string;
+  updatedAt: string;
+  classification: { classification: string; source: string; reason?: string };
+};
+export const getClassifiedNotes = () =>
+  getRequiredJson<ClassifiedNote[]>("/api/classified-notes");
+export const getClassifiedNote = (id: string) =>
+  getRequiredJson<ClassifiedNote>(`/api/classified-notes/${id}`);
+export function saveClassifiedNote(
+  id: string | null,
+  title: string,
+  body: string,
+  classification: string,
+  revision: number,
+) {
+  const request = { title, body, classification: { classification }, revision };
+  return id
+    ? putJsonResult<ClassifiedNote>(`/api/classified-notes/${id}`, request)
+    : postJsonResult<ClassifiedNote>("/api/classified-notes", request);
+}
+
+export async function getContentClassificationReviewItems(): Promise<
+  ContentClassificationReviewItem[]
+> {
+  return getJson<ContentClassificationReviewItem[]>(
+    "/api/content-classification-review-items",
+    [],
+  );
+}
+
+export async function reclassifyEvidenceItem(
+  evidenceItemId: string,
+  request: ReclassifyContentRequest,
+): Promise<ApiMutationResult<EvidenceMetadata>> {
+  return patchJsonResult<EvidenceMetadata>(
+    `/api/evidence-items/${evidenceItemId}/classification`,
+    request,
+  );
+}
+
+export async function getSyntheticDemoDataset(): Promise<SyntheticDemoDatasetDefinition | null> {
+  return getJson<SyntheticDemoDatasetDefinition | null>(
+    "/api/demo/synthetic-dataset",
+    null,
+  );
+}
+
+export async function precheckSyntheticDemoDataset(): Promise<
+  ApiMutationResult<SyntheticDemoDatasetPrecheckResult>
+> {
+  return postJsonResult<SyntheticDemoDatasetPrecheckResult>(
+    "/api/demo/synthetic-dataset/precheck",
+    {},
+  );
+}
+
+export async function seedDemoTenant(): Promise<
+  ApiMutationResult<DemoTenantSeedResult>
+> {
+  return postJsonResult<DemoTenantSeedResult>("/api/demo/seed", {});
+}
+
+export async function resetDemoTenantSeed(): Promise<
+  ApiMutationResult<DemoTenantSeedResult>
+> {
+  return deleteJsonResult<DemoTenantSeedResult>("/api/demo/seed");
+}
+
+export async function createEvidenceUploadIntent(
+  evidenceItemId: string,
+  file: File,
+  classification: string,
+  classificationReason: string,
+  noCuiAttestation: boolean,
+): Promise<ApiMutationResult<EvidenceFileAccess>> {
+  const form = new FormData();
+  form.set("file", file);
+  form.set("noCuiAttestation", String(noCuiAttestation));
+  form.set("containsPotentialCui", String(classification === "Cui"));
+  form.set("classification", classification);
+  form.set(
+    "classificationReason",
+    classificationReason.trim() ||
+      `User selected ${classification} upload classification.`,
+  );
+  return postFormResult<EvidenceFileAccess>(
+    `/api/evidence-items/${evidenceItemId}/file`,
+    form,
+  );
+}
+
+export async function createTenantInvitation(
+  request: CreateTenantInvitationRequest,
+): Promise<ApiMutationResult<TenantInvitation>> {
+  return postJsonResult<TenantInvitation>("/api/tenant-invitations", request);
+}
+
+export async function revokeTenantInvitation(
+  invitationId: string,
+  request: RevokeTenantInvitationRequest,
+): Promise<ApiMutationResult<TenantInvitation>> {
+  return postJsonResult<TenantInvitation>(
+    `/api/tenant-invitations/${invitationId}/revoke`,
+    request,
+  );
+}
+
+export async function updateTenantDataHandlingMode(
+  tenantId: string,
+  request: UpdateTenantDataHandlingModeRequest,
+): Promise<ApiMutationResult<Tenant>> {
+  return patchJsonResult<Tenant>(
+    `/api/tenants/${tenantId}/data-handling-mode`,
+    request,
+  );
+}
+
+export async function acknowledgeSharedResponsibilityMatrix(
+  tenantId: string,
+  request: AcknowledgeSharedResponsibilityMatrixRequest,
+): Promise<ApiMutationResult<SharedResponsibilityMatrixAcknowledgement>> {
+  return postJsonResult<SharedResponsibilityMatrixAcknowledgement>(
+    `/api/tenants/${tenantId}/shared-responsibility-matrix/acknowledgements`,
+    request,
+  );
+}
+
+export async function acknowledgeDataHandlingNotice(
+  tenantId: string,
+  request: AcknowledgeDataHandlingNoticeRequest,
+): Promise<ApiMutationResult<DataHandlingNoticeAcknowledgement>> {
+  return postJsonResult<DataHandlingNoticeAcknowledgement>(
+    `/api/tenants/${tenantId}/data-handling-notice-acknowledgements`,
+    request,
+  );
+}
+
+export async function createCuiSupportEscalation(
+  tenantId: string,
+  request: CreateCuiSupportEscalationRequest,
+): Promise<ApiMutationResult<CuiSupportEscalation>> {
+  return postJsonResult<CuiSupportEscalation>(
+    `/api/tenants/${tenantId}/cui-support-escalations`,
+    request,
+  );
+}
+
+export async function updateCuiSupportEscalation(
+  tenantId: string,
+  escalationId: string,
+  request: UpdateCuiSupportEscalationRequest,
+): Promise<ApiMutationResult<CuiSupportEscalation>> {
+  return patchJsonResult<CuiSupportEscalation>(
+    `/api/tenants/${tenantId}/cui-support-escalations/${escalationId}`,
+    request,
+  );
+}
+
+export async function changeCuiSupportEscalationStatus(
+  tenantId: string,
+  escalationId: string,
+  request: ChangeCuiSupportEscalationStatusRequest,
+): Promise<ApiMutationResult<CuiSupportEscalation>> {
+  return postJsonResult<CuiSupportEscalation>(
+    `/api/tenants/${tenantId}/cui-support-escalations/${escalationId}/status`,
+    request,
+  );
+}
+
+export async function resolveCuiSupportEscalation(
+  tenantId: string,
+  escalationId: string,
+  request: ResolveCuiSupportEscalationRequest,
+): Promise<ApiMutationResult<CuiSupportEscalation>> {
+  return postJsonResult<CuiSupportEscalation>(
+    `/api/tenants/${tenantId}/cui-support-escalations/${escalationId}/resolve`,
+    request,
+  );
+}
+
+export async function createCuiReadyApprovalChecklist(
+  tenantId: string,
+): Promise<ApiMutationResult<CuiReadyApprovalChecklist>> {
+  return postJsonResult<CuiReadyApprovalChecklist>(
+    `/api/tenants/${tenantId}/cui-ready-checklists`,
+    {},
+  );
+}
+
+export type ReadinessSource = {
+  id: string;
+  kind: string;
+  version: string;
+  title: string;
+};
+export type ReadinessEvidence = {
+  id: string;
+  kind: string;
+  version: number;
+  state: string;
+  reviewedAt: string;
+  expiresAt: string;
+  reviewNotes: string;
+};
+export const getReadinessSources = () =>
+  getRequiredJson<ReadinessSource[]>("/api/cui-readiness-evidence/sources");
+export const getReadinessEvidence = () =>
+  getRequiredJson<ReadinessEvidence[]>("/api/cui-readiness-evidence");
+export const getReadinessNotice = () =>
+  getRequiredJson<DataHandlingNotice>("/api/cui-readiness-evidence/notice");
+export const acknowledgeReadinessNotice = (
+  request: AcknowledgeDataHandlingNoticeRequest,
+) =>
+  postJsonResult<DataHandlingNoticeAcknowledgement>(
+    "/api/cui-readiness-evidence/notice-acknowledgement",
+    request,
+  );
+export const recordReadinessEvidence = (request: {
+  kind: string;
+  expectedVersion: number;
+  expiresAt: string;
+  sourceReference: string;
+  reviewNotes: string;
+  details: unknown;
+  rejected: boolean;
+}) => postJsonResult<ReadinessEvidence>("/api/cui-readiness-evidence", request);
+
+export type SecurityReviewItem = {
+  area: string;
+  status: "NotStarted" | "InReview" | "Passed" | "FindingOpen" | "AcceptedRisk";
+  reviewerUserId: string | null;
+  reviewedAt: string | null;
+  evidenceLink: string | null;
+  rationale: string | null;
+};
+export type SecurityReviewRecord = {
+  id: string;
+  version: number;
+  state: string;
+  approvedAt: string | null;
+  approvalNotes: string | null;
+  items: SecurityReviewItem[];
+  findings: Array<{
+    id: string;
+    area: string;
+    severity: string;
+    status: string;
+    summary: string;
+    remediationOwner: string;
+    dueAt: string | null;
+    closureNotes: string | null;
+  }>;
+  acceptedRisks: Array<{
+    id: string;
+    findingId: string | null;
+    approverUserId: string;
+    acceptedAt: string;
+    scope: string;
+    expiresAt: string | null;
+    reviewAt: string | null;
+    mitigationNote: string;
+  }>;
+};
+export type ReadinessEvidenceSource = {
+  evidenceSourceType: string;
+  evidenceFileVersionId: string | null;
+  externalUri: string | null;
+  sha256Digest: string | null;
+};
+export type ReadinessEvidenceOption = {
+  evidenceFileVersionId: string;
+  evidenceItemId: string;
+  versionNumber: number;
+  title: string;
+  fileName: string;
+  sha256Digest: string;
+  uploadedAt: string;
+};
+export type TechnicalReadinessRecord = {
+  id: string;
+  version: number;
+  state: string;
+  approvedAt: string | null;
+  evidence: Array<
+    {
+      id: string;
+      controlType: string;
+      executedAt: string;
+      environment: string;
+      reviewerUserId: string;
+      result: string;
+      evidenceReference: string;
+      expiresAt: string | null;
+      notes: string;
+    } & ReadinessEvidenceSource
+  >;
+};
+export type IncidentReadinessRecord = {
+  id: string;
+  version: number;
+  state: string;
+  approvedAt: string | null;
+  reviewDueAt: string;
+  reviewBasis: string;
+  contacts: Array<{
+    id: string;
+    function: string;
+    contact: string;
+    escalationRole: string;
+  }>;
+  playbooks: Array<{
+    id: string;
+    key: string;
+    trigger: string;
+    containmentSteps: string[];
+    notificationPath: string;
+    evidenceToCollect: string[];
+    owner: string;
+    closureCriteria: string;
+  }>;
+  tabletops: Array<
+    {
+      id: string;
+      executedAt: string;
+      environment: string;
+      participants: string[];
+      findings: string[];
+      evidenceReference: string;
+      reviewerUserId: string;
+    } & ReadinessEvidenceSource
+  >;
+  followUps: Array<{
+    id: string;
+    tabletopId: string;
+    severity: string;
+    status: string;
+    summary: string;
+    owner: string;
+    dueAt: string;
+    closureNotes: string | null;
+  }>;
+};
+export type ReadinessHistory = {
+  id: string;
+  recordType: string;
+  recordId: string;
+  version: number;
+  action: string;
+  actorUserId: string;
+  occurredAt: string;
+  summary: string;
+};
+export const getSecurityReviewReadiness = () =>
+  getRequiredJson<SecurityReviewRecord | null>(
+    "/api/security-incident-readiness/security-review",
+  );
+export const saveSecurityReviewReadiness = (request: unknown) =>
+  putJsonResult<SecurityReviewRecord>(
+    "/api/security-incident-readiness/security-review",
+    request,
+  );
+export const approveSecurityReviewReadiness = (
+  expectedVersion: number,
+  notes: string,
+) =>
+  postJsonResult<SecurityReviewRecord>(
+    "/api/security-incident-readiness/security-review/approve",
+    { expectedVersion, notes },
+  );
+export const getTechnicalReadiness = () =>
+  getRequiredJson<TechnicalReadinessRecord | null>(
+    "/api/security-incident-readiness/technical",
+  );
+export const saveTechnicalReadiness = (request: unknown) =>
+  putJsonResult<TechnicalReadinessRecord>(
+    "/api/security-incident-readiness/technical",
+    request,
+  );
+export const approveTechnicalReadiness = (
+  expectedVersion: number,
+  notes: string,
+) =>
+  postJsonResult<TechnicalReadinessRecord>(
+    "/api/security-incident-readiness/technical/approve",
+    { expectedVersion, notes },
+  );
+export const getIncidentReadiness = () =>
+  getRequiredJson<IncidentReadinessRecord | null>(
+    "/api/security-incident-readiness/incident",
+  );
+export const saveIncidentReadiness = (request: unknown) =>
+  putJsonResult<IncidentReadinessRecord>(
+    "/api/security-incident-readiness/incident",
+    request,
+  );
+export const approveIncidentReadiness = (
+  expectedVersion: number,
+  notes: string,
+) =>
+  postJsonResult<IncidentReadinessRecord>(
+    "/api/security-incident-readiness/incident/approve",
+    { expectedVersion, notes },
+  );
+export const getSecurityIncidentReadinessHistory = () =>
+  getRequiredJson<ReadinessHistory[]>(
+    "/api/security-incident-readiness/history",
+  );
+export const getSecurityIncidentReadinessEvidenceOptions = () =>
+  getRequiredJson<ReadinessEvidenceOption[]>(
+    "/api/security-incident-readiness/evidence-options",
+  );
+
+export async function updateCuiReadyApprovalChecklistItem(
+  tenantId: string,
+  checklistId: string,
+  itemKey: string,
+  request: UpdateCuiReadyChecklistItemRequest,
+): Promise<ApiMutationResult<CuiReadyApprovalChecklist>> {
+  return putJsonResult<CuiReadyApprovalChecklist>(
+    `/api/tenants/${tenantId}/cui-ready-checklists/${checklistId}/items/${encodeURIComponent(itemKey)}`,
+    request,
+  );
+}
+
+export async function submitCuiReadyApprovalChecklist(
+  tenantId: string,
+  checklistId: string,
+): Promise<ApiMutationResult<CuiReadyApprovalChecklist>> {
+  return postJsonResult<CuiReadyApprovalChecklist>(
+    `/api/tenants/${tenantId}/cui-ready-checklists/${checklistId}/submit`,
+    {},
+  );
+}
+
+export async function approveCuiReadyApprovalChecklist(
+  tenantId: string,
+  checklistId: string,
+  request: ReviewCuiReadyChecklistRequest,
+): Promise<ApiMutationResult<CuiReadyApprovalChecklist>> {
+  return postJsonResult<CuiReadyApprovalChecklist>(
+    `/api/tenants/${tenantId}/cui-ready-checklists/${checklistId}/approve`,
+    request,
+  );
+}
+
+export async function rejectCuiReadyApprovalChecklist(
+  tenantId: string,
+  checklistId: string,
+  request: ReviewCuiReadyChecklistRequest,
+): Promise<ApiMutationResult<CuiReadyApprovalChecklist>> {
+  return postJsonResult<CuiReadyApprovalChecklist>(
+    `/api/tenants/${tenantId}/cui-ready-checklists/${checklistId}/reject`,
+    request,
+  );
+}
+
+export async function supersedeCuiReadyApprovalChecklist(
+  tenantId: string,
+  checklistId: string,
+  request: ReviewCuiReadyChecklistRequest,
+): Promise<ApiMutationResult<CuiReadyApprovalChecklist>> {
+  return postJsonResult<CuiReadyApprovalChecklist>(
+    `/api/tenants/${tenantId}/cui-ready-checklists/${checklistId}/supersede`,
+    request,
+  );
+}
+
+async function postJsonResult<T>(
+  path: string,
+  body: unknown,
+  additionalHeaders: Record<string, string> = {},
+): Promise<ApiMutationResult<T>> {
+  const apiBaseUrl = getApiBaseUrl();
+
+  try {
+    const apiHeaders = await getApiHeaders();
+    const response = await fetch(`${apiBaseUrl}${path}`, {
+      method: "POST",
+      headers: {
+        ...(apiHeaders ?? {}),
+        "Content-Type": "application/json",
+        ...additionalHeaders
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+      return { data: null, error: await readErrorMessage(response) };
+    }
+
+    return { data: await response.json(), error: null };
+  } catch {
+    return { data: null, error: "The API could not be reached." };
+  }
+}
+
+async function postFormResult<T>(path: string, body: FormData): Promise<ApiMutationResult<T>> {
+  const apiBaseUrl = getApiBaseUrl();
+
+  try {
+    const response = await fetch(`${apiBaseUrl}${path}`, {
+      method: "POST",
+      headers: await getApiHeaders(),
+      body
+    });
+
+    if (!response.ok) {
+      return { data: null, error: await readErrorMessage(response) };
+    }
+
+    return { data: await response.json(), error: null };
+  } catch {
+    return { data: null, error: "The API request could not be completed." };
+  }
+}
+
+async function putJsonResult<T>(path: string, body: unknown): Promise<ApiMutationResult<T>> {
+  const apiBaseUrl = getApiBaseUrl();
+
+  try {
+    const apiHeaders = await getApiHeaders();
+    const response = await fetch(`${apiBaseUrl}${path}`, {
+      method: "PUT",
+      headers: {
+        ...(apiHeaders ?? {}),
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+      return { data: null, ...(await readErrorDetails(response)) };
+    }
+
+    return { data: await response.json(), error: null };
+  } catch {
+    return { data: null, error: "The API request could not be completed." };
+  }
+}
+
+async function patchJsonResult<T>(path: string, body: unknown): Promise<ApiMutationResult<T>> {
+  const apiBaseUrl = getApiBaseUrl();
+
+  try {
+    const apiHeaders = await getApiHeaders();
+    const response = await fetch(`${apiBaseUrl}${path}`, {
+      method: "PATCH",
+      headers: {
+        ...(apiHeaders ?? {}),
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+      return { data: null, error: await readErrorMessage(response) };
+    }
+
+    return { data: await response.json(), error: null };
+  } catch {
+    return { data: null, error: "The API request could not be completed." };
+  }
+}
+
+async function deleteJsonResult<T>(path: string): Promise<ApiMutationResult<T>> {
+  const apiBaseUrl = getApiBaseUrl();
+
+  try {
+    const response = await fetch(`${apiBaseUrl}${path}`, {
+      method: "DELETE",
+      headers: await getApiHeaders()
+    });
+
+    if (!response.ok) {
+      return { data: null, error: await readErrorMessage(response) };
+    }
+
+    return { data: await response.json(), error: null };
+  } catch {
+    return { data: null, error: "The API request could not be completed." };
+  }
+}
+
+export class ApiRequestError extends Error {
+  constructor(
+    message: string,
+    readonly path: string,
+    readonly status?: number
+  ) {
+    super(message);
+    this.name = "ApiRequestError";
+  }
+}
+
+async function getRequiredJson<T>(path: string): Promise<T> {
+  const apiBaseUrl = getApiBaseUrl();
+
+  try {
+    const response = await fetch(`${apiBaseUrl}${path}`, { headers: await getApiHeaders() });
+
+    if (!response.ok) {
+      throw new ApiRequestError(await readErrorMessage(response), path, response.status);
+    }
+
+    return response.json();
+  } catch (error) {
+    if (error instanceof ApiRequestError) {
+      throw error;
+    }
+
+    throw new ApiRequestError("The API request could not be completed.", path);
+  }
+}
+
+async function getJson<T>(path: string, fallback: T): Promise<T> {
+  try {
+    return await getRequiredJson<T>(path);
+  } catch (error) {
+    if (error instanceof ApiRequestError && (error.status === 401 || error.status === 403)) {
+      throw error;
+    }
+
+    return fallback;
+  }
+}
+
+async function getText(path: string, fallback: string): Promise<string> {
+  const apiBaseUrl = getApiBaseUrl();
+
+  try {
+    const response = await fetch(`${apiBaseUrl}${path}`, { headers: await getApiHeaders() });
+
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        throw new ApiRequestError(await readErrorMessage(response), path, response.status);
+      }
+
+      return fallback;
+    }
+
+    return response.text();
+  } catch (error) {
+    if (error instanceof ApiRequestError && (error.status === 401 || error.status === 403)) {
+      throw error;
+    }
+
+    return fallback;
+  }
+}
+
+function getDevelopmentHeaders(): HeadersInit | undefined {
+  const role = getSelectedDevelopmentRole();
+  const email = getSelectedDevelopmentUserEmail() ?? import.meta.env.VITE_GCCS_DEV_EMAIL;
+  const userId = getSelectedDevelopmentUserId() ?? import.meta.env.VITE_GCCS_DEV_USER_ID;
+  const platformPermissions = import.meta.env.VITE_GCCS_DEV_PLATFORM_PERMISSIONS;
+  const selectedTenantId = getSelectedTenantId();
+
+  return import.meta.env.DEV && !isMsalConfigured
+    ? {
+        "X-Gccs-Dev-Auth": "true",
+        ...(role ? { "X-Gccs-Dev-Role": role } : {}),
+        ...(email ? { "X-Gccs-Dev-Email": email } : {}),
+        ...(userId ? { "X-Gccs-Dev-User": userId } : {}),
+        ...(platformPermissions ? { "X-Gccs-Dev-Platform-Permissions": platformPermissions } : {}),
+        ...(selectedTenantId
+          ? {
+              "X-Gccs-Dev-Tenant": selectedTenantId,
+              "X-Gccs-Tenant": selectedTenantId
+            }
+          : {})
+      }
+    : undefined;
+}
+
+async function getApiHeaders(): Promise<HeadersInit | undefined> {
+  const headers = getDevelopmentHeaders();
+  if (headers) {
+    return headers;
+  }
+
+  const token = await getFreshAccessToken();
+  if (isAuthenticationSessionChanging()) {
+    return undefined;
+  }
+  const selectedTenantId = getSelectedTenantId();
+  return token
+    ? {
+        Authorization: `Bearer ${token}`,
+        ...(selectedTenantId ? { "X-Gccs-Tenant": selectedTenantId } : {})
+      }
+    : undefined;
+}
+
+async function readErrorMessage(response: Response): Promise<string> {
+  return (await readErrorDetails(response)).error;
+}
+
+async function readErrorDetails(
+  response: Response
+): Promise<{ error: string; errorSummary?: string; errors?: Record<string, string[]> ;}> {
+  try {
+    const problem = await response.json();
+    if (response.status === 428 && problem.errorCode === "data_handling_notice_acknowledgement_required") {
+      window.dispatchEvent(new CustomEvent("fedril:notice-required", { detail: { workflowContext: problem.workflowContext } }));
+    }
+    const errors = Object.fromEntries(
+      Object.entries(problem.errors ?? {}).map(([field, messages]) => [
+        field,
+        (Array.isArray(messages) ? messages : [messages])
+          .filter((message): message is string => typeof message === "string" && message.trim().length > 0)
+      ])
+    );
+    const fieldMessages = Object.entries(errors).flatMap(([field, messages]) =>
+      messages.map((message) => `${field}: ${message}`)
+    );
+    const parts = [problem.detail, ...fieldMessages].filter(
+      (part): part is string => typeof part === "string" && part.trim().length > 0
+    );
+    const uniqueParts = Array.from(new Set(parts));
+    const message = uniqueParts.join(" ") || problem.title || "The request was rejected.";
+    const summary = problem.detail || problem.title || "The request was rejected.";
+    const withCorrelationId = (value: string) =>
+      problem.correlationId ? `${value} Correlation ID: ${problem.correlationId}.` : value;
+    return {
+      error: withCorrelationId(message),
+      errorSummary: withCorrelationId(summary),
+      ...(Object.keys(errors).length > 0 ? { errors } : {})
+    };
+  } catch {
+    return { error: "The request was rejected." };
+  }
+}

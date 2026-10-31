@@ -1,0 +1,1019 @@
+name: CI
+
+on:
+  push:
+    branches: ["main", "release-main"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  protected-admission:
+    name: Protected assertion admission
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      checks: read
+      actions: read
+    outputs:
+      tested_sha: ${{ steps.protected_admission.outputs.tested_sha }}
+      check_run_id: ${{ steps.protected_admission.outputs.check_run_id }}
+    steps:
+      - name: Setup Node.js for trusted pre-checkout admission
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: "24.22.1"
+
+      - name: Authenticate exact current-attempt protected admission
+        id: protected_admission
+        timeout-minutes: 10
+        working-directory: ${{ github.workspace }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FEDRIL_MODE: ci
+          FEDRIL_COMPARISON_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before || '0000000000000000000000000000000000000000' }}
+          FEDRIL_PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || '' }}
+          FEDRIL_EVENT_DELETED: ${{ github.event.deleted || false }}
+          FEDRIL_WORKFLOW_SHA: ${{ github.workflow_sha }}
+          FEDRIL_WORKFLOW_REF: ${{ github.workflow_ref }}
+          PROTECTED_ASSERTIONS_APP_ID: ${{ vars.PROTECTED_ASSERTIONS_APP_ID }}
+        run: |
+          node --input-type=module <<'FEDRIL_BOOTSTRAP'
+          import { createHash } from 'node:crypto';
+          
+          export const CHECK_NAME = 'FeDril protected historical assertions (129)';
+          export const EXPECTED_HELPERS = Object.freeze([
+            'tools/release/protected/admission.mjs', 'tools/release/protected/runner.mjs',
+            'tools/release/protected/ci-runner.mjs',
+            'tools/release/protected/inline-bootstrap.mjs',
+            'tools/release/protected/native-checkout.mjs', 'tools/release/protected/composition.mjs',
+            'tools/release/protected/workflow-bootstrap-binding.mjs', 'tools/release/protected/finite-canonical-transport.mjs',
+            'tools/release/protected/native-canonical-transport.mjs', 'tools/release/protected/migration-source-snapshots.mjs',
+            'tools/release/protected/migration-source-snapshots-cli.mjs', 'tools/release/protected/release-control.mjs',
+            'tools/release/check-api-package.py', 'tools/release/release-control.mjs', 'tools/release/release-evidence.mjs',
+            'tools/release/validate-auth-config.mjs', 'tools/release/check-azure-settings.mjs', 'tools/release/check-cleanup-quiescence.mjs',
+          ]);
+          export const hash = bytes => createHash('sha256').update(bytes).digest('hex');
+          const sha = value => typeof value === 'string' && /^[a-f0-9]{40}$/.test(value);
+          const digest = value => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
+          const positive = value => typeof value === 'string' && /^[1-9][0-9]{0,19}$/.test(value);
+          const reject = () => { throw new Error('protected_admission_rejected'); };
+          const require = condition => { if (!condition) reject(); };
+          function keys(value, expected) {
+            require(value && typeof value === 'object' && !Array.isArray(value) &&
+              Object.keys(value).sort().join('\0') === [...expected].sort().join('\0'));
+          }
+          const freeze = value => {
+            if (value && typeof value === 'object') { for (const nested of Object.values(value)) freeze(nested); Object.freeze(value); }
+            return value;
+          };
+          
+          export function decodeAuthority(value, cap) {
+            require(typeof value === 'string' && value.length <= Math.ceil(cap / 3) * 4);
+            const bytes = Buffer.from(value, 'base64');
+            require(bytes.length > 0 && bytes.length <= cap && bytes.toString('base64') === value);
+            return bytes;
+          }
+          
+          export function validateContext(context) {
+            keys(context, ['repository', 'appId', 'mode', 'workflowSha', 'candidateSha', 'candidateTreeSha', 'candidateTag',
+              'stagingWorkflowSha', 'runId', 'runAttempt', 'event', 'ref', 'workflowRef', 'comparisonBaseSha', 'prHeadSha']);
+            require(typeof context.repository === 'string' && /^[A-Za-z0-9][A-Za-z0-9-]*\/[A-Za-z0-9][A-Za-z0-9._-]*$/.test(context.repository));
+            require(positive(context.appId) && positive(context.runId) && positive(context.runAttempt) &&
+              sha(context.workflowSha) && sha(context.candidateSha) && sha(context.candidateTreeSha) && context.candidateSha !== '0'.repeat(40));
+            require(['ci', 'staging', 'production'].includes(context.mode));
+            require(context.candidateTag === null || (typeof context.candidateTag === 'string' &&
+              /^v(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)-rc\.[1-9][0-9]*$/.test(context.candidateTag)));
+            require(context.stagingWorkflowSha === null || sha(context.stagingWorkflowSha));
+            const path = context.mode === 'ci' ? '.github/workflows/ci.yml' : context.mode === 'staging' ?
+              '.github/workflows/staging.yml' : '.github/workflows/production-release.yml';
+            require(context.workflowRef === `${context.repository}/${path}@${context.ref}`);
+            if (context.mode === 'ci') {
+              require(['push', 'pull_request', 'workflow_dispatch'].includes(context.event) && context.candidateTag === null &&
+                context.stagingWorkflowSha === null && typeof context.ref === 'string');
+              require(context.event === 'pull_request' ? /^refs\/pull\/[1-9][0-9]*\/merge$/.test(context.ref) :
+                /^refs\/heads\/[A-Za-z0-9_./-]+$/.test(context.ref));
+              require(sha(context.comparisonBaseSha) && (context.event === 'pull_request' ?
+                sha(context.prHeadSha) && context.prHeadSha !== '0'.repeat(40) && context.comparisonBaseSha !== '0'.repeat(40) : context.prHeadSha === null));
+            } else {
+              require(context.comparisonBaseSha === null && context.prHeadSha === null);
+              require(context.event === 'workflow_dispatch' && context.ref === 'refs/heads/release-main');
+              if (context.mode === 'production') require(sha(context.stagingWorkflowSha) && context.candidateTag !== null);
+            }
+            return true;
+          }
+          
+          export function requireAdmission(checks, context) {
+            try {
+              validateContext(context);
+              require(Array.isArray(checks) && checks.length <= 1000);
+              const details = `https://github.com/${context.repository}/actions/runs/${context.runId}/attempts/${context.runAttempt}`;
+              const matches = checks.filter(check => check && check.name === CHECK_NAME && check.head_sha === context.candidateSha &&
+                Number.isSafeInteger(check.app?.id) && String(check.app.id) === context.appId && check.details_url === details);
+              require(matches.length === 1);
+              const check = matches[0];
+              require(Number.isSafeInteger(check.id) && check.id > 0 && check.status === 'completed' && check.conclusion === 'success' &&
+                typeof check.external_id === 'string' && /^fedril-historical129:[a-f0-9]{64}$/.test(check.external_id));
+              const text = check.output?.text;
+              require(typeof text === 'string' && Buffer.byteLength(text, 'utf8') <= 60000);
+              const carrier = JSON.parse(text);
+              keys(carrier, ['schemaVersion', 'purpose', 'repository', 'runId', 'runAttempt', 'mode', 'workflowSha', 'candidate',
+                'bindingSha256', 'bootstrapPolicyBase64', 'canonicalAuthorityBase64', 'helperSha256', 'baselineSnapshot']);
+              require(carrier.schemaVersion === 1 && carrier.purpose === 'fedril-workflow-admission-v1' &&
+                ['repository', 'runId', 'runAttempt', 'mode', 'workflowSha'].every(key => carrier[key] === context[key]) &&
+                digest(carrier.bindingSha256) && check.external_id === 'fedril-historical129:' + carrier.bindingSha256);
+              keys(carrier.candidate, ['sha', 'treeSha', 'tag', 'stagingWorkflowSha']);
+              require(carrier.candidate.sha === context.candidateSha && carrier.candidate.treeSha === context.candidateTreeSha &&
+                carrier.candidate.tag === context.candidateTag && carrier.candidate.stagingWorkflowSha === context.stagingWorkflowSha);
+              if (context.mode === 'ci') {
+                keys(carrier.helperSha256, EXPECTED_HELPERS);
+                require(Object.values(carrier.helperSha256).every(digest));
+                require(carrier.bootstrapPolicyBase64 === null && carrier.baselineSnapshot === null);
+                const authority = JSON.parse(decodeAuthority(carrier.canonicalAuthorityBase64, 1024 * 1024).toString('utf8'));
+                require(authority.schemaVersion === 2 && authority.purpose === 'classified-ci-history' &&
+                  authority.repository === context.repository && authority.workflowSha === context.workflowSha && authority.tipSha === context.candidateSha &&
+                  authority.sourceRef === context.ref && authority.comparisonBaseSha === context.comparisonBaseSha && authority.prHeadSha === context.prHeadSha);
+              } else {
+                keys(carrier.helperSha256, EXPECTED_HELPERS);
+                require(Object.values(carrier.helperSha256).every(digest));
+                keys(carrier.baselineSnapshot, ['path', 'sha256']);
+                require(carrier.baselineSnapshot.path === 'release/migration-baseline.snapshot.json' && digest(carrier.baselineSnapshot.sha256));
+                decodeAuthority(carrier.bootstrapPolicyBase64, 16384);
+                decodeAuthority(carrier.canonicalAuthorityBase64, 1024 * 1024);
+              }
+              return freeze({ carrier, checkRunId: check.id, detailsUrl: details, releaseAuthorized: false });
+            } catch { reject(); }
+          }
+          
+          export function currentAdmissionTargets(checks, context) {
+            const details = `https://github.com/${context.repository}/actions/runs/${context.runId}/attempts/${context.runAttempt}`;
+            return checks.filter(check => check && check.name === CHECK_NAME && check.head_sha === context.candidateSha &&
+              Number.isSafeInteger(check.app?.id) && String(check.app.id) === context.appId && check.details_url === details);
+          }
+          
+          const admission = { CHECK_NAME, EXPECTED_HELPERS, hash, decodeAuthority, validateContext, requireAdmission, currentAdmissionTargets };
+          import { mkdir, writeFile, appendFile } from 'node:fs/promises';
+          import { dirname, join } from 'node:path';
+          import { setTimeout as delay } from 'node:timers/promises';
+          
+          const fixedFailure = () => { throw new Error('protected_bootstrap_held_reconcile_no_retry'); };
+          const sha40 = value => typeof value === 'string' && /^[a-f0-9]{40}$/.test(value);
+          const repoName = value => typeof value === 'string' && /^[A-Za-z0-9][A-Za-z0-9-]*\/[A-Za-z0-9][A-Za-z0-9._-]*$/.test(value);
+          
+          export async function readResponse(response, cap) {
+            if (response.status !== 200 || !response.body) fixedFailure();
+            const chunks = []; let length = 0;
+            for await (const chunk of response.body) {
+              length += chunk.length; if (length > cap) fixedFailure(); chunks.push(Buffer.from(chunk));
+            }
+            return Buffer.concat(chunks);
+          }
+          
+          export async function providerJson(repository, suffix, token, fetchImpl = fetch) {
+            if (!repoName(repository) || typeof suffix !== 'string' || !suffix.startsWith('/') || /[\r\n#]/.test(suffix) ||
+                typeof token !== 'string' || !token || /[\r\n]/.test(token)) fixedFailure();
+            try {
+              const response = await fetchImpl(`https://api.github.com/repos/${repository}${suffix}`, { redirect: 'error',
+                signal: AbortSignal.timeout(30000), headers: { Accept: 'application/vnd.github+json', Authorization: `Bearer ${token}`,
+                  'X-GitHub-Api-Version': '2026-03-10', 'User-Agent': 'FeDril-protected-admission-reader' } });
+              return JSON.parse((await readResponse(response, 8 * 1024 * 1024)).toString('utf8'));
+            } catch { fixedFailure(); }
+          }
+          
+          export async function rawBytes(repository, workflowSha, path, cap, fetchImpl = fetch) {
+            if (!repoName(repository) || !sha40(workflowSha) || typeof path !== 'string' ||
+                !/^[A-Za-z0-9_.\/-]+$/.test(path) || path.split('/').some(part => !part || ['.', '..'].includes(part))) fixedFailure();
+            try {
+              return await readResponse(await fetchImpl(`https://raw.githubusercontent.com/${repository}/${workflowSha}/${path}`,
+                { redirect: 'error', signal: AbortSignal.timeout(30000), headers: { 'User-Agent': 'FeDril-protected-admission-reader' } }), cap);
+            } catch { fixedFailure(); }
+          }
+          
+          export async function readAllChecks(context, read = providerJson, token) {
+            context = Object.freeze({ ...context });
+            admission.validateContext(context);
+            const all = [], ids = new Set(); let expected;
+            for (let page = 1; page <= 10; page++) {
+              const result = await read(context.repository, `/commits/${context.candidateSha}/check-runs?filter=all&per_page=100&app_id=${context.appId}&check_name=${encodeURIComponent(admission.CHECK_NAME)}&page=${page}`, token);
+              if (!Number.isSafeInteger(result.total_count) || result.total_count < 0 || result.total_count > 1000 ||
+                  !Array.isArray(result.check_runs) || result.check_runs.length > 100 || (expected !== undefined && expected !== result.total_count)) fixedFailure();
+              expected = result.total_count;
+              for (const check of result.check_runs) {
+                if (!Number.isSafeInteger(check?.id) || check.id <= 0 || ids.has(check.id)) fixedFailure();
+                ids.add(check.id); all.push(check);
+              }
+              if (all.length === expected) return all;
+              if (all.length > expected || result.check_runs.length !== 100) fixedFailure();
+            }
+            fixedFailure();
+          }
+          
+          export async function waitForAdmission(context, read = providerJson, token, pause = delay) {
+            context = Object.freeze({ ...context });
+            admission.validateContext(context);
+            for (let attempt = 0; attempt < 20; attempt++) {
+              const checks = await readAllChecks(context, read, token);
+              if (admission.currentAdmissionTargets(checks, context).length) return admission.requireAdmission(checks, context);
+              if (attempt < 19) await pause(15000);
+            }
+            fixedFailure();
+          }
+          
+          export async function reconcileExactAdmission(context, checkRunId, read = providerJson, token) {
+            context = Object.freeze({ ...context });
+            const identity = Number(checkRunId);
+            if (!Number.isSafeInteger(identity) || identity <= 0 || String(identity) !== String(checkRunId)) fixedFailure();
+            const selected = admission.requireAdmission(await readAllChecks(context, read, token), context);
+            if (selected.checkRunId !== identity) fixedFailure();
+            const exact = admission.requireAdmission([await read(context.repository, "/check-runs/" + identity, token)], context);
+            if (exact.checkRunId !== identity || JSON.stringify(exact.carrier) !== JSON.stringify(selected.carrier)) fixedFailure();
+            return selected;
+          }
+          
+          export async function bootstrapFromEnvironment(env, { read = providerJson, raw = rawBytes, wait = waitForAdmission,
+              makeDirectory = mkdir, put = writeFile, append = appendFile } = {}) {
+            try {
+              env = Object.freeze(Object.fromEntries(['GITHUB_REPOSITORY', 'GITHUB_REPOSITORY_ID', 'GITHUB_SHA', 'GITHUB_EVENT_NAME',
+                'GITHUB_REF', 'GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT', 'FEDRIL_WORKFLOW_SHA', 'FEDRIL_WORKFLOW_REF', 'FEDRIL_MODE',
+                'PROTECTED_ASSERTIONS_APP_ID', 'CANDIDATE_TAG', 'GH_TOKEN', 'RUNNER_TEMP', 'GITHUB_ENV', 'FEDRIL_COMPARISON_BASE_SHA',
+                'FEDRIL_PR_HEAD_SHA', 'FEDRIL_EVENT_DELETED', 'FEDRIL_ADMISSION_CHECK_ID'].map(key => [key, env[key]])));
+              const repository = env.GITHUB_REPOSITORY, workflowSha = env.FEDRIL_WORKFLOW_SHA, mode = env.FEDRIL_MODE;
+              if (!repoName(repository) || !sha40(workflowSha) || !['ci', 'staging', 'production'].includes(mode)) fixedFailure();
+              const token = env.GH_TOKEN;
+              if (env.FEDRIL_ADMISSION_CHECK_ID && !/^[1-9][0-9]{0,19}$/.test(env.FEDRIL_ADMISSION_CHECK_ID)) fixedFailure();
+              let candidateSha, candidateTag = null, stagingWorkflowSha = null, approvedManifest = null, approvedManifestBytes = null, stagingRun = null;
+              if (mode === 'ci') {
+                candidateSha = env.GITHUB_SHA;
+                if (candidateSha === '0'.repeat(40) || env.FEDRIL_EVENT_DELETED === 'true' ||
+                    !['push', 'pull_request', 'workflow_dispatch'].includes(env.GITHUB_EVENT_NAME) ||
+                    !sha40(env.FEDRIL_COMPARISON_BASE_SHA || '0'.repeat(40)) ||
+                    (env.GITHUB_EVENT_NAME === 'pull_request' && (!sha40(env.FEDRIL_PR_HEAD_SHA) || !env.FEDRIL_COMPARISON_BASE_SHA || env.FEDRIL_COMPARISON_BASE_SHA === '0'.repeat(40))) ||
+                    (env.GITHUB_EVENT_NAME === 'pull_request' && !/^refs\/pull\/[1-9][0-9]*\/merge$/.test(env.GITHUB_REF))) fixedFailure();
+              } else if (mode === 'staging') {
+                candidateTag = env.CANDIDATE_TAG || null;
+                if (candidateTag) {
+                  if (!/^v(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)-rc\.[1-9][0-9]*$/.test(candidateTag)) fixedFailure();
+                  const ref = await read(repository, `/git/ref/tags/${candidateTag}`, token);
+                  if (ref.object?.type !== 'commit') fixedFailure(); candidateSha = ref.object.sha;
+                } else candidateSha = workflowSha;
+                approvedManifestBytes = await raw(repository, workflowSha, 'docs/release/approved-release.json', 1024 * 1024);
+                approvedManifest = JSON.parse(approvedManifestBytes.toString('utf8'));
+              } else {
+                approvedManifestBytes = await raw(repository, workflowSha, 'docs/release/approved-release.json', 1024 * 1024);
+                approvedManifest = JSON.parse(approvedManifestBytes.toString('utf8'));
+                candidateSha = approvedManifest.commitSha; candidateTag = approvedManifest.candidateTag;
+                const runId = approvedManifest.staging?.runId;
+                if (!Number.isSafeInteger(runId) || runId <= 0) fixedFailure();
+                stagingRun = await read(repository, `/actions/runs/${runId}`, token);
+                if (stagingRun.id !== runId || stagingRun.repository?.full_name !== repository ||
+                    String(stagingRun.repository?.id) !== env.GITHUB_REPOSITORY_ID || stagingRun.path !== '.github/workflows/staging.yml' ||
+                    stagingRun.event !== 'workflow_dispatch' || stagingRun.head_branch !== 'release-main' ||
+                    stagingRun.status !== 'completed' || stagingRun.conclusion !== 'success' || !sha40(stagingRun.head_sha)) fixedFailure();
+                stagingWorkflowSha = stagingRun.head_sha;
+              }
+              if (!sha40(candidateSha)) fixedFailure();
+              const commit = await read(repository, `/commits/${candidateSha}`, token);
+              if (commit.sha !== candidateSha || !sha40(commit.commit?.tree?.sha)) fixedFailure();
+              const context = { repository, appId: env.PROTECTED_ASSERTIONS_APP_ID, mode, workflowSha,
+                candidateSha, candidateTreeSha: commit.commit.tree.sha, candidateTag, stagingWorkflowSha,
+                runId: env.GITHUB_RUN_ID, runAttempt: env.GITHUB_RUN_ATTEMPT, event: env.GITHUB_EVENT_NAME,
+                ref: env.GITHUB_REF, workflowRef: env.FEDRIL_WORKFLOW_REF,
+                comparisonBaseSha: mode === 'ci' ? env.FEDRIL_COMPARISON_BASE_SHA || '0'.repeat(40) : null,
+                prHeadSha: mode === 'ci' ? env.FEDRIL_PR_HEAD_SHA || null : null };
+              admission.validateContext(context);
+              const selected = env.FEDRIL_ADMISSION_CHECK_ID ?
+                await reconcileExactAdmission(context, env.FEDRIL_ADMISSION_CHECK_ID, read, token) : await wait(context, read, token);
+              const root = join(env.RUNNER_TEMP, `fedril-trusted-${context.runId}-${context.runAttempt}`);
+              await makeDirectory(root, { mode: 0o700 });
+              const document = { context, carrier: selected.carrier, checkRunId: selected.checkRunId,
+                sourceSha: env.GITHUB_SHA, repositoryId: env.GITHUB_REPOSITORY_ID, approvedManifest, stagingRun };
+              await put(join(root, 'admission-context.json'), JSON.stringify(document), { flag: 'wx', mode: 0o600 });
+              {
+                for (const path of admission.EXPECTED_HELPERS) {
+                  const bytes = await raw(repository, workflowSha, path, 1024 * 1024);
+                  if (admission.hash(bytes) !== selected.carrier.helperSha256[path]) fixedFailure();
+                  const destination = join(root, path);
+                  await makeDirectory(dirname(destination), { recursive: true, mode: 0o700 });
+                  await put(destination, bytes, { flag: 'wx', mode: 0o600 });
+                }
+                if (mode !== 'ci') {
+                  const baseline = selected.carrier.baselineSnapshot;
+                  const bytes = await raw(repository, workflowSha, baseline.path, 64 * 1024 * 1024);
+                  if (admission.hash(bytes) !== baseline.sha256) fixedFailure();
+                  await put(join(root, 'baseline.snapshot.json'), bytes, { flag: 'wx', mode: 0o600 });
+                  await put(join(root, 'approved-release.json'), approvedManifestBytes, { flag: 'wx', mode: 0o600 });
+                  if (stagingRun) await put(join(root, 'approved-staging-run.json'), JSON.stringify(stagingRun), { flag: 'wx', mode: 0o600 });
+                }
+              }
+              await append(env.GITHUB_ENV, `FEDRIL_TRUSTED_ROOT=${root}\nFEDRIL_ADMITTED_SHA=${candidateSha}\n`);
+              return { trustedRoot: root, candidateSha, workflowSha, checkRunId: selected.checkRunId, releaseAuthorized: false };
+            } catch { fixedFailure(); }
+          }
+          
+          const admissionResult = await bootstrapFromEnvironment(process.env);
+          await appendFile(process.env.GITHUB_OUTPUT, 'tested_sha=' + admissionResult.candidateSha + '\ncheck_run_id=' + admissionResult.checkRunId + '\n');
+          FEDRIL_BOOTSTRAP
+      - name: Validate complete externally classified CI graph before routing tests
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node "$FEDRIL_TRUSTED_ROOT/tools/release/protected/ci-runner.mjs" validate "$FEDRIL_TRUSTED_ROOT/admission-context.json"
+
+  backend-prerequisites:
+    needs: protected-admission
+    name: Backend prerequisites
+    runs-on: ubuntu-latest
+    timeout-minutes: 80
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          ref: ${{ needs.protected-admission.outputs.tested_sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: "24.22.1"
+
+      - name: Validate approved launch candidate synchronization
+        run: npm run check:launch-candidate
+
+      - name: Validate SemVer release and promotion controls
+        run: |
+          npm run check:release-control
+          npm run test:release-control
+
+      - name: Test API package preservation guards
+        run: |
+          python3 -I -B tools/release/check-api-package.test.py
+          python3 -I -B tools/release/api-package-workflows.test.py
+
+      - name: Test trusted source and admission controls
+        run: node --test tools/release/protected/*.test.mjs
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+
+      - name: Restore backend dependencies
+        run: dotnet restore Gccs.slnx --configfile .github/nuget-audit.config -p:NuGetAudit=true -p:NuGetAuditMode=all -warnaserror:NU1900,NU1903,NU1904,NU1905
+
+      - name: Scan backend dependencies for known vulnerabilities
+        run: dotnet list Gccs.slnx package --vulnerable --include-transitive --no-restore --config .github/nuget-audit.config
+
+      - name: Build backend solution
+        run: dotnet build Gccs.slnx --no-restore --configuration Release
+
+      - name: Validate EF Core migrations
+        run: |
+          dotnet tool restore
+          dotnet tool run dotnet-ef migrations has-pending-model-changes \
+            --project src/Gccs.Infrastructure/Gccs.Infrastructure.csproj \
+            --startup-project apps/api/Gccs.Api.csproj \
+            --context GccsDbContext
+          dotnet tool run dotnet-ef migrations script --idempotent \
+            --project src/Gccs.Infrastructure/Gccs.Infrastructure.csproj \
+            --startup-project apps/api/Gccs.Api.csproj \
+          --context GccsDbContext \
+          --output "$RUNNER_TEMP/gccs-idempotent-migrations.sql"
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4
+        with:
+          terraform_version: "1.9.8"
+
+      - name: Validate Terraform environments
+        run: |
+          for environment in dev staging production; do
+            terraform -chdir="infra/terraform/environments/$environment" init -backend=false
+            terraform -chdir="infra/terraform/environments/$environment" validate
+          done
+
+      - name: Run extraction precision and recall evaluation
+        run: >
+          python3 tools/extraction-evaluation/evaluate_corpus.py
+          --corpus tests/fixtures/extraction-corpus
+          --output-dir TestResults/extraction-evaluation
+          --min-precision 0.95
+          --min-recall 0.95
+
+      - name: Upload backend prerequisite results
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: backend-prerequisite-results
+          path: TestResults/extraction-evaluation
+
+  backend-tests:
+    needs: protected-admission
+    env:
+      FEDRIL_PROTECTED_ASSERTIONS_ADMITTED_SHA: ${{ needs.protected-admission.outputs.tested_sha }}
+    name: Backend regression (shard ${{ matrix.shard }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          ref: ${{ needs.protected-admission.outputs.tested_sha }}
+
+      - name: Verify exact admitted test checkout
+        run: |
+          test "$FEDRIL_PROTECTED_ASSERTIONS_ADMITTED_SHA" = "$GITHUB_SHA"
+          test "$(git --no-replace-objects rev-parse HEAD)" = "$FEDRIL_PROTECTED_ASSERTIONS_ADMITTED_SHA"
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+
+      - name: Restore backend dependencies
+        run: dotnet restore Gccs.slnx
+
+      - name: Build backend solution
+        run: dotnet build Gccs.slnx --no-restore --configuration Release
+
+      - name: Create deterministic backend test shard
+        run: |
+          tools/ci/create-backend-test-shard-filter.sh \
+            "${{ matrix.shard }}" \
+            "4" \
+            "$RUNNER_TEMP/backend-test-filter.txt"
+
+      - name: Run backend unit and integration tests
+        timeout-minutes: 35
+        run: >
+          dotnet test tests/Gccs.Api.Tests/Gccs.Api.Tests.csproj
+          --no-build
+          --configuration Release
+          --settings tests/Gccs.Api.Tests/regression.runsettings
+          --filter "$(cat "$RUNNER_TEMP/backend-test-filter.txt")"
+          --logger "trx;LogFileName=gccs-backend-tests-${{ matrix.shard }}.trx"
+          --results-directory "TestResults/backend/${{ matrix.shard }}"
+          --blame-hang
+          --blame-hang-timeout 10m
+          --blame-hang-dump-type mini
+
+      - name: Upload backend test results
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: backend-test-results-${{ matrix.shard }}
+          path: TestResults/backend/${{ matrix.shard }}
+
+  backend:
+    name: Backend validation
+    if: always()
+    needs: [backend-prerequisites, backend-tests]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify backend validation gates
+        env:
+          PREREQUISITE_RESULT: ${{ needs.backend-prerequisites.result }}
+          REGRESSION_RESULT: ${{ needs.backend-tests.result }}
+        run: |
+          if [[ "$PREREQUISITE_RESULT" != "success" || "$REGRESSION_RESULT" != "success" ]]; then
+            echo "Backend prerequisites: $PREREQUISITE_RESULT"
+            echo "Backend regression shards: $REGRESSION_RESULT"
+            exit 1
+          fi
+
+  frontend:
+    name: Frontend validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: "24.22.1"
+          cache: npm
+
+      - name: Restore frontend dependencies
+        run: npm ci
+
+      - name: Validate OpenAPI contract
+        run: npm run lint:openapi
+
+      - name: Scan frontend dependencies for known vulnerabilities
+        run: npm audit --audit-level=high
+
+      - name: Lint frontend workspace
+        run: npm run lint:web
+
+      - name: Run frontend unit tests
+        run: npm --workspace apps/web run test:run -- --reporter=default --reporter=junit --outputFile=TestResults/web/vitest-junit.xml
+
+      - name: Build frontend workspace
+        run: npm run build:web
+
+      - name: Upload frontend test results
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: frontend-test-results
+          path: apps/web/TestResults/web
+
+  real-stack-critical-uat:
+    name: Real-stack report RBAC
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17@sha256:a63c1ea3f6a3a5a1621f97d2aba3b30faecfab4224c1b0000cc85ced57bb1939
+        env:
+          POSTGRES_DB: gccs
+          POSTGRES_USER: gccs
+          POSTGRES_PASSWORD: gccs_dev_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U gccs -d gccs"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+      azurite:
+        image: mcr.microsoft.com/azure-storage/azurite:3.35.0@sha256:647c63a91102a9d8e8000aab803436e1fc85fbb285e7ce830a82ee5d6661cf37
+        env:
+          AZURITE_ACCOUNTS: "gccs:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+        ports:
+          - 10000:10000
+        options: >-
+          --health-cmd "node -e \"require('net').connect(10000,'127.0.0.1').on('connect',function(){this.end();process.exit(0)}).on('error',()=>process.exit(1))\""
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+      clamav:
+        image: clamav/clamav-debian:stable@sha256:d7ede3cefeaf3b8a72ebcdee849d13f504bbca3f3b3cfade5bc7b6ee06a4f62c
+        ports:
+          - 3310:3310
+        options: >-
+          --health-cmd "clamdscan --version"
+          --health-interval 30s
+          --health-timeout 10s
+          --health-retries 20
+    env:
+      ASPNETCORE_ENVIRONMENT: Development
+      DOTNET_ENVIRONMENT: Development
+      # Every test host shares this fixture DB; none may consume another test's pending cleanup.
+      ObjectCleanupProcessing__Enabled: "false"
+      ConnectionStrings__GccsDatabase: Host=127.0.0.1;Port=5432;Database=gccs;Username=gccs;Password=gccs_dev_password
+      ConnectionStrings__AzureStorage: DefaultEndpointsProtocol=http;AccountName=gccs;AccountKey=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==;BlobEndpoint=http://127.0.0.1:10000/gccs;
+      GCCS_DATABASE: Host=127.0.0.1;Port=5432;Database=gccs;Username=gccs;Password=gccs_dev_password
+      GCCS_TEST_POSTGRES_CONNECTION: Host=127.0.0.1;Port=5432;Database=gccs;Username=gccs;Password=gccs_dev_password
+      MalwareScanning__Host: 127.0.0.1
+      MalwareScanning__Port: 3310
+      PLAYWRIGHT_SKIP_BROWSER_GC: "1"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: "24.22.1"
+          cache: npm
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+
+      - name: Restore dependencies
+        run: |
+          npm ci
+          dotnet restore Gccs.slnx
+          dotnet tool restore
+
+      - name: Install Playwright Chromium
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/fedril-playwright-${{ github.run_id }}-${{ github.run_attempt }}-real-stack
+        timeout-minutes: 20
+        run: |
+          if [[ -e "$PLAYWRIGHT_BROWSERS_PATH" || -L "$PLAYWRIGHT_BROWSERS_PATH" ]]; then
+            echo "::error::Run-specific Playwright browser destination already exists; preserving it."
+            exit 1
+          fi
+          mkdir -- "$PLAYWRIGHT_BROWSERS_PATH"
+
+          mapfile -t google_chrome_sources < <(sudo grep -RIlF "dl.google.com/linux/chrome-stable" /etc/apt/sources.list.d || true)
+          for google_chrome_source in "${google_chrome_sources[@]}"; do
+            if [[ ! -f "$google_chrome_source" || -L "$google_chrome_source" || "$(realpath -- "$google_chrome_source")" != /etc/apt/sources.list.d/* ]]; then
+              echo "::error::APT source is not a regular non-symlink beneath the approved directory."
+              exit 1
+            fi
+            printf 'Selected APT source: %s -> %s\n' "$google_chrome_source" "${google_chrome_source}.disabled"
+            if [[ -e "${google_chrome_source}.disabled" || -L "${google_chrome_source}.disabled" ]]; then
+              echo "::error::APT source destination already exists; preserving source and destination."
+              exit 1
+            fi
+          done
+          for google_chrome_source in "${google_chrome_sources[@]}"; do
+            sudo mv --no-clobber -- "$google_chrome_source" "${google_chrome_source}.disabled"
+            if [[ -e "$google_chrome_source" || -L "$google_chrome_source" ]]; then
+              echo "::error::APT source was not moved; stopping without overwriting destination."
+              exit 1
+            fi
+          done
+
+          for attempt in 1 2 3; do
+            if npx playwright install --with-deps chromium; then
+              exit 0
+            fi
+
+            if [ "$attempt" -eq 3 ]; then
+              echo "::error::Playwright Chromium installation failed after $attempt attempts."
+              exit 1
+            fi
+
+            delay=$((attempt * 30))
+            echo "::warning::Playwright Chromium installation failed on attempt $attempt; retrying in ${delay}s."
+            sleep "$delay"
+          done
+
+      - name: Build API
+        run: dotnet build apps/api/Gccs.Api.csproj --no-restore --configuration Release
+
+      - name: Apply database migrations
+        run: >
+          dotnet tool run dotnet-ef database update
+          --project src/Gccs.Infrastructure/Gccs.Infrastructure.csproj
+          --startup-project apps/api/Gccs.Api.csproj
+          --context GccsDbContext
+
+      - name: Verify report, SPRS calculation, and audit transaction rollback
+        run: >
+          dotnet test tests/Gccs.Api.Tests/Gccs.Api.Tests.csproj
+          --no-restore
+          --filter "FullyQualifiedName~ReportPostgresTransactionTests|FullyQualifiedName~ContractExtractionPostgresTransactionTests|FullyQualifiedName~AiOutputPostgresTests|FullyQualifiedName~FedRampPersistenceTests|FullyQualifiedName~LaborApplicabilityWageDeterminationTests|FullyQualifiedName~LaborApplicabilityRealStackTests|FullyQualifiedName~DemoRequestRetentionPostgresTests"
+
+      - name: Run real-stack report authorization tests
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/fedril-playwright-${{ github.run_id }}-${{ github.run_attempt }}-real-stack
+        run: npm run test:e2e:real
+
+      - name: Upload real-stack browser artifacts
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: real-stack-critical-uat
+          path: output/playwright
+
+  secret-scan:
+    name: Secret scan
+    needs: protected-admission
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      checks: read
+      actions: read
+    steps:
+      - name: Setup Node.js for trusted pre-checkout admission
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: "24.22.1"
+
+      - name: Authenticate exact current-attempt protected admission
+        id: protected_admission
+        timeout-minutes: 10
+        working-directory: ${{ github.workspace }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FEDRIL_MODE: ci
+          FEDRIL_COMPARISON_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before || '0000000000000000000000000000000000000000' }}
+          FEDRIL_PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || '' }}
+          FEDRIL_EVENT_DELETED: ${{ github.event.deleted || false }}
+          FEDRIL_WORKFLOW_SHA: ${{ github.workflow_sha }}
+          FEDRIL_WORKFLOW_REF: ${{ github.workflow_ref }}
+          FEDRIL_ADMISSION_CHECK_ID: ${{ needs.protected-admission.outputs.check_run_id }}
+          PROTECTED_ASSERTIONS_APP_ID: ${{ vars.PROTECTED_ASSERTIONS_APP_ID }}
+        run: |
+          node --input-type=module <<'FEDRIL_BOOTSTRAP'
+          import { createHash } from 'node:crypto';
+          
+          export const CHECK_NAME = 'FeDril protected historical assertions (129)';
+          export const EXPECTED_HELPERS = Object.freeze([
+            'tools/release/protected/admission.mjs', 'tools/release/protected/runner.mjs',
+            'tools/release/protected/ci-runner.mjs',
+            'tools/release/protected/inline-bootstrap.mjs',
+            'tools/release/protected/native-checkout.mjs', 'tools/release/protected/composition.mjs',
+            'tools/release/protected/workflow-bootstrap-binding.mjs', 'tools/release/protected/finite-canonical-transport.mjs',
+            'tools/release/protected/native-canonical-transport.mjs', 'tools/release/protected/migration-source-snapshots.mjs',
+            'tools/release/protected/migration-source-snapshots-cli.mjs', 'tools/release/protected/release-control.mjs',
+            'tools/release/check-api-package.py', 'tools/release/release-control.mjs', 'tools/release/release-evidence.mjs',
+            'tools/release/validate-auth-config.mjs', 'tools/release/check-azure-settings.mjs', 'tools/release/check-cleanup-quiescence.mjs',
+          ]);
+          export const hash = bytes => createHash('sha256').update(bytes).digest('hex');
+          const sha = value => typeof value === 'string' && /^[a-f0-9]{40}$/.test(value);
+          const digest = value => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
+          const positive = value => typeof value === 'string' && /^[1-9][0-9]{0,19}$/.test(value);
+          const reject = () => { throw new Error('protected_admission_rejected'); };
+          const require = condition => { if (!condition) reject(); };
+          function keys(value, expected) {
+            require(value && typeof value === 'object' && !Array.isArray(value) &&
+              Object.keys(value).sort().join('\0') === [...expected].sort().join('\0'));
+          }
+          const freeze = value => {
+            if (value && typeof value === 'object') { for (const nested of Object.values(value)) freeze(nested); Object.freeze(value); }
+            return value;
+          };
+          
+          export function decodeAuthority(value, cap) {
+            require(typeof value === 'string' && value.length <= Math.ceil(cap / 3) * 4);
+            const bytes = Buffer.from(value, 'base64');
+            require(bytes.length > 0 && bytes.length <= cap && bytes.toString('base64') === value);
+            return bytes;
+          }
+          
+          export function validateContext(context) {
+            keys(context, ['repository', 'appId', 'mode', 'workflowSha', 'candidateSha', 'candidateTreeSha', 'candidateTag',
+              'stagingWorkflowSha', 'runId', 'runAttempt', 'event', 'ref', 'workflowRef', 'comparisonBaseSha', 'prHeadSha']);
+            require(typeof context.repository === 'string' && /^[A-Za-z0-9][A-Za-z0-9-]*\/[A-Za-z0-9][A-Za-z0-9._-]*$/.test(context.repository));
+            require(positive(context.appId) && positive(context.runId) && positive(context.runAttempt) &&
+              sha(context.workflowSha) && sha(context.candidateSha) && sha(context.candidateTreeSha) && context.candidateSha !== '0'.repeat(40));
+            require(['ci', 'staging', 'production'].includes(context.mode));
+            require(context.candidateTag === null || (typeof context.candidateTag === 'string' &&
+              /^v(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)-rc\.[1-9][0-9]*$/.test(context.candidateTag)));
+            require(context.stagingWorkflowSha === null || sha(context.stagingWorkflowSha));
+            const path = context.mode === 'ci' ? '.github/workflows/ci.yml' : context.mode === 'staging' ?
+              '.github/workflows/staging.yml' : '.github/workflows/production-release.yml';
+            require(context.workflowRef === `${context.repository}/${path}@${context.ref}`);
+            if (context.mode === 'ci') {
+              require(['push', 'pull_request', 'workflow_dispatch'].includes(context.event) && context.candidateTag === null &&
+                context.stagingWorkflowSha === null && typeof context.ref === 'string');
+              require(context.event === 'pull_request' ? /^refs\/pull\/[1-9][0-9]*\/merge$/.test(context.ref) :
+                /^refs\/heads\/[A-Za-z0-9_./-]+$/.test(context.ref));
+              require(sha(context.comparisonBaseSha) && (context.event === 'pull_request' ?
+                sha(context.prHeadSha) && context.prHeadSha !== '0'.repeat(40) && context.comparisonBaseSha !== '0'.repeat(40) : context.prHeadSha === null));
+            } else {
+              require(context.comparisonBaseSha === null && context.prHeadSha === null);
+              require(context.event === 'workflow_dispatch' && context.ref === 'refs/heads/release-main');
+              if (context.mode === 'production') require(sha(context.stagingWorkflowSha) && context.candidateTag !== null);
+            }
+            return true;
+          }
+          
+          export function requireAdmission(checks, context) {
+            try {
+              validateContext(context);
+              require(Array.isArray(checks) && checks.length <= 1000);
+              const details = `https://github.com/${context.repository}/actions/runs/${context.runId}/attempts/${context.runAttempt}`;
+              const matches = checks.filter(check => check && check.name === CHECK_NAME && check.head_sha === context.candidateSha &&
+                Number.isSafeInteger(check.app?.id) && String(check.app.id) === context.appId && check.details_url === details);
+              require(matches.length === 1);
+              const check = matches[0];
+              require(Number.isSafeInteger(check.id) && check.id > 0 && check.status === 'completed' && check.conclusion === 'success' &&
+                typeof check.external_id === 'string' && /^fedril-historical129:[a-f0-9]{64}$/.test(check.external_id));
+              const text = check.output?.text;
+              require(typeof text === 'string' && Buffer.byteLength(text, 'utf8') <= 60000);
+              const carrier = JSON.parse(text);
+              keys(carrier, ['schemaVersion', 'purpose', 'repository', 'runId', 'runAttempt', 'mode', 'workflowSha', 'candidate',
+                'bindingSha256', 'bootstrapPolicyBase64', 'canonicalAuthorityBase64', 'helperSha256', 'baselineSnapshot']);
+              require(carrier.schemaVersion === 1 && carrier.purpose === 'fedril-workflow-admission-v1' &&
+                ['repository', 'runId', 'runAttempt', 'mode', 'workflowSha'].every(key => carrier[key] === context[key]) &&
+                digest(carrier.bindingSha256) && check.external_id === 'fedril-historical129:' + carrier.bindingSha256);
+              keys(carrier.candidate, ['sha', 'treeSha', 'tag', 'stagingWorkflowSha']);
+              require(carrier.candidate.sha === context.candidateSha && carrier.candidate.treeSha === context.candidateTreeSha &&
+                carrier.candidate.tag === context.candidateTag && carrier.candidate.stagingWorkflowSha === context.stagingWorkflowSha);
+              if (context.mode === 'ci') {
+                keys(carrier.helperSha256, EXPECTED_HELPERS);
+                require(Object.values(carrier.helperSha256).every(digest));
+                require(carrier.bootstrapPolicyBase64 === null && carrier.baselineSnapshot === null);
+                const authority = JSON.parse(decodeAuthority(carrier.canonicalAuthorityBase64, 1024 * 1024).toString('utf8'));
+                require(authority.schemaVersion === 2 && authority.purpose === 'classified-ci-history' &&
+                  authority.repository === context.repository && authority.workflowSha === context.workflowSha && authority.tipSha === context.candidateSha &&
+                  authority.sourceRef === context.ref && authority.comparisonBaseSha === context.comparisonBaseSha && authority.prHeadSha === context.prHeadSha);
+              } else {
+                keys(carrier.helperSha256, EXPECTED_HELPERS);
+                require(Object.values(carrier.helperSha256).every(digest));
+                keys(carrier.baselineSnapshot, ['path', 'sha256']);
+                require(carrier.baselineSnapshot.path === 'release/migration-baseline.snapshot.json' && digest(carrier.baselineSnapshot.sha256));
+                decodeAuthority(carrier.bootstrapPolicyBase64, 16384);
+                decodeAuthority(carrier.canonicalAuthorityBase64, 1024 * 1024);
+              }
+              return freeze({ carrier, checkRunId: check.id, detailsUrl: details, releaseAuthorized: false });
+            } catch { reject(); }
+          }
+          
+          export function currentAdmissionTargets(checks, context) {
+            const details = `https://github.com/${context.repository}/actions/runs/${context.runId}/attempts/${context.runAttempt}`;
+            return checks.filter(check => check && check.name === CHECK_NAME && check.head_sha === context.candidateSha &&
+              Number.isSafeInteger(check.app?.id) && String(check.app.id) === context.appId && check.details_url === details);
+          }
+          
+          const admission = { CHECK_NAME, EXPECTED_HELPERS, hash, decodeAuthority, validateContext, requireAdmission, currentAdmissionTargets };
+          import { mkdir, writeFile, appendFile } from 'node:fs/promises';
+          import { dirname, join } from 'node:path';
+          import { setTimeout as delay } from 'node:timers/promises';
+          
+          const fixedFailure = () => { throw new Error('protected_bootstrap_held_reconcile_no_retry'); };
+          const sha40 = value => typeof value === 'string' && /^[a-f0-9]{40}$/.test(value);
+          const repoName = value => typeof value === 'string' && /^[A-Za-z0-9][A-Za-z0-9-]*\/[A-Za-z0-9][A-Za-z0-9._-]*$/.test(value);
+          
+          export async function readResponse(response, cap) {
+            if (response.status !== 200 || !response.body) fixedFailure();
+            const chunks = []; let length = 0;
+            for await (const chunk of response.body) {
+              length += chunk.length; if (length > cap) fixedFailure(); chunks.push(Buffer.from(chunk));
+            }
+            return Buffer.concat(chunks);
+          }
+          
+          export async function providerJson(repository, suffix, token, fetchImpl = fetch) {
+            if (!repoName(repository) || typeof suffix !== 'string' || !suffix.startsWith('/') || /[\r\n#]/.test(suffix) ||
+                typeof token !== 'string' || !token || /[\r\n]/.test(token)) fixedFailure();
+            try {
+              const response = await fetchImpl(`https://api.github.com/repos/${repository}${suffix}`, { redirect: 'error',
+                signal: AbortSignal.timeout(30000), headers: { Accept: 'application/vnd.github+json', Authorization: `Bearer ${token}`,
+                  'X-GitHub-Api-Version': '2026-03-10', 'User-Agent': 'FeDril-protected-admission-reader' } });
+              return JSON.parse((await readResponse(response, 8 * 1024 * 1024)).toString('utf8'));
+            } catch { fixedFailure(); }
+          }
+          
+          export async function rawBytes(repository, workflowSha, path, cap, fetchImpl = fetch) {
+            if (!repoName(repository) || !sha40(workflowSha) || typeof path !== 'string' ||
+                !/^[A-Za-z0-9_.\/-]+$/.test(path) || path.split('/').some(part => !part || ['.', '..'].includes(part))) fixedFailure();
+            try {
+              return await readResponse(await fetchImpl(`https://raw.githubusercontent.com/${repository}/${workflowSha}/${path}`,
+                { redirect: 'error', signal: AbortSignal.timeout(30000), headers: { 'User-Agent': 'FeDril-protected-admission-reader' } }), cap);
+            } catch { fixedFailure(); }
+          }
+          
+          export async function readAllChecks(context, read = providerJson, token) {
+            context = Object.freeze({ ...context });
+            admission.validateContext(context);
+            const all = [], ids = new Set(); let expected;
+            for (let page = 1; page <= 10; page++) {
+              const result = await read(context.repository, `/commits/${context.candidateSha}/check-runs?filter=all&per_page=100&app_id=${context.appId}&check_name=${encodeURIComponent(admission.CHECK_NAME)}&page=${page}`, token);
+              if (!Number.isSafeInteger(result.total_count) || result.total_count < 0 || result.total_count > 1000 ||
+                  !Array.isArray(result.check_runs) || result.check_runs.length > 100 || (expected !== undefined && expected !== result.total_count)) fixedFailure();
+              expected = result.total_count;
+              for (const check of result.check_runs) {
+                if (!Number.isSafeInteger(check?.id) || check.id <= 0 || ids.has(check.id)) fixedFailure();
+                ids.add(check.id); all.push(check);
+              }
+              if (all.length === expected) return all;
+              if (all.length > expected || result.check_runs.length !== 100) fixedFailure();
+            }
+            fixedFailure();
+          }
+          
+          export async function waitForAdmission(context, read = providerJson, token, pause = delay) {
+            context = Object.freeze({ ...context });
+            admission.validateContext(context);
+            for (let attempt = 0; attempt < 20; attempt++) {
+              const checks = await readAllChecks(context, read, token);
+              if (admission.currentAdmissionTargets(checks, context).length) return admission.requireAdmission(checks, context);
+              if (attempt < 19) await pause(15000);
+            }
+            fixedFailure();
+          }
+          
+          export async function reconcileExactAdmission(context, checkRunId, read = providerJson, token) {
+            context = Object.freeze({ ...context });
+            const identity = Number(checkRunId);
+            if (!Number.isSafeInteger(identity) || identity <= 0 || String(identity) !== String(checkRunId)) fixedFailure();
+            const selected = admission.requireAdmission(await readAllChecks(context, read, token), context);
+            if (selected.checkRunId !== identity) fixedFailure();
+            const exact = admission.requireAdmission([await read(context.repository, "/check-runs/" + identity, token)], context);
+            if (exact.checkRunId !== identity || JSON.stringify(exact.carrier) !== JSON.stringify(selected.carrier)) fixedFailure();
+            return selected;
+          }
+          
+          export async function bootstrapFromEnvironment(env, { read = providerJson, raw = rawBytes, wait = waitForAdmission,
+              makeDirectory = mkdir, put = writeFile, append = appendFile } = {}) {
+            try {
+              env = Object.freeze(Object.fromEntries(['GITHUB_REPOSITORY', 'GITHUB_REPOSITORY_ID', 'GITHUB_SHA', 'GITHUB_EVENT_NAME',
+                'GITHUB_REF', 'GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT', 'FEDRIL_WORKFLOW_SHA', 'FEDRIL_WORKFLOW_REF', 'FEDRIL_MODE',
+                'PROTECTED_ASSERTIONS_APP_ID', 'CANDIDATE_TAG', 'GH_TOKEN', 'RUNNER_TEMP', 'GITHUB_ENV', 'FEDRIL_COMPARISON_BASE_SHA',
+                'FEDRIL_PR_HEAD_SHA', 'FEDRIL_EVENT_DELETED', 'FEDRIL_ADMISSION_CHECK_ID'].map(key => [key, env[key]])));
+              const repository = env.GITHUB_REPOSITORY, workflowSha = env.FEDRIL_WORKFLOW_SHA, mode = env.FEDRIL_MODE;
+              if (!repoName(repository) || !sha40(workflowSha) || !['ci', 'staging', 'production'].includes(mode)) fixedFailure();
+              const token = env.GH_TOKEN;
+              if (env.FEDRIL_ADMISSION_CHECK_ID && !/^[1-9][0-9]{0,19}$/.test(env.FEDRIL_ADMISSION_CHECK_ID)) fixedFailure();
+              let candidateSha, candidateTag = null, stagingWorkflowSha = null, approvedManifest = null, approvedManifestBytes = null, stagingRun = null;
+              if (mode === 'ci') {
+                candidateSha = env.GITHUB_SHA;
+                if (candidateSha === '0'.repeat(40) || env.FEDRIL_EVENT_DELETED === 'true' ||
+                    !['push', 'pull_request', 'workflow_dispatch'].includes(env.GITHUB_EVENT_NAME) ||
+                    !sha40(env.FEDRIL_COMPARISON_BASE_SHA || '0'.repeat(40)) ||
+                    (env.GITHUB_EVENT_NAME === 'pull_request' && (!sha40(env.FEDRIL_PR_HEAD_SHA) || !env.FEDRIL_COMPARISON_BASE_SHA || env.FEDRIL_COMPARISON_BASE_SHA === '0'.repeat(40))) ||
+                    (env.GITHUB_EVENT_NAME === 'pull_request' && !/^refs\/pull\/[1-9][0-9]*\/merge$/.test(env.GITHUB_REF))) fixedFailure();
+              } else if (mode === 'staging') {
+                candidateTag = env.CANDIDATE_TAG || null;
+                if (candidateTag) {
+                  if (!/^v(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)-rc\.[1-9][0-9]*$/.test(candidateTag)) fixedFailure();
+                  const ref = await read(repository, `/git/ref/tags/${candidateTag}`, token);
+                  if (ref.object?.type !== 'commit') fixedFailure(); candidateSha = ref.object.sha;
+                } else candidateSha = workflowSha;
+                approvedManifestBytes = await raw(repository, workflowSha, 'docs/release/approved-release.json', 1024 * 1024);
+                approvedManifest = JSON.parse(approvedManifestBytes.toString('utf8'));
+              } else {
+                approvedManifestBytes = await raw(repository, workflowSha, 'docs/release/approved-release.json', 1024 * 1024);
+                approvedManifest = JSON.parse(approvedManifestBytes.toString('utf8'));
+                candidateSha = approvedManifest.commitSha; candidateTag = approvedManifest.candidateTag;
+                const runId = approvedManifest.staging?.runId;
+                if (!Number.isSafeInteger(runId) || runId <= 0) fixedFailure();
+                stagingRun = await read(repository, `/actions/runs/${runId}`, token);
+                if (stagingRun.id !== runId || stagingRun.repository?.full_name !== repository ||
+                    String(stagingRun.repository?.id) !== env.GITHUB_REPOSITORY_ID || stagingRun.path !== '.github/workflows/staging.yml' ||
+                    stagingRun.event !== 'workflow_dispatch' || stagingRun.head_branch !== 'release-main' ||
+                    stagingRun.status !== 'completed' || stagingRun.conclusion !== 'success' || !sha40(stagingRun.head_sha)) fixedFailure();
+                stagingWorkflowSha = stagingRun.head_sha;
+              }
+              if (!sha40(candidateSha)) fixedFailure();
+              const commit = await read(repository, `/commits/${candidateSha}`, token);
+              if (commit.sha !== candidateSha || !sha40(commit.commit?.tree?.sha)) fixedFailure();
+              const context = { repository, appId: env.PROTECTED_ASSERTIONS_APP_ID, mode, workflowSha,
+                candidateSha, candidateTreeSha: commit.commit.tree.sha, candidateTag, stagingWorkflowSha,
+                runId: env.GITHUB_RUN_ID, runAttempt: env.GITHUB_RUN_ATTEMPT, event: env.GITHUB_EVENT_NAME,
+                ref: env.GITHUB_REF, workflowRef: env.FEDRIL_WORKFLOW_REF,
+                comparisonBaseSha: mode === 'ci' ? env.FEDRIL_COMPARISON_BASE_SHA || '0'.repeat(40) : null,
+                prHeadSha: mode === 'ci' ? env.FEDRIL_PR_HEAD_SHA || null : null };
+              admission.validateContext(context);
+              const selected = env.FEDRIL_ADMISSION_CHECK_ID ?
+                await reconcileExactAdmission(context, env.FEDRIL_ADMISSION_CHECK_ID, read, token) : await wait(context, read, token);
+              const root = join(env.RUNNER_TEMP, `fedril-trusted-${context.runId}-${context.runAttempt}`);
+              await makeDirectory(root, { mode: 0o700 });
+              const document = { context, carrier: selected.carrier, checkRunId: selected.checkRunId,
+                sourceSha: env.GITHUB_SHA, repositoryId: env.GITHUB_REPOSITORY_ID, approvedManifest, stagingRun };
+              await put(join(root, 'admission-context.json'), JSON.stringify(document), { flag: 'wx', mode: 0o600 });
+              {
+                for (const path of admission.EXPECTED_HELPERS) {
+                  const bytes = await raw(repository, workflowSha, path, 1024 * 1024);
+                  if (admission.hash(bytes) !== selected.carrier.helperSha256[path]) fixedFailure();
+                  const destination = join(root, path);
+                  await makeDirectory(dirname(destination), { recursive: true, mode: 0o700 });
+                  await put(destination, bytes, { flag: 'wx', mode: 0o600 });
+                }
+                if (mode !== 'ci') {
+                  const baseline = selected.carrier.baselineSnapshot;
+                  const bytes = await raw(repository, workflowSha, baseline.path, 64 * 1024 * 1024);
+                  if (admission.hash(bytes) !== baseline.sha256) fixedFailure();
+                  await put(join(root, 'baseline.snapshot.json'), bytes, { flag: 'wx', mode: 0o600 });
+                  await put(join(root, 'approved-release.json'), approvedManifestBytes, { flag: 'wx', mode: 0o600 });
+                  if (stagingRun) await put(join(root, 'approved-staging-run.json'), JSON.stringify(stagingRun), { flag: 'wx', mode: 0o600 });
+                }
+              }
+              await append(env.GITHUB_ENV, `FEDRIL_TRUSTED_ROOT=${root}\nFEDRIL_ADMITTED_SHA=${candidateSha}\n`);
+              return { trustedRoot: root, candidateSha, workflowSha, checkRunId: selected.checkRunId, releaseAuthorized: false };
+            } catch { fixedFailure(); }
+          }
+          
+          const admissionResult = await bootstrapFromEnvironment(process.env);
+          await appendFile(process.env.GITHUB_OUTPUT, 'tested_sha=' + admissionResult.candidateSha + '\ncheck_run_id=' + admissionResult.checkRunId + '\n');
+          FEDRIL_BOOTSTRAP
+      - name: Materialize complete classified CI history into the empty job workspace
+        timeout-minutes: 10
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node "$FEDRIL_TRUSTED_ROOT/tools/release/protected/ci-runner.mjs" prepare "$FEDRIL_TRUSTED_ROOT/admission-context.json"
+
+      - name: Test repository artifact policy
+        run: node --test tools/security/check-sensitive-artifacts.test.mjs
+
+      - name: Reject introduced database artifacts
+        env:
+          SENSITIVE_ARTIFACT_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before || '0000000000000000000000000000000000000000' }}
+        run: node tools/security/check-sensitive-artifacts.mjs --changed-since "$SENSITIVE_ARTIFACT_BASE_SHA"
+
+      - name: Scan repository for committed secrets
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+          GITLEAKS_VERSION: "8.24.3"
+
+
+      - name: Scan the complete classified tip history including root and merge diffs
+        env:
+          CI_TESTED_SHA: ${{ needs.protected-admission.outputs.tested_sha }}
+        run: |
+          set -euo pipefail
+          set -o noclobber
+          test "$(git --no-replace-objects rev-parse HEAD)" = "$CI_TESTED_SHA"
+          scanner_path="$(command -v gitleaks)"
+          test -n "$scanner_path"
+          metadata="$RUNNER_TEMP/fedril-gitleaks-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT.txt"
+          gitleaks version > "$metadata"
+          sha256sum "$scanner_path" >> "$metadata"
+          gitleaks git --redact --exit-code=2 --report-format=sarif --report-path "$RUNNER_TEMP/fedril-full-history-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT.sarif" --log-opts="--full-history -m $CI_TESTED_SHA"

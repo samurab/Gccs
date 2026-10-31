@@ -1,0 +1,25 @@
+{
+  "documentId": "approved-non-cui-flowdown-003",
+  "expectedClauses": [
+    {
+      "citation": "DFARS 252.204-7012",
+      "title": "Safeguarding Covered Defense Information and Cyber Incident Reporting",
+      "flowDownRequired": true,
+      "sourceLocation": {
+        "lineStart": 4,
+        "lineEnd": 4,
+        "textAnchor": "DFARS 252.204-7012"
+      }
+    },
+    {
+      "citation": "FAR 52.204-21",
+      "title": "Basic Safeguarding of Covered Contractor Information Systems",
+      "flowDownRequired": true,
+      "sourceLocation": {
+        "lineStart": 6,
+        "lineEnd": 6,
+        "textAnchor": "FAR 52.204-21"
+      }
+    }
+  ]
+}

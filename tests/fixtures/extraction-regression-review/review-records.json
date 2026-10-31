@@ -1,0 +1,67 @@
+{
+  "schemaVersion": "1.0",
+  "sourceEvaluation": "tests/fixtures/extraction-corpus",
+  "records": [
+    {
+      "id": "err-2026-06-18-001",
+      "documentId": "synthetic-dod-safeguarding-001",
+      "failureType": "missed_clause",
+      "citation": "FAR 52.204-21",
+      "classification": "matcher",
+      "owner": "Compliance Content Owner",
+      "status": "in_progress",
+      "resolutionNote": "Tune citation window matching for repeated safeguarding references.",
+      "followUpTask": {
+        "taskId": "EXT-MATCHER-001",
+        "title": "Improve repeated FAR citation matching",
+        "status": "open"
+      },
+      "resolutionLinks": [],
+      "auditTrail": [
+        {
+          "action": "created",
+          "actor": "QA Owner",
+          "at": "2026-06-18T12:00:00Z"
+        },
+        {
+          "action": "classified",
+          "actor": "Compliance Content Owner",
+          "at": "2026-06-18T12:30:00Z"
+        }
+      ]
+    },
+    {
+      "id": "err-2026-06-18-002",
+      "documentId": "public-far-labor-002",
+      "failureType": "false_positive",
+      "citation": "FAR 52.204-99",
+      "classification": "label",
+      "owner": "QA Owner",
+      "status": "resolved",
+      "resolutionNote": "Corrected synthetic label fixture and confirmed the matcher output was expected.",
+      "followUpTask": {
+        "taskId": "EXT-LABEL-002",
+        "title": "Correct public FAR labor label fixture",
+        "status": "done"
+      },
+      "resolutionLinks": [
+        {
+          "type": "label",
+          "reference": "tests/fixtures/extraction-corpus/labels/public-far-labor-002.labels.json"
+        }
+      ],
+      "auditTrail": [
+        {
+          "action": "created",
+          "actor": "QA Owner",
+          "at": "2026-06-18T13:00:00Z"
+        },
+        {
+          "action": "resolved",
+          "actor": "QA Owner",
+          "at": "2026-06-18T14:00:00Z"
+        }
+      ]
+    }
+  ]
+}

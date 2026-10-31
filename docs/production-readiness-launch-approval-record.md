@@ -1,0 +1,474 @@
+> **Sanitized review draft — not adopted or approved for publication.**
+> Derived from `docs/production-readiness-launch-approval-record.md`, original SHA-256 `2954ba1dd6547daced16cddfdef407cd95cee60b07533ed3ccb6ad0edef2be05`. Redactions make this neither a verbatim historical evidence record nor an executable runbook. Reserved-example placeholders are not actual targets or fresh operating evidence. Original dates, candidate identities, approvals, restrictions, self-review limits and unverified scope remain effective. Automated category redactions and targeted review do not prove complete confidentiality or claim clearance.
+
+# Production Readiness Launch Approval Record
+
+Story: PR-6.1 - Collect Required Launch Approvals.
+
+Record status: approved for solo-controlled pilot launch-candidate tagging and project completion, with demo and clause workflow reapproval recorded on 2026-08-18.
+
+Record date: 2026-07-03.
+
+Latest candidate-specific reapproval date: 2026-09-13.
+
+Record owner: Product owner.
+
+This artifact is the controlling PR-6.1 approval record for the No-CUI / compliance management only MVP launch candidate inside the solo-controlled pilot project. It is a release-control artifact, not legal advice, certification evidence, government endorsement, production separation-of-duties approval, broader customer launch approval, or authorization to accept real CUI.
+
+Approval posture addendum: `docs/production-readiness-approval-posture-addendum.md`.
+
+## Approval Gate
+
+Launch candidate tagging is allowed only for solo-controlled pilot testing and project completion while every required approver row below is marked approved with approval date, named approver, scope, limitations, unresolved exceptions, and evidence reviewed.
+
+Missing, pending, or incomplete approval metadata blocks PR-6.2 launch candidate tagging. Approval cannot expand the MVP beyond the No-CUI posture or permit storage, upload, processing, support handling, reporting, extraction, or export of real customer CUI. These rows do not replace production separation of duties and do not authorize broader customer launch.
+
+## Solo-Controlled Pilot Approval Clarification
+
+The user approved the rows below as the accountable solo-controlled pilot approver for the constrained pilot and its governance exercise. With an explicit candidate-specific approval, this scope includes deployment to the protected production environment for solo-controlled No-CUI pilot verification using synthetic, redacted, or non-sensitive data only. It remains invalid for broader customer production use.
+
+This approval does not replace production separation of duties, does not authorize broader customer launch, does not authorize CUI processing, and does not weaken future production approval requirements.
+
+## FeDril Branding Candidate Reapproval - 2026-07-31
+
+The repository owner and deployment operator, `historical-management-actor-1`, explicitly approved the merged FeDril branding candidate as a **solo-controlled No-CUI pilot production deployment only**. Under the controlling approval posture addendum, this is a combined-role pilot approval covering product, engineering, security, compliance content, customer success/support, and legal-or-contracting scope for this constrained deployment.
+
+This approval is not independent legal, security, compliance, or separation-of-duties review. It does not authorize broader customer launch, real CUI processing, classified or export-controlled data, sensitive government-furnished information, unsupported certification or government-endorsement claims, or publication of withheld high-risk compliance content.
+
+| Approval metadata | Recorded value |
+| --- | --- |
+| Approver | Repository owner and deployment operator `historical-management-actor-1`, acting as the accountable combined-role solo-controlled pilot approver |
+| Approval date | 2026-07-31 |
+| Candidate | `launch-candidate-2026-07-31-1` at `1af3296b9b92ae650087dd5ce15471b98354b787` |
+| Scope | Full 57-path delta from `launch-candidate-2026-07-29-1`: PR #21 release-control synchronization; PR #22 repository-only governance, marketing, OpenAPI, test, and monitoring artifacts; and PR #23 FeDril presentation-boundary branding in UI, notifications, fresh synthetic demo seed data, and controlled sales/demo artifacts. Internal identifiers remain unchanged. |
+| Evidence reviewed in the release task | Commit inventory for PRs #21-#23; exact-candidate main CI run `30642453749`; main staging run `30642453797`; Static Web Apps run `30642453771`; live staging `/health`; No-CUI dependency signals; live FeDril landing-page title; and confirmation that the candidate delta contains no EF Core migration file changes |
+| Final gate evidence | Main CI run `30642453749` completed successfully for the exact candidate SHA before tag creation |
+| Unresolved limitations | Existing persisted demo-seed rows are not rewritten; internal planning/source documents may retain GCCS and are not approved external demo assets; `DOD-GAP-001` remains a broader-launch evidence gap |
+| Approval limitation | Solo-controlled No-CUI pilot production deployment only; no broader customer launch or independent professional approval is claimed |
+
+The approval is invalid if the candidate SHA changes, main CI fails, staging evidence regresses, the No-CUI posture changes, or release-facing claims expand beyond the reviewed candidate scope.
+
+## FeDril Demo-Video Candidate Reapproval - 2026-08-02
+
+The repository owner and deployment operator, `historical-management-actor-1`, accepted the rendered FeDril videos in the review thread and then explicitly instructed Codex to apply the documented release solution and deploy. This records combined-role approval for `launch-candidate-2026-08-02-1` within the existing solo-controlled No-CUI pilot production scope.
+
+This approval relies on the repository owner's direct creative review; it is not independent narration, accessibility, legal, security, compliance, or separation-of-duties review. It does not authorize broader customer launch, real CUI processing, classified or export-controlled data, sensitive government-furnished information, unsupported compliance claims, or publication of withheld high-risk compliance content.
+
+| Approval metadata | Recorded value |
+| --- | --- |
+| Approver | Repository owner and deployment operator `historical-management-actor-1`, acting as the accountable combined-role solo-controlled pilot approver |
+| Approval date | 2026-08-02 |
+| Candidate | `launch-candidate-2026-08-02-1` at `85fb7a7c2d9fcfbaf5aef5abbbaed019032bbd94` |
+| Scope | PR #26 FeDril demo-video pipeline and public integration: deterministic fictional demo workflow, generated narration, captions, three rendered campaign videos, landing-page and `/demo` embeds, mobile media source, and related focused backend/frontend fixes and tests. Internal namespaces and service identifiers remain unchanged. |
+| Exact-candidate automated evidence | Main CI run `30757029213`; staging deployment run `30757029225`; Static Web Apps run `30757029209`; strict narration/media validation; 84 frontend tests; backend, extraction, secret-scan, migration, Terraform, and real-stack RBAC checks |
+| Exact-candidate hosted evidence | Staging desktop and mobile landing playback was visible, unmuted, advancing, and error-free; mobile selected `fedril-homepage-60-mobile.mp4`; `/demo` loaded the 203.33-second flagship with no media or console error |
+| Creative approval evidence | The repository owner stated that the videos were good in the review thread and explicitly authorized application of the release solution and deployment on 2026-08-02 |
+| Unresolved limitations | Review is solo-controlled rather than independent; the 86.41 MB flagship exceeds GitHub's recommended 50 MB threshold; broader customer publication still requires the organization's normal specialist and separation-of-duties review |
+| Approval limitation | Solo-controlled No-CUI pilot production deployment only; no broader customer launch or independent professional approval is claimed |
+
+The approval is invalid if the candidate SHA changes, any cited exact-candidate workflow is not successful, hosted media regresses, the No-CUI posture changes, or customer-facing claims expand beyond the reviewed material.
+
+## Demo-Request Operations Candidate Reapproval - 2026-08-03
+
+The repository owner and deployment operator, `historical-management-actor-1`, requested implementation of the documented correct solution and deployment to staging/production. This records combined-role approval for `launch-candidate-2026-08-03-1` within the existing solo-controlled No-CUI pilot production scope.
+
+This approval is not independent legal, security, privacy, compliance, or separation-of-duties review. It does not authorize broader customer launch, real CUI processing, classified or export-controlled data, sensitive government-furnished information, or unsupported compliance claims.
+
+| Approval metadata | Recorded value |
+| --- | --- |
+| Approver | Repository owner and deployment operator `historical-management-actor-1`, acting as the accountable combined-role solo-controlled pilot approver |
+| Approval date | 2026-08-03 |
+| Candidate | `launch-candidate-2026-08-03-1` at `7f6ed7f6c4bad1b2962291b5b4984fb92265acb8` |
+| Scope | PR #32 public scheduled-demo intake; transactional request/outbox persistence; internal, acknowledgement, and operator-response email deliveries; permission-aware `/platform` demo-request operations; onboarding integration; production fail-closed email configuration; route-level web code splitting; and three additive EF Core migrations. |
+| Exact-candidate automated evidence | PR CI run `30778171865`: backend, frontend, secret scan, migration validation, Terraform validation, dependency audits, and real-stack RBAC passed. Main staging deployment run `30778907557` passed build, No-CUI guardrails, migration application, deployment, and smoke checks. |
+| Exact-candidate staging evidence | Synthetic No-CUI request `00000000-0000-4000-8000-000000000015` persisted the requested time and time zone. Its requester acknowledgement and internal notification both reached `Sent` on attempt 1 with no failure code. |
+| Production dependency evidence | Separate `historical-resource-instance-12` and `historical-resource-instance-13` resources are linked to an Azure-managed domain. The production API managed identity has a production-scoped email-sender role; no staging email resource or connection string is reused. |
+| Unresolved limitations | Review is solo-controlled rather than independent; customer mailbox placement depends on external recipient filtering; operator inbox and response-template actions still require the `Gccs.PlatformOperator` app role; broader customer launch requires normal specialist review. |
+| Approval limitation | Solo-controlled No-CUI pilot production deployment only; no broader customer launch or independent professional approval is claimed. |
+
+The approval is invalid if the candidate SHA changes, any cited workflow is not successful, staging delivery evidence regresses, the No-CUI posture changes, or customer-facing claims expand beyond the reviewed scope.
+
+## Demo Scheduler and Discovery-Asset Candidate Reapproval - 2026-08-03
+
+The repository owner and deployment operator, `historical-management-actor-1`, explicitly requested that the respective branches be committed and pushed, then deployed to staging and production. This records combined-role approval for `launch-candidate-2026-08-03-2` within the existing solo-controlled No-CUI pilot production scope.
+
+This approval is not independent legal, security, privacy, compliance, accessibility, marketing, or separation-of-duties review. It does not authorize broader customer launch, real CUI processing, classified or export-controlled data, sensitive government-furnished information, or unsupported compliance claims.
+
+| Approval metadata | Recorded value |
+| --- | --- |
+| Approver | Repository owner and deployment operator `historical-management-actor-1`, acting as the accountable combined-role solo-controlled pilot approver |
+| Approval date | 2026-08-03 |
+| Candidate | `launch-candidate-2026-08-03-2` at `fec0276b6d2cba3629a874f9cf76cd6e5f6a36da` |
+| Scope | PR #36 replaces the post-video placeholder email link with the existing scheduled-demo dialog and adds interaction coverage; PR #35 publishes the reviewed customer-discovery roadmap and sales-deck PDFs, updates UAT acceptance instructions, and ignores local browser artifacts. |
+| Exact-candidate automated evidence | PR #36 CI run `30862127900`; PR #35 CI run `30863257848`; exact-main staging deployment run `30864030411`. Backend, frontend, dependency audit, secret scan, migration validation, Terraform validation, real-stack RBAC, deployment, and staging smoke checks passed. |
+| Exact-candidate hosted evidence | On the exact-candidate staging `/demo` route, the post-video call to action opened one scheduled-demo dialog, focused the first-name field, and exposed one `datetime-local` field. No form was submitted and no customer data was created. |
+| Unresolved limitations | Review is solo-controlled rather than independent; the 86.41 MB flagship video remains above GitHub's recommended 50 MB threshold; provider delivery and mailbox placement were not exercised by this presentation-only browser check; broader customer publication requires the organization's normal specialist review. |
+| Approval limitation | Solo-controlled No-CUI pilot production deployment only; no broader customer launch or independent professional approval is claimed. |
+
+The approval is invalid if the candidate SHA changes, any cited workflow is not successful, the scheduler interaction regresses, the No-CUI posture changes, or customer-facing claims expand beyond the reviewed material.
+
+## MVP UAT Tightening Candidate Reapproval - 2026-08-09
+
+The repository owner and deployment operator, `historical-management-actor-1`, explicitly requested creation of a new approved launch-candidate tag and manifest followed by production deployment. This records combined-role approval for `launch-candidate-2026-08-09-1` within the existing solo-controlled No-CUI pilot production scope.
+
+This approval is not independent legal, security, privacy, compliance, accessibility, or separation-of-duties review. The UAT document is workflow acceptance guidance, not certification evidence. This approval does not authorize broader customer launch, real CUI processing, classified or export-controlled data, sensitive government-furnished information, or unsupported compliance claims.
+
+| Approval metadata | Recorded value |
+| --- | --- |
+| Approver | Repository owner and deployment operator `historical-management-actor-1`, acting as the accountable combined-role solo-controlled pilot approver |
+| Approval date | 2026-08-09 |
+| Candidate | `launch-candidate-2026-08-09-1` at `11bfd3d5f7bfbf0294c783f2730a7ed889470261` |
+| Scope | PR #41 tightens MVP UAT guidance and implemented readiness workflows, improves company-profile and CMMC interactions, and adds focused authorization and profile coverage; PR #42 removes a duplicate development-context request race discovered by the main release gate. |
+| Exact-candidate automated evidence | Main CI run `31325663995`; main staging deployment run `31325663973`; Static Web Apps run `31325663974`; 1,493 backend tests, 98 frontend tests, dependency audits, secret scan, EF migration validation, Terraform 1.9.8 validation, extraction evaluation, and real-stack report RBAC passed. |
+| Exact-candidate staging evidence | Run `31325663973` passed No-CUI guardrails, production-shaped build, idempotent migration generation and application, API and web deployment, dependency smoke checks, and staging health checks. |
+| Unresolved limitations | Review is solo-controlled rather than independent; the UAT document does not prove every external identity-provider, customer-data, browser, or production operational scenario; broader customer use requires the organization's normal specialist and separation-of-duties review. |
+| Approval limitation | Solo-controlled No-CUI pilot production deployment only; no broader customer launch, certification, government approval, or independent professional approval is claimed. |
+
+The approval is invalid if the candidate SHA changes, any cited exact-candidate workflow is not successful, staging evidence regresses, the No-CUI posture changes, or customer-facing claims expand beyond the reviewed candidate scope.
+
+## Corrective Production Authentication Copy Candidate Reapproval - 2026-08-09
+
+The first `launch-candidate-2026-08-09-1` production deployment completed successfully, but unauthenticated production browser smoke testing found that the sign-in screen still described the workspace as staging. PR #44 removed that environment-specific copy and added focused regression coverage. The repository owner and deployment operator, `historical-management-actor-1`, requested creation of a new approved launch-candidate tag and production deployment, which records combined-role approval for `launch-candidate-2026-08-09-2` within the existing solo-controlled No-CUI pilot production scope.
+
+This corrective approval is not independent legal, security, privacy, compliance, accessibility, or separation-of-duties review. It does not authorize broader customer launch, real CUI processing, classified or export-controlled data, sensitive government-furnished information, certification, government approval, or unsupported compliance claims.
+
+| Approval metadata | Recorded value |
+| --- | --- |
+| Approver | Repository owner and deployment operator `historical-management-actor-1`, acting as the accountable combined-role solo-controlled pilot approver |
+| Approval date | 2026-08-09 |
+| Candidate | `launch-candidate-2026-08-09-2` at `e0d04a454854949f66287af5245bdd03c684d5fb` |
+| Scope | PR #44 replaces hard-coded staging terminology on the authenticated-entry screen with environment-neutral FeDril workspace copy and adds a focused authentication presentation regression test. No authentication, authorization, tenant, API, persistence, or No-CUI policy behavior changed. |
+| Exact-candidate automated evidence | Main CI run `31329001738`; main staging deployment run `31329001739`; Static Web Apps run `31329001750`; 1,493 backend tests, 99 frontend tests, dependency audits, secret scan, EF migration validation, Terraform 1.9.8 validation, extraction evaluation, and real-stack report RBAC passed. |
+| Production finding addressed | Production unauthenticated smoke after deployment run `31327806583` showed the stale staging label and instruction. PR #44 removes both strings and tests that the sign-in guidance is environment-neutral. |
+| Unresolved limitations | Review is solo-controlled rather than independent. The corrective change has exact-candidate staging and public-host evidence, but authenticated production tenant, RBAC, upload, report, and audit workflows still require a valid production smoke identity to execute after deployment. |
+| Approval limitation | Solo-controlled No-CUI pilot production deployment only; no broader customer launch, certification, government approval, or independent professional approval is claimed. |
+
+The approval is invalid if the candidate SHA changes, any cited exact-candidate workflow is not successful, the corrected production sign-in copy regresses, the No-CUI posture changes, or customer-facing claims expand beyond the reviewed candidate scope.
+
+## Demo Scheduling Delivery Candidate Reapproval - 2026-08-11
+
+The repository owner and deployment operator, `historical-management-actor-1`, explicitly requested that the worktree be pushed and deployed to staging and production. This records combined-role approval for `launch-candidate-2026-08-11-1` within the existing solo-controlled No-CUI pilot production scope after the exact candidate passed protected CI and staging deployment.
+
+This approval is not independent legal, security, privacy, compliance, accessibility, email-deliverability, or separation-of-duties review. It does not authorize broader customer launch, real CUI processing, classified or export-controlled data, sensitive government-furnished information, certification, government approval, or unsupported compliance claims.
+
+| Approval metadata | Recorded value |
+| --- | --- |
+| Approver | Repository owner and deployment operator `historical-management-actor-1`, acting as the accountable combined-role solo-controlled pilot approver |
+| Approval date | 2026-08-11 |
+| Candidate | `launch-candidate-2026-08-11-1` at `4bcda833236bb448da561f7c2637bf8eb35cd265` |
+| Scope | PR #47 adds an indexed requested-time operator calendar, preserves permission-gated platform operations, makes the two-hour scheduling error explicit, distinguishes provider acceptance from delivery, enables safe local development capture, updates UAT guidance, and adds one additive EF Core migration with focused backend and frontend coverage. |
+| Exact-candidate automated evidence | Main CI run `31543993484`; staging deployment run `31543993493`; Static Web Apps run `31543993556`; 1,501 backend tests, 106 frontend tests, dependency audits, secret scan, EF migration validation, Terraform validation, extraction evaluation at precision 1.0 and recall 1.0, and real-stack report RBAC passed. |
+| Exact-candidate staging evidence | Run `31543993493` applied the additive calendar-index migration and passed deployment and dependency smoke checks. Live `/health` reported PostgreSQL, Redis, object storage, and background jobs healthy. Live App Service settings remained `Staging` for both environment keys with development auth explicitly `false`; authentication authority and audience were configured; the development-auth header-spoof probe returned `401`. The hosted public scheduler dialog exposed the preferred date/time control without submitting customer data. |
+| Unresolved limitations | Review is solo-controlled rather than independent. No live demo request or email was sent during the read-only post-deployment smoke, so provider acceptance and external mailbox placement were not re-proven. The authenticated operator calendar was not browser-tested because no staging operator identity was supplied. The calendar organizes requested times; it is not an availability engine or confirmed reservation system. |
+| Approval limitation | Solo-controlled No-CUI pilot production deployment only; no broader customer launch, certification, government approval, guaranteed email delivery, confirmed reservation, or independent professional approval is claimed. |
+
+The approval is invalid if the candidate SHA changes, any cited exact-candidate workflow is not successful, staging health or security evidence regresses, the No-CUI posture changes, or customer-facing claims expand beyond the reviewed candidate scope.
+
+## Audit Workspace Candidate Reapproval - 2026-08-15
+
+The repository owner and deployment operator, `historical-management-actor-1`, explicitly requested creation of an approved launch candidate, merge to `main`, correction of the production release gate, and production deployment. This records combined-role approval for `launch-candidate-2026-08-15-1` within the existing solo-controlled No-CUI pilot production scope after the exact candidate passed protected CI and staging deployment.
+
+This approval is not independent legal, security, privacy, compliance, accessibility, or separation-of-duties review. It does not authorize broader customer launch, real CUI processing, classified or export-controlled data, sensitive government-furnished information, certification, government approval, or unsupported compliance claims.
+
+| Approval metadata | Recorded value |
+| --- | --- |
+| Approver | Repository owner and deployment operator `historical-management-actor-1`, acting as the accountable combined-role solo-controlled pilot approver |
+| Approval date | 2026-08-15 |
+| Candidate | `launch-candidate-2026-08-15-1` at `50b2dd279f216f816b92fdbaf2c4d4be025ce4ea` |
+| Scope | PR #57 adds tenant-safe audit entity-type discovery, richer audit descriptions, normalized authenticated-workspace assignment links, active tenant-membership resolution for assignees, audit filtering and responsive workspace UI improvements, and focused backend/frontend regression coverage. No EF Core model or migration change is included. |
+| Exact-candidate automated evidence | Main CI run `31910692965`; staging deployment run `31910692946`; Static Web Apps run `31910692991`; backend, frontend, dependency audit, secret scan, EF migration validation, Terraform validation, extraction evaluation, and real-stack report RBAC/rollback checks passed. |
+| Exact-candidate staging evidence | Run `31910692946` built the exact merge commit, generated and applied the idempotent migration script, deployed API and web artifacts, and passed No-CUI and dependency health checks. Staging smoke artifact `9253616864` contains the health output and migration script. |
+| Release-gate correction | The previous production manifest still approved `launch-candidate-2026-08-14-1`; this reapproval updates the immutable tag/SHA mapping to the exact merged and verified candidate before production dispatch. |
+| Unresolved limitations | Review is solo-controlled rather than independent. The automated and health checks do not replace authenticated production smoke for every role or broader customer-launch approval. Generated local screenshots remain outside the candidate. |
+| Approval limitation | Solo-controlled No-CUI pilot production deployment only; no broader customer launch, certification, government approval, or independent professional approval is claimed. |
+
+The approval is invalid if the candidate SHA changes, any cited exact-candidate workflow is not successful, staging health or security evidence regresses, the No-CUI posture changes, or customer-facing claims expand beyond the reviewed candidate scope.
+
+## Platform Customer Directory Candidate Reapproval - 2026-08-15
+
+The repository owner and deployment operator, `historical-management-actor-1`, explicitly requested pushing the platform customer directory change, deploying it to staging, merging it, creating a launch candidate, and deploying it to production. This records combined-role approval for `launch-candidate-2026-08-15-2` within the existing solo-controlled No-CUI pilot production scope after the exact candidate passed protected CI and staging deployment.
+
+This approval is not independent legal, security, privacy, compliance, accessibility, or separation-of-duties review. It does not authorize broader customer launch, real CUI processing, classified or export-controlled data, sensitive government-furnished information, certification, government approval, or unsupported compliance claims.
+
+| Approval metadata | Recorded value |
+| --- | --- |
+| Approver | Repository owner and deployment operator `historical-management-actor-1`, acting as the accountable combined-role solo-controlled pilot approver |
+| Approval date | 2026-08-15 |
+| Candidate | `launch-candidate-2026-08-15-2` at `a6ee58aafbbfdfcb1a0ba8e8c053a79a248e5ee9` |
+| Scope | PR #59 adds a platform customer directory and detail view, customer subscription actions, server-side platform customer listing/detail APIs, split platform permissions for onboarding versus subscription operations, and one additive EF Core migration for platform customer directory indexes. |
+| Exact-candidate automated evidence | PR #59 CI run `31914374969`; main CI run `31915244505`; staging deployment run `31915244551`; Static Web Apps run `31915244788`; backend, frontend, dependency audit, secret scan, EF migration validation, Terraform validation, extraction evaluation, and real-stack report RBAC/rollback checks passed. |
+| Exact-candidate staging evidence | Run `31915244551` built the exact merge commit, generated and applied the idempotent migration script, deployed API and web artifacts, and passed No-CUI and dependency health checks. Staging smoke artifact `9254774462` contains the health output and migration script. |
+| Security and migration scope | The change touches tenant/customer visibility, platform-only RBAC, subscription lifecycle operations, and EF Core indexes. Approval relies on server-side authorization tests, tenant-safe repository queries, migration validation, and staging migration application passing for the exact candidate. |
+| Unresolved limitations | Review is solo-controlled rather than independent. Automated and health checks do not replace authenticated production smoke for every platform role. The directory is an operator control surface and does not authorize customer-facing claims beyond implemented platform administration behavior. |
+| Approval limitation | Solo-controlled No-CUI pilot production deployment only; no broader customer launch, certification, government approval, or independent professional approval is claimed. |
+
+The approval is invalid if the candidate SHA changes, any cited exact-candidate workflow is not successful, staging health or security evidence regresses, the No-CUI posture changes, platform authorization weakens, or customer-facing claims expand beyond the reviewed candidate scope.
+
+## Owner Report PDF Export Candidate Reapproval - 2026-08-16
+
+The repository owner and deployment operator, `historical-management-actor-1`, explicitly requested committing and pushing the worktree, deploying to staging, merging to `main`, creating an approved launch candidate, and deploying it to production. This records combined-role approval for `launch-candidate-2026-08-16-1` within the existing solo-controlled No-CUI pilot production scope after the exact candidate passed protected CI and staging deployment.
+
+This approval is not independent legal, security, privacy, compliance, accessibility, or separation-of-duties review. It does not authorize broader customer launch, real CUI processing, classified or export-controlled data, sensitive government-furnished information, certification, government approval, or unsupported compliance claims.
+
+| Approval metadata | Recorded value |
+| --- | --- |
+| Approver | Repository owner and deployment operator `historical-management-actor-1`, acting as the accountable combined-role solo-controlled pilot approver |
+| Approval date | 2026-08-16 |
+| Candidate | `launch-candidate-2026-08-16-1` at `d0fa9503c0487aacd54443f971c04982501fe408` |
+| Scope | PR #63 adds Owner-only, tenant-scoped asynchronous PDF report exports; server-authoritative status and content endpoints; an EF Core export record and additive migration; unique object locators, bounded leases and retries, transaction-aware audit updates, compensating object cleanup, UI download/print states, focused authorization and PostgreSQL rollback coverage, and bounded CI timeout headroom. |
+| Exact-candidate automated evidence | PR #63 corrective CI run `31964342258`; main CI run `31965707419`; staging deployment run `31965707397`; Static Web Apps run `31965707413`. Main CI passed 1,544 backend tests, 122 frontend tests, dependency scans, secret scan, EF migration validation, Terraform validation, extraction evaluation at precision 1.0 and recall 1.0, and the real-stack report RBAC/rollback gate. |
+| Exact-candidate staging evidence | Run `31965707397` built the exact merge commit, generated and applied the idempotent migration script, validated No-CUI and staging infrastructure guardrails, deployed API and web artifacts, and passed dependency health checks. Staging smoke artifact `9268469515` contains the health output and migration script. |
+| Security and migration scope | The change touches tenant-scoped report access, Owner RBAC, audit behavior, object storage, a hosted worker, and persistence. Approval relies on server-side permission and tenant-isolation tests, real PostgreSQL rollback tests, composite tenant/report referential integrity, immutable snapshot semantics, unique export object locators, and exact-candidate migration application. |
+| CI gate correction | The first PR CI run `31962872540` completed all 1,544 selected backend tests successfully but crossed the former 25-minute step cap by one second. Commit `2ac0d81e6912679d53441caf8c88284cadc5389e` increased bounded outer timeouts while retaining the 10-minute per-test hang detector; corrective run `31964342258` and exact-main run `31965707419` passed. |
+| Unresolved limitations | Review is solo-controlled rather than independent. Health and automated tests do not replace an authenticated production export smoke for every role. Compensating object deletion can itself fail and therefore still relies on storage lifecycle cleanup and monitoring. In-process PDF rendering and one polling worker per API replica remain bounded but scale with replica count rather than a dedicated queue-worker tier. |
+| Approval limitation | Solo-controlled No-CUI pilot production deployment only; no broader customer launch, certification, government approval, secure CUI storage, or independent professional approval is claimed. |
+
+The approval is invalid if the candidate SHA changes, any cited exact-candidate workflow is not successful, staging health or security evidence regresses, the No-CUI posture changes, report-export authorization or tenant isolation weakens, or customer-facing claims expand beyond the reviewed candidate scope.
+
+## Demo and Clause Workflow Candidate Reapproval - 2026-08-18
+
+The repository owner and deployment operator, `historical-management-actor-1`, explicitly requested committing and pushing the worktree, deploying to staging, merging to `main`, creating a launch candidate, and deploying production. This records combined-role approval for `launch-candidate-2026-08-18-1` within the existing solo-controlled No-CUI pilot production scope after the exact candidate passed protected CI and staging deployment.
+
+This approval is not independent legal, security, privacy, compliance, accessibility, email-deliverability, or separation-of-duties review. It does not authorize broader customer launch, real CUI processing, classified or export-controlled data, sensitive government-furnished information, certification, government approval, guaranteed email delivery, or unsupported compliance claims.
+
+| Approval metadata | Recorded value |
+| --- | --- |
+| Approver | Repository owner and deployment operator `historical-management-actor-1`, acting as the accountable combined-role solo-controlled pilot approver |
+| Approval date | 2026-08-18 |
+| Candidate | `launch-candidate-2026-08-18-1` at `d49f594f8277aacb501c9ad4c8906960750eebf2` |
+| Scope | PR #66 stabilizes demo-request follow-up operations, development-only requester preview behavior, tenant onboarding delivery-status language and server-authoritative pilot date rules, published-clause citation lookup and contract attachment, the isolated authorization contract test host, and removes web-client embedded source-backed clause examples. Internal namespaces and storage identifiers remain unchanged. |
+| Exact-candidate automated evidence | PR #66 CI run `32098534154`; main CI run `32100036112`; staging deployment run `32100036047`; Static Web Apps run `32100036099`. Main CI passed backend validation, frontend validation, dependency scans, secret scan, EF migration validation, Terraform validation, extraction evaluation, and the real-stack report RBAC/rollback gate. |
+| Exact-candidate staging evidence | Run `32100036047` built the exact merge commit, generated and applied the idempotent migration script, deployed API and web artifacts, and passed No-CUI and dependency health checks. |
+| Security and claim-control scope | The change touches platform demo-request operations, development-only preview routing, invitation delivery wording, platform access metadata, and tenant-scoped published clause resolution. Approval relies on development-only provider gating, server-side platform permission checks, tenant-safe clause repository filters, no-mutation negative tests, and claim wording that distinguishes provider acceptance from inbox delivery. |
+| Unresolved limitations | Review is solo-controlled rather than independent. No live external demo-request email, invitation email, or authenticated production clause-attachment smoke was executed before tagging. Email inbox placement remains provider- and mailbox-dependent. The development requester-preview endpoint is intentionally absent outside Development and does not authorize production token-preview behavior. |
+| Approval limitation | Solo-controlled No-CUI pilot production deployment only; no broader customer launch, certification, government approval, guaranteed delivery, secure CUI storage, or independent professional approval is claimed. |
+
+The approval is invalid if the candidate SHA changes, any cited exact-candidate workflow is not successful, staging health or security evidence regresses, the No-CUI posture changes, platform authorization or tenant isolation weakens, development-only preview gating regresses, or customer-facing claims expand beyond the reviewed candidate scope.
+
+## Demo Launcher Admin Persona Candidate Reapproval - 2026-08-23
+
+The repository owner and deployment operator, `historical-management-actor-1`, explicitly requested committing and pushing the worktree, deploying to staging, merging to `main`, creating a launch candidate, and deploying production. This records combined-role approval for `launch-candidate-2026-08-23-1` within the existing solo-controlled No-CUI pilot production scope after the exact candidate passed protected CI and staging deployment.
+
+This approval is not independent legal, security, privacy, compliance, accessibility, email-deliverability, or separation-of-duties review. It does not authorize broader customer launch, real CUI processing, classified or export-controlled data, sensitive government-furnished information, certification, government approval, secure CUI storage, legal advice, guaranteed email delivery, or unsupported compliance claims.
+
+| Approval metadata | Recorded value |
+| --- | --- |
+| Approver | Repository owner and deployment operator `historical-management-actor-1`, acting as the accountable combined-role solo-controlled pilot approver |
+| Approval date | 2026-08-23 |
+| Candidate | `launch-candidate-2026-08-23-1` at `8bcd6300ab854af28e8988639e4c24046c311b22` |
+| Scope | PR #69 changes only development/demo-video launcher defaults so the interactive local marketing demo starts as the seeded fictional Northstar Admin persona, while deterministic capture specs keep their explicit role-specific personas. Production authentication, authorization, tenant isolation, persistence, migrations, and No-CUI controls are unchanged. |
+| Exact-candidate automated evidence | PR #69 CI run `32662668101`; main CI run `32664108591`; staging deployment run `32664108548`; Static Web Apps run `32664108592`. Main CI passed backend validation, frontend validation, dependency scans, secret scan, EF migration validation, Terraform validation, extraction evaluation, and the real-stack report RBAC/rollback gate. |
+| Exact-candidate staging evidence | Run `32664108548` built the exact merge commit, generated and applied the idempotent migration script, deployed API and web artifacts, and passed No-CUI and dependency health checks. |
+| Security and claim-control scope | The change remains inside development/demo tooling and documentation. It relies on `Security__DevelopmentAuth__Enabled=true` in the local demo launcher, JWT bearer authentication outside Development, membership authorization remaining enabled, and explicit capture persona headers in `marketing/demo-video/capture/walkthrough.spec.ts`. |
+| Unresolved limitations | Review is solo-controlled rather than independent. The release did not add an authenticated production smoke identity, did not re-run every demo-video capture scene, and did not validate external email inbox placement. Generated local artifacts remain outside the candidate unless separately committed and approved. |
+| Approval limitation | Solo-controlled No-CUI pilot production deployment only; no broader customer launch, certification, government approval, guaranteed delivery, secure CUI storage, legal advice, or independent professional approval is claimed. |
+
+The approval is invalid if the candidate SHA changes, any cited exact-candidate workflow is not successful, staging health or security evidence regresses, the No-CUI posture changes, development-only authentication gating regresses, capture persona isolation regresses, or customer-facing claims expand beyond the reviewed candidate scope.
+
+## HubSpot Demo-Request Sync Candidate Reapproval - 2026-08-24
+
+The repository owner and deployment operator, `historical-management-actor-1`, explicitly requested creating a launch candidate for merged PR #72 and deploying it to production. This records combined-role approval for `launch-candidate-2026-08-24-1` within the existing solo-controlled No-CUI pilot production scope after the exact merge commit passed protected CI and staging deployment.
+
+This approval is not independent legal, security, privacy, compliance, CRM-governance, accessibility, email-deliverability, or separation-of-duties review. It does not authorize broader customer launch, real CUI processing, classified or export-controlled data, sensitive government-furnished information, certification, government approval, secure CUI storage, legal advice, guaranteed CRM synchronization, or unsupported compliance claims.
+
+| Approval metadata | Recorded value |
+| --- | --- |
+| Approver | Repository owner and deployment operator `historical-management-actor-1`, acting as the accountable combined-role solo-controlled pilot approver |
+| Approval date | 2026-08-24 |
+| Candidate | `launch-candidate-2026-08-24-1` at `08545dd7eaf6c66a387d9d7f262cf9cddde1d742` |
+| Scope | PR #72 adds asynchronous HubSpot contact/company synchronization for Book-a-Demo requests, production-only secret wiring, idempotent retry behavior, preservation of advanced CRM relationship states, and focused deployment and transport tests. Staging keeps HubSpot synchronization disabled. |
+| Exact-candidate automated evidence | PR #72 CI run `32681125006`; main CI run `32683969415`; staging deployment run `32683969406`; Static Web Apps run `32683969431`. Main CI passed backend validation, frontend validation, dependency scans, secret scan, EF migration validation, Terraform validation, extraction evaluation, and the real-stack report RBAC/rollback gate. Local focused verification passed 49 of 52 selected tests; three PostgreSQL concurrency tests were skipped locally and remained covered by the exact-commit CI suite. |
+| Exact-candidate staging evidence | Run `32683969406` built the exact merge commit, generated and applied the idempotent migration script, deployed API and web artifacts, and passed No-CUI and dependency health checks. HubSpot synchronization remained disabled in staging, so this run did not write to a CRM account. |
+| Security and external-side-effect scope | Demo requests and their delivery records remain transactionally persisted before asynchronous delivery. The production workflow requires the `HUBSPOT_PRIVATE_APP_TOKEN` environment secret and configures an HTTPS HubSpot base URL. The token value is not committed or exposed in evidence. Retry processing uses contact email and company domain as idempotent lookup keys. |
+| Unresolved limitations | Review is solo-controlled rather than independent. Secret presence does not prove token validity, required HubSpot contact/company scopes, custom `fedril_*` property existence, accepted enumeration values, rate-limit behavior, or a successful live production CRM write. No live HubSpot request was sent before tagging. |
+| Approval limitation | Solo-controlled No-CUI pilot production deployment only; no broader customer launch, certification, government approval, guaranteed CRM delivery, guaranteed deduplication across externally modified records, secure CUI storage, legal advice, or independent professional approval is claimed. |
+
+The approval is invalid if the candidate SHA changes, any cited exact-candidate workflow is not successful, staging health or security evidence regresses, the No-CUI posture changes, the HubSpot token is unavailable, external CRM behavior contradicts the documented retry and state-preservation assumptions, or customer-facing claims expand beyond the reviewed candidate scope.
+
+## Future FedRAMP Foundation Candidate Reapproval - 2026-09-04
+
+The repository owner and deployment operator explicitly requested implementation of the reviewed Correct Solution and Rationale through commit, staging, merge, launch-candidate creation, and production deployment. This records combined-role approval for `launch-candidate-2026-09-04-1` within the existing solo-controlled No-CUI pilot production scope after the exact merge commit passed CI and staging deployment.
+
+This approval is not a FedRAMP authorization, FedRAMP Ready determination, 3PAO assessment, agency authorization, independent security review, or production separation-of-duties approval. It does not authorize CUI, classified information, export-controlled data, sensitive government-furnished information, broader customer launch, or claims that FeDril is FedRAMP compliant.
+
+| Approval metadata | Recorded value |
+| --- | --- |
+| Approver | Repository owner and deployment operator `historical-management-actor-1`, acting as the accountable combined-role solo-controlled pilot approver |
+| Approval date | 2026-09-04 |
+| Candidate | `launch-candidate-2026-09-04-1` at `55ed0dd049b43bec4c19d98b24cdd81224c19c90` |
+| Scope | PR #80 replaces client-controlled FedRAMP status language with server-governed posture, persists tenant-scoped mappings and immutable readiness-package snapshots in PostgreSQL with audit coupling, adds production Terraform resources and gated drift detection, and documents future FedRAMP architecture and reusable operational evidence. Internal `Gccs.*` compatibility identifiers and the No-CUI product posture remain unchanged. |
+| Exact-candidate automated evidence | PR #80 CI run `33907834336`; exact-branch staging run `33910143138`; main CI run `33910693123`; main staging run `33910693222`; Static Web Apps run `33910693231`. Main CI passed 1,575 backend tests, frontend validation, dependency scans, secret scan, EF migration validation, Terraform validation, extraction evaluation, and PostgreSQL real-stack authorization/persistence coverage. |
+| Exact-candidate staging evidence | Runs `33910143138` and `33910693222` generated and applied the idempotent migration, deployed API and web artifacts, and returned `ok` for PostgreSQL, Redis, object storage, and background jobs under the No-CUI posture. Smoke artifacts are `9951191155` and `9951399051`. |
+| Security and compliance boundary | Official status is derived from server-controlled configuration; tenant administrators cannot assert FedRAMP authorization state. Mapping and package writes remain tenant-scoped, server-authorized, transactional with append-only audit history, and durable across process restarts. Terraform adoption remains explicitly gated until remote state, imports, and reviewed plans are ready. |
+| Unresolved limitations | Review is solo-controlled rather than independent. Terraform now describes production resources but has not imported or applied the live estate, and scheduled drift detection remains disabled until `PRODUCTION_TERRAFORM_STATE_READY=true`. No SSP, SAP, SAR, POA&M assessment package, 3PAO assessment, agency sponsor, or authorization is claimed. No authenticated production FedRAMP workflow smoke identity is available. |
+| Approval limitation | Solo-controlled No-CUI pilot production deployment only; no broader customer launch, FedRAMP authorization, certification, government approval, secure CUI storage, legal advice, or independent professional approval is claimed. |
+
+The approval is invalid if the candidate SHA changes, any cited exact-candidate workflow is unsuccessful, staging health regresses, tenant isolation or audit atomicity weakens, client input can influence official status, the No-CUI posture changes, or customer-facing language represents preparation artifacts as FedRAMP authorization.
+
+## Compliance Workflow Hardening and SSP Export Candidate Reapproval - 2026-09-10
+
+The repository owner and deployment operator, `historical-management-actor-1`, explicitly requested committing and pushing the worktree, deploying it to staging, merging it, creating a launch candidate, and deploying it to production. This records combined-role approval for `launch-candidate-2026-09-10-1` within the existing solo-controlled No-CUI pilot production scope after the exact merge commit passed CI and staging deployment.
+
+This approval is not independent legal, security, compliance, accessibility, assessor, or separation-of-duties review. It does not authorize broader customer launch, real CUI processing, classified information, export-controlled data, sensitive government-furnished information, certification, assessment determination, system authorization, or government approval or endorsement.
+
+| Approval metadata | Recorded value |
+| --- | --- |
+| Approver | Repository owner and deployment operator `historical-management-actor-1`, acting as the accountable combined-role solo-controlled pilot approver |
+| Approval date | 2026-09-10 |
+| Candidate | `launch-candidate-2026-09-10-1` at `0ed3b8461108c2e09728dd8fc0f1a0833334f153` |
+| Scope | PR #100 hardens tenant-scoped compliance-task assignment and linked-record validation; keeps SSP approval source freshness validation inside the application transaction; repairs fresh-database predeployment behavior; adds missing No-CUI notice mappings; adds server-authoritative, tenant-scoped, durable SSP review-package snapshots and external-share lifecycle recording; and bounds the complete backend CI suite while retaining its per-test hang detector. The SSP share endpoint records an externally performed share but does not transmit an artifact. |
+| Exact-candidate automated evidence | PR CI run `34497513080`; exact-branch staging run `34502897334`; main CI run `34503577921`; main staging run `34503577905`; Static Web Apps run `34503577973`. Exact-main CI passed 1,821 backend tests with 3 provider-dependent skips and 0 failures, 209 frontend tests, dependency scans, secret scan, EF migration validation, Terraform validation, extraction precision and recall at 1.0, and the real-stack report RBAC/rollback gate. Local fresh PostgreSQL verification passed all 39 selected integration tests. |
+| Exact-candidate staging evidence | Runs `34502897334` and `34503577905` generated and applied the idempotent migration script, deployed API and web artifacts, and passed the No-CUI and dependency smoke checks. Independent live verification returned API status `ok`, the No-CUI posture, healthy PostgreSQL, Redis, object storage, and background jobs, plus HTTP 200 from the staging web application. |
+| Security and migration scope | The change touches tenant isolation, task RBAC, audit atomicity, No-CUI controls, SSP source eligibility, immutable compliance-report snapshots, external-share approval state, and an additive EF Core migration. Approval relies on server-side permission tests, cross-tenant and rejected-mutation tests, transaction rollback coverage, authoritative source resolution, fresh-database migration validation, and exact-candidate staging application. |
+| Unresolved limitations | Review is solo-controlled rather than independent. No authenticated staging or production tenant workflow smoke identity was supplied. The SSP share endpoint records an external share but does not deliver the artifact. Terraform was validated but not applied or checked against live drift. Local full-history scanning still identifies pre-existing historical findings even though the candidate patch and GitHub secret scan are clean. |
+| Approval limitation | Solo-controlled No-CUI pilot production deployment only; no broader customer launch, certification, assessment determination, government approval, secure CUI storage, legal advice, or independent professional approval is claimed. |
+
+The approval is invalid if the candidate SHA changes, any cited exact-candidate workflow is unsuccessful, staging health regresses, tenant isolation, RBAC, audit atomicity, SSP source eligibility, or immutable snapshot behavior weakens, the No-CUI posture changes, or customer-facing language expands beyond the reviewed candidate scope.
+
+## SPRS Scoring Baseline Candidate Reapproval - 2026-09-10
+
+The repository owner and deployment operator, `historical-management-actor-1`, explicitly requested committing and pushing the worktree, deploying it to staging, merging it, creating a launch candidate, and deploying it to production. This records combined-role approval for `launch-candidate-2026-09-10-2` within the existing solo-controlled No-CUI pilot production scope after the exact merge commit passed CI and staging deployment.
+
+This approval is not independent legal, security, compliance, accessibility, CMMC assessor, or separation-of-duties review. It does not publish the draft SPRS rule baseline, authorize use of draft rules for an official score, authorize broader customer launch or CUI processing, or establish certification, assessment determination, system authorization, government approval, or government endorsement.
+
+| Approval metadata | Recorded value |
+| --- | --- |
+| Approver | Repository owner and deployment operator `historical-management-actor-1`, acting as the accountable combined-role solo-controlled pilot approver |
+| Approval date | 2026-09-10 |
+| Candidate | `launch-candidate-2026-09-10-2` at `57e0db9cffe7eda68467f62babbcd225b93ffd8e` |
+| Scope | PR #103 adds a source-backed 110-requirement SPRS scoring-rule baseline, validates governed inventory and deduction policies, preserves draft-only status pending qualified review, adds deterministic calculation and lifecycle coverage, and refines responsive CMMC and SSP form layouts. Internal `Gccs.*` compatibility identifiers and the No-CUI product posture remain unchanged. |
+| Exact-candidate automated evidence | PR CI run `34522438984`; exact-branch staging run `34522453059`; main CI run `34523464568`; main staging run `34523464710`; Static Web Apps run `34523464523`. Exact-main CI passed 1,839 backend tests with 3 provider-dependent skips and 0 failures, 7 PostgreSQL real-stack authorization/rollback tests, frontend validation, dependency scans, secret scan, EF migration validation, Terraform validation, and extraction evaluation. |
+| Exact-candidate staging evidence | Runs `34522453059` and `34523464710` built and deployed the exact candidate, generated and applied the idempotent migration script, enforced synthetic-only staging and No-CUI guardrails, and passed API and web smoke checks. Main staging artifact `10170731561` contains the smoke evidence. Independent verification returned API status `ok`, healthy PostgreSQL, Redis, object storage, and background jobs, plus HTTP 200 from the staging web application. |
+| Compliance and calculation boundary | The governed package must contain complete source, version, integrity, ownership, reviewer, effective-date, and requirement metadata before publication. The checked-in baseline remains `Draft`, has no reviewer or review date, and cannot be used by the calculation service until a qualified, distinct reviewer completes the controlled lifecycle. Calculations retain the rule-set identifier, version, source hash, line-item deductions, and audit event. |
+| Unresolved limitations | Review is solo-controlled rather than independent. No authenticated staging or production tenant workflow smoke identity was supplied. The source-controlled SPRS baseline is draft-only and requires qualified review before publication. UI layout changes passed component tests, lint, build, and hosted smoke checks but do not have automated screenshot-diff coverage at every viewport. Terraform was validated but not applied or checked against live drift. |
+| Approval limitation | Solo-controlled No-CUI pilot production deployment only; no broader customer launch, official SPRS submission, certification, assessment determination, government approval, secure CUI storage, legal advice, or independent professional approval is claimed. |
+
+The approval is invalid if the candidate SHA changes, any cited exact-candidate workflow is unsuccessful, staging health regresses, incomplete or unreviewed SPRS rules become usable for calculation, scoring traceability or lifecycle controls weaken, the No-CUI posture changes, or customer-facing language expands beyond the reviewed candidate scope.
+
+## Labor, Guarded Assistant, and External Portal Candidate Reapproval - 2026-09-12
+
+The repository owner and deployment operator, `historical-management-actor-1`, explicitly requested committing and pushing the worktree, deploying it to staging, merging it, creating a launch candidate, and deploying it to production. This records combined-role approval for `launch-candidate-2026-09-12-1` within the existing solo-controlled No-CUI pilot production scope after the exact merge commit passed CI and staging deployment.
+
+This approval is not independent legal, security, compliance, accessibility, CMMC assessor, labor advisor, or separation-of-duties review. It does not authorize broader customer launch, real CUI processing, a labor determination, certification, assessment determination, system authorization, government approval, or government endorsement.
+
+| Approval metadata | Recorded value |
+| --- | --- |
+| Approver | Repository owner and deployment operator `historical-management-actor-1`, acting as the accountable combined-role solo-controlled pilot approver |
+| Approval date | 2026-09-12 |
+| Candidate | `launch-candidate-2026-09-12-1` at `4a3c4437952e4642d17cb8476b25496c276a0212` |
+| Scope | PR #106 adds durable tenant-scoped labor classifications and compliance reporting, guarded draft-only assistant interactions, external portal invitation and package lifecycle workflows, associated audit and authorization controls, additive PostgreSQL migrations, and workflow/navigation refinements. Internal `Gccs.*` compatibility identifiers and the No-CUI product posture remain unchanged. |
+| Exact-candidate automated evidence | PR CI run `34720168027`; exact-branch staging run `34720166907`; main CI run `34720870949`; main staging run `34720870952`; Static Web Apps run `34720870956`. Exact-main CI passed 1,905 backend tests with 4 provider-dependent skips and 0 failures, 245 frontend tests, dependency scans, secret scan, EF migration validation, Terraform validation, extraction evaluation, and the PostgreSQL real-stack report authorization/rollback gate. |
+| Exact-candidate staging evidence | Runs `34720166907` and `34720870952` built and deployed the exact candidate, generated and applied the idempotent migration script, enforced synthetic-only staging and No-CUI guardrails, and passed API and web smoke checks. Main staging artifact `10306531120` contains smoke evidence. Independent verification returned API status `ok`, healthy PostgreSQL, Redis, object storage, and background jobs, plus HTTP 200 from the staging web application. |
+| Security and migration scope | Labor, assistant, and portal data remain server-authorized and tenant-scoped; compliance mutations retain append-only audit coupling; assistant output remains draft-only; external portal access uses server-controlled invitation and package lifecycle rules; and active labor-assignment overlap protection uses a transaction-scoped advisory lock plus a database trigger without privileged PostgreSQL extensions. |
+| Unresolved limitations | Review is solo-controlled rather than independent. No authenticated staging or production tenant workflow smoke identity was supplied. Provider-dependent backend tests remain environment-gated. External identity, email delivery, and HubSpot paths were not exercised end-to-end with a production user. Terraform was validated but not applied or checked against live drift. UI changes passed component tests, lint, build, and hosted smoke checks but do not have screenshot-diff coverage at every viewport. |
+| Approval limitation | Solo-controlled No-CUI pilot production deployment only; no broader customer launch, labor determination, certification, assessment determination, government approval, secure CUI storage, legal advice, or independent professional approval is claimed. |
+
+The approval is invalid if the candidate SHA changes, any cited exact-candidate workflow is unsuccessful, staging health regresses, tenant isolation, RBAC, audit atomicity, draft-only assistant handling, portal access controls, or labor overlap protection weakens, the No-CUI posture changes, or customer-facing language expands beyond the reviewed candidate scope.
+
+## AI Output Governance and Approved Portal Review Candidate Reapproval - 2026-09-12
+
+The repository owner and deployment operator, `historical-management-actor-1`, explicitly requested appropriately committing and pushing the worktrees, deploying to staging, merging, creating a launch candidate, and deploying to production. This records combined-role approval for `launch-candidate-2026-09-12-2` within the existing solo-controlled No-CUI pilot production scope after the exact runtime merge commit passed CI, real-stack verification, staging deployment, and web deployment.
+
+This approval is not independent legal, security, compliance, accessibility, CMMC assessor, labor advisor, or separation-of-duties review. It does not authorize broader customer launch, real CUI processing, certification, assessment determination, system authorization, government approval, government endorsement, or use of AI-generated compliance content without the implemented human-review controls.
+
+| Approval metadata | Recorded value |
+| --- | --- |
+| Approver | Repository owner and deployment operator `historical-management-actor-1`, acting as the accountable combined-role solo-controlled pilot approver |
+| Approval date | 2026-09-12 |
+| Candidate | `launch-candidate-2026-09-12-2` at `2430eba7fb8f996a689159cfa6935030faabba1d` |
+| Scope | PR #109 adds tenant-scoped PostgreSQL full-text retrieval, governed AI-output logging/review/retention and deliverable provenance, separately prepared and approved immutable portal-review packages, reviewer messaging and controlled downloads, UI review surfaces, OpenAPI changes, and four additive EF Core migrations. It also constrains AI-output access by workflow permission, returns tenant-safe `404` responses for inaccessible portal package resources, and bounds retention-worker batch processing. Internal `Gccs.*` compatibility identifiers and the No-CUI product posture remain unchanged. |
+| Exact-candidate automated evidence | PR CI run `34733833803`; exact-branch staging run `34733836034`; runtime-main CI run `34734465606`; runtime-main staging run `34734465617`; runtime-main Static Web Apps run `34734465636`. All required GitHub jobs passed, including four backend shards, backend prerequisites, frontend validation, secret scan, EF migration validation, Terraform validation, extraction evaluation, and PostgreSQL/browser real-stack authorization and rollback coverage. Local release verification passed 1,938 backend tests with 63 provider-gated skips and 0 failures, 14 changed-boundary PostgreSQL tests with no skips, 255 frontend tests, 44 CI baseline tests, and 682 story-coverage checks. |
+| Exact-candidate staging evidence | Runs `34733836034` and `34734465617` built and deployed the exact branch and runtime merge SHAs, generated and applied the idempotent migration script, enforced synthetic-only staging and No-CUI guardrails, and passed API and web smoke checks. The branch staging health artifact reported `ok` for PostgreSQL, Redis, object storage, and background-job coordination. |
+| Security and migration scope | AI output reads, review, export, and deliverable linking require both tenant scope and the source workflow permission; portal packages require server-controlled invitation, approval, package, and contract scope; inaccessible package resources do not disclose existence; compliance mutations retain audit coupling; PostgreSQL retrieval excludes unsafe, unapproved, stale, and cross-tenant sources; all four migrations are represented by an aligned EF model snapshot and an idempotent deployment script. |
+| Unresolved limitations | Review is solo-controlled rather than independent. No authenticated production tenant smoke identity was supplied. Provider-dependent tests outside the changed PostgreSQL boundary remain environment-gated. External identity, email delivery, and HubSpot paths were not exercised end-to-end with a production user. Terraform was validated but not applied or checked against live drift. Full-text ranking and retention throughput require production-volume monitoring. UI changes passed component tests, lint, build, real-stack browser coverage, and hosted smoke checks but do not have screenshot-diff coverage at every viewport. |
+| Approval limitation | Solo-controlled No-CUI pilot production deployment only; no broader customer launch, certification, assessment determination, government approval, secure CUI storage, legal advice, or independent professional approval is claimed. |
+
+The approval is invalid if the candidate SHA changes, any cited exact-candidate workflow is unsuccessful, staging health regresses, tenant isolation, workflow-context RBAC, audit atomicity, draft-only AI handling, portal approval or access controls, migration safety, or source traceability weakens, the No-CUI posture changes, or customer-facing language expands beyond the reviewed candidate scope.
+
+## Staging UI Refresh Candidate Reapproval - 2026-09-13
+
+The repository owner and deployment operator, `historical-management-actor-1`, explicitly requested redeploying staging to refresh the hosted UI, merging the verified main artifact, creating a launch candidate, and deploying it to production. This records combined-role approval for `launch-candidate-2026-09-13-1` within the existing solo-controlled No-CUI pilot production scope after the exact main commit passed the protected staging deployment and smoke checks.
+
+This approval is not independent legal, security, compliance, accessibility, or separation-of-duties review. It does not authorize broader customer launch, real CUI processing, certification, assessment determination, system authorization, government approval, or unsupported customer-facing claims.
+
+| Approval metadata | Recorded value |
+| --- | --- |
+| Approver | Repository owner and deployment operator `historical-management-actor-1`, acting as the accountable combined-role solo-controlled pilot approver |
+| Approval date | 2026-09-13 |
+| Candidate | `launch-candidate-2026-09-13-1` at `dcd2d44cf2252f81a67158e2cce5e47c015cd145` |
+| Scope | Refresh the staging-hosted FeDril web artifact from the verified `main` commit, preserve the No-CUI posture and existing application behavior, and promote the exact verified main artifact through the approved launch-candidate and protected production workflows. No web or API source delta was present in the worktree; the staging refresh addresses deployment freshness rather than feature changes. |
+| Exact-candidate staging evidence | Workflow run `34792088854` built the main artifact, generated and applied idempotent migrations, validated No-CUI and infrastructure guardrails, deployed the API and Static Web App, and passed staging smoke checks. The staging health artifact reports `ok` for PostgreSQL, Redis, object storage, and background jobs; independent checks returned API health `ok` and web HTTP 200. |
+| Exact-candidate automated evidence | Main commit `dcd2d44cf2252f81a67158e2cce5e47c015cd145` had already passed CI run `34737604074`, staging run `34737604063`, and Static Web Apps run `34737604034`; the refresh run `34792088854` independently completed the staging deployment path. |
+| Unresolved limitations | Review is solo-controlled rather than independent. No authenticated staging or production tenant workflow smoke identity was supplied. External identity, email delivery, alerts, and HubSpot paths were not exercised end-to-end with a production user. Terraform was validated but not applied or checked against live drift. |
+| Approval limitation | Solo-controlled No-CUI pilot production deployment only; no broader customer launch, certification, government approval, secure CUI storage, legal advice, or independent professional approval is claimed. |
+
+The approval is invalid if the candidate SHA changes, any cited workflow is unsuccessful, staging health regresses, the No-CUI posture changes, or customer-facing language expands beyond the reviewed scope.
+
+## Evidence Package Reviewed
+
+Required approval reviewers must inspect these artifacts before approval can be recorded:
+
+- `docs/production-readiness-plan.md`
+- `docs/production-readiness-checklist.md`
+- `docs/production-readiness-launch-closure-evidence.md`
+- `docs/production-readiness-approval-posture-addendum.md`
+- `docs/production-readiness-staging-smoke-evidence.md`
+- `docs/production-readiness-staging-workflow-evidence.md`
+- `docs/production-readiness-staging-security-evidence.md`
+- `docs/production-readiness-staging-upload-report-evidence.md`
+- `docs/production-readiness-backup-restore-evidence.md`
+- `docs/production-readiness-deployment-migration-rollback-evidence.md`
+- `docs/production-readiness-malware-scanning-decision.md`
+- `docs/production-readiness-customer-claims-review.md`
+- `docs/production-readiness-support-runbooks.md`
+- `docs/production-readiness-pilot-onboarding.md`
+- `docs/production-readiness-release-notes.md`
+- `docs/production-readiness-launch-gap-decisions.md`
+- `output/production-readiness/customer-claims-review.json`
+- `output/production-readiness/backup-restore/staging-postgres-backup-config.json`
+- `output/production-readiness/deployment-migration-rollback/gccs-staging-migrations.sql`
+- `output/production-readiness/expert-content/staging-content-review-summary.json`
+- `output/production-readiness/expert-content/high-risk-obligation-review.json`
+
+## Required Approval Records
+
+| Required approver | Approval status | Approval date | Approver | Scope | Limitations | Unresolved exceptions | Evidence reviewed | Launch blocker while pending |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Product owner | Approved for solo-controlled pilot testing | 2026-07-03 | User acting as accountable solo-controlled pilot approver for product-owner scope | No-CUI MVP launch candidate scope, release notes, pilot onboarding, known risks, customer-facing posture, launch acceptance. | Approval cannot authorize real CUI, unsupported claims, unreviewed scope expansion, missing evidence, broader customer launch, or production separation-of-duties substitution. | `PR41-RESTORE-001`, `PR43-MALWARE-001`, `DOD-GAP-001`, and `DOD-GAP-002` remain accepted or deferred limitations. | Required evidence package listed above reviewed by user approval in this Codex thread. | No for solo-controlled pilot testing; yes for broader production launch |
+| Engineering lead | Approved for solo-controlled pilot testing | 2026-07-03 | User acting as accountable solo-controlled pilot approver for engineering scope | Build, deployment, migration, rollback, dependency health, evidence traceability, launch tag readiness, and technical release controls. | Approval cannot claim restore rehearsal execution, bypass migration drift checks, weaken tenant isolation, bypass RBAC, remove audit logging, remove rollback limitations, or replace future production engineering review. | `PR41-RESTORE-001`, `DOD-GAP-001`, and `DOD-GAP-002` remain accepted or deferred limitations. | Required evidence package listed above reviewed by user approval in this Codex thread. | No for solo-controlled pilot testing; yes for broader production launch |
+| Security owner | Approved for solo-controlled pilot testing | 2026-07-03 | User acting as accountable solo-controlled pilot approver for security scope | No-CUI posture enforcement, tenant isolation, RBAC, upload guardrails, malware scanning decision, auditability, and security incident support path. | Approval cannot permit real CUI, classified data, export-controlled data, sensitive government-furnished information, secrets, unsupported scanner bypass, broader customer launch, or replacement of future production security review. | `PR41-RESTORE-001`, `PR43-MALWARE-001`, and external scanner endpoint evidence remain accepted or time-boxed limitations. | Required evidence package listed above reviewed by user approval in this Codex thread. | No for solo-controlled pilot testing; yes for broader production launch |
+| Compliance content owner | Approved for solo-controlled pilot testing | 2026-07-03 | User acting as accountable solo-controlled pilot approver for compliance-content scope | Source-backed launch obligation content, high-risk withholding decisions, review metadata, confidence, provenance, and customer-facing content limits. | Approval cannot publish `needs_review` or approved-but-unpublished high-risk content without explicit publication approval, and cannot replace future production compliance-content review. | Future publication approval for withheld high-risk records remains required. | Required evidence package listed above reviewed by user approval in this Codex thread. | No for solo-controlled pilot testing; yes for broader production launch |
+| Customer success/support owner | Approved for solo-controlled pilot testing | 2026-07-03 | User acting as accountable solo-controlled pilot approver for support scope | Pilot onboarding readiness, support runbooks, intake paths, escalation routing, known limitations, and customer-facing support posture. | Approval cannot permit support handling of prohibited sensitive content, remove support escalation for restore, upload, access, evidence, report, and incident issues, or replace future production support review. | `PR41-RESTORE-001`, `PR43-MALWARE-001`, and support handling for accepted limitations remain active. | Required evidence package listed above reviewed by user approval in this Codex thread. | No for solo-controlled pilot testing; yes for broader production launch |
+| Legal or contracting advisor | Approved for solo-controlled pilot testing | 2026-07-03 | User acting as accountable solo-controlled pilot approver for legal/contracting scope | Customer-facing compliance claims, No-CUI limitations, release notes, pilot onboarding, support language, and compliance-content claim boundaries. | Approval cannot create legal advice, accounting advice, labor determinations, CMMC certification, government endorsement, permission to store real CUI, or replacement of future production legal/contracting review. | `PR41-RESTORE-001`, `PR43-MALWARE-001`, and final claim-drift monitoring remain active limitations. | Required evidence package listed above reviewed by user approval in this Codex thread. | No for solo-controlled pilot testing; yes for broader production launch |
+
+## Launch Tagging Decision
+
+PR-6.2 launch candidate tagging decision: approved to proceed for solo-controlled pilot testing and project completion only.
+
+Approval basis: all required launch approval records are complete under the solo-controlled pilot posture, and the unexecuted staging restore rehearsal was dispositioned as accepted risk `PR41-RESTORE-001` for launch-candidate tagging only at the time of approval.
+
+Closed approval blocker: `DOD-GAP-006`.
+
+Required action before PR-6.2:
+
+- Keep accepted exceptions linked in `docs/production-readiness-launch-gap-decisions.md`.
+- Do not claim successful point-in-time restore until a restored server is created, smoke-checked, reviewed, and torn down.
+- Execute the restore rehearsal before production customer launch or before relying on restore capability in production.
+- Re-run PR-6.1 document validation after any approval, exception, release-note, or support-runbook change.
+- Obtain production-grade separation-of-duties approval before broader customer launch or production use beyond the solo-controlled pilot/testing scope.
+
+## Smoke Verification
+
+| Test case | Result | Evidence |
+| --- | --- | --- |
+| TC-PR-6.1.1 | Passed; product owner scope approval includes date, scope, limitations, unresolved exceptions, evidence reviewed, and solo-controlled pilot limitation. | Product owner row in this artifact. |
+| TC-PR-6.1.2 | Passed; engineering lead and security owner scope approvals include scope, limitations, unresolved exceptions, evidence reviewed, and solo-controlled pilot limitation. | Engineering lead and security owner rows in this artifact. |
+| TC-PR-6.1.3 | Passed; compliance content, customer success/support, and legal/contracting scope approvals are present with scope, limitations, and solo-controlled pilot limitation. | Compliance content, support, and legal/contracting rows in this artifact. |
+| TC-PR-6.1.4 | Passed; launch candidate tagging remains blocked if any required approval is later missing, incomplete, or incorrectly treated as production separation-of-duties approval. | Approval Gate and Launch Tagging Decision sections in this artifact. |
+
+## Hidden Risks
+
+- This approval consolidates six role scopes in one user for solo-controlled pilot testing only; it creates key-person risk and is not production separation-of-duties evidence.
+- Restore rehearsal was accepted as a launch-candidate risk at the time of PR-6.1; later restore evidence closed that risk but does not change the solo-controlled pilot approval posture.
+- Approval records can drift if release notes, pilot onboarding, support runbooks, or known-risk decisions change after review.
+- Manual approval authority must be verified against the organization's governance model before production customer launch, broader customer expansion, CUI processing, or production use of Phase 2 capabilities.

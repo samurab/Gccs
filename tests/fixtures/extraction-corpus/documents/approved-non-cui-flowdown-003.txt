@@ -1,0 +1,7 @@
+Approved Non-CUI Subcontract Flow-Down Excerpt
+
+Line 1: This GCCS-approved fixture is non-CUI template content for extraction evaluation only.
+Line 2: DFARS 252.204-7012, Safeguarding Covered Defense Information and Cyber Incident Reporting, is listed for subcontract flow-down review when covered defense information requirements apply.
+Line 3: The prime contractor requests written acknowledgement that applicable cybersecurity flow-downs are reviewed before subcontract award.
+Line 4: FAR 52.204-21, Basic Safeguarding of Covered Contractor Information Systems, is included for Federal Contract Information handling by the subcontractor.
+Line 5: This fixture contains no customer names, pricing, employee data, CUI, export-controlled technical data, classified information, payroll records, or secrets.

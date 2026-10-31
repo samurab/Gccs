@@ -1,0 +1,395 @@
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { PlatformTenantAdminPage } from "./PlatformTenantAdminPage";
+
+const {
+  cancelPlatformTenantOnboardingMock,
+  correctPlatformOwnerInvitationMock,
+  getPlatformAccessMock,
+  getPlatformTenantOnboardingsMock,
+  provisionPlatformTenantMock,
+  resendPlatformTenantInvitationMock
+} = vi.hoisted(() => ({
+  cancelPlatformTenantOnboardingMock: vi.fn(),
+  correctPlatformOwnerInvitationMock: vi.fn(),
+  getPlatformAccessMock: vi.fn(),
+  getPlatformTenantOnboardingsMock: vi.fn(),
+  provisionPlatformTenantMock: vi.fn(),
+  resendPlatformTenantInvitationMock: vi.fn()
+}));
+
+vi.mock("./lib/api", async () => {
+  const actual = await vi.importActual<typeof import("./lib/api")>("./lib/api");
+  return {
+    ...actual,
+    cancelPlatformTenantOnboarding: cancelPlatformTenantOnboardingMock,
+    correctPlatformOwnerInvitation: correctPlatformOwnerInvitationMock,
+    getPlatformAccess: getPlatformAccessMock,
+    getPlatformTenantOnboardings: getPlatformTenantOnboardingsMock,
+    provisionPlatformTenant: provisionPlatformTenantMock,
+    resendPlatformTenantInvitation: resendPlatformTenantInvitationMock
+  };
+});
+
+describe("PlatformTenantAdminPage", () => {
+  beforeEach(() => {
+    cancelPlatformTenantOnboardingMock.mockReset();
+    correctPlatformOwnerInvitationMock.mockReset();
+    getPlatformAccessMock.mockReset();
+    getPlatformTenantOnboardingsMock.mockReset();
+    provisionPlatformTenantMock.mockReset();
+    resendPlatformTenantInvitationMock.mockReset();
+    getPlatformAccessMock.mockResolvedValue({
+      userId: "22222222-2222-2222-2222-222222222222",
+      userEmail: "operator@gccs.local",
+      canProvisionTenants: true,
+      canManageDemoRequests: false,
+      invitationDeliveryMode: "ExternalEmail",
+      pilotTrialDateRules: {
+        minimumEndsOn: "2026-08-18",
+        maximumEndsOn: "2026-11-15",
+        maximumPilotDays: 90
+      },
+      permissions: ["ProvisionTenants"]
+    });
+    getPlatformTenantOnboardingsMock.mockResolvedValue({
+      items: [],
+      page: 1,
+      pageSize: 25,
+      totalCount: 0,
+      hasNextPage: false,
+      hasPreviousPage: false
+    });
+  });
+
+  afterEach(() => cleanup());
+
+  it("shows paid-only fields and commercial confirmation when Paid is selected", async () => {
+    const user = userEvent.setup();
+    render(<PlatformTenantAdminPage />);
+
+    await screen.findByRole("heading", { name: "Tenant onboarding" });
+    await user.click(screen.getByRole("radio", { name: /Paid/ }));
+
+    expect(screen.getByLabelText("Plan code")).toBeInTheDocument();
+    expect(screen.getByLabelText("Subscription reference")).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: /Commercial approval confirmed/ })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Pilot end date")).not.toBeInTheDocument();
+  });
+
+  it("uses the server trial-date window and blocks an invalid pilot date before the API call", async () => {
+    const user = userEvent.setup();
+    render(<PlatformTenantAdminPage />);
+
+    const pilotEndDate = await screen.findByLabelText("Pilot end date");
+    expect(pilotEndDate).toHaveAttribute("min", "2026-08-18");
+    expect(pilotEndDate).toHaveAttribute("max", "2026-11-15");
+    expect(screen.getByText(/pilots are limited to 90 days/i)).toBeInTheDocument();
+
+    await user.type(pilotEndDate, "2026-08-17");
+    const form = screen.getByRole("button", { name: "Create pending tenant" }).closest("form");
+    expect(form).not.toBeNull();
+    fireEvent.submit(form!);
+
+    expect(provisionPlatformTenantMock).not.toHaveBeenCalled();
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Pilot end date must be between 2026-08-18 and 2026-11-15 (UTC)."
+    );
+  });
+
+  it("submits a pilot as a pending No-CUI onboarding without an owner user ID", async () => {
+    const user = userEvent.setup();
+    const queuedResult = {
+        onboardingId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1",
+        tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+        displayName: "Aegis Pilot Workspace",
+        onboardingType: "Pilot",
+        onboardingStatus: "PendingOwnerAcceptance",
+        tenantStatus: "PendingActivation",
+        dataHandlingMode: "NoCui",
+        customerReference: "PILOT-003",
+        ownerEmail: "owner@example.com",
+        ownerDisplayName: "Pilot Owner",
+        ownerRoleName: "Owner",
+        invitationId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+        invitationStatus: "Pending",
+        invitationDeliveryStatus: "Queued",
+        invitationNotificationSentAt: null,
+        invitationExpiresAt: "2026-08-05T12:00:00Z",
+        trialEndsAt: "2026-08-31",
+        planCode: null,
+        subscriptionReference: null,
+        setupReason: "Provision approved No-CUI pilot PILOT-003.",
+        createdAt: "2026-07-22T12:00:00Z",
+        isReplay: false
+    };
+    provisionPlatformTenantMock.mockResolvedValue({
+      data: queuedResult,
+      error: null
+    });
+    getPlatformTenantOnboardingsMock
+      .mockResolvedValueOnce({ items: [], page: 1, pageSize: 25, totalCount: 0, hasNextPage: false, hasPreviousPage: false })
+      .mockResolvedValue({
+        items: [{ ...queuedResult, invitationDeliveryStatus: "Sent", invitationNotificationSentAt: "2026-07-22T12:00:02Z" }],
+        page: 1,
+        pageSize: 25,
+        totalCount: 1,
+        hasNextPage: false,
+        hasPreviousPage: false
+      });
+
+    render(<PlatformTenantAdminPage />);
+    await screen.findByRole("heading", { name: "Tenant onboarding" });
+
+    await user.type(screen.getByLabelText("Customer reference"), "PILOT-003");
+    await user.type(screen.getByLabelText("Tenant display name"), "Aegis Pilot Workspace");
+    await user.type(screen.getByLabelText("Pilot end date"), "2026-08-31");
+    await user.type(screen.getByLabelText("Setup reason"), "Provision approved No-CUI pilot PILOT-003.");
+    await user.type(screen.getByLabelText("Owner email"), "owner@example.com");
+    await user.type(screen.getByLabelText("Owner display name"), "Pilot Owner");
+    await user.click(screen.getByRole("checkbox", { name: /No-CUI boundary confirmed/ }));
+    await user.click(screen.getByRole("button", { name: "Create pending tenant" }));
+
+    expect(provisionPlatformTenantMock).toHaveBeenCalledOnce();
+    const [request, idempotencyKey] = provisionPlatformTenantMock.mock.calls[0];
+    expect(request).toEqual({
+      onboardingType: "Pilot",
+      customerReference: "PILOT-003",
+      displayName: "Aegis Pilot Workspace",
+      ownerEmail: "owner@example.com",
+      ownerDisplayName: "Pilot Owner",
+      trialEndsAt: "2026-08-31",
+      planCode: null,
+      subscriptionReference: null,
+      setupReason: "Provision approved No-CUI pilot PILOT-003.",
+      confirmsNoCui: true,
+      commercialApprovalConfirmed: false
+    });
+    expect(idempotencyKey).toMatch(/^[0-9a-f-]{36}$/i);
+    expect(await screen.findByText("PendingActivation")).toBeInTheDocument();
+    expect((await screen.findAllByText("Provider accepted")).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Inbox delivery is not confirmed/i)).toBeInTheDocument();
+    expect(screen.queryByText(/invitation token/i)).not.toBeInTheDocument();
+  });
+
+  it("does not claim a queued invitation will be delivered when delivery is disabled", async () => {
+    getPlatformAccessMock.mockResolvedValue({
+      userId: "22222222-2222-2222-2222-222222222222",
+      userEmail: "operator@gccs.local",
+      canProvisionTenants: true,
+      canManageDemoRequests: false,
+      invitationDeliveryMode: "Disabled",
+      permissions: ["ProvisionTenants"]
+    });
+    provisionPlatformTenantMock.mockResolvedValue({
+      data: {
+        onboardingId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2",
+        tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2",
+        displayName: "Disabled Delivery Pilot",
+        onboardingType: "Pilot",
+        onboardingStatus: "PendingOwnerAcceptance",
+        tenantStatus: "PendingActivation",
+        dataHandlingMode: "NoCui",
+        customerReference: "PILOT-004",
+        ownerEmail: "owner@example.com",
+        ownerDisplayName: "Pilot Owner",
+        ownerRoleName: "Owner",
+        invitationId: "cccccccc-cccc-cccc-cccc-ccccccccccc2",
+        invitationStatus: "Pending",
+        invitationDeliveryStatus: "Queued",
+        invitationNotificationSentAt: null,
+        invitationExpiresAt: "2026-08-25T12:00:00Z",
+        trialEndsAt: "2026-08-31",
+        planCode: null,
+        subscriptionReference: null,
+        setupReason: "Provision approved No-CUI pilot PILOT-004.",
+        createdAt: "2026-08-17T12:00:00Z",
+        isReplay: false
+      },
+      error: null
+    });
+
+    const user = userEvent.setup();
+    render(<PlatformTenantAdminPage />);
+    await screen.findByRole("heading", { name: "Tenant onboarding" });
+    await user.type(screen.getByLabelText("Customer reference"), "PILOT-004");
+    await user.type(screen.getByLabelText("Tenant display name"), "Disabled Delivery Pilot");
+    await user.type(screen.getByLabelText("Pilot end date"), "2026-08-31");
+    await user.type(screen.getByLabelText("Setup reason"), "Provision approved No-CUI pilot PILOT-004.");
+    await user.type(screen.getByLabelText("Owner email"), "owner@example.com");
+    await user.type(screen.getByLabelText("Owner display name"), "Pilot Owner");
+    await user.click(screen.getByRole("checkbox", { name: /No-CUI boundary confirmed/ }));
+    await user.click(screen.getByRole("button", { name: "Create pending tenant" }));
+
+    expect(await screen.findByText(/email delivery is disabled/i)).toBeInTheDocument();
+    expect(screen.queryByText(/queued for asynchronous delivery/i)).not.toBeInTheDocument();
+  });
+
+  it("blocks the form when the account lacks the platform permission", async () => {
+    getPlatformAccessMock.mockResolvedValue({
+      userId: "dddddddd-dddd-dddd-dddd-ddddddddddd1",
+      userEmail: "owner@example.com",
+      canProvisionTenants: false,
+      canManageDemoRequests: false,
+      permissions: []
+    });
+
+    render(<PlatformTenantAdminPage />);
+
+    expect(await screen.findByRole("heading", { name: "Provisioning access denied" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Create pending tenant" })).not.toBeInTheDocument();
+  });
+
+  it("requires a reason and cancels a previously created pending onboarding", async () => {
+    const user = userEvent.setup();
+    const pending = {
+      onboardingId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1",
+      tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+      displayName: "Duplicate Pilot",
+      onboardingType: "Pilot",
+      onboardingStatus: "PendingOwnerAcceptance",
+      tenantStatus: "PendingActivation",
+      dataHandlingMode: "NoCui",
+      customerReference: "PILOT-DUPLICATE",
+      ownerEmail: "owner@example.com",
+      ownerDisplayName: "Pilot Owner",
+      ownerRoleName: "Owner",
+      invitationId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+      invitationStatus: "Pending",
+      invitationDeliveryStatus: "Queued",
+      invitationNotificationSentAt: null,
+      invitationExpiresAt: "2026-08-05T12:00:00Z",
+      trialEndsAt: "2026-08-31",
+      planCode: null,
+      subscriptionReference: null,
+      setupReason: "Duplicate test.",
+      createdAt: "2026-07-22T12:00:00Z",
+      cancelledAt: null,
+      cancelledByUserId: null,
+      cancellationReason: null,
+      subscription: null,
+      isReplay: false
+    };
+    getPlatformTenantOnboardingsMock.mockResolvedValue({
+      items: [pending],
+      page: 1,
+      pageSize: 25,
+      totalCount: 1,
+      hasNextPage: false,
+      hasPreviousPage: false
+    });
+    cancelPlatformTenantOnboardingMock.mockResolvedValue({
+      data: {
+        ...pending,
+        onboardingStatus: "Cancelled",
+        tenantStatus: "Archived",
+        invitationStatus: "Revoked",
+        invitationDeliveryStatus: "Cancelled",
+        cancelledAt: "2026-07-23T12:00:00Z",
+        cancelledByUserId: "22222222-2222-2222-2222-222222222222",
+        cancellationReason: "Duplicate pilot onboarding.",
+        subscription: null
+      },
+      error: null
+    });
+
+    render(<PlatformTenantAdminPage />);
+    await screen.findByText("Duplicate Pilot");
+    await user.click(screen.getByRole("button", { name: "Cancel onboarding for Duplicate Pilot" }));
+
+    const confirm = screen.getByRole("button", { name: "Confirm cancellation" });
+    expect(confirm).toBeDisabled();
+    await user.type(screen.getByLabelText("Cancellation reason"), "Duplicate pilot onboarding.");
+    expect(confirm).toBeEnabled();
+    await user.click(confirm);
+
+    expect(cancelPlatformTenantOnboardingMock).toHaveBeenCalledWith(
+      pending.onboardingId,
+      "Duplicate pilot onboarding."
+    );
+  });
+
+  it("corrects a pending Owner email and reissues the invitation", async () => {
+    const user = userEvent.setup();
+    const pending = {
+      onboardingId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1",
+      tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+      displayName: "Owner Correction Pilot",
+      onboardingType: "Pilot",
+      onboardingStatus: "PendingOwnerAcceptance",
+      tenantStatus: "PendingActivation",
+      dataHandlingMode: "NoCui",
+      customerReference: "PILOT-OWNER-CORRECTION",
+      ownerEmail: "wrong.owner@example.com",
+      ownerDisplayName: "Pilot Owner",
+      ownerRoleName: "Owner",
+      invitationId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+      invitationStatus: "Pending",
+      invitationDeliveryStatus: "Sent",
+      invitationNotificationSentAt: "2026-09-05T12:00:00Z",
+      invitationExpiresAt: "2026-09-12T12:00:00Z",
+      trialEndsAt: "2026-09-30",
+      planCode: null,
+      subscriptionReference: null,
+      setupReason: "Pilot onboarding.",
+      createdAt: "2026-09-05T12:00:00Z",
+      cancelledAt: null,
+      cancelledByUserId: null,
+      cancellationReason: null,
+      subscription: null,
+      isReplay: false
+    };
+    getPlatformTenantOnboardingsMock
+      .mockResolvedValueOnce({ items: [pending], page: 1, pageSize: 25, totalCount: 1, hasNextPage: false, hasPreviousPage: false })
+      .mockResolvedValue({
+        items: [{
+          ...pending,
+          ownerEmail: "samurab@sierralabsllc.com",
+          invitationId: "cccccccc-cccc-cccc-cccc-ccccccccccc2",
+          invitationDeliveryStatus: "Queued",
+          invitationNotificationSentAt: null
+        }],
+        page: 1,
+        pageSize: 25,
+        totalCount: 1,
+        hasNextPage: false,
+        hasPreviousPage: false
+      });
+    correctPlatformOwnerInvitationMock.mockResolvedValue({
+      data: {
+        ...pending,
+        ownerEmail: "samurab@sierralabsllc.com",
+        invitationId: "cccccccc-cccc-cccc-cccc-ccccccccccc2",
+        invitationDeliveryStatus: "Queued",
+        invitationNotificationSentAt: null
+      },
+      error: null
+    });
+
+    render(<PlatformTenantAdminPage />);
+    await screen.findByText("Owner Correction Pilot");
+    await user.click(screen.getByRole("button", { name: "Correct Owner email for Owner Correction Pilot" }));
+
+    expect(screen.getByLabelText("Corrected Owner email")).toHaveValue("wrong.owner@example.com");
+    const submit = screen.getByRole("button", { name: "Correct and reissue invitation" });
+    expect(submit).toBeDisabled();
+    await user.clear(screen.getByLabelText("Corrected Owner email"));
+    await user.type(screen.getByLabelText("Corrected Owner email"), "samurab@sierralabsllc.com");
+    await user.type(
+      screen.getByLabelText("Correction reason"),
+      "Correct designated Owner address before activation."
+    );
+    expect(submit).toBeEnabled();
+    await user.click(submit);
+
+    expect(correctPlatformOwnerInvitationMock).toHaveBeenCalledWith(
+      pending.onboardingId,
+      pending.invitationId,
+      "samurab@sierralabsllc.com",
+      "Correct designated Owner address before activation."
+    );
+    expect(await screen.findByText("samurab@sierralabsllc.com")).toBeInTheDocument();
+  });
+
+});

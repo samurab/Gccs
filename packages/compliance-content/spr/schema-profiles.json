@@ -1,0 +1,34 @@
+{
+  "profiles": [
+    {
+      "id": "gsa-spr-fdd-2026-03-06",
+      "version": "1.0",
+      "state": "published",
+      "sourceName": "GSA Subcontracting Plan Reporting Functional Data Dictionary",
+      "sourceUrl": "https://www.fsd.gov/gsafsd_sp/en/subcontract-plan-reporting-functional-data-dictionary?id=kb_article_view&sysparm_article=KB0093498",
+      "sourcePublishedDate": "2026-03-06",
+      "effectiveDate": "2026-03-06",
+      "retiredDate": null,
+      "lastReviewedAt": "2026-09-10",
+      "owner": "Compliance Content Owner",
+      "reviewer": "Compliance Content Reviewer",
+      "reviewDate": "2026-09-10",
+      "definitionSha256": "6aba419769c9ab56bc662b05a53e815ebcd11467ecd57b38fbc5a697da7927bb",
+      "priorFiscalYearsAllowed": 9,
+      "wholeDollarAmounts": true,
+      "eligibilityConfirmationRequired": true,
+      "reportingPeriods": ["march31", "september30", "final"],
+      "categories": [
+        "Small Business Concerns (SB)",
+        "Other Than Small Business Concerns (OTSB)",
+        "Small Disadvantaged Business (SDB)",
+        "Women-Owned Small Business (WOSB)",
+        "HBCU/MSI",
+        "HUBZone Small Business",
+        "Veteran-Owned Small Business (VOSB)",
+        "Service-Disabled Veteran-Owned Small Business (SDVOSB)",
+        "ANC/Indian Tribe"
+      ]
+    }
+  ]
+}

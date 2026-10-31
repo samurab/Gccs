@@ -1,0 +1,647 @@
+using System.Net;
+using System.Net.Http.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Gccs.Application.Audit;
+using Gccs.Application.Companies;
+using Gccs.Domain.Audit;
+using Gccs.Domain.Companies;
+using Gccs.Domain.Compliance;
+using Gccs.Domain.Identity;
+using Gccs.Domain.Tenancy;
+using Gccs.Infrastructure.Audit;
+using Gccs.Infrastructure.Companies;
+using Gccs.Infrastructure.Persistence;
+using Gccs.Infrastructure.Persistence.Models;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Xunit;
+
+namespace Gccs.Api.Tests;
+
+public sealed class CompanyProfileTests : IClassFixture<WebApplicationFactory<Program>>
+{
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new JsonStringEnumConverter() }
+    };
+
+    private readonly WebApplicationFactory<Program> _factory;
+
+    public CompanyProfileTests(WebApplicationFactory<Program> factory)
+    {
+        _factory = factory;
+    }
+
+    [Fact]
+    public async Task TC_7_1_1_Completion_validates_required_fields()
+    {
+        var tenantId = Guid.Parse("71717171-7171-7171-7171-7171717171a1");
+        await using var factory = CreateFactory("tc-7-1-1", dbContext => SeedTenant(dbContext, tenantId));
+        using var client = factory.CreateClient();
+        using var request = CreateRequest(
+            HttpMethod.Put,
+            "/api/company-profile",
+            CreateRequestBody(completeProfile: true) with { Uei = null, CageCode = null, SamRegistrationExpiresAt = null },
+            tenantId,
+            Guid.NewGuid(),
+            Permission.ManageCompanyProfile);
+
+        var response = await client.SendAsync(request);
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("uei", body, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("cageCode", body, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("samRegistrationExpiresAt", body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task TC_7_1_2_Draft_save_persists_without_being_marked_complete()
+    {
+        var tenantId = Guid.Parse("71717171-7171-7171-7171-7171717171a2");
+        await using var factory = CreateFactory("tc-7-1-2", dbContext => SeedTenant(dbContext, tenantId));
+        using var client = factory.CreateClient();
+        using var saveRequest = CreateRequest(
+            HttpMethod.Put,
+            "/api/company-profile",
+            CreateRequestBody(completeProfile: false) with
+            {
+                Uei = null,
+                CageCode = null,
+                NaicsCodes = [],
+                Locations = [],
+                ItEnvironment = new ItEnvironmentSummaryDto("", false, null, [])
+            },
+            tenantId,
+            Guid.NewGuid(),
+            Permission.ManageCompanyProfile);
+
+        var saveResponse = await client.SendAsync(saveRequest);
+        var saved = await saveResponse.Content.ReadFromJsonAsync<CompanyProfileDto>(JsonOptions);
+        using var getRequest = CreateRequest(HttpMethod.Get, "/api/company-profile", tenantId, Guid.NewGuid(), Permission.ViewCompanyProfile);
+        var getResponse = await client.SendAsync(getRequest);
+        var fetched = await getResponse.Content.ReadFromJsonAsync<CompanyProfileDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, saveResponse.StatusCode);
+        Assert.NotNull(saved);
+        Assert.False(saved.IsComplete);
+        Assert.InRange(saved.CompletionPercentage, 1, 99);
+        Assert.Empty(saved.ValidationErrors);
+        Assert.NotNull(fetched);
+        Assert.Equal(saved.Id, fetched.Id);
+        Assert.Equal("Acme Federal Services", fetched.LegalEntityName);
+        Assert.False(fetched.IsComplete);
+        Assert.Empty(fetched.ValidationErrors);
+    }
+
+    [Fact]
+    public async Task TC_7_1_3_Completion_percentage_recalculates_when_profile_data_changes()
+    {
+        var tenantId = Guid.Parse("71717171-7171-7171-7171-7171717171a3");
+        await using var factory = CreateFactory("tc-7-1-3", dbContext => SeedTenant(dbContext, tenantId));
+        using var client = factory.CreateClient();
+        var actorUserId = Guid.NewGuid();
+
+        using var draftRequest = CreateRequest(
+            HttpMethod.Put,
+            "/api/company-profile",
+            CreateRequestBody(completeProfile: false) with
+            {
+                Uei = null,
+                CageCode = null,
+                SamRegistrationExpiresAt = null,
+                NaicsCodes = [],
+                Certifications = [],
+                AgencyCustomers = [],
+                ContractorRole = ContractorRole.Unknown,
+                ProductsAndServices = "",
+                EmployeeRange = CompanyRange.Unknown,
+                RevenueRange = CompanyRange.Unknown,
+                Locations = [],
+                ItEnvironment = new ItEnvironmentSummaryDto("", false, null, []),
+                DataHandlingPosture = DataHandlingPosture.Unknown
+            },
+            tenantId,
+            actorUserId,
+            Permission.ManageCompanyProfile);
+        var draftResponse = await client.SendAsync(draftRequest);
+        var draftBody = await draftResponse.Content.ReadAsStringAsync();
+        Assert.True(draftResponse.IsSuccessStatusCode, draftBody);
+        using var draftJson = JsonDocument.Parse(draftBody);
+        var draft = draftJson.Deserialize<CompanyProfileDto>(JsonOptions);
+
+        using var completeRequest = CreateRequest(
+            HttpMethod.Put,
+            "/api/company-profile",
+            CreateRequestBody(completeProfile: true),
+            tenantId,
+            actorUserId,
+            Permission.ManageCompanyProfile);
+        var completeResponse = await client.SendAsync(completeRequest);
+        var completeBody = await completeResponse.Content.ReadAsStringAsync();
+        Assert.True(completeResponse.IsSuccessStatusCode, completeBody);
+        using var completeJson = JsonDocument.Parse(completeBody);
+        var complete = completeJson.Deserialize<CompanyProfileDto>(JsonOptions);
+
+        using var reducedRequest = CreateRequest(
+            HttpMethod.Put,
+            "/api/company-profile",
+            CreateRequestBody(completeProfile: false) with { Locations = [] },
+            tenantId,
+            actorUserId,
+            Permission.ManageCompanyProfile);
+        var reducedResponse = await client.SendAsync(reducedRequest);
+        var reducedBody = await reducedResponse.Content.ReadAsStringAsync();
+        Assert.True(reducedResponse.IsSuccessStatusCode, reducedBody);
+        using var reducedJson = JsonDocument.Parse(reducedBody);
+        var reduced = reducedJson.Deserialize<CompanyProfileDto>(JsonOptions);
+
+        Assert.NotNull(draft);
+        Assert.NotNull(complete);
+        Assert.NotNull(reduced);
+        Assert.True(
+            complete.CompletionPercentage > draft.CompletionPercentage,
+            $"Expected completed profile score to exceed draft score. Draft={draft.CompletionPercentage}, Complete={complete.CompletionPercentage}");
+        Assert.True(complete.IsComplete);
+        Assert.Equal(100, complete.CompletionPercentage);
+        Assert.Empty(complete.ValidationErrors);
+        Assert.False(reduced.IsComplete);
+        Assert.True(reduced.CompletionPercentage < complete.CompletionPercentage);
+        Assert.Empty(reduced.ValidationErrors);
+    }
+
+    [Fact]
+    public async Task UAT_P03_Completing_synthetic_profile_returns_complete_100_percent()
+    {
+        var tenantId = Guid.Parse("71717171-7171-7171-7171-7171717171a5");
+        await using var factory = CreateFactory("uat-p03-profile-complete", dbContext => SeedTenant(dbContext, tenantId));
+        using var client = factory.CreateClient();
+        var actorUserId = Guid.NewGuid();
+
+        using var draftRequest = CreateRequest(
+            HttpMethod.Put,
+            "/api/company-profile",
+            CreateRequestBody(completeProfile: false) with
+            {
+                LegalEntityName = "Blue Ridge Federal Support LLC",
+                DoingBusinessAs = "Blue Ridge Support",
+                Uei = null,
+                CageCode = null,
+                SamRegistrationExpiresAt = null,
+                NaicsCodes = [],
+                Certifications = [],
+                AgencyCustomers = [],
+                ContractorRole = ContractorRole.Unknown,
+                ProductsAndServices = "",
+                EmployeeRange = CompanyRange.Unknown,
+                RevenueRange = CompanyRange.Unknown,
+                Locations = [],
+                ItEnvironment = new ItEnvironmentSummaryDto("", false, null, []),
+                DataHandlingPosture = DataHandlingPosture.Unknown
+            },
+            tenantId,
+            actorUserId,
+            Permission.ManageCompanyProfile);
+        var draftResponse = await client.SendAsync(draftRequest);
+        var draft = await draftResponse.Content.ReadFromJsonAsync<CompanyProfileDto>(JsonOptions);
+
+        using var completeRequest = CreateRequest(
+            HttpMethod.Put,
+            "/api/company-profile",
+            CreateUatP03RequestBody(),
+            tenantId,
+            actorUserId,
+            Permission.ManageCompanyProfile);
+        var completeResponse = await client.SendAsync(completeRequest);
+        var completeBody = await completeResponse.Content.ReadAsStringAsync();
+        var complete = JsonSerializer.Deserialize<CompanyProfileDto>(completeBody, JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, draftResponse.StatusCode);
+        Assert.NotNull(draft);
+        Assert.False(draft.IsComplete);
+        Assert.Equal(8, draft.CompletionPercentage);
+        Assert.Equal(HttpStatusCode.OK, completeResponse.StatusCode);
+        Assert.NotNull(complete);
+        Assert.True(complete.IsComplete, completeBody);
+        Assert.Equal(100, complete.CompletionPercentage);
+        Assert.Empty(complete.ValidationErrors);
+        Assert.Equal("Blue Ridge Federal Support LLC", complete.LegalEntityName);
+        Assert.Equal("541512", Assert.Single(complete.NaicsCodes).Code);
+    }
+
+    [Fact]
+    public async Task TC_7_1_4_Profile_changes_are_audited_and_tenant_scoped()
+    {
+        var tenantAId = Guid.Parse("71717171-7171-7171-7171-7171717171a4");
+        var tenantBId = Guid.Parse("71717171-7171-7171-7171-7171717171b4");
+        var actorUserId = Guid.Parse("71717171-7171-7171-7171-7171717171c4");
+        await using var factory = CreateFactory("tc-7-1-4", dbContext =>
+        {
+            SeedTenant(dbContext, tenantAId, "Tenant A");
+            SeedTenant(dbContext, tenantBId, "Tenant B");
+        });
+        using var client = factory.CreateClient();
+
+        using var createRequest = CreateRequest(
+            HttpMethod.Put,
+            "/api/company-profile",
+            CreateRequestBody(completeProfile: false),
+            tenantAId,
+            actorUserId,
+            Permission.ManageCompanyProfile);
+        var createResponse = await client.SendAsync(createRequest);
+        using var tenantBGetRequest = CreateRequest(HttpMethod.Get, "/api/company-profile", tenantBId, Guid.NewGuid(), Permission.ViewCompanyProfile);
+        var tenantBGetResponse = await client.SendAsync(tenantBGetRequest);
+        using var updateRequest = CreateRequest(
+            HttpMethod.Put,
+            "/api/company-profile",
+            CreateRequestBody(completeProfile: false) with { LegalEntityName = "Acme Federal Services Updated" },
+            tenantAId,
+            actorUserId,
+            Permission.ManageCompanyProfile);
+        var updateResponse = await client.SendAsync(updateRequest);
+
+        Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, tenantBGetResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        var profile = await dbContext.CompanyProfiles.SingleAsync(profile => profile.TenantId == tenantAId);
+        var auditEvents = await dbContext.AuditLogEntries
+            .Where(audit => audit.TenantId == tenantAId && audit.EntityType == "CompanyProfile")
+            .OrderBy(audit => audit.OccurredAt)
+            .ToArrayAsync();
+
+        Assert.Equal("Acme Federal Services Updated", profile.LegalEntityName);
+        Assert.Equal([AuditAction.Created, AuditAction.Updated], auditEvents.Select(audit => audit.Action).ToArray());
+        Assert.All(auditEvents, audit => Assert.Equal(actorUserId, audit.ActorUserId));
+    }
+
+    [Fact]
+    public async Task TC_7_2_1_Add_multiple_naics_codes_to_profile()
+    {
+        var tenantId = Guid.Parse("72727272-7272-7272-7272-7272727272a1");
+        await using var factory = CreateFactory("tc-7-2-1", dbContext => SeedTenant(dbContext, tenantId));
+        using var client = factory.CreateClient();
+        var requestBody = CreateRequestBody(completeProfile: false) with
+        {
+            NaicsCodes =
+            [
+                new CompanyNaicsCodeDto("541330", "Engineering Services", true, "$25.5M", true, new DateOnly(2026, 6, 15)),
+                new CompanyNaicsCodeDto("541511", "Custom Computer Programming Services", false, "$34M", true, new DateOnly(2026, 6, 15))
+            ]
+        };
+
+        using var saveRequest = CreateRequest(HttpMethod.Put, "/api/company-profile", requestBody, tenantId, Guid.NewGuid(), Permission.ManageCompanyProfile);
+        var saveResponse = await client.SendAsync(saveRequest);
+        var saved = await saveResponse.Content.ReadFromJsonAsync<CompanyProfileDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, saveResponse.StatusCode);
+        Assert.NotNull(saved);
+        Assert.Equal(["541330", "541511"], saved.NaicsCodes.Select(naics => naics.Code).ToArray());
+    }
+
+    [Fact]
+    public async Task TC_7_2_2_Only_one_naics_code_is_primary_and_primary_can_switch()
+    {
+        var tenantId = Guid.Parse("72727272-7272-7272-7272-7272727272a2");
+        await using var factory = CreateFactory("tc-7-2-2", dbContext => SeedTenant(dbContext, tenantId));
+        using var client = factory.CreateClient();
+        var actorUserId = Guid.NewGuid();
+        var initial = CreateRequestBody(completeProfile: false) with
+        {
+            NaicsCodes =
+            [
+                new CompanyNaicsCodeDto("541330", "Engineering Services", true, "$25.5M", true, null),
+                new CompanyNaicsCodeDto("541511", "Custom Computer Programming Services", false, "$34M", true, null)
+            ]
+        };
+        var switched = initial with
+        {
+            NaicsCodes =
+            [
+                new CompanyNaicsCodeDto("541330", "Engineering Services", false, "$25.5M", true, null),
+                new CompanyNaicsCodeDto("541511", "Custom Computer Programming Services", true, "$34M", true, null)
+            ]
+        };
+
+        using var initialRequest = CreateRequest(HttpMethod.Put, "/api/company-profile", initial, tenantId, actorUserId, Permission.ManageCompanyProfile);
+        await client.SendAsync(initialRequest);
+        using var switchedRequest = CreateRequest(HttpMethod.Put, "/api/company-profile", switched, tenantId, actorUserId, Permission.ManageCompanyProfile);
+        var switchedResponse = await client.SendAsync(switchedRequest);
+        var saved = await switchedResponse.Content.ReadFromJsonAsync<CompanyProfileDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, switchedResponse.StatusCode);
+        Assert.NotNull(saved);
+        Assert.Equal("541511", Assert.Single(saved.NaicsCodes, naics => naics.IsPrimary).Code);
+    }
+
+    [Fact]
+    public async Task TC_7_2_3_Size_status_and_basis_are_stored_per_naics()
+    {
+        var tenantId = Guid.Parse("72727272-7272-7272-7272-7272727272a3");
+        await using var factory = CreateFactory("tc-7-2-3", dbContext => SeedTenant(dbContext, tenantId));
+        using var client = factory.CreateClient();
+        var requestBody = CreateRequestBody(completeProfile: false) with
+        {
+            NaicsCodes =
+            [
+                new CompanyNaicsCodeDto("541330", "Engineering Services", true, "$25.5M receipts basis", true, new DateOnly(2026, 6, 15)),
+                new CompanyNaicsCodeDto("236220", "Commercial Building Construction", false, "$45M receipts basis", false, new DateOnly(2026, 6, 15))
+            ]
+        };
+
+        using var saveRequest = CreateRequest(HttpMethod.Put, "/api/company-profile", requestBody, tenantId, Guid.NewGuid(), Permission.ManageCompanyProfile);
+        var saveResponse = await client.SendAsync(saveRequest);
+        var saved = await saveResponse.Content.ReadFromJsonAsync<CompanyProfileDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, saveResponse.StatusCode);
+        Assert.NotNull(saved);
+        Assert.True(saved.NaicsCodes.Single(naics => naics.Code == "541330").QualifiesAsSmall);
+        Assert.False(saved.NaicsCodes.Single(naics => naics.Code == "236220").QualifiesAsSmall);
+        Assert.Equal("$45M receipts basis", saved.NaicsCodes.Single(naics => naics.Code == "236220").SizeStandard);
+    }
+
+    [Fact]
+    public async Task TC_7_2_4_Missing_naics_size_status_appears_in_profile_gaps()
+    {
+        var tenantId = Guid.Parse("72727272-7272-7272-7272-7272727272a4");
+        await using var factory = CreateFactory("tc-7-2-4", dbContext => SeedTenant(dbContext, tenantId));
+        using var client = factory.CreateClient();
+        var requestBody = CreateRequestBody(completeProfile: false) with
+        {
+            NaicsCodes =
+            [
+                new CompanyNaicsCodeDto("541330", "Engineering Services", true, null, null, null)
+            ]
+        };
+
+        using var saveRequest = CreateRequest(HttpMethod.Put, "/api/company-profile", requestBody, tenantId, Guid.NewGuid(), Permission.ManageCompanyProfile);
+        var saveResponse = await client.SendAsync(saveRequest);
+        var saved = await saveResponse.Content.ReadFromJsonAsync<CompanyProfileDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, saveResponse.StatusCode);
+        Assert.NotNull(saved);
+        Assert.Contains("naicsCodes[0].sizeStatus", saved.ValidationErrors.Keys);
+        Assert.Contains("541330", saved.ValidationErrors["naicsCodes[0].sizeStatus"][0], StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task TC_7_3_1_Add_supported_and_custom_certifications_to_profile()
+    {
+        var tenantId = Guid.Parse("73737373-7373-7373-7373-7373737373a1");
+        await using var factory = CreateFactory("tc-7-3-1", dbContext => SeedTenant(dbContext, tenantId));
+        using var client = factory.CreateClient();
+        var certifications = new[]
+        {
+            new CompanyCertificationDto(null, CertificationType.EightA, CertificationStatus.Active, "SBA", new DateOnly(2026, 1, 1), new DateOnly(2027, 1, 1), "8A-1"),
+            new CompanyCertificationDto(null, CertificationType.Wosb, CertificationStatus.Active, "SBA", new DateOnly(2026, 1, 1), new DateOnly(2027, 1, 1), "WOSB-1"),
+            new CompanyCertificationDto(null, CertificationType.Edwosb, CertificationStatus.Active, "SBA", new DateOnly(2026, 1, 1), new DateOnly(2027, 1, 1), "EDWOSB-1"),
+            new CompanyCertificationDto(null, CertificationType.HubZone, CertificationStatus.Active, "SBA", new DateOnly(2026, 1, 1), new DateOnly(2027, 1, 1), "HUB-1"),
+            new CompanyCertificationDto(null, CertificationType.Sdvosb, CertificationStatus.Active, "SBA", new DateOnly(2026, 1, 1), new DateOnly(2027, 1, 1), "SDVOSB-1"),
+            new CompanyCertificationDto(null, CertificationType.Sdb, CertificationStatus.Active, "SBA", new DateOnly(2026, 1, 1), new DateOnly(2027, 1, 1), "SDB-1"),
+            new CompanyCertificationDto(null, CertificationType.Other, CertificationStatus.Active, "State DOT", new DateOnly(2026, 1, 1), new DateOnly(2027, 1, 1), "DBE-1")
+        };
+
+        using var saveRequest = CreateRequest(
+            HttpMethod.Put,
+            "/api/company-profile",
+            CreateRequestBody(completeProfile: false) with { Certifications = certifications },
+            tenantId,
+            Guid.NewGuid(),
+            Permission.ManageCompanyProfile);
+        var saveResponse = await client.SendAsync(saveRequest);
+        var saved = await saveResponse.Content.ReadFromJsonAsync<CompanyProfileDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, saveResponse.StatusCode);
+        Assert.NotNull(saved);
+        Assert.Equal(
+            [CertificationType.EightA, CertificationType.Wosb, CertificationType.Edwosb, CertificationType.HubZone, CertificationType.Sdvosb, CertificationType.Sdb, CertificationType.Other],
+            saved.Certifications.Select(certification => certification.Type).OrderBy(type => type).ToArray());
+        Assert.Contains(saved.Certifications, certification => certification.Type == CertificationType.Other && certification.Issuer == "State DOT");
+    }
+
+    [Fact]
+    public async Task TC_7_3_2_Upcoming_certification_expiration_creates_renewal_task()
+    {
+        var tenantId = Guid.Parse("73737373-7373-7373-7373-7373737373a2");
+        var actorUserId = Guid.Parse("73737373-7373-7373-7373-7373737373b2");
+        var expiresAt = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(45);
+        await using var factory = CreateFactory("tc-7-3-2", dbContext => SeedTenant(dbContext, tenantId));
+        using var client = factory.CreateClient();
+
+        using var saveRequest = CreateRequest(
+            HttpMethod.Put,
+            "/api/company-profile",
+            CreateRequestBody(completeProfile: false) with
+            {
+                Certifications =
+                [
+                    new CompanyCertificationDto(null, CertificationType.Wosb, CertificationStatus.Active, "SBA", new DateOnly(2026, 1, 1), expiresAt, "WOSB-EXP")
+                ]
+            },
+            tenantId,
+            actorUserId,
+            Permission.ManageCompanyProfile);
+        var saveResponse = await client.SendAsync(saveRequest);
+
+        Assert.Equal(HttpStatusCode.OK, saveResponse.StatusCode);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        var task = await dbContext.ComplianceTasks.SingleAsync(task => task.TenantId == tenantId && task.Type == ComplianceTaskType.Renewal);
+        Assert.Equal("Renew WOSB certification", task.Title);
+        Assert.Equal(expiresAt, task.DueAt);
+        Assert.Equal(actorUserId, task.CreatedByUserId);
+    }
+
+    [Fact]
+    public async Task TC_7_3_3_Expired_certification_is_flagged_on_profile()
+    {
+        var tenantId = Guid.Parse("73737373-7373-7373-7373-7373737373a3");
+        var expiredAt = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-1);
+        await using var factory = CreateFactory("tc-7-3-3", dbContext => SeedTenant(dbContext, tenantId));
+        using var client = factory.CreateClient();
+
+        using var saveRequest = CreateRequest(
+            HttpMethod.Put,
+            "/api/company-profile",
+            CreateRequestBody(completeProfile: false) with
+            {
+                Certifications =
+                [
+                    new CompanyCertificationDto(null, CertificationType.HubZone, CertificationStatus.Active, "SBA", new DateOnly(2025, 1, 1), expiredAt, "HUB-OLD")
+                ]
+            },
+            tenantId,
+            Guid.NewGuid(),
+            Permission.ManageCompanyProfile);
+        var saveResponse = await client.SendAsync(saveRequest);
+        var saved = await saveResponse.Content.ReadFromJsonAsync<CompanyProfileDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, saveResponse.StatusCode);
+        Assert.NotNull(saved);
+        Assert.Equal(CertificationStatus.Expired, Assert.Single(saved.Certifications).Status);
+    }
+
+    [Fact]
+    public async Task TC_7_3_4_Certification_changes_are_audit_logged()
+    {
+        var tenantId = Guid.Parse("73737373-7373-7373-7373-7373737373a4");
+        var actorUserId = Guid.Parse("73737373-7373-7373-7373-7373737373b4");
+        await using var factory = CreateFactory("tc-7-3-4", dbContext => SeedTenant(dbContext, tenantId));
+        using var client = factory.CreateClient();
+        var initial = CreateRequestBody(completeProfile: false) with
+        {
+            Certifications =
+            [
+                new CompanyCertificationDto(null, CertificationType.Sdb, CertificationStatus.Active, "SBA", new DateOnly(2026, 1, 1), new DateOnly(2027, 1, 1), "SDB-1")
+            ]
+        };
+        var revoked = initial with
+        {
+            Certifications =
+            [
+                new CompanyCertificationDto(null, CertificationType.Sdb, CertificationStatus.Revoked, "SBA", new DateOnly(2026, 1, 1), new DateOnly(2027, 1, 1), "SDB-1")
+            ]
+        };
+
+        using var createRequest = CreateRequest(HttpMethod.Put, "/api/company-profile", initial, tenantId, actorUserId, Permission.ManageCompanyProfile);
+        var createResponse = await client.SendAsync(createRequest);
+        using var updateRequest = CreateRequest(HttpMethod.Put, "/api/company-profile", revoked, tenantId, actorUserId, Permission.ManageCompanyProfile);
+        var updateResponse = await client.SendAsync(updateRequest);
+        using var removeRequest = CreateRequest(
+            HttpMethod.Put,
+            "/api/company-profile",
+            initial with { Certifications = [] },
+            tenantId,
+            actorUserId,
+            Permission.ManageCompanyProfile);
+        var removeResponse = await client.SendAsync(removeRequest);
+
+        Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, removeResponse.StatusCode);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        var certificationAuditEvents = await dbContext.AuditLogEntries
+            .Where(audit => audit.TenantId == tenantId && audit.EntityType == "CompanyCertification")
+            .OrderBy(audit => audit.OccurredAt)
+            .ToArrayAsync();
+
+        Assert.Equal(3, certificationAuditEvents.Length);
+        Assert.All(certificationAuditEvents, audit => Assert.Equal(actorUserId, audit.ActorUserId));
+        Assert.Contains("certificationCount", certificationAuditEvents.Last().MetadataJson, StringComparison.Ordinal);
+    }
+
+    private WebApplicationFactory<Program> CreateFactory(string databaseName, Action<GccsDbContext>? seed = null) =>
+        _factory.WithWebHostBuilder(builder =>
+        {
+            builder.UseSetting("LocalDependencies:Enabled", "false");
+            builder.UseSetting("ConnectionStrings:GccsDatabase", string.Empty);
+            builder.ConfigureServices(services =>
+            {
+                services.AddDbContext<GccsDbContext>(options => options.UseInMemoryDatabase(databaseName));
+                services.AddScoped<CompanyProfileService>();
+                services.AddScoped<ICompanyProfileRepository, EfCompanyProfileRepository>();
+                services.AddScoped<IAuditEventWriter, EfAuditEventWriter>();
+
+                using var provider = services.BuildServiceProvider();
+                using var scope = provider.CreateScope();
+                var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+                dbContext.Database.EnsureDeleted();
+                dbContext.Database.EnsureCreated();
+                seed?.Invoke(dbContext);
+                dbContext.SaveChanges();
+            });
+        });
+
+    private static UpsertCompanyProfileRequest CreateRequestBody(bool completeProfile) =>
+        new(
+            "Acme Federal Services",
+            "Acme Gov",
+            "ABCDEF123456",
+            "1A2B3",
+            new DateOnly(2027, 6, 15),
+            [new CompanyNaicsCodeDto("541330", "Engineering Services", true, "$25.5M", true, new DateOnly(2026, 6, 15))],
+            [new CompanyCertificationDto(null, CertificationType.Wosb, CertificationStatus.Active, "SBA", new DateOnly(2026, 1, 1), new DateOnly(2027, 1, 1), "WOSB-1")],
+            ["Department of Defense"],
+            ContractorRole.Subcontractor,
+            "Engineering and cybersecurity support services",
+            CompanyRange.Small,
+            CompanyRange.Small,
+            [new CompanyLocationDto("HQ", "100 Main St", null, "Arlington", "VA", "22201", "USA", true)],
+            new ItEnvironmentSummaryDto("Microsoft 365 GCC High with managed endpoints.", true, "Trusted MSP", ["Microsoft 365", "Intune"]),
+            DataHandlingPosture.FciOnly,
+            completeProfile);
+
+    private static UpsertCompanyProfileRequest CreateUatP03RequestBody() =>
+        new(
+            "Blue Ridge Federal Support LLC",
+            "Blue Ridge Support",
+            "UAT123ABC456",
+            "7UAT1",
+            new DateOnly(2027, 7, 31),
+            [new CompanyNaicsCodeDto("541512", "Computer Systems Design Services", true, "UAT synthetic value - not an SBA determination", true, null)],
+            [],
+            ["DHS synthetic UAT customer"],
+            ContractorRole.Subcontractor,
+            "Synthetic non-CUI help desk and compliance support services.",
+            CompanyRange.Small,
+            CompanyRange.Small,
+            [new CompanyLocationDto("UAT Headquarters", "100 Test Plaza", null, "Arlington", "VA", "22201", "USA", true)],
+            new ItEnvironmentSummaryDto(
+                "Synthetic Microsoft 365 and managed endpoint environment used only for No-CUI UAT.",
+                false,
+                null,
+                ["Microsoft 365", "synthetic help desk"]),
+            DataHandlingPosture.FciOnly,
+            true);
+
+    private static HttpRequestMessage CreateRequest<TContent>(
+        HttpMethod method,
+        string requestUri,
+        TContent? content,
+        Guid tenantId,
+        Guid userId,
+        Permission permission)
+    {
+        var request = CreateRequest(method, requestUri, tenantId, userId, permission);
+
+        if (content is not null)
+        {
+            request.Content = JsonContent.Create(content, options: JsonOptions);
+        }
+
+        return request;
+    }
+
+    private static HttpRequestMessage CreateRequest(
+        HttpMethod method,
+        string requestUri,
+        Guid tenantId,
+        Guid userId,
+        Permission permission)
+    {
+        var request = new HttpRequestMessage(method, requestUri);
+        request.Headers.Add("X-Gccs-Dev-Auth", "true");
+        request.Headers.Add("X-Gccs-Dev-Tenant", tenantId.ToString());
+        request.Headers.Add("X-Gccs-Dev-User", userId.ToString());
+        request.Headers.Add("X-Gccs-Dev-Permissions", permission.ToString());
+        return request;
+    }
+
+    private static void SeedTenant(GccsDbContext dbContext, Guid tenantId, string name = "Company Profile Tenant")
+    {
+        dbContext.Tenants.Add(new TenantEntity
+        {
+            Id = tenantId,
+            Name = name,
+            Status = TenantStatus.Active,
+            DataPosture = TenantDataPosture.NoCui,
+            CreatedAt = DateTimeOffset.UtcNow
+        });
+    }
+}

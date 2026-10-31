@@ -1,0 +1,794 @@
+using System.Security.Claims;
+using System.Text.Json;
+using System.Threading.RateLimiting;
+using Gccs.Application.Audit;
+using Gccs.Application.Common;
+using Gccs.Application.Ai;
+using Gccs.Application.Identity;
+using Gccs.Application.Security;
+using Gccs.Application.Tenancy;
+using Gccs.Domain.Identity;
+using Gccs.Domain.Tenancy;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization.Policy;
+using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Logging;
+using Microsoft.IdentityModel.Tokens;
+
+namespace Gccs.Api.Security;
+
+public sealed record RequiredPermissionMetadata(Permission Permission);
+
+public sealed record RequiredAnyPermissionMetadata(IReadOnlyList<Permission> Permissions);
+
+public sealed record SuppressAtomicMutationTransactionMetadata;
+
+public static class ApiSecurityExtensions
+{
+    public const string DevelopmentAuthenticationScheme = "Development";
+    public const string RoutedJwtAuthenticationScheme = "GccsBearer";
+    public const string WorkforceJwtAuthenticationScheme = "WorkforceBearer";
+    public const string CustomerJwtAuthenticationScheme = "CustomerBearer";
+    public const string AuthenticationPlaneClaimType = "gccs_authentication_plane";
+    public const string WorkforceAuthenticationPlane = "workforce";
+    public const string CustomerAuthenticationPlane = "customer";
+    public const string DevelopmentAuthenticationPlane = "development";
+    public const string PermissionClaimType = "permission";
+    public const string RoleNameClaimType = "gccs_role";
+    public const string TenantIdClaimType = "tenant_id";
+    public const string TenantSelectionHeader = "X-Gccs-Tenant";
+    private const string MembershipAuthorizationEnforcedKey = "Security:MembershipAuthorization:Enforce";
+    private const string MicrosoftObjectIdClaimType = "http://schemas.microsoft.com/identity/claims/objectidentifier";
+
+    public static IServiceCollection AddGccsApiSecurity(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        IWebHostEnvironment environment)
+    {
+        var developmentAuthEnabled = environment.IsDevelopment() &&
+            configuration.GetValue("Security:DevelopmentAuth:Enabled", true);
+
+        if (developmentAuthEnabled)
+        {
+            services.AddAuthentication(DevelopmentAuthenticationScheme)
+                .AddScheme<DevelopmentAuthenticationOptions, DevelopmentAuthenticationHandler>(
+                    DevelopmentAuthenticationScheme,
+                    options =>
+                    {
+                        options.DefaultTenantId = configuration.GetValue(
+                            "Security:DevelopmentAuth:DefaultTenantId",
+                            DevelopmentAuthenticationOptions.FallbackTenantId);
+                        options.DefaultUserId = configuration.GetValue(
+                            "Security:DevelopmentAuth:DefaultUserId",
+                            DevelopmentAuthenticationOptions.FallbackUserId);
+                        options.DefaultEmail = configuration.GetValue(
+                            "Security:DevelopmentAuth:DefaultEmail",
+                            "developer@gccs.local");
+                        options.DefaultPlatformPermissions = configuration.GetValue(
+                            "Security:DevelopmentAuth:DefaultPlatformPermissions",
+                            string.Empty);
+                    });
+        }
+        else
+        {
+            var workforceAuthority = configuration["Authentication:Workforce:Authority"] ??
+                configuration["Authentication:Authority"];
+            var workforceAudience = configuration["Authentication:Workforce:Audience"] ??
+                configuration["Authentication:Audience"];
+            var customerAuthority = configuration["Authentication:Customer:Authority"];
+            var customerAudience = configuration["Authentication:Customer:Audience"];
+            var customerAuthenticationConfigured =
+                !string.IsNullOrWhiteSpace(customerAuthority) &&
+                !string.IsNullOrWhiteSpace(customerAudience);
+
+            if (string.IsNullOrWhiteSpace(workforceAuthority) || string.IsNullOrWhiteSpace(workforceAudience))
+            {
+                throw new InvalidOperationException(
+                    "Workforce authentication authority and audience must be configured outside local development auth.");
+            }
+
+            if (string.IsNullOrWhiteSpace(customerAuthority) != string.IsNullOrWhiteSpace(customerAudience))
+            {
+                throw new InvalidOperationException(
+                    "Customer authentication authority and audience must be configured together.");
+            }
+
+            var authentication = services.AddAuthentication(options =>
+                {
+                    options.DefaultAuthenticateScheme = RoutedJwtAuthenticationScheme;
+                    options.DefaultChallengeScheme = RoutedJwtAuthenticationScheme;
+                })
+                .AddPolicyScheme(RoutedJwtAuthenticationScheme, RoutedJwtAuthenticationScheme, options =>
+                {
+                    options.ForwardDefaultSelector = context => SelectJwtAuthenticationScheme(
+                        context.Request.Path,
+                        customerAuthenticationConfigured);
+                });
+
+            authentication.AddJwtBearer(
+                WorkforceJwtAuthenticationScheme,
+                options => ConfigureJwtBearer(
+                    options,
+                    workforceAuthority,
+                    workforceAudience,
+                    WorkforceAuthenticationPlane,
+                    allowUsernameEmailFallback: true,
+                    environment));
+
+            if (customerAuthenticationConfigured)
+            {
+                authentication.AddJwtBearer(
+                    CustomerJwtAuthenticationScheme,
+                    options => ConfigureJwtBearer(
+                        options,
+                        customerAuthority!,
+                        customerAudience!,
+                        CustomerAuthenticationPlane,
+                        allowUsernameEmailFallback: false,
+                        environment));
+            }
+        }
+
+        var platformAuthenticationScheme = developmentAuthEnabled
+            ? DevelopmentAuthenticationScheme
+            : WorkforceJwtAuthenticationScheme;
+
+        services.AddAuthorization(options =>
+        {
+            options.FallbackPolicy = new AuthorizationPolicyBuilder()
+                .RequireAuthenticatedUser()
+                .Build();
+
+            foreach (var permission in Enum.GetValues<Permission>())
+            {
+                options.AddPolicy(permission.ToString(), policy =>
+                    policy.RequireAuthenticatedUser()
+                        .RequireClaim(PermissionClaimType, permission.ToString()));
+            }
+
+            options.AddPolicy(PlatformAuthorization.ProvisionTenantsPolicy, policy =>
+                policy.AddAuthenticationSchemes(platformAuthenticationScheme)
+                    .RequireAuthenticatedUser()
+                    .RequireAssertion(context => PlatformAuthorization.CanProvisionTenants(context.User)));
+            options.AddPolicy(PlatformAuthorization.ApproveCuiReadinessPolicy, policy =>
+                policy.AddAuthenticationSchemes(platformAuthenticationScheme).RequireAuthenticatedUser()
+                    .RequireAssertion(context => PlatformAuthorization.CanApproveCuiReadiness(context.User)));
+            options.AddPolicy(PlatformAuthorization.ViewPlatformCustomersPolicy, policy =>
+                policy.AddAuthenticationSchemes(platformAuthenticationScheme)
+                    .RequireAuthenticatedUser()
+                    .RequireAssertion(context => PlatformAuthorization.CanViewPlatformCustomers(context.User)));
+            options.AddPolicy(PlatformAuthorization.ManageTenantOnboardingPolicy, policy =>
+                policy.AddAuthenticationSchemes(platformAuthenticationScheme)
+                    .RequireAuthenticatedUser()
+                    .RequireAssertion(context => PlatformAuthorization.CanManageTenantOnboarding(context.User)));
+            options.AddPolicy(PlatformAuthorization.ManageTenantSubscriptionsPolicy, policy =>
+                policy.AddAuthenticationSchemes(platformAuthenticationScheme)
+                    .RequireAuthenticatedUser()
+                    .RequireAssertion(context => PlatformAuthorization.CanManageTenantSubscriptions(context.User)));
+            options.AddPolicy(PlatformAuthorization.ManageDemoRequestsPolicy, policy =>
+                policy.AddAuthenticationSchemes(platformAuthenticationScheme)
+                    .RequireAuthenticatedUser()
+                    .RequireAssertion(context => PlatformAuthorization.CanManageDemoRequests(context.User)));
+        });
+        services.AddTransient<IClaimsTransformation, RolePermissionClaimsTransformation>();
+        services.AddSingleton<IAuthorizationMiddlewareResultHandler, ProblemDetailsAuthorizationResultHandler>();
+
+        services.AddHttpContextAccessor();
+        services.AddScoped<HttpTenantContext>();
+        services.AddScoped<ITenantContext>(serviceProvider => serviceProvider.GetRequiredService<HttpTenantContext>());
+        services.AddScoped<ICurrentTenantContext>(serviceProvider => serviceProvider.GetRequiredService<ITenantContext>());
+        services.AddScoped<IAuditRequestMetadata, HttpAuditRequestMetadata>();
+
+        services.AddRateLimiter(options =>
+        {
+            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+            options.OnRejected = async (context, cancellationToken) =>
+            {
+                await ApiProblemDetails
+                    .Create(
+                        context.HttpContext,
+                        "Too many API requests",
+                        "The API rate limit was reached. Wait briefly and try again.",
+                        StatusCodes.Status429TooManyRequests,
+                        "rate_limit_exceeded")
+                    .ExecuteAsync(context.HttpContext);
+            };
+            options.AddPolicy("api", httpContext =>
+            {
+                var userId = httpContext.User.Identity?.IsAuthenticated is true
+                    ? httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                    : null;
+                var partitionKey = !string.IsNullOrWhiteSpace(userId)
+                    ? $"user:{httpContext.User.FindFirstValue(AuthenticationPlaneClaimType)}:{userId}"
+                    : $"ip:{httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
+
+                return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+                {
+                    AutoReplenishment = true,
+                    PermitLimit = configuration.GetValue("Security:RateLimiting:PermitLimit", 120),
+                    QueueLimit = 0,
+                    Window = TimeSpan.FromMinutes(configuration.GetValue("Security:RateLimiting:WindowMinutes", 1))
+                });
+            });
+            options.AddPolicy("demoRequests", httpContext =>
+            {
+                var partitionKey = httpContext.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+                return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+                {
+                    AutoReplenishment = true,
+                    PermitLimit = configuration.GetValue("Security:DemoRequestRateLimiting:PermitLimit", 5),
+                    QueueLimit = 0,
+                    Window = TimeSpan.FromMinutes(configuration.GetValue("Security:DemoRequestRateLimiting:WindowMinutes", 10))
+                });
+            });
+        });
+
+        return services;
+    }
+
+    internal static string SelectJwtAuthenticationScheme(PathString path, bool customerAuthenticationConfigured) =>
+        path.StartsWithSegments("/api/platform", StringComparison.OrdinalIgnoreCase) ||
+        !customerAuthenticationConfigured
+            ? WorkforceJwtAuthenticationScheme
+            : CustomerJwtAuthenticationScheme;
+
+    private static void ConfigureJwtBearer(
+        JwtBearerOptions options,
+        string authority,
+        string audience,
+        string authenticationPlane,
+        bool allowUsernameEmailFallback,
+        IWebHostEnvironment environment)
+    {
+        options.Authority = authority;
+        options.Audience = audience;
+        options.RequireHttpsMetadata = !environment.IsDevelopment();
+        options.MapInboundClaims = false;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidAudiences = BuildValidAudiences(audience),
+            NameClaimType = "email",
+            RoleClaimType = "roles"
+        };
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var logger = context.HttpContext.RequestServices
+                    .GetRequiredService<ILoggerFactory>()
+                    .CreateLogger($"Gccs.Api.Security.{authenticationPlane}.JwtBearer");
+                logger.LogDebug(
+                    "JWT bearer request received. AuthenticationPlane={AuthenticationPlane} AuthorizationHeaderPresent={AuthorizationHeaderPresent}",
+                    authenticationPlane,
+                    context.Request.Headers.ContainsKey("Authorization"));
+                return Task.CompletedTask;
+            },
+            OnAuthenticationFailed = context =>
+            {
+                var logger = context.HttpContext.RequestServices
+                    .GetRequiredService<ILoggerFactory>()
+                    .CreateLogger($"Gccs.Api.Security.{authenticationPlane}.JwtBearer");
+                logger.LogWarning(
+                    "JWT bearer authentication failed. AuthenticationPlane={AuthenticationPlane} ExceptionType={ExceptionType}",
+                    authenticationPlane,
+                    context.Exception.GetType().Name);
+                return Task.CompletedTask;
+            },
+            OnTokenValidated = context =>
+            {
+                NormalizeMicrosoftEntraClaims(
+                    context.Principal,
+                    authenticationPlane,
+                    allowUsernameEmailFallback);
+                return Task.CompletedTask;
+            }
+        };
+    }
+
+    private static string[] BuildValidAudiences(string audience)
+    {
+        var audiences = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            audience
+        };
+
+        const string applicationIdUriPrefix = "api://";
+        if (audience.StartsWith(applicationIdUriPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            audiences.Add(audience[applicationIdUriPrefix.Length..]);
+        }
+
+        return audiences.ToArray();
+    }
+
+    public static IApplicationBuilder UseGccsTenantMembershipAuthorization(
+        this IApplicationBuilder app,
+        IConfiguration configuration,
+        IWebHostEnvironment environment)
+    {
+        var enforceMembership = configuration.GetValue(MembershipAuthorizationEnforcedKey, !environment.IsDevelopment());
+        if (!enforceMembership)
+        {
+            return app;
+        }
+
+        return app.Use(async (context, next) =>
+        {
+            if (!context.Request.Path.StartsWithSegments("/api") ||
+                context.User.Identity?.IsAuthenticated is not true)
+            {
+                await next();
+                return;
+            }
+
+            var endpoint = context.GetEndpoint();
+            if (endpoint?.Metadata.GetMetadata<IAllowAnonymous>() is not null)
+            {
+                await next();
+                return;
+            }
+
+            if (endpoint?.Metadata.GetMetadata<AllowWithoutTenantMembershipAttribute>() is not null)
+            {
+                await next();
+                return;
+            }
+
+            if (!TryReadGuid(context.User, ClaimTypes.NameIdentifier, out _))
+            {
+                await next();
+                return;
+            }
+
+            var repository = context.RequestServices.GetService<ITenantMembershipRepository>();
+            if (repository is null)
+            {
+                await ApiProblemDetails
+                    .Create(
+                        context,
+                        "Tenant membership authorization unavailable",
+                        "Tenant membership authorization is required but the membership repository is not configured.",
+                        StatusCodes.Status500InternalServerError,
+                        "tenant_membership_authorization_unavailable")
+                    .ExecuteAsync(context);
+                return;
+            }
+
+            var authorizationContext = await repository.FindActiveCurrentUserAuthorizationAsync(context.RequestAborted);
+            if (authorizationContext is null)
+            {
+                await ApiProblemDetails
+                    .Create(
+                        context,
+                        "Tenant membership required",
+                        "The authenticated user is not an active member of the requested tenant.",
+                        StatusCodes.Status403Forbidden,
+                        "tenant_membership_required")
+                    .ExecuteAsync(context);
+                return;
+            }
+
+            var subscription = authorizationContext.Subscription;
+            if (subscription is not null)
+            {
+                var accessLevel = subscription.AccessLevel(
+                    context.RequestServices.GetRequiredService<TimeProvider>().GetUtcNow());
+                var safeMethod = HttpMethods.IsGet(context.Request.Method) ||
+                    HttpMethods.IsHead(context.Request.Method) ||
+                    HttpMethods.IsOptions(context.Request.Method);
+
+                if (accessLevel is SubscriptionAccessLevel.Denied ||
+                    (accessLevel is SubscriptionAccessLevel.ReadOnly && !safeMethod))
+                {
+                    var readOnly = accessLevel is SubscriptionAccessLevel.ReadOnly;
+                    await ApiProblemDetails
+                        .Create(
+                            context,
+                            readOnly ? "Subscription is read-only" : "Subscription is inactive",
+                            readOnly
+                                ? "The pilot is in its grace period. Review and export remain available, but mutations are blocked."
+                                : "The subscription does not permit access to this tenant workspace.",
+                            StatusCodes.Status403Forbidden,
+                            readOnly ? "subscription_read_only" : "subscription_inactive")
+                        .ExecuteAsync(context);
+                    return;
+                }
+            }
+
+            ReplaceRoleAndPermissionClaims(context.User, authorizationContext.Membership.RoleName);
+            await next();
+        });
+    }
+
+    public static RouteGroupBuilder RequireRouteTenantScope(this RouteGroupBuilder group)
+    {
+        group.AddEndpointFilter(async (context, next) =>
+        {
+            if (context.HttpContext.Request.RouteValues.TryGetValue("tenantId", out var routeValue) &&
+                Guid.TryParse(routeValue?.ToString(), out var routeTenantId))
+            {
+                var tenantContext = context.HttpContext.RequestServices.GetRequiredService<ITenantContext>();
+                if (routeTenantId != tenantContext.TenantId)
+                {
+                    return ApiProblemDetails.Create(
+                        context.HttpContext,
+                        "Tenant scope mismatch",
+                        "The route tenant does not match the authenticated tenant context.",
+                        StatusCodes.Status403Forbidden,
+                        "tenant_scope_mismatch");
+                }
+            }
+
+            return await next(context);
+        });
+
+        return group;
+    }
+
+    public static RouteGroupBuilder RequireAtomicMutations(this RouteGroupBuilder group)
+    {
+        group.AddEndpointFilter(async (context, next) =>
+        {
+            var request = context.HttpContext.Request;
+            if (HttpMethods.IsGet(request.Method) ||
+                HttpMethods.IsHead(request.Method) ||
+                HttpMethods.IsOptions(request.Method) ||
+                context.HttpContext.GetEndpoint()?.Metadata
+                    .GetMetadata<SuppressAtomicMutationTransactionMetadata>() is not null)
+            {
+                return await next(context);
+            }
+
+            var transaction = request.HttpContext.RequestServices
+                .GetRequiredService<IApplicationTransaction>();
+            return await transaction.ExecuteAsync<object?>(
+                async _ => await next(context),
+                request.HttpContext.RequestAborted);
+        });
+
+        return group;
+    }
+
+    public static IApplicationBuilder UseGccsSecurityHeaders(this IApplicationBuilder app)
+    {
+        return app.Use(async (context, next) =>
+        {
+            var headers = context.Response.Headers;
+            headers.TryAdd("X-Content-Type-Options", "nosniff");
+            headers.TryAdd("X-Frame-Options", "DENY");
+            headers.TryAdd("Referrer-Policy", "no-referrer");
+            headers.TryAdd("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+
+            if (context.Request.Path.StartsWithSegments("/api"))
+            {
+                headers.TryAdd("Cache-Control", "no-store");
+            }
+
+            await next();
+        });
+    }
+
+    private static bool TryReadGuid(ClaimsPrincipal principal, string claimType, out Guid value) =>
+        Guid.TryParse(principal.FindFirstValue(claimType), out value);
+
+    internal static void NormalizeMicrosoftEntraClaims(
+        ClaimsPrincipal? principal,
+        string authenticationPlane,
+        bool allowUsernameEmailFallback)
+    {
+        if (principal is null)
+        {
+            return;
+        }
+
+        var identity = principal.Identities.FirstOrDefault(identity => identity.IsAuthenticated);
+        if (identity is null)
+        {
+            return;
+        }
+
+        RemoveClaims(identity, TenantIdClaimType);
+        ReplaceGuidClaim(identity, ClaimTypes.NameIdentifier, FirstClaimValue(principal, "oid", MicrosoftObjectIdClaimType));
+        ReplaceClaim(identity, AuthenticationPlaneClaimType, authenticationPlane);
+
+        var verifiedEmail = string.Equals(authenticationPlane, CustomerAuthenticationPlane, StringComparison.Ordinal)
+            ? FirstClaimValue(principal, "email", "emails")
+            : FirstClaimValue(principal, "email", "emails", ClaimTypes.Email);
+        if (allowUsernameEmailFallback)
+        {
+            verifiedEmail ??= principal.FindFirstValue("preferred_username") ?? principal.FindFirstValue("upn");
+        }
+
+        ReplaceOptionalClaim(identity, ClaimTypes.Email, verifiedEmail);
+
+        if (!string.Equals(authenticationPlane, WorkforceAuthenticationPlane, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        foreach (var roleClaim in principal.FindAll("roles").ToArray())
+        {
+            AddClaimIfMissing(identity, ClaimTypes.Role, roleClaim.Value);
+        }
+    }
+
+    private static string? FirstClaimValue(ClaimsPrincipal principal, params string[] claimTypes)
+    {
+        foreach (var claimType in claimTypes)
+        {
+            var value = principal.FindFirstValue(claimType);
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                return value;
+            }
+        }
+
+        return null;
+    }
+
+    private static void AddClaimIfMissing(ClaimsIdentity identity, string claimType, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value) || identity.HasClaim(claim => claim.Type == claimType))
+        {
+            return;
+        }
+
+        identity.AddClaim(new Claim(claimType, value));
+    }
+
+    private static void ReplaceGuidClaim(ClaimsIdentity identity, string claimType, string? value)
+    {
+        RemoveClaims(identity, claimType);
+
+        if (!Guid.TryParse(value, out _))
+        {
+            return;
+        }
+
+        identity.AddClaim(new Claim(claimType, value));
+    }
+
+    private static void ReplaceOptionalClaim(ClaimsIdentity identity, string claimType, string? value)
+    {
+        RemoveClaims(identity, claimType);
+
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            identity.AddClaim(new Claim(claimType, value));
+        }
+    }
+
+    private static void ReplaceClaim(ClaimsIdentity identity, string claimType, string value)
+    {
+        RemoveClaims(identity, claimType);
+
+        identity.AddClaim(new Claim(claimType, value));
+    }
+
+    private static void RemoveClaims(ClaimsIdentity identity, string claimType)
+    {
+        foreach (var claim in identity.FindAll(claimType).ToArray())
+        {
+            identity.RemoveClaim(claim);
+        }
+    }
+
+    private static void ReplaceRoleAndPermissionClaims(ClaimsPrincipal principal, string roleName)
+    {
+        foreach (var identity in principal.Identities.Where(identity => identity.IsAuthenticated))
+        {
+            foreach (var claim in identity.Claims
+                         .Where(claim =>
+                             claim.Type == PermissionClaimType ||
+                             claim.Type == RoleNameClaimType ||
+                             claim.Type == ClaimTypes.Role)
+                         .ToArray())
+            {
+                identity.RemoveClaim(claim);
+            }
+
+            identity.AddClaim(new Claim(RoleNameClaimType, roleName));
+            foreach (var permission in RoleCatalog.GetPermissions(roleName))
+            {
+                identity.AddClaim(new Claim(PermissionClaimType, permission.ToString()));
+            }
+        }
+    }
+
+    public static IApplicationBuilder UseGccsCorrelationIds(this IApplicationBuilder app)
+    {
+        return app.Use(async (context, next) =>
+        {
+            var correlationId = ApiCorrelation.Ensure(context);
+            context.Response.OnStarting(() =>
+            {
+                context.Response.Headers[ApiCorrelation.HeaderName] = correlationId;
+                return Task.CompletedTask;
+            });
+
+            await next();
+        });
+    }
+
+    public static IApplicationBuilder UseGccsApiFailureLogging(this IApplicationBuilder app)
+    {
+        return app.Use(async (context, next) =>
+        {
+            await next();
+
+            if (!context.Request.Path.StartsWithSegments("/api") ||
+                context.Response.StatusCode < StatusCodes.Status400BadRequest)
+            {
+                return;
+            }
+
+            var correlationId = ApiCorrelation.Get(context);
+            var loggerFactory = context.RequestServices.GetRequiredService<ILoggerFactory>();
+            var logger = loggerFactory.CreateLogger("Gccs.Api.Security.ApiFailureLogging");
+            var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "anonymous";
+            var tenantId = context.User.FindFirstValue(TenantIdClaimType) ?? "none";
+            var exceptionFeature = context.Features.Get<IExceptionHandlerFeature>();
+            var endpoint = exceptionFeature?.Endpoint ?? context.GetEndpoint();
+            var path = (endpoint as RouteEndpoint)?.RoutePattern.RawText ?? "unmatched";
+            var exceptionType = exceptionFeature?.Error.GetType().Name ?? "none";
+
+            if (context.Response.StatusCode >= StatusCodes.Status500InternalServerError)
+            {
+                logger.LogError(
+                    "API request failed. StatusCode={StatusCode} Method={Method} Path={Path} CorrelationId={CorrelationId} TraceId={TraceId} UserId={UserId} TenantId={TenantId} ExceptionType={ExceptionType}",
+                    context.Response.StatusCode,
+                    context.Request.Method,
+                    path,
+                    correlationId,
+                    context.TraceIdentifier,
+                    userId,
+                    tenantId,
+                    exceptionType);
+                return;
+            }
+
+            logger.LogWarning(
+                "API request failed. StatusCode={StatusCode} Method={Method} Path={Path} CorrelationId={CorrelationId} TraceId={TraceId} UserId={UserId} TenantId={TenantId} ExceptionType={ExceptionType}",
+                context.Response.StatusCode,
+                context.Request.Method,
+                path,
+                correlationId,
+                context.TraceIdentifier,
+                userId,
+                tenantId,
+                exceptionType);
+        });
+    }
+
+    public static IApplicationBuilder UseGccsApiProblemDetails(this IApplicationBuilder app)
+    {
+        return app.UseExceptionHandler(new ExceptionHandlerOptions
+        {
+            SuppressDiagnosticsCallback = context => context.HttpContext.Request.Path.StartsWithSegments("/api"),
+            ExceptionHandler = async context =>
+            {
+                var exception = context.Features.Get<IExceptionHandlerFeature>()?.Error;
+                if (exception is null)
+                {
+                    return;
+                }
+
+                if (!context.Request.Path.StartsWithSegments("/api"))
+                {
+                    throw exception;
+                }
+
+                var (statusCode, title, detail, errorCode) = exception switch
+                {
+                    ContentRevisionConflictException conflict => (StatusCodes.Status409Conflict,
+                        "Content changed", conflict.Message, "content_revision_conflict"),
+                    AiOutputReviewValidationException aiOutput => (StatusCodes.Status400BadRequest,
+                        "AI output provenance invalid", aiOutput.Message, "ai_output_provenance_invalid"),
+                    AiOutputReviewConflictException conflict => (StatusCodes.Status409Conflict,
+                        "AI output conflict", conflict.Message, "ai_output_conflict"),
+                    AuditWriteException => (
+                        StatusCodes.Status500InternalServerError,
+                        "Critical audit failure",
+                        "A required audit event could not be written for this compliance-relevant action.",
+                        "audit_write_failed"),
+                    MissingTenantContextException => (
+                        StatusCodes.Status400BadRequest,
+                        "Tenant context required",
+                        "An active tenant context is required for this tenant-scoped API request.",
+                        "missing_tenant_context"),
+                    InvalidUserContextException => (
+                        StatusCodes.Status400BadRequest,
+                        "User context required",
+                        "A valid authenticated user context is required for this API request.",
+                        "invalid_user_context"),
+                    TenantDataHandlingModeRestrictedException modeRestriction => (
+                        StatusCodes.Status403Forbidden,
+                        "Tenant data handling mode restricted",
+                        modeRestriction.Message,
+                        "tenant_data_handling_mode_restricted"),
+                    ContentContainedException contained => (
+                        StatusCodes.Status423Locked,
+                        "Content is contained",
+                        contained.Message,
+                        "content_contained"),
+                    ContentClassificationValidationException classification => (
+                        StatusCodes.Status400BadRequest,
+                        "Content classification invalid",
+                        classification.Message,
+                        "content_classification_invalid"),
+                    DataHandlingNoticeValidationException notice => (
+                        StatusCodes.Status400BadRequest,
+                        "Data handling notice invalid",
+                        notice.Message,
+                        "data_handling_notice_invalid"),
+                    DataHandlingNoticeAcknowledgementRequiredException acknowledgement => (
+                        StatusCodes.Status428PreconditionRequired,
+                        "Current notice acknowledgement required",
+                        acknowledgement.Message,
+                        "data_handling_notice_acknowledgement_required"),
+                    BadHttpRequestException badRequest when badRequest.StatusCode == StatusCodes.Status400BadRequest => (
+                        StatusCodes.Status400BadRequest,
+                        "Invalid request body",
+                        "The request body could not be parsed or contains an unsupported value.",
+                        "invalid_request_body"),
+                    JsonException => (
+                        StatusCodes.Status400BadRequest,
+                        "Invalid request body",
+                        "The request body could not be parsed or contains an unsupported value.",
+                        "invalid_request_body"),
+                    _ => (
+                        StatusCodes.Status500InternalServerError,
+                        "API request failed",
+                        "The API request could not be completed.",
+                        "api_request_failed")
+                };
+
+                await ApiProblemDetails
+                    .Create(
+                        context,
+                        title,
+                        detail,
+                        statusCode,
+                        errorCode,
+                        exception is TenantDataHandlingModeRestrictedException restriction
+                            ? new Dictionary<string, object?>
+                            {
+                                ["mode"] = restriction.Mode.ToString(),
+                                ["workflow"] = restriction.Workflow.ToString(),
+                                ["entityType"] = restriction.EntityType,
+                                ["entityId"] = restriction.EntityId
+                            }
+                            : exception is DataHandlingNoticeAcknowledgementRequiredException noticeRequired
+                                ? new Dictionary<string, object?> { ["workflowContext"] = noticeRequired.WorkflowContext }
+                                : null)
+                    .ExecuteAsync(context);
+            }
+        });
+    }
+
+    public static IEndpointConventionBuilder RequirePermission(
+        this IEndpointConventionBuilder builder,
+        Permission permission)
+    {
+        builder.WithMetadata(new RequiredPermissionMetadata(permission));
+        return builder.RequireAuthorization(permission.ToString());
+    }
+
+    public static IEndpointConventionBuilder RequireAnyPermission(
+        this IEndpointConventionBuilder builder,
+        params Permission[] permissions)
+    {
+        builder.WithMetadata(new RequiredAnyPermissionMetadata(permissions));
+        return builder.RequireAuthorization(policy => policy
+            .RequireAuthenticatedUser()
+            .RequireAssertion(context => permissions.Any(permission =>
+                context.User.HasClaim(PermissionClaimType, permission.ToString()))));
+    }
+}

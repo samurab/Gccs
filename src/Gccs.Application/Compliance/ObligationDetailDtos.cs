@@ -1,0 +1,95 @@
+using Gccs.Domain.Compliance;
+using Gccs.Domain.Evidence;
+using System.Text.Json.Serialization;
+using Gccs.Application.Tasks;
+
+namespace Gccs.Application.Compliance;
+
+public sealed record ContractObligationDetailDto(
+    string Id,
+    Guid ContractId,
+    string ContractNumber,
+    string ContractTitle,
+    Guid ContractClauseId,
+    string ClauseNumber,
+    string ClauseTitle,
+    string ObligationId,
+    string Source,
+    string SourceUrl,
+    string Title,
+    string PlainEnglishSummary,
+    string TriggerCondition,
+    string RequiredAction,
+    string OwnerFunction,
+    Guid? AssignedUserId,
+    string? AssignedUserDisplayName,
+    string? AssignedRoleName,
+    RiskLevel RiskLevel,
+    string Status,
+    string StatusCode,
+    DateOnly? DueAt,
+    string Module,
+    bool FlowDownRequired,
+    string FlowDownRequirement,
+    IReadOnlyList<string> EvidenceExamples,
+    string Confidence,
+    DateOnly LastReviewedAt,
+    bool RequiresExpertReview,
+    ObligationApplicabilitySummaryDto? Applicability,
+    IReadOnlyList<LinkedObligationTaskDto> LinkedTasks,
+    IReadOnlyList<LinkedObligationEvidenceDto> LinkedEvidence);
+
+public sealed record LinkedObligationTaskDto(
+    Guid Id,
+    string Title,
+    string Status,
+    string StatusCode,
+    DateOnly? DueAt,
+    string OwnerFunction,
+    RiskLevel RiskLevel);
+
+public sealed record LinkedObligationEvidenceDto(
+    Guid Id,
+    string Name,
+    EvidenceStatus Status,
+    EvidenceType Type,
+    DateOnly? ExpiresAt,
+    string? OriginalFileName);
+
+public sealed record UpdateContractObligationStatusRequest(
+    [property: JsonConverter(typeof(ComplianceTaskStatusJsonConverter))] ComplianceTaskStatus Status);
+
+public sealed record AssignContractObligationOwnerRequest(Guid? UserId, string? RoleName, bool Notify = false);
+
+public sealed record ObligationAssignmentCandidateDto(
+    Guid UserId,
+    string DisplayName,
+    string RoleName,
+    bool AssignmentEmailEnabled);
+
+public sealed record ContractObligationDetailResult(Guid TenantId, ContractObligationDetailDto Detail);
+
+public interface IObligationDetailRepository
+{
+    Task<IReadOnlyList<ObligationAssignmentCandidateDto>> ListAssignmentCandidatesAsync(
+        CancellationToken cancellationToken = default);
+
+    Task<ContractObligationDetailResult?> FindCurrentTenantAsync(
+        Guid contractClauseId,
+        string obligationId,
+        CancellationToken cancellationToken = default);
+
+    Task<ContractObligationDetailResult?> UpdateStatusAsync(
+        Guid contractClauseId,
+        string obligationId,
+        ComplianceTaskStatus status,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default);
+
+    Task<ContractObligationDetailResult?> AssignOwnerAsync(
+        Guid contractClauseId,
+        string obligationId,
+        AssignContractObligationOwnerRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default);
+}

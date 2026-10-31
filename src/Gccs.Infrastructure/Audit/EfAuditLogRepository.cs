@@ -1,0 +1,145 @@
+using System.Text.Json;
+using Gccs.Application.Audit;
+using Gccs.Application.Security;
+using Gccs.Infrastructure.Persistence;
+using Gccs.Infrastructure.Persistence.Models;
+using Microsoft.EntityFrameworkCore;
+
+namespace Gccs.Infrastructure.Audit;
+
+public sealed class EfAuditLogRepository(
+    GccsDbContext dbContext,
+    ICurrentTenantContext tenantContext) : IAuditLogRepository
+{
+    public async IAsyncEnumerable<AuditLogEntryDto> ReadCurrentTenantExportAsync(
+        AuditLogQuery query,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        // One database statement gives a consistent PostgreSQL statement snapshot;
+        // offset paging across separate statements can omit rows during concurrent writes.
+        var entries = dbContext.AuditLogEntries.AsNoTracking()
+            .Where(entry => entry.TenantId == tenantContext.TenantId);
+        if (query.ActorUserId is not null) entries = entries.Where(e => e.ActorUserId == query.ActorUserId);
+        if (query.Action is not null) entries = entries.Where(e => e.Action == query.Action);
+        if (query.EventType is not null) entries = entries.Where(e => e.EventType == query.EventType);
+        if (query.Classification is not null) entries = entries.Where(e => e.Classification == query.Classification);
+        if (query.Mode is not null) entries = entries.Where(e => e.Mode == query.Mode);
+        if (query.Result is not null) entries = entries.Where(e => e.Result == query.Result);
+        if (!string.IsNullOrWhiteSpace(query.EntityType)) entries = entries.Where(e => e.EntityType == query.EntityType);
+        if (query.From is not null) entries = entries.Where(e => e.OccurredAt >= query.From);
+        if (query.To is not null) entries = entries.Where(e => e.OccurredAt <= query.To);
+        await foreach (var entry in entries.OrderByDescending(e => e.OccurredAt).ThenByDescending(e => e.Id)
+            .AsAsyncEnumerable().WithCancellation(cancellationToken))
+            yield return ToDto(entry);
+    }
+
+    public async Task<IReadOnlyList<string>> ListEntityTypesCurrentTenantAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var entityTypes = await dbContext.AuditLogEntries
+            .AsNoTracking()
+            .Where(entry => entry.TenantId == tenantContext.TenantId && entry.EntityType != string.Empty)
+            .Select(entry => entry.EntityType)
+            .Distinct()
+            .ToArrayAsync(cancellationToken);
+
+        return entityTypes.Order(StringComparer.Ordinal).ToArray();
+    }
+
+    public async Task<PagedResultDto<AuditLogEntryDto>> ListCurrentTenantAsync(
+        AuditLogQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        var entries = dbContext.AuditLogEntries
+            .AsNoTracking()
+            .Where(entry => entry.TenantId == tenantContext.TenantId);
+
+        if (query.ActorUserId is not null)
+        {
+            entries = entries.Where(entry => entry.ActorUserId == query.ActorUserId);
+        }
+
+        if (query.Action is not null)
+        {
+            entries = entries.Where(entry => entry.Action == query.Action);
+        }
+
+        if (query.EventType is not null) entries = entries.Where(entry => entry.EventType == query.EventType);
+        if (query.Classification is not null) entries = entries.Where(entry => entry.Classification == query.Classification);
+        if (query.Mode is not null) entries = entries.Where(entry => entry.Mode == query.Mode);
+        if (query.Result is not null) entries = entries.Where(entry => entry.Result == query.Result);
+
+        if (!string.IsNullOrWhiteSpace(query.EntityType))
+        {
+            entries = entries.Where(entry => entry.EntityType == query.EntityType);
+        }
+
+        if (query.From is not null)
+        {
+            entries = entries.Where(entry => entry.OccurredAt >= query.From);
+        }
+
+        if (query.To is not null)
+        {
+            entries = entries.Where(entry => entry.OccurredAt <= query.To);
+        }
+
+        var totalCount = await entries.CountAsync(cancellationToken);
+        var entities = await entries
+            .OrderByDescending(entry => entry.OccurredAt)
+            .ThenByDescending(entry => entry.Id)
+            .Skip((query.Page - 1) * query.PageSize)
+            .Take(query.PageSize)
+            .ToListAsync(cancellationToken);
+
+        return new PagedResultDto<AuditLogEntryDto>(
+            entities.Select(ToDto).ToArray(),
+            query.Page,
+            query.PageSize,
+            totalCount,
+            query.Page * query.PageSize < totalCount,
+            query.Page > 1);
+    }
+
+    private static AuditLogEntryDto ToDto(AuditLogEntryEntity entry) =>
+        new(
+            entry.Id,
+            entry.TenantId,
+            entry.ActorUserId,
+            entry.Action.ToString(),
+            entry.EventType,
+            entry.Classification,
+            entry.Mode,
+            entry.Result,
+            entry.EntityType,
+            entry.EntityId,
+            entry.OccurredAt,
+            entry.IpAddress,
+            entry.UserAgent,
+            entry.CorrelationId,
+            entry.Summary,
+            entry.OldValue,
+            entry.NewValue,
+            ParseMetadata(entry.MetadataJson));
+
+    private static IReadOnlyDictionary<string, string> ParseMetadata(string metadataJson)
+    {
+        if (string.IsNullOrWhiteSpace(metadataJson))
+        {
+            return new Dictionary<string, string>();
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<Dictionary<string, string>>(metadataJson) ??
+                new Dictionary<string, string>();
+        }
+        catch (JsonException)
+        {
+            return new Dictionary<string, string>
+            {
+                ["raw"] = metadataJson
+            };
+        }
+    }
+}

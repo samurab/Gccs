@@ -1,0 +1,46 @@
+{
+  "name": "@fedril/demo-video",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "demo:start": "bash ./scripts/start-demo.sh",
+    "demo:stop": "bash ./scripts/stop-demo.sh",
+    "demo:seed": "node --experimental-strip-types ./scripts/seed-demo.ts",
+    "capture": "playwright test --config ./capture/playwright.config.ts",
+    "narration:auditions": "node --experimental-strip-types ./narration/generate-narration.ts --mode auditions",
+    "narration:generate": "node --experimental-strip-types ./narration/generate-narration.ts --mode scenes",
+    "narration:validate": "node --experimental-strip-types ./scripts/validate-narration.ts",
+    "narration:validate:strict": "node --experimental-strip-types ./scripts/validate-narration.ts --strict",
+    "captions:generate": "node --experimental-strip-types ./scripts/generate-captions.ts",
+    "video:preview": "remotion studio ./src/index.ts --no-open",
+    "video:render": "npm run video:render:flagship && npm run video:render:homepage && npm run video:render:social && npm run media:manifest",
+    "video:render:flagship": "remotion render ./src/index.ts Flagship ./out/fedril-flagship.mp4 --codec=h264 --audio-codec=aac",
+    "video:render:homepage": "remotion render ./src/index.ts Homepage60 ./out/fedril-homepage-60.mp4 --codec=h264 --audio-codec=aac",
+    "video:render:social": "remotion render ./src/index.ts Social30 ./out/fedril-social-30.mp4 --codec=h264 --audio-codec=aac",
+    "media:manifest": "node --experimental-strip-types ./scripts/write-render-manifest.ts",
+    "media:validate": "node --experimental-strip-types ./scripts/validate-media.ts",
+    "clean": "node --experimental-strip-types ./scripts/clean-generated.ts",
+    "typecheck": "tsc --noEmit",
+    "validate": "npm run narration:validate:strict && npm run media:validate -- --require-render"
+  },
+  "dependencies": {
+    "@remotion/captions": "4.0.503",
+    "@remotion/cli": "4.0.503",
+    "@remotion/media": "4.0.503",
+    "@remotion/transitions": "4.0.503",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "remotion": "4.0.503"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.61.0",
+    "@types/node": "25.9.2",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "typescript": "6.0.3"
+  }
+}

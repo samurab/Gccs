@@ -1,0 +1,646 @@
+using System.Text.Json;
+using Gccs.Application.Compliance;
+using Gccs.Application.Security;
+using Gccs.Domain.Audit;
+using Gccs.Domain.Cmmc;
+using Gccs.Domain.Compliance;
+using Gccs.Domain.Common;
+using Gccs.Domain.Evidence;
+using Gccs.Domain.Identity;
+using Gccs.Domain.Contracts;
+using Gccs.Infrastructure.Persistence;
+using Gccs.Infrastructure.Persistence.Models;
+using Microsoft.EntityFrameworkCore;
+using RiskLevel = Gccs.Domain.Compliance.RiskLevel;
+
+namespace Gccs.Infrastructure.Compliance;
+
+public sealed class EfComplianceOverviewRepository(
+    GccsDbContext dbContext,
+    ICurrentTenantContext tenantContext) : IComplianceOverviewRepository
+{
+    private const int RecentAuditEventCount = 10;
+    private const int MaxAlertsPerRule = 10;
+
+    public async Task<ComplianceOverviewDto> GetCurrentTenantOverviewAsync(CancellationToken cancellationToken = default)
+    {
+        var tenantId = tenantContext.TenantId;
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        var modules = await dbContext.MvpModules
+            .AsNoTracking()
+            .OrderBy(module => module.Key)
+            .Select(module => new ModuleStatusDto(
+                module.Key,
+                module.Name,
+                module.Purpose,
+                module.Status))
+            .ToArrayAsync(cancellationToken);
+
+        var controlStatuses = await dbContext.ControlAssessments
+            .AsNoTracking()
+            .Where(control =>
+                control.Assessment != null &&
+                control.Assessment.TenantId == tenantId &&
+                control.Assessment.Status != AssessmentStatus.Expired &&
+                control.Assessment.Status != AssessmentStatus.Superseded)
+            .GroupBy(control => control.ImplementationStatus)
+            .Select(group => new { Status = group.Key, Count = group.Count() })
+            .ToArrayAsync(cancellationToken);
+
+        var poamStatuses = await dbContext.PoamItems
+            .AsNoTracking()
+            .Where(item => item.TenantId == tenantId)
+            .GroupBy(item => new
+            {
+                IsOpen = item.Status != PoamStatus.Closed && item.Status != PoamStatus.AcceptedRisk,
+                IsOverdue = item.TargetCompletionAt < today && item.Status != PoamStatus.Closed && item.Status != PoamStatus.AcceptedRisk
+            })
+            .Select(group => new { group.Key.IsOpen, group.Key.IsOverdue, Count = group.Count() })
+            .ToArrayAsync(cancellationToken);
+
+        var evidenceItems = await dbContext.EvidenceItems
+            .AsNoTracking()
+            .CountAsync(item => item.TenantId == tenantId, cancellationToken);
+
+        var recentAuditEvents = await dbContext.AuditLogEntries
+            .AsNoTracking()
+            .Where(entry => entry.TenantId == tenantId)
+            .OrderByDescending(entry => entry.OccurredAt)
+            .ThenByDescending(entry => entry.Id)
+            .Take(RecentAuditEventCount)
+            .Select(entry => new RecentAuditEventDto(
+                entry.Id,
+                entry.ActorUserId,
+                entry.Action.ToString(),
+                entry.EntityType,
+                entry.EntityId,
+                entry.OccurredAt,
+                entry.CorrelationId,
+                entry.Summary))
+            .ToArrayAsync(cancellationToken);
+
+        var priorityObligations = await BuildPriorityObligationsAsync(tenantId, today, cancellationToken);
+        var alerts = await BuildAlertsAsync(tenantId, today, cancellationToken);
+        var controlCountByStatus = controlStatuses.ToDictionary(item => item.Status, item => item.Count);
+        var controlsTotal = controlStatuses.Sum(item => item.Count);
+        var controlsImplemented = controlCountByStatus.GetValueOrDefault(ControlImplementationStatus.Implemented);
+        var controlsNotApplicable = controlCountByStatus.GetValueOrDefault(ControlImplementationStatus.NotApplicable);
+        var openPoams = poamStatuses.Where(item => item.IsOpen).Sum(item => item.Count);
+        var overduePoams = poamStatuses.Where(item => item.IsOverdue).Sum(item => item.Count);
+        var readinessScore = ComplianceOverviewScoring.BuildReadinessScore(
+            controlsTotal,
+            controlsImplemented,
+            controlsNotApplicable);
+        var contractRiskIndicator = await BuildContractRiskIndicatorAsync(
+            tenantId,
+            today,
+            openPoams,
+            overduePoams,
+            cancellationToken);
+
+        return new ComplianceOverviewDto(
+            tenantId,
+            controlsTotal,
+            controlsImplemented,
+            controlCountByStatus.GetValueOrDefault(ControlImplementationStatus.PartiallyImplemented),
+            controlCountByStatus.GetValueOrDefault(ControlImplementationStatus.NotStarted),
+            openPoams,
+            overduePoams,
+            evidenceItems,
+            readinessScore,
+            contractRiskIndicator,
+            recentAuditEvents,
+            modules)
+        {
+            PriorityObligations = priorityObligations,
+            Alerts = alerts
+        };
+    }
+
+    private async Task<IReadOnlyList<ObligationSummaryDto>> BuildPriorityObligationsAsync(
+        Guid tenantId,
+        DateOnly today,
+        CancellationToken cancellationToken)
+    {
+        var sourceObligations = await dbContext.Set<ContractClauseObligationEntity>()
+            .AsNoTracking()
+            .Where(mapping =>
+                mapping.ContractClause != null &&
+                mapping.ContractClause.Contract != null &&
+                mapping.ContractClause.Contract.TenantId == tenantId &&
+                mapping.ContractClause.RemovedAt == null &&
+                mapping.Obligation != null &&
+                mapping.Obligation.ReviewState == ReviewState.Published)
+            .Select(mapping => new PriorityObligationSeedDto(
+                mapping.ContractClauseId,
+                mapping.ContractClause!.ContractId,
+                mapping.ContractClause!.Contract!.ContractNumber,
+                mapping.ObligationId,
+                mapping.Obligation!.Source,
+                mapping.Obligation.Title,
+                mapping.Obligation.OwnerFunction,
+                mapping.Obligation.RiskLevel,
+                mapping.Obligation.SourceUrl,
+                mapping.Obligation.LastReviewedAt))
+            .ToArrayAsync(cancellationToken);
+
+        if (sourceObligations.Length == 0)
+        {
+            return [];
+        }
+
+        var contractIds = sourceObligations
+            .Select(obligation => obligation.ContractId)
+            .Distinct()
+            .ToArray();
+        var obligationIds = sourceObligations
+            .Select(obligation => obligation.ObligationId)
+            .Distinct()
+            .ToArray();
+
+        var activeTasks = await dbContext.ComplianceTasks
+            .AsNoTracking()
+            .Where(task =>
+                task.TenantId == tenantId &&
+                task.ContractId.HasValue &&
+                contractIds.Contains(task.ContractId.Value) &&
+                task.ObligationId != null &&
+                obligationIds.Contains(task.ObligationId) &&
+                task.Type == ComplianceTaskType.ObligationAction)
+            .Select(task => new PriorityObligationTaskDto(
+                task.ContractId!.Value,
+                task.ObligationId!,
+                task.Status,
+                task.RiskLevel,
+                task.DueAt,
+                task.CreatedAt))
+            .ToArrayAsync(cancellationToken);
+
+        var taskLookup = activeTasks
+            .GroupBy(task => (task.ContractId, task.ObligationId))
+            .ToDictionary(
+                group => group.Key,
+                group => group
+                    .OrderBy(task => task.DueAt ?? DateOnly.MaxValue)
+                    .ThenBy(task => task.CreatedAt)
+                    .First());
+
+        return sourceObligations
+            .Select(obligation =>
+            {
+                taskLookup.TryGetValue((obligation.ContractId, obligation.ObligationId), out var task);
+                var isOpenTask = task is not null &&
+                    task.Status != ComplianceTaskStatus.Done &&
+                    task.Status != ComplianceTaskStatus.Canceled;
+                var isHighRiskTask = task is { } currentTask &&
+                    isOpenTask &&
+                    (currentTask.RiskLevel == RiskLevel.High || currentTask.RiskLevel == RiskLevel.Critical);
+
+                return new PriorityObligationCandidateDto(
+                    obligation.ContractId,
+                    obligation.ContractNumber,
+                    obligation.ContractClauseId,
+                    obligation.ObligationId,
+                    obligation.Source,
+                    obligation.Title,
+                    obligation.OwnerFunction,
+                    obligation.RiskLevel,
+                    obligation.SourceUrl,
+                    obligation.LastReviewedAt,
+                    task?.DueAt,
+                    isOpenTask && task?.DueAt.HasValue == true && task.DueAt.Value < today,
+                    isHighRiskTask,
+                    obligation.RiskLevel is RiskLevel.High or RiskLevel.Critical);
+            })
+            .GroupBy(candidate => candidate.ObligationId)
+            .Select(group => group
+                .OrderByDescending(candidate => candidate.IsOverdue)
+                .ThenByDescending(candidate => candidate.IsHighRiskTask)
+                .ThenByDescending(candidate => candidate.IsHighRiskObligation)
+                .ThenBy(candidate => candidate.DueAt ?? DateOnly.MaxValue)
+                .ThenBy(candidate => candidate.ContractNumber, StringComparer.Ordinal)
+                .ThenBy(candidate => candidate.Source, StringComparer.Ordinal)
+                .ThenBy(candidate => candidate.ContractClauseId)
+                .First())
+            .OrderByDescending(candidate => candidate.IsOverdue)
+            .ThenByDescending(candidate => candidate.IsHighRiskTask)
+            .ThenByDescending(candidate => candidate.IsHighRiskObligation)
+            .ThenBy(candidate => candidate.DueAt ?? DateOnly.MaxValue)
+            .ThenBy(candidate => candidate.ContractNumber, StringComparer.Ordinal)
+            .ThenBy(candidate => candidate.Source, StringComparer.Ordinal)
+            .ThenBy(candidate => candidate.ContractClauseId)
+            .Take(3)
+            .Select(candidate => new ObligationSummaryDto(
+                candidate.ObligationId,
+                candidate.Source,
+                candidate.Title,
+                candidate.OwnerFunction,
+                candidate.RiskLevel.ToString(),
+                candidate.SourceUrl,
+                candidate.LastReviewedAt))
+            .ToArray();
+    }
+
+    private async Task<ContractRiskIndicatorDto> BuildContractRiskIndicatorAsync(
+        Guid tenantId,
+        DateOnly today,
+        int openPoams,
+        int overduePoams,
+        CancellationToken cancellationToken)
+    {
+        var activeContracts = await dbContext.Contracts
+            .AsNoTracking()
+            .CountAsync(contract =>
+                contract.TenantId == tenantId &&
+                (contract.Status == ContractStatus.Active ||
+                 contract.Status == ContractStatus.OptionPending ||
+                 contract.Status == ContractStatus.Intake),
+                cancellationToken);
+
+        var highRiskObligations = await dbContext.Set<ContractClauseObligationEntity>()
+            .AsNoTracking()
+            .Where(mapping =>
+                mapping.ContractClause != null &&
+                mapping.ContractClause.Contract != null &&
+                mapping.ContractClause.Contract.TenantId == tenantId &&
+                mapping.ContractClause.RemovedAt == null &&
+                mapping.Obligation != null &&
+                mapping.Obligation.ReviewState == ReviewState.Published &&
+                (mapping.Obligation.RiskLevel == RiskLevel.High ||
+                 mapping.Obligation.RiskLevel == RiskLevel.Critical))
+            .CountAsync(cancellationToken);
+
+        var highRiskTaskCounts = await dbContext.ComplianceTasks
+            .AsNoTracking()
+            .Where(task =>
+                task.TenantId == tenantId &&
+                task.ContractId.HasValue &&
+                task.Status != ComplianceTaskStatus.Done &&
+                task.Status != ComplianceTaskStatus.Canceled &&
+                (task.RiskLevel == RiskLevel.High || task.RiskLevel == RiskLevel.Critical))
+            .GroupBy(task => new { IsOverdue = task.DueAt.HasValue && task.DueAt.Value < today })
+            .Select(group => new { group.Key.IsOverdue, Count = group.Count() })
+            .ToArrayAsync(cancellationToken);
+
+        var missingEvidenceControls = await dbContext.ControlAssessments
+            .AsNoTracking()
+            .CountAsync(control =>
+                control.Assessment != null &&
+                control.Assessment.TenantId == tenantId &&
+                control.ImplementationStatus != ControlImplementationStatus.NotApplicable &&
+                control.EvidenceItemIdsJson == "[]",
+                cancellationToken);
+
+        var openHighRiskTasks = highRiskTaskCounts.Sum(item => item.Count);
+        var overdueHighRiskTasks = highRiskTaskCounts.Where(item => item.IsOverdue).Sum(item => item.Count);
+        var level = ComplianceOverviewScoring.DetermineContractRiskLevel(
+            overduePoams,
+            overdueHighRiskTasks,
+            openHighRiskTasks,
+            highRiskObligations,
+            openPoams,
+            missingEvidenceControls);
+
+        return new ContractRiskIndicatorDto(
+            level,
+            activeContracts,
+            highRiskObligations,
+            overduePoams,
+            openPoams,
+            missingEvidenceControls,
+            openHighRiskTasks,
+            overdueHighRiskTasks);
+    }
+
+    private async Task<IReadOnlyList<ComplianceDashboardAlertDto>> BuildAlertsAsync(
+        Guid tenantId,
+        DateOnly today,
+        CancellationToken cancellationToken)
+    {
+        var alerts = new List<ComplianceDashboardAlertDto>();
+        alerts.AddRange(await BuildOverduePoamAlertsAsync(tenantId, today, cancellationToken));
+        alerts.AddRange(await BuildControlWithoutEvidenceAlertsAsync(tenantId, cancellationToken));
+        alerts.AddRange(await BuildEvidenceReviewAlertsAsync(tenantId, cancellationToken));
+        alerts.AddRange(await BuildFailedUploadAlertsAsync(tenantId, cancellationToken));
+        alerts.AddRange(await BuildHighRiskRoleAlertsAsync(tenantId, cancellationToken));
+        alerts.AddRange(await BuildCompletedControlMetadataAlertsAsync(tenantId, cancellationToken));
+
+        return alerts
+            .OrderByDescending(alert => SeverityRank(alert.Severity))
+            .ThenByDescending(alert => alert.DetectedUtc)
+            .ThenBy(alert => alert.AlertType, StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    private async Task<IReadOnlyList<ComplianceDashboardAlertDto>> BuildOverduePoamAlertsAsync(
+        Guid tenantId,
+        DateOnly today,
+        CancellationToken cancellationToken)
+    {
+        var rows = await dbContext.PoamItems
+            .AsNoTracking()
+            .Where(item =>
+                item.TenantId == tenantId &&
+                item.TargetCompletionAt < today &&
+                item.Status != PoamStatus.Closed &&
+                item.Status != PoamStatus.AcceptedRisk)
+            .OrderBy(item => item.TargetCompletionAt)
+            .ThenBy(item => item.Id)
+            .Take(MaxAlertsPerRule)
+            .Select(item => new
+            {
+                item.Id,
+                item.ControlId,
+                item.Weakness,
+                item.RiskLevel,
+                item.TargetCompletionAt,
+                item.CreatedAt
+            })
+            .ToArrayAsync(cancellationToken);
+
+        return rows
+            .Select(item => Alert(
+                "overdue_poam",
+                item.RiskLevel is Gccs.Domain.Compliance.RiskLevel.Critical or Gccs.Domain.Compliance.RiskLevel.High ? "High" : "Medium",
+                "Overdue POA&M",
+                $"POA&M for {item.ControlId} is overdue: {item.Weakness}",
+                "PoamItem",
+                item.Id.ToString(),
+                item.CreatedAt))
+            .ToArray();
+    }
+
+    private async Task<IReadOnlyList<ComplianceDashboardAlertDto>> BuildControlWithoutEvidenceAlertsAsync(
+        Guid tenantId,
+        CancellationToken cancellationToken)
+    {
+        var rows = await dbContext.ControlAssessments
+            .AsNoTracking()
+            .Where(control =>
+                control.Assessment != null &&
+                control.Assessment.TenantId == tenantId &&
+                control.ImplementationStatus != ControlImplementationStatus.NotApplicable &&
+                control.EvidenceItemIdsJson == "[]")
+            .OrderBy(control => control.ControlId)
+            .Take(MaxAlertsPerRule)
+            .Select(control => new
+            {
+                control.AssessmentId,
+                control.ControlId,
+                control.ImplementationStatus
+            })
+            .ToArrayAsync(cancellationToken);
+
+        return rows
+            .Select(control => Alert(
+                "control_without_evidence",
+                control.ImplementationStatus == ControlImplementationStatus.Implemented ? "High" : "Medium",
+                "Control missing evidence",
+                $"Control {control.ControlId} has no linked evidence.",
+                "ControlAssessment",
+                $"{control.AssessmentId}:{control.ControlId}",
+                DateTimeOffset.UtcNow))
+            .ToArray();
+    }
+
+    private async Task<IReadOnlyList<ComplianceDashboardAlertDto>> BuildEvidenceReviewAlertsAsync(
+        Guid tenantId,
+        CancellationToken cancellationToken)
+    {
+        var rows = await dbContext.EvidenceItems
+            .AsNoTracking()
+            .Where(evidence =>
+                evidence.TenantId == tenantId &&
+                (evidence.Status == EvidenceStatus.Uploaded ||
+                 evidence.Status == EvidenceStatus.Submitted ||
+                 evidence.Status == EvidenceStatus.InReview ||
+                 evidence.Status == EvidenceStatus.Rejected))
+            .OrderByDescending(evidence => evidence.CreatedAt)
+            .ThenByDescending(evidence => evidence.Id)
+            .Take(MaxAlertsPerRule * 2)
+            .Select(evidence => new
+            {
+                evidence.Id,
+                evidence.Name,
+                evidence.Status,
+                evidence.CreatedAt
+            })
+            .ToArrayAsync(cancellationToken);
+
+        return rows
+            .Select(evidence =>
+                evidence.Status == EvidenceStatus.Rejected
+                    ? Alert(
+                        "rejected_evidence",
+                        "High",
+                        "Evidence rejected",
+                        $"Evidence '{evidence.Name}' was rejected and needs correction.",
+                        "EvidenceItem",
+                        evidence.Id.ToString(),
+                        evidence.CreatedAt)
+                    : Alert(
+                        "evidence_pending_review",
+                        "Medium",
+                        "Evidence pending review",
+                        $"Evidence '{evidence.Name}' is pending review.",
+                        "EvidenceItem",
+                        evidence.Id.ToString(),
+                        evidence.CreatedAt))
+            .ToArray();
+    }
+
+    private async Task<IReadOnlyList<ComplianceDashboardAlertDto>> BuildFailedUploadAlertsAsync(
+        Guid tenantId,
+        CancellationToken cancellationToken)
+    {
+        var rows = await dbContext.AuditLogEntries
+            .AsNoTracking()
+            .Where(audit =>
+                audit.TenantId == tenantId &&
+                audit.Action == AuditAction.Rejected &&
+                (audit.EntityType.Contains("Evidence") ||
+                 audit.EntityType.Contains("Upload") ||
+                 audit.EntityType.Contains("ContractDocument")))
+            .OrderByDescending(audit => audit.OccurredAt)
+            .ThenByDescending(audit => audit.Id)
+            .Take(MaxAlertsPerRule * 4)
+            .Select(audit => new
+            {
+                audit.Id,
+                audit.EntityType,
+                audit.EntityId,
+                audit.OccurredAt,
+                audit.Summary,
+                audit.MetadataJson
+            })
+            .ToArrayAsync(cancellationToken);
+
+        return rows
+            .Where(audit =>
+                audit.Summary.Contains("upload", StringComparison.OrdinalIgnoreCase) ||
+                audit.MetadataJson.Contains("upload", StringComparison.OrdinalIgnoreCase))
+            .Take(MaxAlertsPerRule)
+            .Select(audit => Alert(
+                "failed_upload_attempt",
+                "High",
+                "Failed upload attempt",
+                audit.Summary,
+                audit.EntityType,
+                string.IsNullOrWhiteSpace(audit.EntityId) ? audit.Id.ToString() : audit.EntityId,
+                audit.OccurredAt))
+            .ToArray();
+    }
+
+    private async Task<IReadOnlyList<ComplianceDashboardAlertDto>> BuildHighRiskRoleAlertsAsync(
+        Guid tenantId,
+        CancellationToken cancellationToken)
+    {
+        var highRiskRoles = new[] { RoleCatalog.Owner, RoleCatalog.Admin, RoleCatalog.Advisor };
+        var rows = await dbContext.TenantMemberships
+            .AsNoTracking()
+            .Where(membership =>
+                membership.TenantId == tenantId &&
+                membership.Status == MembershipStatus.Active &&
+                highRiskRoles.Contains(membership.RoleName))
+            .OrderBy(membership => membership.RoleName)
+            .ThenBy(membership => membership.UserId)
+            .Take(MaxAlertsPerRule)
+            .Select(membership => new
+            {
+                membership.Id,
+                membership.UserId,
+                membership.RoleName,
+                membership.CreatedAt
+            })
+            .ToArrayAsync(cancellationToken);
+
+        return rows
+            .Select(membership => Alert(
+                "high_risk_role",
+                membership.RoleName == RoleCatalog.Owner ? "High" : "Medium",
+                "High-risk role assigned",
+                $"User {membership.UserId} has active {membership.RoleName} access.",
+                "TenantMembership",
+                membership.Id.ToString(),
+                membership.CreatedAt))
+            .ToArray();
+    }
+
+    private async Task<IReadOnlyList<ComplianceDashboardAlertDto>> BuildCompletedControlMetadataAlertsAsync(
+        Guid tenantId,
+        CancellationToken cancellationToken)
+    {
+        var rows = await dbContext.ControlAssessments
+            .AsNoTracking()
+            .Where(control =>
+                control.Assessment != null &&
+                control.Assessment.TenantId == tenantId &&
+                (control.ImplementationStatus == ControlImplementationStatus.Implemented || control.Result == AssessmentResult.Met))
+            .OrderBy(control => control.ControlId)
+            .Take(MaxAlertsPerRule)
+            .Select(control => new
+            {
+                control.AssessmentId,
+                control.ControlId,
+                control.ImplementationStatus,
+                control.Result,
+                control.Notes,
+                control.AssessedByUserId,
+                control.AssessedAt,
+                control.EvidenceItemIdsJson
+            })
+            .ToArrayAsync(cancellationToken);
+
+        return rows
+            .Where(control =>
+                control.ImplementationStatus != ControlImplementationStatus.Implemented ||
+                control.Result != AssessmentResult.Met ||
+                control.AssessedByUserId is null ||
+                control.AssessedAt is null ||
+                string.IsNullOrWhiteSpace(control.Notes) ||
+                !HasJsonIds(control.EvidenceItemIdsJson))
+            .Select(control => Alert(
+                "complete_control_missing_review_metadata",
+                "Critical",
+                "Completed control needs review metadata",
+                $"Control {control.ControlId} is marked complete without required evidence or review metadata.",
+                "ControlAssessment",
+                $"{control.AssessmentId}:{control.ControlId}",
+                DateTimeOffset.UtcNow))
+            .ToArray();
+    }
+
+    private static ComplianceDashboardAlertDto Alert(
+        string alertType,
+        string severity,
+        string title,
+        string message,
+        string entityType,
+        string entityId,
+        DateTimeOffset detectedUtc) =>
+        new(alertType, severity, title, message, entityType, entityId, detectedUtc);
+
+    private static bool HasJsonIds(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json) || json == "[]")
+        {
+            return false;
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<Guid[]>(json)?.Length > 0;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private sealed record PriorityObligationSeedDto(
+        Guid ContractClauseId,
+        Guid ContractId,
+        string ContractNumber,
+        string ObligationId,
+        string Source,
+        string Title,
+        string OwnerFunction,
+        RiskLevel RiskLevel,
+        string SourceUrl,
+        DateOnly LastReviewedAt);
+
+    private sealed record PriorityObligationTaskDto(
+        Guid ContractId,
+        string ObligationId,
+        ComplianceTaskStatus Status,
+        RiskLevel RiskLevel,
+        DateOnly? DueAt,
+        DateTimeOffset CreatedAt);
+
+    private sealed record PriorityObligationCandidateDto(
+        Guid ContractId,
+        string ContractNumber,
+        Guid ContractClauseId,
+        string ObligationId,
+        string Source,
+        string Title,
+        string OwnerFunction,
+        RiskLevel RiskLevel,
+        string SourceUrl,
+        DateOnly LastReviewedAt,
+        DateOnly? DueAt,
+        bool IsOverdue,
+        bool IsHighRiskTask,
+        bool IsHighRiskObligation);
+
+    private static int SeverityRank(string severity) =>
+        severity switch
+        {
+            "Critical" => 4,
+            "High" => 3,
+            "Medium" => 2,
+            "Low" => 1,
+            _ => 0
+        };
+}

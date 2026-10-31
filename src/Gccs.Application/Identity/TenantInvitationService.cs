@@ -1,0 +1,355 @@
+using System.Security.Cryptography;
+using Gccs.Application.Audit;
+using Gccs.Application.Common;
+using Gccs.Application.Security;
+using Gccs.Domain.Audit;
+using Gccs.Domain.Common;
+using Gccs.Domain.Identity;
+
+namespace Gccs.Application.Identity;
+
+public sealed class TenantInvitationService(
+    ITenantInvitationRepository invitationRepository,
+    ICurrentTenantContext tenantContext,
+    IAuditEventWriter auditEventWriter,
+    IApplicationTransaction transaction)
+{
+    private const int MaximumExpirationDays = 30;
+
+    public Task<IReadOnlyList<TenantInvitationDto>> ListCurrentTenantInvitationsAsync(
+        CancellationToken cancellationToken = default) =>
+        invitationRepository.ListCurrentTenantInvitationsAsync(cancellationToken);
+
+    public async Task<TenantInvitationDto> CreateAsync(
+        CreateTenantInvitationRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateCreateRequest(request);
+
+        var email = NormalizeEmail(request.Email);
+        var roleName = NormalizeRoleName(request.RoleName);
+        if (await invitationRepository.TenantUserExistsForEmailAsync(tenantContext.TenantId, email, cancellationToken))
+        {
+            throw new ExistingTenantUserException(
+                "This email already belongs to a user in the tenant. Manage the existing user's membership or role instead of sending an invitation.");
+        }
+
+        if (await invitationRepository.CurrentTenantPendingInvitationExistsAsync(email, cancellationToken))
+        {
+            throw new DuplicateInvitationException("A pending invitation already exists for this email in the current tenant.");
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var invitation = new TenantInvitation(
+            Guid.NewGuid(),
+            tenantContext.TenantId,
+            email,
+            roleName,
+            null,
+            TenantInvitationStatus.Pending,
+            now.AddDays(request.ExpiresInDays),
+            null,
+            null,
+            null,
+            null,
+            null,
+            $"{roleName} invitation is queued for delivery.",
+            InvitationDeliveryStatus.Queued,
+            0,
+            now,
+            null,
+            null,
+            null,
+            null,
+            new EntityAudit(now, actorUserId, null, null));
+
+        var createdInvitation = await invitationRepository.AddToCurrentTenantAsync(invitation, cancellationToken);
+
+        await WriteInvitationAuditAsync(
+            createdInvitation,
+            actorUserId,
+            AuditAction.Created,
+            $"Invitation for '{createdInvitation.Email}' was created with role {createdInvitation.RoleName}.",
+            cancellationToken);
+
+        return createdInvitation;
+    }
+
+    public Task<TenantInvitationDto?> AcceptAsync(
+        string invitationToken,
+        AcceptTenantInvitationRequest request,
+        Guid actorUserId,
+        string actorEmail,
+        CancellationToken cancellationToken = default) =>
+        transaction.ExecuteAsync(
+            token => AcceptCoreAsync(invitationToken, request, actorUserId, actorEmail, token),
+            cancellationToken);
+
+    private async Task<TenantInvitationDto?> AcceptCoreAsync(
+        string invitationToken,
+        AcceptTenantInvitationRequest request,
+        Guid actorUserId,
+        string actorEmail,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(invitationToken))
+        {
+            throw new ArgumentException("Invitation token is required.", nameof(invitationToken));
+        }
+
+        if (string.IsNullOrWhiteSpace(request.DisplayName) || request.DisplayName.Trim().Length > 200)
+        {
+            throw new ArgumentException("Display name is required and must be 200 characters or fewer.", nameof(request));
+        }
+
+        var invitation = await invitationRepository.FindByTokenHashAsync(HashToken(invitationToken.Trim()), cancellationToken);
+        if (invitation is null)
+        {
+            return null;
+        }
+
+        if (!string.Equals(invitation.Email, NormalizeEmail(actorEmail), StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidInvitationStateException("The authenticated email does not match this invitation.");
+        }
+
+        if (invitation.Status is TenantInvitationStatus.Revoked)
+        {
+            throw new InvalidInvitationStateException("Revoked invitations cannot be accepted.");
+        }
+
+        if (invitation.Status is TenantInvitationStatus.Expired || invitation.ExpiresAt <= DateTimeOffset.UtcNow)
+        {
+            throw new InvalidInvitationStateException("Expired invitations cannot be accepted.");
+        }
+
+        if (invitation.Status is not TenantInvitationStatus.Pending)
+        {
+            throw new InvalidInvitationStateException("Only pending invitations can be accepted.");
+        }
+
+        if (await invitationRepository.TenantUserExistsForEmailAsync(
+                invitation.TenantId,
+                invitation.Email,
+                cancellationToken))
+        {
+            throw new ExistingTenantUserException(
+                "This email already belongs to a user in the tenant. Ask an administrator to revoke this invitation and manage the existing user's membership or role.");
+        }
+
+        var acceptedInvitation = await invitationRepository.AcceptAsync(
+            invitation.InvitationId,
+            actorUserId,
+            invitation.Email,
+            request.DisplayName.Trim(),
+            actorUserId,
+            cancellationToken);
+
+        if (acceptedInvitation is null)
+        {
+            return null;
+        }
+
+        await WriteInvitationAuditAsync(
+            acceptedInvitation,
+            actorUserId,
+            AuditAction.Updated,
+            $"Invitation for '{acceptedInvitation.Email}' was accepted.",
+            cancellationToken);
+
+        return acceptedInvitation;
+    }
+
+    public async Task<InvitationAcceptanceContextDto?> GetAcceptanceContextAsync(
+        string invitationToken,
+        string actorEmail,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(invitationToken))
+        {
+            throw new ArgumentException("Invitation token is required.", nameof(invitationToken));
+        }
+
+        var context = await invitationRepository.FindAcceptanceContextByTokenHashAsync(
+            HashToken(invitationToken.Trim()),
+            cancellationToken);
+        if (context is null)
+        {
+            return null;
+        }
+
+        if (!string.Equals(context.Email, NormalizeEmail(actorEmail), StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidInvitationStateException("The authenticated email does not match this invitation.");
+        }
+
+        return context;
+    }
+
+    public async Task<TenantInvitationDto?> ResendCurrentTenantAsync(
+        Guid invitationId,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var invitation = await invitationRepository.QueueCurrentTenantDeliveryAsync(invitationId, actorUserId, cancellationToken);
+        if (invitation is not null)
+        {
+            await WriteInvitationAuditAsync(invitation, actorUserId, AuditAction.Updated, $"Invitation delivery for '{invitation.Email}' was requeued.", cancellationToken);
+        }
+
+        return invitation;
+    }
+
+    public async Task<TenantInvitationDto?> ResendPlatformAsync(
+        Guid invitationId,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var invitation = await invitationRepository.QueuePlatformDeliveryAsync(invitationId, actorUserId, cancellationToken);
+        if (invitation is not null)
+        {
+            await WriteInvitationAuditAsync(invitation, actorUserId, AuditAction.Updated, $"Platform Owner invitation delivery for '{invitation.Email}' was requeued.", cancellationToken);
+        }
+
+        return invitation;
+    }
+
+    public async Task<TenantInvitationDto?> ExpireAsync(
+        Guid invitationId,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var invitation = await invitationRepository.ExpireInCurrentTenantScopeAsync(
+            invitationId,
+            actorUserId,
+            cancellationToken);
+
+        if (invitation is null)
+        {
+            return null;
+        }
+
+        await WriteInvitationAuditAsync(
+            invitation,
+            actorUserId,
+            AuditAction.Updated,
+            $"Invitation for '{invitation.Email}' was expired.",
+            cancellationToken);
+
+        return invitation;
+    }
+
+    public async Task<TenantInvitationDto?> RevokeAsync(
+        Guid invitationId,
+        RevokeTenantInvitationRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(request.Reason) || request.Reason.Trim().Length > 500)
+        {
+            throw new ArgumentException("A revocation reason is required and must be 500 characters or fewer.", nameof(request));
+        }
+
+        var invitation = await invitationRepository.RevokeInCurrentTenantScopeAsync(
+            invitationId,
+            actorUserId,
+            cancellationToken);
+
+        if (invitation is null)
+        {
+            return null;
+        }
+
+        await WriteInvitationAuditAsync(
+            invitation,
+            actorUserId,
+            AuditAction.Updated,
+            $"Invitation for '{invitation.Email}' was revoked.",
+            cancellationToken,
+            new Dictionary<string, string>
+            {
+                ["reason"] = request.Reason.Trim()
+            });
+
+        return invitation;
+    }
+
+    private Task WriteInvitationAuditAsync(
+        TenantInvitationDto invitation,
+        Guid actorUserId,
+        AuditAction action,
+        string summary,
+        CancellationToken cancellationToken,
+        IReadOnlyDictionary<string, string>? additionalMetadata = null)
+    {
+        var metadata = new Dictionary<string, string>
+        {
+            ["email"] = invitation.Email,
+            ["roleName"] = invitation.RoleName,
+            ["status"] = invitation.Status.ToString(),
+            ["expiresAt"] = invitation.ExpiresAt.ToString("O"),
+            ["deliveryStatus"] = invitation.DeliveryStatus.ToString()
+        };
+        if (additionalMetadata is not null)
+        {
+            foreach (var (key, value) in additionalMetadata)
+            {
+                metadata[key] = value;
+            }
+        }
+
+        return auditEventWriter.WriteAsync(
+            invitation.TenantId,
+            actorUserId,
+            action,
+            "TenantInvitation",
+            invitation.InvitationId.ToString(),
+            summary,
+            metadata,
+            cancellationToken);
+    }
+
+    private static void ValidateCreateRequest(CreateTenantInvitationRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Email) || request.Email.Trim().Length > 320 || !request.Email.Contains('@', StringComparison.Ordinal))
+        {
+            throw new ArgumentException("A valid invitation email is required.", nameof(request));
+        }
+
+        if (string.IsNullOrWhiteSpace(request.RoleName) || request.RoleName.Trim().Length > 120)
+        {
+            throw new ArgumentException("Invitation role name is required and must be 120 characters or fewer.", nameof(request));
+        }
+
+        NormalizeRoleName(request.RoleName);
+
+        if (request.ExpiresInDays is < 1 or > MaximumExpirationDays)
+        {
+            throw new ArgumentException($"Invitation expiration must be between 1 and {MaximumExpirationDays} days.", nameof(request));
+        }
+    }
+
+    private static string NormalizeEmail(string email) => email.Trim().ToLowerInvariant();
+
+    private static string NormalizeRoleName(string roleName)
+    {
+        if (!RoleCatalog.TryNormalizeRoleName(roleName, out var canonicalRoleName))
+        {
+            throw new ArgumentException(
+                $"Invitation role must be one of: {string.Join(", ", RoleCatalog.Roles)}.",
+                nameof(roleName));
+        }
+
+        return canonicalRoleName;
+    }
+
+    internal static string HashToken(string token) =>
+        Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(token)));
+}
+
+public sealed class DuplicateInvitationException(string message) : InvalidOperationException(message);
+
+public sealed class ExistingTenantUserException(string message) : InvalidOperationException(message);
+
+public sealed class InvalidInvitationStateException(string message) : InvalidOperationException(message);

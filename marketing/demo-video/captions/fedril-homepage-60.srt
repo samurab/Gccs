@@ -1,0 +1,39 @@
+1
+00:00:00,800 --> 00:00:04,803
+Compliance readiness can become scattered across spreadsheets and inboxes.
+
+2
+00:00:04,803 --> 00:00:08,805
+FeDril brings the work into one No-CUI operating view.
+
+3
+00:00:10,105 --> 00:00:14,624
+Teams can see high-priority obligations, ownership, due dates,
+
+4
+00:00:14,624 --> 00:00:19,898
+and overdue remediation without rebuilding the status picture by hand.
+
+5
+00:00:21,198 --> 00:00:28,364
+Non-sensitive evidence metadata can be associated with readiness work while the product keeps its current No-CUI
+
+6
+00:00:28,364 --> 00:00:30,572
+boundary visible.
+
+7
+00:00:31,872 --> 00:00:38,479
+Tenant-scoped permissions and audit history help reviewers understand relevant activity and keep follow-up work
+
+8
+00:00:38,479 --> 00:00:40,344
+accountable.
+
+9
+00:00:41,644 --> 00:00:46,145
+Give leadership a reviewable readiness summary and keep the next action visible.
+
+10
+00:00:46,145 --> 00:00:48,645
+Schedule a FeDril demonstration.

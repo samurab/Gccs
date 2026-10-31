@@ -1,0 +1,6 @@
+Public FAR Labor Standards Excerpt
+
+Line 1: This public-style excerpt is provided for extraction label validation.
+Line 2: FAR 52.222-41, Service Contract Labor Standards, applies to covered service contracts and requires applicable labor standards.
+Line 3: Wage determination attachment WD-2026-SYNTHETIC is referenced for test purposes only.
+Line 4: FAR 52.204-27, Prohibition on a ByteDance Covered Application, applies to covered applications as stated in the clause.

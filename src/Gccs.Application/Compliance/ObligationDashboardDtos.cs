@@ -1,0 +1,50 @@
+using Gccs.Domain.Common;
+using Gccs.Domain.Compliance;
+
+namespace Gccs.Application.Compliance;
+
+public sealed record ObligationDashboardQuery(
+    Guid? ContractId,
+    RiskLevel? RiskLevel,
+    string? Owner,
+    ComplianceTaskStatus? Status,
+    string? Module,
+    string? DueDate,
+    string? Source);
+
+public sealed record ObligationDashboardItemDto(
+    string Id,
+    Guid ContractId,
+    string ContractNumber,
+    string ContractTitle,
+    Guid ContractClauseId,
+    string ClauseNumber,
+    string ObligationId,
+    string Source,
+    string SourceUrl,
+    string Title,
+    string PlainEnglishSummary,
+    string RequiredAction,
+    string OwnerFunction,
+    Guid? AssignedUserId,
+    string? AssignedUserDisplayName,
+    string? AssignedRoleName,
+    RiskLevel RiskLevel,
+    string Status,
+    string StatusCode,
+    DateOnly? DueAt,
+    string Module,
+    bool IsOverdue,
+    bool IsHighRisk,
+    IReadOnlyList<string> EvidenceExamples,
+    string Confidence,
+    DateOnly LastReviewedAt,
+    bool RequiresExpertReview,
+    ObligationApplicabilitySummaryDto? Applicability);
+
+public interface IObligationDashboardRepository
+{
+    Task<IReadOnlyList<ObligationDashboardItemDto>> ListCurrentTenantAsync(
+        ObligationDashboardQuery query,
+        CancellationToken cancellationToken = default);
+}

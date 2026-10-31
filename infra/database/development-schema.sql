@@ -1,0 +1,4744 @@
+﻿DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname = 'gccs') THEN
+        CREATE SCHEMA gccs;
+    END IF;
+END $EF$;
+CREATE TABLE IF NOT EXISTS gccs."__EFMigrationsHistory" (
+    "MigrationId" character varying(150) NOT NULL,
+    "ProductVersion" character varying(32) NOT NULL,
+    CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY ("MigrationId")
+);
+
+START TRANSACTION;
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname = 'gccs') THEN
+        CREATE SCHEMA gccs;
+    END IF;
+END $EF$;
+
+CREATE TABLE gccs.clauses (
+    id text NOT NULL,
+    source text NOT NULL,
+    number text NOT NULL,
+    title text NOT NULL,
+    plain_english_summary text NOT NULL,
+    applicability_logic text NOT NULL,
+    required_action_ids_json jsonb NOT NULL,
+    usually_requires_flow_down boolean NOT NULL,
+    source_name text NOT NULL,
+    source_url text NOT NULL,
+    source_last_reviewed_at date NOT NULL,
+    source_effective_at date,
+    source_confidence text NOT NULL,
+    source_requires_expert_review boolean NOT NULL,
+    last_reviewed_at date NOT NULL,
+    reviewed_by_user_id uuid,
+    next_review_due_at date,
+    confidence text NOT NULL,
+    requires_expert_review boolean NOT NULL,
+    CONSTRAINT "PK_clauses" PRIMARY KEY (id)
+);
+
+CREATE TABLE gccs.controls (
+    id text NOT NULL,
+    framework character varying(64) NOT NULL,
+    cmmc_level character varying(64) NOT NULL,
+    family text NOT NULL,
+    title text NOT NULL,
+    requirement text NOT NULL,
+    assessment_objective text NOT NULL,
+    evidence_examples_json jsonb NOT NULL,
+    source_name text NOT NULL,
+    source_url text NOT NULL,
+    source_last_reviewed_at date NOT NULL,
+    source_effective_at date,
+    source_confidence text NOT NULL,
+    source_requires_expert_review boolean NOT NULL,
+    CONSTRAINT "PK_controls" PRIMARY KEY (id)
+);
+
+CREATE TABLE gccs.mvp_modules (
+    key text NOT NULL,
+    name text NOT NULL,
+    purpose text NOT NULL,
+    status text NOT NULL,
+    CONSTRAINT "PK_mvp_modules" PRIMARY KEY (key)
+);
+
+CREATE TABLE gccs.obligations (
+    id text NOT NULL,
+    source text NOT NULL,
+    title text NOT NULL,
+    plain_english_summary text NOT NULL,
+    trigger_condition text NOT NULL,
+    required_action text NOT NULL,
+    owner_function text NOT NULL,
+    risk_level character varying(64) NOT NULL,
+    flow_down_requirement text NOT NULL,
+    applicability_json jsonb NOT NULL,
+    evidence_examples_json jsonb NOT NULL,
+    source_name text NOT NULL,
+    source_url text NOT NULL,
+    source_last_reviewed_at date NOT NULL,
+    source_effective_at date,
+    source_confidence text NOT NULL,
+    source_requires_expert_review boolean NOT NULL,
+    CONSTRAINT "PK_obligations" PRIMARY KEY (id)
+);
+
+CREATE TABLE gccs.tenants (
+    id uuid NOT NULL,
+    name character varying(240) NOT NULL,
+    status character varying(64) NOT NULL,
+    data_posture character varying(64) NOT NULL,
+    trial_ends_at date,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_tenants" PRIMARY KEY (id)
+);
+
+CREATE TABLE gccs.annual_affirmations (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    level character varying(64) NOT NULL,
+    due_at date NOT NULL,
+    submitted_at date,
+    submitted_by_user_id uuid,
+    confirmation_reference text,
+    status character varying(64) NOT NULL,
+    CONSTRAINT "PK_annual_affirmations" PRIMARY KEY (id),
+    CONSTRAINT "FK_annual_affirmations_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.assessments (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    type character varying(64) NOT NULL,
+    level character varying(64) NOT NULL,
+    status character varying(64) NOT NULL,
+    started_at date NOT NULL,
+    completed_at date,
+    affirmation_due_at date,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_assessments" PRIMARY KEY (id),
+    CONSTRAINT "FK_assessments_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.assets (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    name text NOT NULL,
+    type character varying(64) NOT NULL,
+    description text NOT NULL,
+    owner_function text NOT NULL,
+    stores_fci boolean NOT NULL,
+    stores_cui boolean NOT NULL,
+    system_boundary_id uuid,
+    tags_json jsonb NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_assets" PRIMARY KEY (id),
+    CONSTRAINT "FK_assets_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.audit_log_entries (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    actor_user_id uuid,
+    action character varying(64) NOT NULL,
+    entity_type text NOT NULL,
+    entity_id text NOT NULL,
+    occurred_at timestamp with time zone NOT NULL,
+    ip_address text NOT NULL,
+    user_agent text NOT NULL,
+    summary text NOT NULL,
+    metadata_json jsonb NOT NULL,
+    CONSTRAINT "PK_audit_log_entries" PRIMARY KEY (id),
+    CONSTRAINT "FK_audit_log_entries_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.company_profiles (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    legal_entity_name character varying(240) NOT NULL,
+    doing_business_as text,
+    uei character varying(32),
+    cage_code character varying(16),
+    sam_registration_expires_at date,
+    contractor_role character varying(64) NOT NULL,
+    products_and_services text NOT NULL,
+    employee_range character varying(64) NOT NULL,
+    revenue_range character varying(64) NOT NULL,
+    it_environment_description text NOT NULL,
+    uses_external_service_provider boolean NOT NULL,
+    external_service_provider_name text,
+    key_systems_json jsonb NOT NULL,
+    agency_customers_json jsonb NOT NULL,
+    data_handling_posture character varying(64) NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_company_profiles" PRIMARY KEY (id),
+    CONSTRAINT "FK_company_profiles_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.compliance_tasks (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    title character varying(240) NOT NULL,
+    description text NOT NULL,
+    type character varying(64) NOT NULL,
+    status character varying(64) NOT NULL,
+    risk_level character varying(64) NOT NULL,
+    assigned_to_user_id uuid,
+    owner_function character varying(120) NOT NULL,
+    due_at date,
+    contract_id uuid,
+    obligation_id text,
+    control_id text,
+    evidence_item_id uuid,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_compliance_tasks" PRIMARY KEY (id),
+    CONSTRAINT "FK_compliance_tasks_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.contracts (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    contract_number character varying(120) NOT NULL,
+    title character varying(300) NOT NULL,
+    agency_or_prime_name text NOT NULL,
+    relationship character varying(64) NOT NULL,
+    kind character varying(64) NOT NULL,
+    status character varying(64) NOT NULL,
+    awarded_at date,
+    period_of_performance_start date NOT NULL,
+    period_of_performance_end date NOT NULL,
+    place_of_performance text NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_contracts" PRIMARY KEY (id),
+    CONSTRAINT "FK_contracts_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.employees (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    employee_number text NOT NULL,
+    name text NOT NULL,
+    email text NOT NULL,
+    status character varying(64) NOT NULL,
+    job_title text NOT NULL,
+    labor_category text NOT NULL,
+    handles_fci boolean NOT NULL,
+    handles_cui boolean NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_employees" PRIMARY KEY (id),
+    CONSTRAINT "FK_employees_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.evidence_items (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    name character varying(240) NOT NULL,
+    description text NOT NULL,
+    type character varying(64) NOT NULL,
+    status character varying(64) NOT NULL,
+    storage_uri text,
+    file_hash text,
+    effective_at date,
+    expires_at date,
+    tags_json jsonb NOT NULL,
+    approved_by_user_id uuid,
+    approved_at timestamp with time zone,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_evidence_items" PRIMARY KEY (id),
+    CONSTRAINT "FK_evidence_items_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.labor_classifications (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    employee_id uuid NOT NULL,
+    contract_id uuid NOT NULL,
+    labor_category text NOT NULL,
+    basis_for_classification text NOT NULL,
+    wage_determination_id uuid,
+    evidence_item_id uuid,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_labor_classifications" PRIMARY KEY (id),
+    CONSTRAINT "FK_labor_classifications_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.payroll_records (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    employee_id uuid NOT NULL,
+    contract_id uuid NOT NULL,
+    period_start date NOT NULL,
+    period_end date NOT NULL,
+    hours_worked numeric(10,2) NOT NULL,
+    wage_paid numeric(12,2) NOT NULL,
+    fringe_paid numeric(12,2) NOT NULL,
+    evidence_item_id uuid,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_payroll_records" PRIMARY KEY (id),
+    CONSTRAINT "FK_payroll_records_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.poam_items (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    control_id text NOT NULL,
+    weakness text NOT NULL,
+    planned_remediation text NOT NULL,
+    risk_level character varying(64) NOT NULL,
+    status character varying(64) NOT NULL,
+    owner_user_id uuid,
+    target_completion_at date NOT NULL,
+    completed_at date,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_poam_items" PRIMARY KEY (id),
+    CONSTRAINT "FK_poam_items_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.reports (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    type character varying(64) NOT NULL,
+    title text NOT NULL,
+    status character varying(64) NOT NULL,
+    generated_at timestamp with time zone NOT NULL,
+    generated_by_user_id uuid NOT NULL,
+    storage_uri text,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_reports" PRIMARY KEY (id),
+    CONSTRAINT "FK_reports_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.roles (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    name character varying(120) NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_roles" PRIMARY KEY (id),
+    CONSTRAINT "FK_roles_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.solicitations (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    solicitation_number text NOT NULL,
+    title text NOT NULL,
+    agency text NOT NULL,
+    response_due_at date,
+    expected_contract_kind character varying(64) NOT NULL,
+    set_aside text NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_solicitations" PRIMARY KEY (id),
+    CONSTRAINT "FK_solicitations_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.subcontractors (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    name text NOT NULL,
+    uei text,
+    cage_code text,
+    status character varying(64) NOT NULL,
+    workshare_description text NOT NULL,
+    workshare_percentage numeric(5,2),
+    has_fci_access boolean NOT NULL,
+    has_cui_access boolean NOT NULL,
+    required_cmmc_level text,
+    contact_name text,
+    contact_email text,
+    contact_phone text,
+    contact_title text,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_subcontractors" PRIMARY KEY (id),
+    CONSTRAINT "FK_subcontractors_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.system_boundaries (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    name text NOT NULL,
+    description text NOT NULL,
+    status character varying(64) NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_system_boundaries" PRIMARY KEY (id),
+    CONSTRAINT "FK_system_boundaries_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.training_records (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    employee_id uuid NOT NULL,
+    training_name text NOT NULL,
+    type character varying(64) NOT NULL,
+    status character varying(64) NOT NULL,
+    assigned_at date NOT NULL,
+    completed_at date,
+    expires_at date,
+    evidence_item_id uuid,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_training_records" PRIMARY KEY (id),
+    CONSTRAINT "FK_training_records_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.users (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    email character varying(320) NOT NULL,
+    display_name character varying(200) NOT NULL,
+    status character varying(64) NOT NULL,
+    mfa_enabled boolean NOT NULL,
+    last_signed_in_at timestamp with time zone,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_users" PRIMARY KEY (id),
+    CONSTRAINT "FK_users_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.vendors (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    name character varying(240) NOT NULL,
+    type character varying(64) NOT NULL,
+    risk_level character varying(64) NOT NULL,
+    contact_name text,
+    contact_email text,
+    contact_phone text,
+    contact_title text,
+    has_fci_access boolean NOT NULL,
+    has_cui_access boolean NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_vendors" PRIMARY KEY (id),
+    CONSTRAINT "FK_vendors_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.wage_determinations (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    determination_number text NOT NULL,
+    revision text NOT NULL,
+    place_of_performance text NOT NULL,
+    effective_at date NOT NULL,
+    expires_at date,
+    source_url text,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_wage_determinations" PRIMARY KEY (id),
+    CONSTRAINT "FK_wage_determinations_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.control_assessments (
+    assessment_id uuid NOT NULL,
+    control_id text NOT NULL,
+    implementation_status character varying(64) NOT NULL,
+    result character varying(64) NOT NULL,
+    notes text NOT NULL,
+    assessed_by_user_id uuid,
+    assessed_at date,
+    evidence_item_ids_json jsonb NOT NULL,
+    CONSTRAINT "PK_control_assessments" PRIMARY KEY (assessment_id, control_id),
+    CONSTRAINT "FK_control_assessments_assessments_assessment_id" FOREIGN KEY (assessment_id) REFERENCES gccs.assessments (id) ON DELETE CASCADE,
+    CONSTRAINT "FK_control_assessments_controls_control_id" FOREIGN KEY (control_id) REFERENCES gccs.controls (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.company_certifications (
+    id uuid NOT NULL,
+    company_profile_id uuid NOT NULL,
+    type character varying(64) NOT NULL,
+    status character varying(64) NOT NULL,
+    issuer character varying(180) NOT NULL,
+    effective_at date,
+    expires_at date,
+    reference_number character varying(120),
+    CONSTRAINT "PK_company_certifications" PRIMARY KEY (id),
+    CONSTRAINT "FK_company_certifications_company_profiles_company_profile_id" FOREIGN KEY (company_profile_id) REFERENCES gccs.company_profiles (id) ON DELETE CASCADE
+);
+
+CREATE TABLE gccs.company_locations (
+    id uuid NOT NULL,
+    company_profile_id uuid NOT NULL,
+    name text NOT NULL,
+    street1 text NOT NULL,
+    street2 text,
+    city text NOT NULL,
+    state_or_province text NOT NULL,
+    postal_code text NOT NULL,
+    country text NOT NULL,
+    is_place_of_performance boolean NOT NULL,
+    CONSTRAINT "PK_company_locations" PRIMARY KEY (id),
+    CONSTRAINT "FK_company_locations_company_profiles_company_profile_id" FOREIGN KEY (company_profile_id) REFERENCES gccs.company_profiles (id) ON DELETE CASCADE
+);
+
+CREATE TABLE gccs.company_naics_codes (
+    id uuid NOT NULL,
+    company_profile_id uuid NOT NULL,
+    code character varying(12) NOT NULL,
+    title character varying(240) NOT NULL,
+    is_primary boolean NOT NULL,
+    size_standard text,
+    qualifies_as_small boolean,
+    last_checked_at date,
+    CONSTRAINT "PK_company_naics_codes" PRIMARY KEY (id),
+    CONSTRAINT "FK_company_naics_codes_company_profiles_company_profile_id" FOREIGN KEY (company_profile_id) REFERENCES gccs.company_profiles (id) ON DELETE CASCADE
+);
+
+CREATE TABLE gccs.contract_clauses (
+    id uuid NOT NULL,
+    contract_id uuid NOT NULL,
+    clause_number text NOT NULL,
+    title text NOT NULL,
+    alternate text,
+    full_text text,
+    source character varying(64) NOT NULL,
+    requires_flow_down boolean NOT NULL,
+    last_reviewed_at date NOT NULL,
+    reviewed_by_user_id uuid,
+    next_review_due_at date,
+    confidence text NOT NULL,
+    requires_expert_review boolean NOT NULL,
+    CONSTRAINT "PK_contract_clauses" PRIMARY KEY (id),
+    CONSTRAINT "FK_contract_clauses_contracts_contract_id" FOREIGN KEY (contract_id) REFERENCES gccs.contracts (id) ON DELETE CASCADE
+);
+
+CREATE TABLE gccs.contract_deliverables (
+    id uuid NOT NULL,
+    contract_id uuid NOT NULL,
+    name text NOT NULL,
+    description text NOT NULL,
+    due_at date,
+    owner_function text NOT NULL,
+    status character varying(64) NOT NULL,
+    CONSTRAINT "PK_contract_deliverables" PRIMARY KEY (id),
+    CONSTRAINT "FK_contract_deliverables_contracts_contract_id" FOREIGN KEY (contract_id) REFERENCES gccs.contracts (id) ON DELETE CASCADE
+);
+
+CREATE TABLE gccs.contract_documents (
+    id uuid NOT NULL,
+    contract_id uuid NOT NULL,
+    type character varying(64) NOT NULL,
+    file_name character varying(300) NOT NULL,
+    storage_uri text,
+    extracted_text_hash text,
+    uploaded_at timestamp with time zone NOT NULL,
+    uploaded_by_user_id uuid NOT NULL,
+    contains_potential_cui boolean NOT NULL,
+    CONSTRAINT "PK_contract_documents" PRIMARY KEY (id),
+    CONSTRAINT "FK_contract_documents_contracts_contract_id" FOREIGN KEY (contract_id) REFERENCES gccs.contracts (id) ON DELETE CASCADE
+);
+
+CREATE TABLE gccs.contract_reporting_deadlines (
+    id uuid NOT NULL,
+    contract_id uuid NOT NULL,
+    name text NOT NULL,
+    description text NOT NULL,
+    due_at date NOT NULL,
+    recurrence character varying(64) NOT NULL,
+    owner_function text NOT NULL,
+    source_clause_numbers_json jsonb NOT NULL,
+    CONSTRAINT "PK_contract_reporting_deadlines" PRIMARY KEY (id),
+    CONSTRAINT "FK_contract_reporting_deadlines_contracts_contract_id" FOREIGN KEY (contract_id) REFERENCES gccs.contracts (id) ON DELETE CASCADE
+);
+
+CREATE TABLE gccs.evidence_contracts (
+    evidence_item_id uuid NOT NULL,
+    contract_id uuid NOT NULL,
+    CONSTRAINT "PK_evidence_contracts" PRIMARY KEY (evidence_item_id, contract_id),
+    CONSTRAINT "FK_evidence_contracts_contracts_contract_id" FOREIGN KEY (contract_id) REFERENCES gccs.contracts (id) ON DELETE CASCADE,
+    CONSTRAINT "FK_evidence_contracts_evidence_items_evidence_item_id" FOREIGN KEY (evidence_item_id) REFERENCES gccs.evidence_items (id) ON DELETE CASCADE
+);
+
+CREATE TABLE gccs.evidence_controls (
+    evidence_item_id uuid NOT NULL,
+    control_id text NOT NULL,
+    CONSTRAINT "PK_evidence_controls" PRIMARY KEY (evidence_item_id, control_id),
+    CONSTRAINT "FK_evidence_controls_controls_control_id" FOREIGN KEY (control_id) REFERENCES gccs.controls (id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_evidence_controls_evidence_items_evidence_item_id" FOREIGN KEY (evidence_item_id) REFERENCES gccs.evidence_items (id) ON DELETE CASCADE
+);
+
+CREATE TABLE gccs.evidence_employees (
+    evidence_item_id uuid NOT NULL,
+    employee_id uuid NOT NULL,
+    CONSTRAINT "PK_evidence_employees" PRIMARY KEY (evidence_item_id, employee_id),
+    CONSTRAINT "FK_evidence_employees_employees_employee_id" FOREIGN KEY (employee_id) REFERENCES gccs.employees (id) ON DELETE CASCADE,
+    CONSTRAINT "FK_evidence_employees_evidence_items_evidence_item_id" FOREIGN KEY (evidence_item_id) REFERENCES gccs.evidence_items (id) ON DELETE CASCADE
+);
+
+CREATE TABLE gccs.evidence_obligations (
+    evidence_item_id uuid NOT NULL,
+    obligation_id text NOT NULL,
+    CONSTRAINT "PK_evidence_obligations" PRIMARY KEY (evidence_item_id, obligation_id),
+    CONSTRAINT "FK_evidence_obligations_evidence_items_evidence_item_id" FOREIGN KEY (evidence_item_id) REFERENCES gccs.evidence_items (id) ON DELETE CASCADE,
+    CONSTRAINT "FK_evidence_obligations_obligations_obligation_id" FOREIGN KEY (obligation_id) REFERENCES gccs.obligations (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.poam_evidence (
+    poam_item_id uuid NOT NULL,
+    evidence_item_id uuid NOT NULL,
+    CONSTRAINT "PK_poam_evidence" PRIMARY KEY (poam_item_id, evidence_item_id),
+    CONSTRAINT "FK_poam_evidence_evidence_items_evidence_item_id" FOREIGN KEY (evidence_item_id) REFERENCES gccs.evidence_items (id) ON DELETE CASCADE,
+    CONSTRAINT "FK_poam_evidence_poam_items_poam_item_id" FOREIGN KEY (poam_item_id) REFERENCES gccs.poam_items (id) ON DELETE CASCADE
+);
+
+CREATE TABLE gccs.report_contracts (
+    report_id uuid NOT NULL,
+    contract_id uuid NOT NULL,
+    report_entity_id uuid,
+    CONSTRAINT "PK_report_contracts" PRIMARY KEY (report_id, contract_id),
+    CONSTRAINT "FK_report_contracts_reports_report_entity_id" FOREIGN KEY (report_entity_id) REFERENCES gccs.reports (id)
+);
+
+CREATE TABLE gccs.report_evidence (
+    report_id uuid NOT NULL,
+    evidence_item_id uuid NOT NULL,
+    report_entity_id uuid,
+    CONSTRAINT "PK_report_evidence" PRIMARY KEY (report_id, evidence_item_id),
+    CONSTRAINT "FK_report_evidence_reports_report_entity_id" FOREIGN KEY (report_entity_id) REFERENCES gccs.reports (id)
+);
+
+CREATE TABLE gccs.report_obligations (
+    report_id uuid NOT NULL,
+    obligation_id text NOT NULL,
+    report_entity_id uuid,
+    CONSTRAINT "PK_report_obligations" PRIMARY KEY (report_id, obligation_id),
+    CONSTRAINT "FK_report_obligations_reports_report_entity_id" FOREIGN KEY (report_entity_id) REFERENCES gccs.reports (id)
+);
+
+CREATE TABLE gccs.role_permissions (
+    role_id uuid NOT NULL,
+    permission character varying(64) NOT NULL,
+    CONSTRAINT "PK_role_permissions" PRIMARY KEY (role_id, permission),
+    CONSTRAINT "FK_role_permissions_roles_role_id" FOREIGN KEY (role_id) REFERENCES gccs.roles (id) ON DELETE CASCADE
+);
+
+CREATE TABLE gccs.contract_subcontractors (
+    contract_id uuid NOT NULL,
+    subcontractor_id uuid NOT NULL,
+    CONSTRAINT "PK_contract_subcontractors" PRIMARY KEY (contract_id, subcontractor_id),
+    CONSTRAINT "FK_contract_subcontractors_contracts_contract_id" FOREIGN KEY (contract_id) REFERENCES gccs.contracts (id) ON DELETE CASCADE,
+    CONSTRAINT "FK_contract_subcontractors_subcontractors_subcontractor_id" FOREIGN KEY (subcontractor_id) REFERENCES gccs.subcontractors (id) ON DELETE CASCADE
+);
+
+CREATE TABLE gccs.flow_down_clauses (
+    id uuid NOT NULL,
+    subcontractor_id uuid NOT NULL,
+    clause_number text NOT NULL,
+    title text NOT NULL,
+    status character varying(64) NOT NULL,
+    sent_at date,
+    signed_at date,
+    signed_evidence_item_id uuid,
+    CONSTRAINT "PK_flow_down_clauses" PRIMARY KEY (id),
+    CONSTRAINT "FK_flow_down_clauses_subcontractors_subcontractor_id" FOREIGN KEY (subcontractor_id) REFERENCES gccs.subcontractors (id) ON DELETE CASCADE
+);
+
+CREATE TABLE gccs.subcontractor_evidence (
+    subcontractor_id uuid NOT NULL,
+    evidence_item_id uuid NOT NULL,
+    CONSTRAINT "PK_subcontractor_evidence" PRIMARY KEY (subcontractor_id, evidence_item_id),
+    CONSTRAINT "FK_subcontractor_evidence_evidence_items_evidence_item_id" FOREIGN KEY (evidence_item_id) REFERENCES gccs.evidence_items (id) ON DELETE CASCADE,
+    CONSTRAINT "FK_subcontractor_evidence_subcontractors_subcontractor_id" FOREIGN KEY (subcontractor_id) REFERENCES gccs.subcontractors (id) ON DELETE CASCADE
+);
+
+CREATE TABLE gccs.system_boundary_assets (
+    system_boundary_id uuid NOT NULL,
+    asset_id uuid NOT NULL,
+    CONSTRAINT "PK_system_boundary_assets" PRIMARY KEY (system_boundary_id, asset_id),
+    CONSTRAINT "FK_system_boundary_assets_assets_asset_id" FOREIGN KEY (asset_id) REFERENCES gccs.assets (id) ON DELETE CASCADE,
+    CONSTRAINT "FK_system_boundary_assets_system_boundaries_system_boundary_id" FOREIGN KEY (system_boundary_id) REFERENCES gccs.system_boundaries (id) ON DELETE CASCADE
+);
+
+CREATE TABLE gccs.system_boundary_evidence (
+    system_boundary_id uuid NOT NULL,
+    evidence_item_id uuid NOT NULL,
+    CONSTRAINT "PK_system_boundary_evidence" PRIMARY KEY (system_boundary_id, evidence_item_id),
+    CONSTRAINT "FK_system_boundary_evidence_evidence_items_evidence_item_id" FOREIGN KEY (evidence_item_id) REFERENCES gccs.evidence_items (id) ON DELETE CASCADE,
+    CONSTRAINT "FK_system_boundary_evidence_system_boundaries_system_boundary_~" FOREIGN KEY (system_boundary_id) REFERENCES gccs.system_boundaries (id) ON DELETE CASCADE
+);
+
+CREATE TABLE gccs.user_roles (
+    user_id uuid NOT NULL,
+    role_id uuid NOT NULL,
+    CONSTRAINT "PK_user_roles" PRIMARY KEY (user_id, role_id),
+    CONSTRAINT "FK_user_roles_roles_role_id" FOREIGN KEY (role_id) REFERENCES gccs.roles (id) ON DELETE CASCADE,
+    CONSTRAINT "FK_user_roles_users_user_id" FOREIGN KEY (user_id) REFERENCES gccs.users (id) ON DELETE CASCADE
+);
+
+CREATE TABLE gccs.evidence_vendors (
+    evidence_item_id uuid NOT NULL,
+    vendor_id uuid NOT NULL,
+    CONSTRAINT "PK_evidence_vendors" PRIMARY KEY (evidence_item_id, vendor_id),
+    CONSTRAINT "FK_evidence_vendors_evidence_items_evidence_item_id" FOREIGN KEY (evidence_item_id) REFERENCES gccs.evidence_items (id) ON DELETE CASCADE,
+    CONSTRAINT "FK_evidence_vendors_vendors_vendor_id" FOREIGN KEY (vendor_id) REFERENCES gccs.vendors (id) ON DELETE CASCADE
+);
+
+CREATE TABLE gccs.system_boundary_external_service_providers (
+    system_boundary_id uuid NOT NULL,
+    vendor_id uuid NOT NULL,
+    CONSTRAINT "PK_system_boundary_external_service_providers" PRIMARY KEY (system_boundary_id, vendor_id),
+    CONSTRAINT "FK_system_boundary_external_service_providers_system_boundarie~" FOREIGN KEY (system_boundary_id) REFERENCES gccs.system_boundaries (id) ON DELETE CASCADE,
+    CONSTRAINT "FK_system_boundary_external_service_providers_vendors_vendor_id" FOREIGN KEY (vendor_id) REFERENCES gccs.vendors (id) ON DELETE CASCADE
+);
+
+CREATE TABLE gccs.labor_category_rates (
+    id uuid NOT NULL,
+    wage_determination_id uuid NOT NULL,
+    labor_category text NOT NULL,
+    hourly_wage numeric(12,2) NOT NULL,
+    fringe_benefit_rate numeric(12,2) NOT NULL,
+    currency text NOT NULL,
+    CONSTRAINT "PK_labor_category_rates" PRIMARY KEY (id),
+    CONSTRAINT "FK_labor_category_rates_wage_determinations_wage_determination~" FOREIGN KEY (wage_determination_id) REFERENCES gccs.wage_determinations (id) ON DELETE CASCADE
+);
+
+CREATE TABLE gccs.contract_clause_obligations (
+    contract_clause_id uuid NOT NULL,
+    obligation_id text NOT NULL,
+    CONSTRAINT "PK_contract_clause_obligations" PRIMARY KEY (contract_clause_id, obligation_id),
+    CONSTRAINT "FK_contract_clause_obligations_contract_clauses_contract_claus~" FOREIGN KEY (contract_clause_id) REFERENCES gccs.contract_clauses (id) ON DELETE CASCADE,
+    CONSTRAINT "FK_contract_clause_obligations_obligations_obligation_id" FOREIGN KEY (obligation_id) REFERENCES gccs.obligations (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_annual_affirmations_tenant_id_status_due_at" ON gccs.annual_affirmations (tenant_id, status, due_at);
+
+CREATE INDEX "IX_assessments_created_at_updated_at" ON gccs.assessments (created_at, updated_at);
+
+CREATE INDEX "IX_assessments_tenant_id_status_level" ON gccs.assessments (tenant_id, status, level);
+
+CREATE INDEX "IX_assets_created_at_updated_at" ON gccs.assets (created_at, updated_at);
+
+CREATE INDEX "IX_assets_tenant_id_system_boundary_id" ON gccs.assets (tenant_id, system_boundary_id);
+
+CREATE INDEX "IX_audit_log_entries_tenant_id_entity_type_entity_id" ON gccs.audit_log_entries (tenant_id, entity_type, entity_id);
+
+CREATE INDEX "IX_audit_log_entries_tenant_id_occurred_at" ON gccs.audit_log_entries (tenant_id, occurred_at);
+
+CREATE UNIQUE INDEX "IX_clauses_source_number" ON gccs.clauses (source, number);
+
+CREATE INDEX "IX_company_certifications_company_profile_id_type" ON gccs.company_certifications (company_profile_id, type);
+
+CREATE INDEX "IX_company_locations_company_profile_id" ON gccs.company_locations (company_profile_id);
+
+CREATE UNIQUE INDEX "IX_company_naics_codes_company_profile_id_code" ON gccs.company_naics_codes (company_profile_id, code);
+
+CREATE INDEX "IX_company_profiles_created_at_updated_at" ON gccs.company_profiles (created_at, updated_at);
+
+CREATE UNIQUE INDEX "IX_company_profiles_tenant_id" ON gccs.company_profiles (tenant_id);
+
+CREATE INDEX "IX_company_profiles_uei" ON gccs.company_profiles (uei);
+
+CREATE INDEX "IX_compliance_tasks_created_at_updated_at" ON gccs.compliance_tasks (created_at, updated_at);
+
+CREATE INDEX "IX_compliance_tasks_tenant_id_contract_id" ON gccs.compliance_tasks (tenant_id, contract_id);
+
+CREATE INDEX "IX_compliance_tasks_tenant_id_obligation_id" ON gccs.compliance_tasks (tenant_id, obligation_id);
+
+CREATE INDEX "IX_compliance_tasks_tenant_id_status_due_at" ON gccs.compliance_tasks (tenant_id, status, due_at);
+
+CREATE INDEX "IX_contract_clause_obligations_obligation_id" ON gccs.contract_clause_obligations (obligation_id);
+
+CREATE INDEX "IX_contract_clauses_contract_id_clause_number" ON gccs.contract_clauses (contract_id, clause_number);
+
+CREATE INDEX "IX_contract_deliverables_contract_id_due_at" ON gccs.contract_deliverables (contract_id, due_at);
+
+CREATE INDEX "IX_contract_documents_contract_id_type" ON gccs.contract_documents (contract_id, type);
+
+CREATE INDEX "IX_contract_reporting_deadlines_contract_id_due_at" ON gccs.contract_reporting_deadlines (contract_id, due_at);
+
+CREATE INDEX "IX_contract_subcontractors_subcontractor_id" ON gccs.contract_subcontractors (subcontractor_id);
+
+CREATE INDEX "IX_contracts_created_at_updated_at" ON gccs.contracts (created_at, updated_at);
+
+CREATE UNIQUE INDEX "IX_contracts_tenant_id_contract_number" ON gccs.contracts (tenant_id, contract_number);
+
+CREATE INDEX "IX_contracts_tenant_id_status" ON gccs.contracts (tenant_id, status);
+
+CREATE INDEX "IX_control_assessments_control_id" ON gccs.control_assessments (control_id);
+
+CREATE INDEX "IX_controls_framework_cmmc_level" ON gccs.controls (framework, cmmc_level);
+
+CREATE INDEX "IX_employees_created_at_updated_at" ON gccs.employees (created_at, updated_at);
+
+CREATE INDEX "IX_employees_tenant_id_email" ON gccs.employees (tenant_id, email);
+
+CREATE UNIQUE INDEX "IX_employees_tenant_id_employee_number" ON gccs.employees (tenant_id, employee_number);
+
+CREATE INDEX "IX_evidence_contracts_contract_id" ON gccs.evidence_contracts (contract_id);
+
+CREATE INDEX "IX_evidence_controls_control_id" ON gccs.evidence_controls (control_id);
+
+CREATE INDEX "IX_evidence_employees_employee_id" ON gccs.evidence_employees (employee_id);
+
+CREATE INDEX "IX_evidence_items_created_at_updated_at" ON gccs.evidence_items (created_at, updated_at);
+
+CREATE INDEX "IX_evidence_items_tenant_id_expires_at" ON gccs.evidence_items (tenant_id, expires_at);
+
+CREATE INDEX "IX_evidence_items_tenant_id_status" ON gccs.evidence_items (tenant_id, status);
+
+CREATE INDEX "IX_evidence_obligations_obligation_id" ON gccs.evidence_obligations (obligation_id);
+
+CREATE INDEX "IX_evidence_vendors_vendor_id" ON gccs.evidence_vendors (vendor_id);
+
+CREATE INDEX "IX_flow_down_clauses_subcontractor_id_clause_number" ON gccs.flow_down_clauses (subcontractor_id, clause_number);
+
+CREATE INDEX "IX_labor_category_rates_wage_determination_id" ON gccs.labor_category_rates (wage_determination_id);
+
+CREATE INDEX "IX_labor_classifications_created_at_updated_at" ON gccs.labor_classifications (created_at, updated_at);
+
+CREATE INDEX "IX_labor_classifications_tenant_id_employee_id_contract_id" ON gccs.labor_classifications (tenant_id, employee_id, contract_id);
+
+CREATE INDEX "IX_obligations_source" ON gccs.obligations (source);
+
+CREATE INDEX "IX_payroll_records_created_at_updated_at" ON gccs.payroll_records (created_at, updated_at);
+
+CREATE INDEX "IX_payroll_records_tenant_id_employee_id_period_start_period_e~" ON gccs.payroll_records (tenant_id, employee_id, period_start, period_end);
+
+CREATE INDEX "IX_poam_evidence_evidence_item_id" ON gccs.poam_evidence (evidence_item_id);
+
+CREATE INDEX "IX_poam_items_created_at_updated_at" ON gccs.poam_items (created_at, updated_at);
+
+CREATE INDEX "IX_poam_items_tenant_id_status_target_completion_at" ON gccs.poam_items (tenant_id, status, target_completion_at);
+
+CREATE INDEX "IX_report_contracts_report_entity_id" ON gccs.report_contracts (report_entity_id);
+
+CREATE INDEX "IX_report_evidence_report_entity_id" ON gccs.report_evidence (report_entity_id);
+
+CREATE INDEX "IX_report_obligations_report_entity_id" ON gccs.report_obligations (report_entity_id);
+
+CREATE INDEX "IX_reports_created_at_updated_at" ON gccs.reports (created_at, updated_at);
+
+CREATE INDEX "IX_reports_tenant_id_type_status" ON gccs.reports (tenant_id, type, status);
+
+CREATE INDEX "IX_roles_created_at_updated_at" ON gccs.roles (created_at, updated_at);
+
+CREATE UNIQUE INDEX "IX_roles_tenant_id_name" ON gccs.roles (tenant_id, name);
+
+CREATE INDEX "IX_solicitations_created_at_updated_at" ON gccs.solicitations (created_at, updated_at);
+
+CREATE UNIQUE INDEX "IX_solicitations_tenant_id_solicitation_number" ON gccs.solicitations (tenant_id, solicitation_number);
+
+CREATE INDEX "IX_subcontractor_evidence_evidence_item_id" ON gccs.subcontractor_evidence (evidence_item_id);
+
+CREATE INDEX "IX_subcontractors_created_at_updated_at" ON gccs.subcontractors (created_at, updated_at);
+
+CREATE INDEX "IX_subcontractors_tenant_id_name" ON gccs.subcontractors (tenant_id, name);
+
+CREATE INDEX "IX_subcontractors_tenant_id_uei" ON gccs.subcontractors (tenant_id, uei);
+
+CREATE INDEX "IX_system_boundaries_created_at_updated_at" ON gccs.system_boundaries (created_at, updated_at);
+
+CREATE INDEX "IX_system_boundaries_tenant_id_status" ON gccs.system_boundaries (tenant_id, status);
+
+CREATE INDEX "IX_system_boundary_assets_asset_id" ON gccs.system_boundary_assets (asset_id);
+
+CREATE INDEX "IX_system_boundary_evidence_evidence_item_id" ON gccs.system_boundary_evidence (evidence_item_id);
+
+CREATE INDEX "IX_system_boundary_external_service_providers_vendor_id" ON gccs.system_boundary_external_service_providers (vendor_id);
+
+CREATE INDEX "IX_tenants_created_at_updated_at" ON gccs.tenants (created_at, updated_at);
+
+CREATE INDEX "IX_training_records_created_at_updated_at" ON gccs.training_records (created_at, updated_at);
+
+CREATE INDEX "IX_training_records_tenant_id_employee_id_status" ON gccs.training_records (tenant_id, employee_id, status);
+
+CREATE INDEX "IX_training_records_tenant_id_expires_at" ON gccs.training_records (tenant_id, expires_at);
+
+CREATE INDEX "IX_user_roles_role_id" ON gccs.user_roles (role_id);
+
+CREATE INDEX "IX_users_created_at_updated_at" ON gccs.users (created_at, updated_at);
+
+CREATE UNIQUE INDEX "IX_users_tenant_id_email" ON gccs.users (tenant_id, email);
+
+CREATE INDEX "IX_vendors_created_at_updated_at" ON gccs.vendors (created_at, updated_at);
+
+CREATE INDEX "IX_vendors_tenant_id_type" ON gccs.vendors (tenant_id, type);
+
+CREATE INDEX "IX_wage_determinations_created_at_updated_at" ON gccs.wage_determinations (created_at, updated_at);
+
+CREATE UNIQUE INDEX "IX_wage_determinations_tenant_id_determination_number_revision" ON gccs.wage_determinations (tenant_id, determination_number, revision);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260610031239_InitialDevelopmentSchema', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.contract_clauses ADD review_state character varying(64) NOT NULL DEFAULT 'Draft';
+
+ALTER TABLE gccs.contract_clauses ADD source_hash character varying(128);
+
+ALTER TABLE gccs.clauses ADD clause_effective_at date;
+
+ALTER TABLE gccs.clauses ADD clause_text_version character varying(120) NOT NULL DEFAULT 'current';
+
+ALTER TABLE gccs.clauses ADD review_state character varying(64) NOT NULL DEFAULT 'Draft';
+
+ALTER TABLE gccs.clauses ADD source_hash character varying(128);
+
+ALTER TABLE gccs.clauses ADD superseded_at date;
+
+ALTER TABLE gccs.clauses ADD superseded_by_clause_id character varying(120);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260610051044_AddClauseReviewVersioning', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE gccs.tenant_memberships (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    status character varying(64) NOT NULL,
+    role_name character varying(120) NOT NULL,
+    last_accessed_at timestamp with time zone,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_tenant_memberships" PRIMARY KEY (id),
+    CONSTRAINT "FK_tenant_memberships_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_tenant_memberships_users_user_id" FOREIGN KEY (user_id) REFERENCES gccs.users (id) ON DELETE CASCADE
+);
+
+CREATE INDEX "IX_tenant_memberships_created_at_updated_at" ON gccs.tenant_memberships (created_at, updated_at);
+
+CREATE INDEX "IX_tenant_memberships_tenant_id_status" ON gccs.tenant_memberships (tenant_id, status);
+
+CREATE UNIQUE INDEX "IX_tenant_memberships_tenant_id_user_id" ON gccs.tenant_memberships (tenant_id, user_id);
+
+CREATE INDEX "IX_tenant_memberships_user_id" ON gccs.tenant_memberships (user_id);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260613213418_AddTenantMemberships', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE gccs.tenant_invitations (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    email character varying(320) NOT NULL,
+    role_name character varying(120) NOT NULL,
+    invitation_token character varying(128) NOT NULL,
+    status character varying(64) NOT NULL,
+    expires_at timestamp with time zone NOT NULL,
+    accepted_at timestamp with time zone,
+    accepted_by_user_id uuid,
+    revoked_at timestamp with time zone,
+    revoked_by_user_id uuid,
+    notification_sent_at timestamp with time zone,
+    notification_placeholder character varying(600) NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_tenant_invitations" PRIMARY KEY (id),
+    CONSTRAINT "FK_tenant_invitations_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_tenant_invitations_created_at_updated_at" ON gccs.tenant_invitations (created_at, updated_at);
+
+CREATE UNIQUE INDEX "IX_tenant_invitations_invitation_token" ON gccs.tenant_invitations (invitation_token);
+
+CREATE INDEX "IX_tenant_invitations_tenant_id_email_status" ON gccs.tenant_invitations (tenant_id, email, status);
+
+CREATE INDEX "IX_tenant_invitations_tenant_id_status_expires_at" ON gccs.tenant_invitations (tenant_id, status, expires_at);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260613221118_AddTenantInvitations', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.audit_log_entries DROP CONSTRAINT "FK_audit_log_entries_tenants_tenant_id";
+
+CREATE TABLE gccs.no_cui_acknowledgements (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    notice_version character varying(80) NOT NULL,
+    notice_copy character varying(1000) NOT NULL,
+    acknowledged_at timestamp with time zone NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_no_cui_acknowledgements" PRIMARY KEY (id)
+);
+
+CREATE INDEX "IX_no_cui_acknowledgements_created_at_updated_at" ON gccs.no_cui_acknowledgements (created_at, updated_at);
+
+CREATE UNIQUE INDEX "IX_no_cui_acknowledgements_tenant_id_user_id_notice_version" ON gccs.no_cui_acknowledgements (tenant_id, user_id, notice_version);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260615003848_AddNoCuiAcknowledgements', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.evidence_items ADD content_type character varying(160);
+
+ALTER TABLE gccs.evidence_items ADD malware_scan_status character varying(80);
+
+ALTER TABLE gccs.evidence_items ADD original_file_name character varying(240);
+
+ALTER TABLE gccs.evidence_items ADD size_bytes bigint;
+
+ALTER TABLE gccs.evidence_items ADD upload_validation_status character varying(80);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260615005659_AddEvidenceUploadGuardrails', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.audit_log_entries ADD correlation_id character varying(120) NOT NULL DEFAULT '';
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260615010139_AddAuditRequestMetadata', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.obligations ADD confidence text NOT NULL DEFAULT 'unknown';
+
+ALTER TABLE gccs.obligations ADD last_reviewed_at date NOT NULL DEFAULT DATE '-infinity';
+
+ALTER TABLE gccs.obligations ADD next_review_due_at date;
+
+ALTER TABLE gccs.obligations ADD requires_expert_review boolean NOT NULL DEFAULT FALSE;
+
+ALTER TABLE gccs.obligations ADD requires_flow_down boolean NOT NULL DEFAULT FALSE;
+
+ALTER TABLE gccs.obligations ADD review_state character varying(64) NOT NULL DEFAULT 'Draft';
+
+ALTER TABLE gccs.obligations ADD reviewed_by_user_id uuid;
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260615011257_AddObligationPublicationMetadata', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.contracts ALTER COLUMN place_of_performance TYPE character varying(240);
+
+ALTER TABLE gccs.contracts ALTER COLUMN agency_or_prime_name TYPE character varying(240);
+
+ALTER TABLE gccs.contracts ADD data_handling_posture character varying(64) NOT NULL DEFAULT '';
+
+ALTER TABLE gccs.contracts ADD description character varying(1200) NOT NULL DEFAULT '';
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260615032303_AddContractRecordFields', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.contract_documents ADD content_type character varying(160) NOT NULL DEFAULT '';
+
+ALTER TABLE gccs.contract_documents ADD malware_scan_status character varying(80) NOT NULL DEFAULT '';
+
+ALTER TABLE gccs.contract_documents ADD notice_version character varying(80) NOT NULL DEFAULT '';
+
+ALTER TABLE gccs.contract_documents ADD size_bytes bigint NOT NULL DEFAULT 0;
+
+ALTER TABLE gccs.contract_documents ADD validation_status character varying(80) NOT NULL DEFAULT '';
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260615033018_AddContractDocumentUploadMetadata', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+DROP INDEX gccs."IX_clauses_source_number";
+
+ALTER TABLE gccs.clauses ADD tenant_id uuid;
+
+CREATE INDEX "IX_clauses_tenant_id_review_state" ON gccs.clauses (tenant_id, review_state);
+
+CREATE UNIQUE INDEX "IX_clauses_tenant_id_source_number" ON gccs.clauses (tenant_id, source, number);
+
+ALTER TABLE gccs.clauses ADD CONSTRAINT "FK_clauses_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT;
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260615040552_AddClauseTenantScope', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.contract_clauses ADD attachment_reason character varying(600) NOT NULL DEFAULT '';
+
+ALTER TABLE gccs.contract_clauses ADD clause_library_id character varying(160) NOT NULL DEFAULT '';
+
+ALTER TABLE gccs.contract_clauses ADD created_at timestamp with time zone NOT NULL DEFAULT TIMESTAMPTZ '-infinity';
+
+ALTER TABLE gccs.contract_clauses ADD created_by_user_id uuid;
+
+ALTER TABLE gccs.contract_clauses ADD removal_reason character varying(600);
+
+ALTER TABLE gccs.contract_clauses ADD removed_at timestamp with time zone;
+
+ALTER TABLE gccs.contract_clauses ADD removed_by_user_id uuid;
+
+ALTER TABLE gccs.contract_clauses ADD source_document_reference character varying(300);
+
+ALTER TABLE gccs.contract_clauses ADD source_url character varying(600) NOT NULL DEFAULT '';
+
+ALTER TABLE gccs.contract_clauses ADD updated_at timestamp with time zone;
+
+ALTER TABLE gccs.contract_clauses ADD updated_by_user_id uuid;
+
+CREATE INDEX "IX_contract_clauses_contract_id_clause_library_id_removed_at" ON gccs.contract_clauses (contract_id, clause_library_id, removed_at);
+
+CREATE INDEX "IX_contract_clauses_created_at_updated_at" ON gccs.contract_clauses (created_at, updated_at);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260615041300_AddContractClauseAttachmentWorkflow', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.evidence_items ADD owner_function character varying(120) NOT NULL DEFAULT '';
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260615050151_AddEvidenceMetadataOwner', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE gccs.evidence_file_versions (
+    id uuid NOT NULL,
+    evidence_item_id uuid NOT NULL,
+    version_number integer NOT NULL,
+    file_name character varying(240) NOT NULL,
+    content_type character varying(160) NOT NULL,
+    size_bytes bigint NOT NULL,
+    validation_status character varying(80) NOT NULL,
+    malware_scan_status character varying(80) NOT NULL,
+    storage_uri text,
+    file_hash text,
+    uploaded_at timestamp with time zone NOT NULL,
+    uploaded_by_user_id uuid NOT NULL,
+    deleted_at timestamp with time zone,
+    deleted_by_user_id uuid,
+    CONSTRAINT "PK_evidence_file_versions" PRIMARY KEY (id),
+    CONSTRAINT "FK_evidence_file_versions_evidence_items_evidence_item_id" FOREIGN KEY (evidence_item_id) REFERENCES gccs.evidence_items (id) ON DELETE CASCADE
+);
+
+CREATE UNIQUE INDEX "IX_evidence_file_versions_evidence_item_id_version_number" ON gccs.evidence_file_versions (evidence_item_id, version_number);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260615050609_AddEvidenceFileVersions', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.assessments ADD company_profile_id uuid;
+
+ALTER TABLE gccs.assessments ADD contract_ids_json jsonb NOT NULL DEFAULT ('[]'::jsonb);
+
+ALTER TABLE gccs.assessments ADD framework character varying(120) NOT NULL DEFAULT 'CMMC';
+
+ALTER TABLE gccs.assessments ADD name character varying(240) NOT NULL DEFAULT 'CMMC readiness assessment';
+
+ALTER TABLE gccs.assessments ADD owner_function character varying(120) NOT NULL DEFAULT 'Compliance';
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260615051830_AddCmmcAssessmentMetadata', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.control_assessments ADD asset_ids_json jsonb NOT NULL DEFAULT ('[]'::jsonb);
+
+ALTER TABLE gccs.control_assessments ADD poam_item_ids_json jsonb NOT NULL DEFAULT ('[]'::jsonb);
+
+ALTER TABLE gccs.control_assessments ADD task_ids_json jsonb NOT NULL DEFAULT ('[]'::jsonb);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260615052651_AddCmmcControlReadinessLinks', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.poam_items ADD assessment_id uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+
+ALTER TABLE gccs.poam_items ADD owner_function character varying(120) NOT NULL DEFAULT 'Security';
+
+ALTER TABLE gccs.poam_items ADD remediation_task_id uuid;
+
+CREATE INDEX "IX_poam_items_assessment_id_control_id" ON gccs.poam_items (assessment_id, control_id);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260615053503_AddCmmcPoamRemediationFields', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.annual_affirmations ADD created_at timestamp with time zone NOT NULL DEFAULT TIMESTAMPTZ '-infinity';
+
+ALTER TABLE gccs.annual_affirmations ADD created_by_user_id uuid;
+
+ALTER TABLE gccs.annual_affirmations ADD evidence_item_ids_json jsonb NOT NULL DEFAULT ('[]'::jsonb);
+
+ALTER TABLE gccs.annual_affirmations ADD updated_at timestamp with time zone;
+
+ALTER TABLE gccs.annual_affirmations ADD updated_by_user_id uuid;
+
+CREATE INDEX "IX_annual_affirmations_created_at_updated_at" ON gccs.annual_affirmations (created_at, updated_at);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260615054314_AddCmmcAffirmationEvidenceAudit', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.subcontractors ADD cmmc_status character varying(120) NOT NULL DEFAULT 'Unknown';
+
+ALTER TABLE gccs.subcontractors ADD has_export_controlled_access boolean NOT NULL DEFAULT FALSE;
+
+ALTER TABLE gccs.subcontractors ADD insurance_expires_at date;
+
+ALTER TABLE gccs.subcontractors ADD nda_status character varying(120) NOT NULL DEFAULT 'NotOnFile';
+
+ALTER TABLE gccs.subcontractors ADD role_description character varying(160) NOT NULL DEFAULT '';
+
+ALTER TABLE gccs.subcontractors ADD small_business_status character varying(120) NOT NULL DEFAULT 'Unknown';
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260615054830_AddSubcontractorProfileFields', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.flow_down_clauses ADD acknowledged_at date;
+
+ALTER TABLE gccs.flow_down_clauses ADD contract_clause_id uuid;
+
+ALTER TABLE gccs.flow_down_clauses ADD contract_id uuid;
+
+ALTER TABLE gccs.flow_down_clauses ADD created_at timestamp with time zone NOT NULL DEFAULT TIMESTAMPTZ '-infinity';
+
+ALTER TABLE gccs.flow_down_clauses ADD created_by_user_id uuid;
+
+ALTER TABLE gccs.flow_down_clauses ADD obligation_id character varying(160);
+
+ALTER TABLE gccs.flow_down_clauses ADD updated_at timestamp with time zone;
+
+ALTER TABLE gccs.flow_down_clauses ADD updated_by_user_id uuid;
+
+ALTER TABLE gccs.flow_down_clauses ADD waived_at date;
+
+CREATE INDEX "IX_flow_down_clauses_contract_clause_id" ON gccs.flow_down_clauses (contract_clause_id);
+
+CREATE INDEX "IX_flow_down_clauses_contract_id_clause_number" ON gccs.flow_down_clauses (contract_id, clause_number);
+
+CREATE INDEX "IX_flow_down_clauses_created_at_updated_at" ON gccs.flow_down_clauses (created_at, updated_at);
+
+CREATE INDEX "IX_flow_down_clauses_obligation_id" ON gccs.flow_down_clauses (obligation_id);
+
+CREATE INDEX "IX_flow_down_clauses_signed_evidence_item_id" ON gccs.flow_down_clauses (signed_evidence_item_id);
+
+CREATE INDEX "IX_flow_down_clauses_subcontractor_id_contract_id" ON gccs.flow_down_clauses (subcontractor_id, contract_id);
+
+ALTER TABLE gccs.flow_down_clauses ADD CONSTRAINT "FK_flow_down_clauses_contract_clauses_contract_clause_id" FOREIGN KEY (contract_clause_id) REFERENCES gccs.contract_clauses (id) ON DELETE RESTRICT;
+
+ALTER TABLE gccs.flow_down_clauses ADD CONSTRAINT "FK_flow_down_clauses_contracts_contract_id" FOREIGN KEY (contract_id) REFERENCES gccs.contracts (id) ON DELETE RESTRICT;
+
+ALTER TABLE gccs.flow_down_clauses ADD CONSTRAINT "FK_flow_down_clauses_evidence_items_signed_evidence_item_id" FOREIGN KEY (signed_evidence_item_id) REFERENCES gccs.evidence_items (id) ON DELETE RESTRICT;
+
+ALTER TABLE gccs.flow_down_clauses ADD CONSTRAINT "FK_flow_down_clauses_obligations_obligation_id" FOREIGN KEY (obligation_id) REFERENCES gccs.obligations (id) ON DELETE RESTRICT;
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260615181531_AddSubcontractorFlowDownTracking', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE gccs.subcontractor_evidence_requests (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    subcontractor_id uuid NOT NULL,
+    requested_item character varying(300) NOT NULL,
+    requested_evidence_types_json jsonb NOT NULL,
+    due_date date NOT NULL,
+    status character varying(64) NOT NULL,
+    recipient_name character varying(160),
+    recipient_email character varying(320),
+    obligation_id character varying(160),
+    related_flow_down_clause_id uuid,
+    received_evidence_item_id uuid,
+    completed_at timestamp with time zone,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_subcontractor_evidence_requests" PRIMARY KEY (id),
+    CONSTRAINT "FK_subcontractor_evidence_requests_evidence_items_received_evi~" FOREIGN KEY (received_evidence_item_id) REFERENCES gccs.evidence_items (id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_subcontractor_evidence_requests_flow_down_clauses_related_f~" FOREIGN KEY (related_flow_down_clause_id) REFERENCES gccs.flow_down_clauses (id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_subcontractor_evidence_requests_obligations_obligation_id" FOREIGN KEY (obligation_id) REFERENCES gccs.obligations (id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_subcontractor_evidence_requests_subcontractors_subcontracto~" FOREIGN KEY (subcontractor_id) REFERENCES gccs.subcontractors (id) ON DELETE CASCADE,
+    CONSTRAINT "FK_subcontractor_evidence_requests_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_subcontractor_evidence_requests_created_at_updated_at" ON gccs.subcontractor_evidence_requests (created_at, updated_at);
+
+CREATE INDEX "IX_subcontractor_evidence_requests_obligation_id" ON gccs.subcontractor_evidence_requests (obligation_id);
+
+CREATE INDEX "IX_subcontractor_evidence_requests_received_evidence_item_id" ON gccs.subcontractor_evidence_requests (received_evidence_item_id);
+
+CREATE INDEX "IX_subcontractor_evidence_requests_related_flow_down_clause_id" ON gccs.subcontractor_evidence_requests (related_flow_down_clause_id);
+
+CREATE INDEX "IX_subcontractor_evidence_requests_subcontractor_id_due_date" ON gccs.subcontractor_evidence_requests (subcontractor_id, due_date);
+
+CREATE INDEX "IX_subcontractor_evidence_requests_tenant_id_status_due_date" ON gccs.subcontractor_evidence_requests (tenant_id, status, due_date);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260615183051_AddSubcontractorEvidenceRequests', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.reports ADD export_html text NOT NULL DEFAULT '';
+
+ALTER TABLE gccs.reports ADD snapshot_json jsonb NOT NULL DEFAULT '{}';
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260615183901_AddComplianceStatusReportSnapshots', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE gccs.notification_preferences (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    role_name character varying(120) NOT NULL,
+    assignment_notifications_enabled boolean NOT NULL,
+    due_soon_notifications_enabled boolean NOT NULL,
+    overdue_notifications_enabled boolean NOT NULL,
+    evidence_request_notifications_enabled boolean NOT NULL,
+    certification_renewal_notifications_enabled boolean NOT NULL,
+    cmmc_affirmation_notifications_enabled boolean NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_notification_preferences" PRIMARY KEY (id),
+    CONSTRAINT "FK_notification_preferences_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_notification_preferences_created_at_updated_at" ON gccs.notification_preferences (created_at, updated_at);
+
+CREATE UNIQUE INDEX "IX_notification_preferences_tenant_id_user_id" ON gccs.notification_preferences (tenant_id, user_id);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260615191714_AddNotificationPreferences', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE gccs.notification_deliveries (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    source_task_id uuid NOT NULL,
+    category character varying(80) NOT NULL,
+    status character varying(80) NOT NULL,
+    placeholder character varying(800) NOT NULL,
+    failure_message character varying(800),
+    attempted_at timestamp with time zone NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_notification_deliveries" PRIMARY KEY (id),
+    CONSTRAINT "FK_notification_deliveries_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_notification_deliveries_created_at_updated_at" ON gccs.notification_deliveries (created_at, updated_at);
+
+CREATE INDEX "IX_notification_deliveries_tenant_id_attempted_at" ON gccs.notification_deliveries (tenant_id, attempted_at);
+
+CREATE UNIQUE INDEX "IX_notification_deliveries_tenant_id_source_task_id_category" ON gccs.notification_deliveries (tenant_id, source_task_id, category);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260615192143_AddNotificationDeliveries', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+DROP INDEX gccs."IX_notification_deliveries_tenant_id_source_task_id_category";
+
+ALTER TABLE gccs.notification_deliveries ADD link_url character varying(400) NOT NULL DEFAULT '';
+
+ALTER TABLE gccs.notification_deliveries ADD read_at timestamp with time zone;
+
+ALTER TABLE gccs.notification_deliveries ADD source_type character varying(120) NOT NULL DEFAULT '';
+
+CREATE UNIQUE INDEX "IX_notification_deliveries_tenant_id_source_task_id_category_user_id" ON gccs.notification_deliveries (tenant_id, source_task_id, category, user_id);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260615192707_AddAssignmentNotificationMetadata', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE gccs.extraction_jobs (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    source_document_id uuid NOT NULL,
+    requested_by_user_id uuid NOT NULL,
+    status character varying(64) NOT NULL,
+    requested_at timestamp with time zone NOT NULL,
+    started_at timestamp with time zone,
+    completed_at timestamp with time zone,
+    failure_reason character varying(1000),
+    CONSTRAINT "PK_extraction_jobs" PRIMARY KEY (id),
+    CONSTRAINT "FK_extraction_jobs_contract_documents_source_document_id" FOREIGN KEY (source_document_id) REFERENCES gccs.contract_documents (id) ON DELETE CASCADE,
+    CONSTRAINT "FK_extraction_jobs_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_extraction_jobs_source_document_id" ON gccs.extraction_jobs (source_document_id);
+
+CREATE INDEX "IX_extraction_jobs_tenant_id_status_requested_at" ON gccs.extraction_jobs (tenant_id, status, requested_at);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260617211500_AddExtractionJobs', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE gccs.clause_candidates (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    extraction_job_id uuid NOT NULL,
+    source_document_id uuid NOT NULL,
+    normalized_citation character varying(120) NOT NULL,
+    raw_extracted_text character varying(2000) NOT NULL,
+    detected_title character varying(300),
+    confidence numeric(5,4) NOT NULL,
+    location_metadata character varying(300) NOT NULL,
+    match_method character varying(80) NOT NULL,
+    clause_library_id character varying(160),
+    review_status character varying(80) NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_clause_candidates" PRIMARY KEY (id),
+    CONSTRAINT "FK_clause_candidates_contract_documents_source_document_id" FOREIGN KEY (source_document_id) REFERENCES gccs.contract_documents (id) ON DELETE CASCADE,
+    CONSTRAINT "FK_clause_candidates_extraction_jobs_extraction_job_id" FOREIGN KEY (extraction_job_id) REFERENCES gccs.extraction_jobs (id) ON DELETE CASCADE,
+    CONSTRAINT "FK_clause_candidates_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_clause_candidates_extraction_job_id_normalized_citation" ON gccs.clause_candidates (extraction_job_id, normalized_citation);
+
+CREATE INDEX "IX_clause_candidates_source_document_id" ON gccs.clause_candidates (source_document_id);
+
+CREATE INDEX "IX_clause_candidates_tenant_id_source_document_id" ON gccs.clause_candidates (tenant_id, source_document_id);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260617212012_AddClauseExtractionCandidates', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.clause_candidates ADD decision_note character varying(1000);
+
+ALTER TABLE gccs.clause_candidates ADD decision_reason character varying(600);
+
+ALTER TABLE gccs.clause_candidates ADD reviewed_at timestamp with time zone;
+
+ALTER TABLE gccs.clause_candidates ADD reviewed_by_user_id uuid;
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260617213149_AddClauseCandidateReviewMetadata', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE gccs.suggested_obligations (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    source character varying(160) NOT NULL,
+    source_url character varying(600) NOT NULL,
+    generated_summary character varying(2000) NOT NULL,
+    proposed_title character varying(300) NOT NULL,
+    proposed_owner_function character varying(120) NOT NULL,
+    required_action character varying(1200) NOT NULL,
+    risk_level character varying(64) NOT NULL,
+    evidence_suggestions_json jsonb NOT NULL,
+    source_citations_json jsonb NOT NULL,
+    confidence character varying(80) NOT NULL,
+    prompt_version character varying(120) NOT NULL,
+    model_identifier character varying(160) NOT NULL,
+    retrieved_source_references_json jsonb NOT NULL,
+    review_status character varying(80) NOT NULL,
+    created_by_user_id uuid NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    reviewed_by_user_id uuid,
+    reviewed_at timestamp with time zone,
+    review_reason character varying(1000),
+    CONSTRAINT "PK_suggested_obligations" PRIMARY KEY (id),
+    CONSTRAINT "FK_suggested_obligations_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_suggested_obligations_tenant_id_review_status_created_at" ON gccs.suggested_obligations (tenant_id, review_status, created_at);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260617223849_AddSuggestedObligations', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE gccs.expert_review_items (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    source_type character varying(80) NOT NULL,
+    source_id uuid NOT NULL,
+    reason character varying(1000) NOT NULL,
+    priority character varying(40) NOT NULL,
+    topic character varying(240) NOT NULL,
+    assigned_expert_user_id uuid,
+    due_at date,
+    status character varying(80) NOT NULL,
+    created_by_user_id uuid NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    resolved_by_user_id uuid,
+    resolved_at timestamp with time zone,
+    resolution_decision character varying(120),
+    resolution_notes character varying(1000),
+    CONSTRAINT "PK_expert_review_items" PRIMARY KEY (id),
+    CONSTRAINT "FK_expert_review_items_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_expert_review_items_tenant_id_assigned_expert_user_id_due_at" ON gccs.expert_review_items (tenant_id, assigned_expert_user_id, due_at);
+
+CREATE INDEX "IX_expert_review_items_tenant_id_status_source_type" ON gccs.expert_review_items (tenant_id, status, source_type);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260617224252_AddExpertReviewQueue', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE gccs.clause_obligation_mappings (
+    id uuid NOT NULL,
+    tenant_id uuid,
+    clause_id character varying(160) NOT NULL,
+    obligation_id character varying(160) NOT NULL,
+    trigger_condition character varying(1200) NOT NULL,
+    required_action character varying(1200) NOT NULL,
+    source_url character varying(600) NOT NULL,
+    confidence character varying(80) NOT NULL,
+    requires_expert_review boolean NOT NULL,
+    review_state character varying(64) NOT NULL DEFAULT 'Draft',
+    last_reviewed_at date NOT NULL,
+    reviewed_by_user_id uuid,
+    previous_mapping_id uuid,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid NOT NULL,
+    CONSTRAINT "PK_clause_obligation_mappings" PRIMARY KEY (id),
+    CONSTRAINT "FK_clause_obligation_mappings_clauses_clause_id" FOREIGN KEY (clause_id) REFERENCES gccs.clauses (id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_clause_obligation_mappings_obligations_obligation_id" FOREIGN KEY (obligation_id) REFERENCES gccs.obligations (id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_clause_obligation_mappings_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_clause_obligation_mappings_clause_id_review_state" ON gccs.clause_obligation_mappings (clause_id, review_state);
+
+CREATE INDEX "IX_clause_obligation_mappings_obligation_id" ON gccs.clause_obligation_mappings (obligation_id);
+
+CREATE INDEX "IX_clause_obligation_mappings_tenant_id_clause_id_obligation_id" ON gccs.clause_obligation_mappings (tenant_id, clause_id, obligation_id);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260617225316_AddClauseObligationMappings', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE gccs.obligation_applicability_evaluations (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    contract_clause_id uuid NOT NULL,
+    obligation_id character varying(160) NOT NULL,
+    previous_evaluation_id uuid,
+    source_rule_id character varying(160) NOT NULL,
+    state character varying(80) NOT NULL,
+    explanation character varying(2000) NOT NULL,
+    facts_used_json jsonb NOT NULL,
+    missing_facts_json jsonb NOT NULL,
+    metadata_json jsonb NOT NULL,
+    evaluated_at timestamp with time zone NOT NULL,
+    evaluated_by_user_id uuid NOT NULL,
+    CONSTRAINT "PK_obligation_applicability_evaluations" PRIMARY KEY (id),
+    CONSTRAINT "FK_obligation_applicability_evaluations_contract_clause_obliga~" FOREIGN KEY (contract_clause_id, obligation_id) REFERENCES gccs.contract_clause_obligations (contract_clause_id, obligation_id) ON DELETE CASCADE,
+    CONSTRAINT "FK_obligation_applicability_evaluations_obligation_applicabili~" FOREIGN KEY (previous_evaluation_id) REFERENCES gccs.obligation_applicability_evaluations (id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_obligation_applicability_evaluations_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_obligation_applicability_evaluations_contract_clause_id_obl~" ON gccs.obligation_applicability_evaluations (contract_clause_id, obligation_id);
+
+CREATE INDEX "IX_obligation_applicability_evaluations_previous_evaluation_id" ON gccs.obligation_applicability_evaluations (previous_evaluation_id);
+
+CREATE INDEX "IX_obligation_applicability_evaluations_tenant_id_contract_cla~" ON gccs.obligation_applicability_evaluations (tenant_id, contract_clause_id, obligation_id, evaluated_at);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260617230321_AddObligationApplicabilityEvaluations', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.subcontractors ADD sam_exclusion_status character varying(120);
+
+ALTER TABLE gccs.subcontractors ADD sam_naics_json jsonb NOT NULL DEFAULT '[]';
+
+ALTER TABLE gccs.subcontractors ADD sam_registration_expires_at date;
+
+ALTER TABLE gccs.subcontractors ADD sam_registration_status character varying(120);
+
+ALTER TABLE gccs.subcontractors ADD sam_retrieved_at timestamp with time zone;
+
+ALTER TABLE gccs.subcontractors ADD sam_source character varying(120);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260617231719_AddSubcontractorSamMetadata', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE gccs.sba_size_standards (
+    id uuid NOT NULL,
+    naics_code character varying(16) NOT NULL,
+    metric character varying(80) NOT NULL,
+    threshold numeric(18,2) NOT NULL,
+    unit character varying(80) NOT NULL,
+    source_url character varying(600) NOT NULL,
+    effective_at date NOT NULL,
+    last_reviewed_at date NOT NULL,
+    status character varying(64) NOT NULL DEFAULT 'Draft',
+    reviewed_by_user_id uuid,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid NOT NULL,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_sba_size_standards" PRIMARY KEY (id)
+);
+
+CREATE INDEX "IX_sba_size_standards_naics_code_status" ON gccs.sba_size_standards (naics_code, status);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260617232240_AddSbaSizeStandards', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE gccs.contract_size_checks (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    contract_id uuid NOT NULL,
+    naics_code character varying(16) NOT NULL,
+    result character varying(80) NOT NULL,
+    metric character varying(80) NOT NULL,
+    threshold numeric(18,2),
+    unit character varying(80),
+    entered_value numeric,
+    missing_information_json jsonb NOT NULL,
+    source_url character varying(600),
+    source_effective_at date,
+    source_last_reviewed_at date,
+    expert_review_task_id uuid,
+    run_at timestamp with time zone NOT NULL,
+    run_by_user_id uuid NOT NULL,
+    CONSTRAINT "PK_contract_size_checks" PRIMARY KEY (id),
+    CONSTRAINT "FK_contract_size_checks_compliance_tasks_expert_review_task_id" FOREIGN KEY (expert_review_task_id) REFERENCES gccs.compliance_tasks (id) ON DELETE SET NULL,
+    CONSTRAINT "FK_contract_size_checks_contracts_contract_id" FOREIGN KEY (contract_id) REFERENCES gccs.contracts (id) ON DELETE CASCADE,
+    CONSTRAINT "FK_contract_size_checks_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_contract_size_checks_contract_id" ON gccs.contract_size_checks (contract_id);
+
+CREATE INDEX "IX_contract_size_checks_expert_review_task_id" ON gccs.contract_size_checks (expert_review_task_id);
+
+CREATE INDEX "IX_contract_size_checks_tenant_id_contract_id_run_at" ON gccs.contract_size_checks (tenant_id, contract_id, run_at);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260617232821_AddContractSizeChecks', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.subcontractors ADD certifications_json jsonb NOT NULL DEFAULT '[]';
+
+ALTER TABLE gccs.subcontractors ADD naics_codes_json jsonb NOT NULL DEFAULT '[]';
+
+ALTER TABLE gccs.subcontractors ADD owner_function character varying(120);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260617233207_AddExpandedSubcontractorProfileFields', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.subcontractor_evidence_requests ADD owner_function character varying(160);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260617234344_AddSupplierObligationOwnerFunction', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE gccs.policy_templates (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    title character varying(240) NOT NULL,
+    category character varying(120) NOT NULL,
+    body text NOT NULL,
+    placeholders_json jsonb NOT NULL,
+    source_references_json jsonb NOT NULL,
+    version character varying(80) NOT NULL,
+    status character varying(40) NOT NULL,
+    owner_function character varying(160) NOT NULL,
+    last_reviewed_at date,
+    reviewer_user_id uuid,
+    requires_expert_review boolean NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_policy_templates" PRIMARY KEY (id),
+    CONSTRAINT "FK_policy_templates_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.policy_template_versions (
+    id uuid NOT NULL,
+    template_id uuid NOT NULL,
+    version character varying(80) NOT NULL,
+    body_preview character varying(500) NOT NULL,
+    status character varying(40) NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid NOT NULL,
+    CONSTRAINT "PK_policy_template_versions" PRIMARY KEY (id),
+    CONSTRAINT "FK_policy_template_versions_policy_templates_template_id" FOREIGN KEY (template_id) REFERENCES gccs.policy_templates (id) ON DELETE CASCADE
+);
+
+CREATE INDEX "IX_policy_template_versions_template_id_version" ON gccs.policy_template_versions (template_id, version);
+
+CREATE INDEX "IX_policy_templates_created_at_updated_at" ON gccs.policy_templates (created_at, updated_at);
+
+CREATE INDEX "IX_policy_templates_tenant_id_status_category" ON gccs.policy_templates (tenant_id, status, category);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260617234942_AddPolicyTemplates', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE gccs.generated_policies (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    source_template_id uuid NOT NULL,
+    source_template_version character varying(80) NOT NULL,
+    generated_at timestamp with time zone NOT NULL,
+    title character varying(240) NOT NULL,
+    body text NOT NULL,
+    status character varying(40) NOT NULL,
+    placeholder_values_json jsonb NOT NULL,
+    missing_placeholders_json jsonb NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_generated_policies" PRIMARY KEY (id),
+    CONSTRAINT "FK_generated_policies_policy_templates_source_template_id" FOREIGN KEY (source_template_id) REFERENCES gccs.policy_templates (id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_generated_policies_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_generated_policies_created_at_updated_at" ON gccs.generated_policies (created_at, updated_at);
+
+CREATE INDEX "IX_generated_policies_source_template_id" ON gccs.generated_policies (source_template_id);
+
+CREATE INDEX "IX_generated_policies_tenant_id_status_generated_at" ON gccs.generated_policies (tenant_id, status, generated_at);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260617235335_AddGeneratedPolicies', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.generated_policies ADD approved_at timestamp with time zone;
+
+ALTER TABLE gccs.generated_policies ADD approved_by_user_id uuid;
+
+ALTER TABLE gccs.generated_policies ADD evidence_item_id uuid;
+
+ALTER TABLE gccs.generated_policies ADD review_due_at date;
+
+CREATE TABLE gccs.policy_revisions (
+    id uuid NOT NULL,
+    generated_policy_id uuid NOT NULL,
+    title character varying(240) NOT NULL,
+    body text NOT NULL,
+    status character varying(40) NOT NULL,
+    preserved_at timestamp with time zone NOT NULL,
+    preserved_by_user_id uuid NOT NULL,
+    CONSTRAINT "PK_policy_revisions" PRIMARY KEY (id),
+    CONSTRAINT "FK_policy_revisions_generated_policies_generated_policy_id" FOREIGN KEY (generated_policy_id) REFERENCES gccs.generated_policies (id) ON DELETE CASCADE
+);
+
+CREATE INDEX "IX_generated_policies_evidence_item_id" ON gccs.generated_policies (evidence_item_id);
+
+CREATE INDEX "IX_policy_revisions_generated_policy_id_preserved_at" ON gccs.policy_revisions (generated_policy_id, preserved_at);
+
+ALTER TABLE gccs.generated_policies ADD CONSTRAINT "FK_generated_policies_evidence_items_evidence_item_id" FOREIGN KEY (evidence_item_id) REFERENCES gccs.evidence_items (id) ON DELETE RESTRICT;
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260617235748_AddGeneratedPolicyApproval', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE gccs.evidence_requests (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    requester_user_id uuid NOT NULL,
+    assignee_user_id uuid,
+    assignee_subcontractor_id uuid,
+    due_date date NOT NULL,
+    status character varying(40) NOT NULL,
+    instructions character varying(2000) NOT NULL,
+    related_record_type character varying(80) NOT NULL,
+    related_record_id character varying(160) NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_evidence_requests" PRIMARY KEY (id),
+    CONSTRAINT "FK_evidence_requests_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_evidence_requests_created_at_updated_at" ON gccs.evidence_requests (created_at, updated_at);
+
+CREATE INDEX "IX_evidence_requests_tenant_id_status_due_date" ON gccs.evidence_requests (tenant_id, status, due_date);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260618000248_AddEvidenceRequests', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.evidence_requests ADD review_comment character varying(2000);
+
+ALTER TABLE gccs.evidence_requests ADD reviewed_at timestamp with time zone;
+
+ALTER TABLE gccs.evidence_requests ADD submission_comment character varying(2000);
+
+ALTER TABLE gccs.evidence_requests ADD submitted_at timestamp with time zone;
+
+ALTER TABLE gccs.evidence_requests ADD submitted_evidence_item_id uuid;
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260618000632_AddEvidenceRequestSubmissionReview', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.evidence_requests ADD priority character varying(40) NOT NULL DEFAULT '';
+
+CREATE INDEX "IX_evidence_requests_tenant_id_priority" ON gccs.evidence_requests (tenant_id, priority);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260618001008_AddEvidenceRequestDashboardPriority', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.control_assessments ADD esp_name character varying(240);
+
+ALTER TABLE gccs.control_assessments ADD esp_responsible boolean NOT NULL DEFAULT FALSE;
+
+ALTER TABLE gccs.control_assessments ADD implementation_details character varying(2000) NOT NULL DEFAULT '';
+
+ALTER TABLE gccs.control_assessments ADD inherited_from character varying(240);
+
+ALTER TABLE gccs.control_assessments ADD is_inherited boolean NOT NULL DEFAULT FALSE;
+
+CREATE TABLE gccs.control_assessment_history (
+    id uuid NOT NULL,
+    assessment_id uuid NOT NULL,
+    control_id text NOT NULL,
+    status character varying(64) NOT NULL,
+    result character varying(64) NOT NULL,
+    notes character varying(1000),
+    changed_by_user_id uuid NOT NULL,
+    changed_at timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_control_assessment_history" PRIMARY KEY (id),
+    CONSTRAINT "FK_control_assessment_history_control_assessments_assessment_i~" FOREIGN KEY (assessment_id, control_id) REFERENCES gccs.control_assessments (assessment_id, control_id) ON DELETE CASCADE
+);
+
+CREATE INDEX "IX_control_assessment_history_assessment_id_control_id_changed~" ON gccs.control_assessment_history (assessment_id, control_id, changed_at);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260618001357_AddCmmcControlAssessmentDetail', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.control_assessments ADD owner_function character varying(120) NOT NULL DEFAULT '';
+
+ALTER TABLE gccs.control_assessments ADD responsibility_notes character varying(1000) NOT NULL DEFAULT '';
+
+ALTER TABLE gccs.control_assessments ADD responsibility_provider character varying(240);
+
+ALTER TABLE gccs.control_assessments ADD responsibility_type character varying(64) NOT NULL DEFAULT '';
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260618002257_AddCmmcResponsibilityMatrix', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE gccs.tenant_data_handling_mode_history (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    previous_mode character varying(64),
+    new_mode character varying(64) NOT NULL,
+    actor_user_id uuid NOT NULL,
+    changed_at timestamp with time zone NOT NULL,
+    reason character varying(600) NOT NULL,
+    approval_record_reference character varying(160),
+    CONSTRAINT "PK_tenant_data_handling_mode_history" PRIMARY KEY (id),
+    CONSTRAINT "FK_tenant_data_handling_mode_history_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE CASCADE
+);
+
+CREATE INDEX "IX_tenant_data_handling_mode_history_tenant_id_changed_at" ON gccs.tenant_data_handling_mode_history (tenant_id, changed_at);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260618205911_AddTenantDataHandlingModeHistory', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.reports ADD classification character varying(64) NOT NULL DEFAULT '';
+
+ALTER TABLE gccs.reports ADD classification_confidence numeric;
+
+ALTER TABLE gccs.reports ADD classification_is_approved_demo_content boolean NOT NULL DEFAULT FALSE;
+
+ALTER TABLE gccs.reports ADD classification_reason character varying(600);
+
+ALTER TABLE gccs.reports ADD classification_reviewed_at timestamp with time zone;
+
+ALTER TABLE gccs.reports ADD classification_reviewed_by_user_id uuid;
+
+ALTER TABLE gccs.reports ADD classification_source character varying(64) NOT NULL DEFAULT '';
+
+ALTER TABLE gccs.extraction_jobs ADD classification character varying(64) NOT NULL DEFAULT '';
+
+ALTER TABLE gccs.extraction_jobs ADD classification_confidence numeric;
+
+ALTER TABLE gccs.extraction_jobs ADD classification_is_approved_demo_content boolean NOT NULL DEFAULT FALSE;
+
+ALTER TABLE gccs.extraction_jobs ADD classification_reason character varying(600);
+
+ALTER TABLE gccs.extraction_jobs ADD classification_reviewed_at timestamp with time zone;
+
+ALTER TABLE gccs.extraction_jobs ADD classification_reviewed_by_user_id uuid;
+
+ALTER TABLE gccs.extraction_jobs ADD classification_source character varying(64) NOT NULL DEFAULT '';
+
+ALTER TABLE gccs.evidence_items ADD classification character varying(64) NOT NULL DEFAULT '';
+
+ALTER TABLE gccs.evidence_items ADD classification_confidence numeric;
+
+ALTER TABLE gccs.evidence_items ADD classification_is_approved_demo_content boolean NOT NULL DEFAULT FALSE;
+
+ALTER TABLE gccs.evidence_items ADD classification_reason character varying(600);
+
+ALTER TABLE gccs.evidence_items ADD classification_reviewed_at timestamp with time zone;
+
+ALTER TABLE gccs.evidence_items ADD classification_reviewed_by_user_id uuid;
+
+ALTER TABLE gccs.evidence_items ADD classification_source character varying(64) NOT NULL DEFAULT '';
+
+ALTER TABLE gccs.evidence_file_versions ADD classification character varying(64) NOT NULL DEFAULT '';
+
+ALTER TABLE gccs.evidence_file_versions ADD classification_confidence numeric;
+
+ALTER TABLE gccs.evidence_file_versions ADD classification_is_approved_demo_content boolean NOT NULL DEFAULT FALSE;
+
+ALTER TABLE gccs.evidence_file_versions ADD classification_reason character varying(600);
+
+ALTER TABLE gccs.evidence_file_versions ADD classification_reviewed_at timestamp with time zone;
+
+ALTER TABLE gccs.evidence_file_versions ADD classification_reviewed_by_user_id uuid;
+
+ALTER TABLE gccs.evidence_file_versions ADD classification_source character varying(64) NOT NULL DEFAULT '';
+
+ALTER TABLE gccs.contract_documents ADD classification character varying(64) NOT NULL DEFAULT '';
+
+ALTER TABLE gccs.contract_documents ADD classification_confidence numeric;
+
+ALTER TABLE gccs.contract_documents ADD classification_is_approved_demo_content boolean NOT NULL DEFAULT FALSE;
+
+ALTER TABLE gccs.contract_documents ADD classification_reason character varying(600);
+
+ALTER TABLE gccs.contract_documents ADD classification_reviewed_at timestamp with time zone;
+
+ALTER TABLE gccs.contract_documents ADD classification_reviewed_by_user_id uuid;
+
+ALTER TABLE gccs.contract_documents ADD classification_source character varying(64) NOT NULL DEFAULT '';
+
+CREATE TABLE gccs.content_classification_history (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    entity_type character varying(120) NOT NULL,
+    entity_id character varying(120) NOT NULL,
+    previous_classification character varying(64),
+    new_classification character varying(64) NOT NULL,
+    source character varying(64) NOT NULL,
+    confidence numeric,
+    reviewed_by_user_id uuid,
+    reviewed_at timestamp with time zone,
+    reason character varying(600),
+    changed_by_user_id uuid NOT NULL,
+    changed_at timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_content_classification_history" PRIMARY KEY (id),
+    CONSTRAINT "FK_content_classification_history_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_content_classification_history_tenant_id_entity_type_entity~" ON gccs.content_classification_history (tenant_id, entity_type, entity_id, changed_at);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260618212037_AddContentClassificationMetadata', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE gccs.cui_ready_approval_checklists (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    version integer NOT NULL,
+    state character varying(64) NOT NULL,
+    rejection_reason character varying(1000),
+    reviewed_by_user_id uuid,
+    reviewed_at timestamp with time zone,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_cui_ready_approval_checklists" PRIMARY KEY (id),
+    CONSTRAINT "FK_cui_ready_approval_checklists_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE CASCADE
+);
+
+CREATE TABLE gccs.cui_ready_approval_checklist_items (
+    id uuid NOT NULL,
+    checklist_id uuid NOT NULL,
+    item_key character varying(120) NOT NULL,
+    section character varying(180) NOT NULL,
+    description character varying(1000) NOT NULL,
+    is_required boolean NOT NULL,
+    status character varying(64) NOT NULL,
+    owner character varying(180),
+    evidence_link character varying(600),
+    reviewer_user_id uuid,
+    reviewed_at date,
+    notes character varying(1200),
+    CONSTRAINT "PK_cui_ready_approval_checklist_items" PRIMARY KEY (id),
+    CONSTRAINT "FK_cui_ready_approval_checklist_items_cui_ready_approval_check~" FOREIGN KEY (checklist_id) REFERENCES gccs.cui_ready_approval_checklists (id) ON DELETE CASCADE
+);
+
+CREATE UNIQUE INDEX "IX_cui_ready_approval_checklist_items_checklist_id_item_key" ON gccs.cui_ready_approval_checklist_items (checklist_id, item_key);
+
+CREATE INDEX "IX_cui_ready_approval_checklists_created_at_updated_at" ON gccs.cui_ready_approval_checklists (created_at, updated_at);
+
+CREATE INDEX "IX_cui_ready_approval_checklists_tenant_id_state_created_at" ON gccs.cui_ready_approval_checklists (tenant_id, state, created_at);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260618215924_AddCuiReadyApprovalChecklists', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.cui_ready_approval_checklists ADD review_notes character varying(1000);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260618220401_AddCuiReadyApprovalGateMetadata', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE gccs.shared_responsibility_matrix_acknowledgements (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    matrix_id character varying(160) NOT NULL,
+    matrix_version character varying(80) NOT NULL,
+    matrix_title character varying(240) NOT NULL,
+    acknowledged_by_user_id uuid NOT NULL,
+    acknowledged_at timestamp with time zone NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_shared_responsibility_matrix_acknowledgements" PRIMARY KEY (id),
+    CONSTRAINT "FK_shared_responsibility_matrix_acknowledgements_tenants_tenan~" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE CASCADE
+);
+
+CREATE INDEX "IX_shared_responsibility_matrix_acknowledgements_created_at_up~" ON gccs.shared_responsibility_matrix_acknowledgements (created_at, updated_at);
+
+CREATE INDEX "IX_shared_responsibility_matrix_acknowledgements_tenant_id_ack~" ON gccs.shared_responsibility_matrix_acknowledgements (tenant_id, acknowledged_at);
+
+CREATE UNIQUE INDEX "IX_shared_responsibility_matrix_acknowledgements_tenant_id_mat~" ON gccs.shared_responsibility_matrix_acknowledgements (tenant_id, matrix_id, matrix_version);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260618221738_AddSharedResponsibilityMatrixAcknowledgements', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE gccs.data_handling_notice_acknowledgements (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    mode character varying(64) NOT NULL,
+    workflow_context character varying(120) NOT NULL,
+    notice_id character varying(160) NOT NULL,
+    notice_version character varying(80) NOT NULL,
+    acknowledged_at timestamp with time zone NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_data_handling_notice_acknowledgements" PRIMARY KEY (id),
+    CONSTRAINT "FK_data_handling_notice_acknowledgements_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE CASCADE
+);
+
+CREATE INDEX "IX_data_handling_notice_acknowledgements_created_at_updated_at" ON gccs.data_handling_notice_acknowledgements (created_at, updated_at);
+
+CREATE INDEX "IX_data_handling_notice_acknowledgements_tenant_id_user_id_ack~" ON gccs.data_handling_notice_acknowledgements (tenant_id, user_id, acknowledged_at);
+
+CREATE UNIQUE INDEX "IX_data_handling_notice_acknowledgements_tenant_id_user_id_mod~" ON gccs.data_handling_notice_acknowledgements (tenant_id, user_id, mode, workflow_context, notice_id, notice_version);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260618222615_AddDataHandlingNoticeAcknowledgements', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE gccs.cui_support_escalations (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    source_workflow character varying(120) NOT NULL,
+    affected_entity_type character varying(120) NOT NULL,
+    affected_entity_id character varying(160) NOT NULL,
+    category character varying(64) NOT NULL,
+    severity character varying(64) NOT NULL,
+    status character varying(64) NOT NULL,
+    owner character varying(180),
+    description character varying(1200) NOT NULL,
+    is_affected_content_blocked boolean NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_cui_support_escalations" PRIMARY KEY (id),
+    CONSTRAINT "FK_cui_support_escalations_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE CASCADE
+);
+
+CREATE INDEX "IX_cui_support_escalations_created_at_updated_at" ON gccs.cui_support_escalations (created_at, updated_at);
+
+CREATE INDEX "IX_cui_support_escalations_tenant_id_affected_entity_type_affe~" ON gccs.cui_support_escalations (tenant_id, affected_entity_type, affected_entity_id);
+
+CREATE INDEX "IX_cui_support_escalations_tenant_id_status_created_at" ON gccs.cui_support_escalations (tenant_id, status, created_at);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260618223016_AddCuiSupportEscalations', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.cui_support_escalations ADD status_changed_at timestamp with time zone;
+
+ALTER TABLE gccs.cui_support_escalations ADD status_changed_by_user_id uuid;
+
+ALTER TABLE gccs.cui_support_escalations ADD status_note character varying(1200);
+
+CREATE TABLE gccs.cui_support_escalation_resolutions (
+    id uuid NOT NULL,
+    escalation_id uuid NOT NULL,
+    resolution_type character varying(64) NOT NULL,
+    summary character varying(1200) NOT NULL,
+    resolved_at timestamp with time zone NOT NULL,
+    resolved_by_user_id uuid NOT NULL,
+    CONSTRAINT "PK_cui_support_escalation_resolutions" PRIMARY KEY (id),
+    CONSTRAINT "FK_cui_support_escalation_resolutions_cui_support_escalations_~" FOREIGN KEY (escalation_id) REFERENCES gccs.cui_support_escalations (id) ON DELETE CASCADE
+);
+
+CREATE INDEX "IX_cui_support_escalation_resolutions_escalation_id_resolved_at" ON gccs.cui_support_escalation_resolutions (escalation_id, resolved_at);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260618223412_AddCuiSupportEscalationWorkflow', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE gccs.break_glass_access_grants (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    reason character varying(800) NOT NULL,
+    approved_by_user_id uuid NOT NULL,
+    approval_reference character varying(240) NOT NULL,
+    expires_at timestamp with time zone NOT NULL,
+    status character varying(64) NOT NULL,
+    last_used_at timestamp with time zone,
+    last_used_by_user_id uuid,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_break_glass_access_grants" PRIMARY KEY (id),
+    CONSTRAINT "FK_break_glass_access_grants_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_break_glass_access_grants_users_user_id" FOREIGN KEY (user_id) REFERENCES gccs.users (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.government_cloud_environments (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    name character varying(200) NOT NULL,
+    environment_type character varying(64) NOT NULL,
+    region character varying(80) NOT NULL,
+    boundary character varying(200) NOT NULL,
+    network_segment character varying(200) NOT NULL,
+    storage_account character varying(200) NOT NULL,
+    database_service character varying(200) NOT NULL,
+    key_management_service character varying(200) NOT NULL,
+    logging_workspace character varying(200) NOT NULL,
+    backup_policy character varying(200) NOT NULL,
+    private_networking_enabled boolean NOT NULL,
+    storage_encryption_enabled boolean NOT NULL,
+    database_encryption_enabled boolean NOT NULL,
+    customer_managed_keys_enabled boolean NOT NULL,
+    audit_logging_enabled boolean NOT NULL,
+    immutable_logging_enabled boolean NOT NULL,
+    backup_enabled boolean NOT NULL,
+    restore_tested boolean NOT NULL,
+    status character varying(64) NOT NULL,
+    reviewer_name character varying(200),
+    review_notes character varying(1200),
+    reviewed_at timestamp with time zone,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_government_cloud_environments" PRIMARY KEY (id),
+    CONSTRAINT "FK_government_cloud_environments_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.saml_account_links (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    membership_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    saml_subject character varying(512) NOT NULL,
+    email character varying(320) NOT NULL,
+    saml_configuration_id uuid,
+    attributes_json jsonb NOT NULL,
+    last_successful_sign_in_at timestamp with time zone,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_saml_account_links" PRIMARY KEY (id),
+    CONSTRAINT "FK_saml_account_links_tenant_memberships_membership_id" FOREIGN KEY (membership_id) REFERENCES gccs.tenant_memberships (id) ON DELETE CASCADE,
+    CONSTRAINT "FK_saml_account_links_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_saml_account_links_users_user_id" FOREIGN KEY (user_id) REFERENCES gccs.users (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.saml_identity_provider_configurations (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    entity_id character varying(512) NOT NULL,
+    sso_url character varying(1000) NOT NULL,
+    certificate_pem character varying(8000),
+    certificate_fingerprint character varying(128),
+    certificate_expires_at timestamp with time zone NOT NULL,
+    signing_requirement character varying(64) NOT NULL,
+    name_id_format character varying(64) NOT NULL,
+    attribute_mappings_json jsonb NOT NULL,
+    status character varying(64) NOT NULL,
+    metadata_url character varying(1000),
+    callback_url character varying(1000) NOT NULL,
+    last_tested_at timestamp with time zone,
+    last_test_result character varying(64),
+    last_test_diagnostic_summary character varying(1200),
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_saml_identity_provider_configurations" PRIMARY KEY (id),
+    CONSTRAINT "FK_saml_identity_provider_configurations_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.scim_group_mappings (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    group_display_name character varying(200) NOT NULL,
+    role_name character varying(120) NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_scim_group_mappings" PRIMARY KEY (id),
+    CONSTRAINT "FK_scim_group_mappings_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.scim_provisioned_identities (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    external_id character varying(200) NOT NULL,
+    user_name character varying(320) NOT NULL,
+    user_id uuid NOT NULL,
+    membership_id uuid NOT NULL,
+    last_provisioned_at timestamp with time zone,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_scim_provisioned_identities" PRIMARY KEY (id),
+    CONSTRAINT "FK_scim_provisioned_identities_tenant_memberships_membership_id" FOREIGN KEY (membership_id) REFERENCES gccs.tenant_memberships (id) ON DELETE CASCADE,
+    CONSTRAINT "FK_scim_provisioned_identities_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_scim_provisioned_identities_users_user_id" FOREIGN KEY (user_id) REFERENCES gccs.users (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.scim_provisioning_configurations (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    enabled boolean NOT NULL,
+    token_hash character varying(128),
+    endpoint_label character varying(160),
+    last_sync_at timestamp with time zone,
+    token_rotated_at timestamp with time zone,
+    token_revoked_at timestamp with time zone,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_scim_provisioning_configurations" PRIMARY KEY (id),
+    CONSTRAINT "FK_scim_provisioning_configurations_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.tenant_sso_policies (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    mode character varying(64) NOT NULL,
+    saml_configuration_id uuid,
+    required_email_domain character varying(160),
+    required_attributes_json jsonb NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_tenant_sso_policies" PRIMARY KEY (id),
+    CONSTRAINT "FK_tenant_sso_policies_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.government_cloud_environment_status_history (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    environment_id uuid NOT NULL,
+    previous_status character varying(64),
+    new_status character varying(64) NOT NULL,
+    reviewer_name character varying(200),
+    review_notes character varying(1200),
+    changed_at timestamp with time zone NOT NULL,
+    changed_by_user_id uuid NOT NULL,
+    history_note character varying(600) NOT NULL,
+    CONSTRAINT "PK_government_cloud_environment_status_history" PRIMARY KEY (id),
+    CONSTRAINT "FK_government_cloud_environment_status_history_government_clou~" FOREIGN KEY (environment_id) REFERENCES gccs.government_cloud_environments (id) ON DELETE CASCADE,
+    CONSTRAINT "FK_government_cloud_environment_status_history_tenants_tenant_~" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.government_cloud_release_readiness (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    environment_id uuid NOT NULL,
+    version character varying(120) NOT NULL,
+    release_window character varying(240) NOT NULL,
+    owner character varying(200) NOT NULL,
+    status character varying(64) NOT NULL,
+    approver_name character varying(200),
+    approval_notes character varying(1200),
+    approved_at timestamp with time zone,
+    result character varying(400),
+    rollback_status character varying(400),
+    deployed_at timestamp with time zone,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_government_cloud_release_readiness" PRIMARY KEY (id),
+    CONSTRAINT "FK_government_cloud_release_readiness_government_cloud_environ~" FOREIGN KEY (environment_id) REFERENCES gccs.government_cloud_environments (id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_government_cloud_release_readiness_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.regulated_tenant_provisioning_requests (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    tenant_name character varying(240) NOT NULL,
+    customer_type character varying(160) NOT NULL,
+    environment_id uuid NOT NULL,
+    data_handling_mode character varying(64) NOT NULL,
+    cui_approval_complete boolean NOT NULL,
+    key_policy character varying(240) NOT NULL,
+    support_model character varying(240) NOT NULL,
+    migration_source character varying(240) NOT NULL,
+    status character varying(64) NOT NULL,
+    provisioned_tenant_id uuid,
+    failure_reason character varying(1200),
+    rollback_decision character varying(1200),
+    failure_owner character varying(200),
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_regulated_tenant_provisioning_requests" PRIMARY KEY (id),
+    CONSTRAINT "FK_regulated_tenant_provisioning_requests_government_cloud_env~" FOREIGN KEY (environment_id) REFERENCES gccs.government_cloud_environments (id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_regulated_tenant_provisioning_requests_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.government_cloud_release_checklist (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    readiness_id uuid NOT NULL,
+    item character varying(64) NOT NULL,
+    evidence_reference character varying(600) NOT NULL,
+    completed_at timestamp with time zone NOT NULL,
+    completed_by_user_id uuid NOT NULL,
+    CONSTRAINT "PK_government_cloud_release_checklist" PRIMARY KEY (id),
+    CONSTRAINT "FK_government_cloud_release_checklist_government_cloud_release~" FOREIGN KEY (readiness_id) REFERENCES gccs.government_cloud_release_readiness (id) ON DELETE CASCADE,
+    CONSTRAINT "FK_government_cloud_release_checklist_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.government_cloud_release_evidence (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    readiness_id uuid NOT NULL,
+    evidence_type character varying(64) NOT NULL,
+    link character varying(600) NOT NULL,
+    linked_at timestamp with time zone NOT NULL,
+    linked_by_user_id uuid NOT NULL,
+    CONSTRAINT "PK_government_cloud_release_evidence" PRIMARY KEY (id),
+    CONSTRAINT "FK_government_cloud_release_evidence_government_cloud_release_~" FOREIGN KEY (readiness_id) REFERENCES gccs.government_cloud_release_readiness (id) ON DELETE CASCADE,
+    CONSTRAINT "FK_government_cloud_release_evidence_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.government_cloud_release_gaps (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    readiness_id uuid NOT NULL,
+    area character varying(64) NOT NULL,
+    severity character varying(64) NOT NULL,
+    description character varying(1000) NOT NULL,
+    is_open boolean NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_government_cloud_release_gaps" PRIMARY KEY (id),
+    CONSTRAINT "FK_government_cloud_release_gaps_government_cloud_release_read~" FOREIGN KEY (readiness_id) REFERENCES gccs.government_cloud_release_readiness (id) ON DELETE CASCADE,
+    CONSTRAINT "FK_government_cloud_release_gaps_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.regulated_provisioning_approvals (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    request_id uuid NOT NULL,
+    area character varying(64) NOT NULL,
+    approver_name character varying(200) NOT NULL,
+    notes character varying(1200) NOT NULL,
+    approved_at timestamp with time zone NOT NULL,
+    approved_by_user_id uuid NOT NULL,
+    CONSTRAINT "PK_regulated_provisioning_approvals" PRIMARY KEY (id),
+    CONSTRAINT "FK_regulated_provisioning_approvals_regulated_tenant_provision~" FOREIGN KEY (request_id) REFERENCES gccs.regulated_tenant_provisioning_requests (id) ON DELETE CASCADE,
+    CONSTRAINT "FK_regulated_provisioning_approvals_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.regulated_provisioning_checklist (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    request_id uuid NOT NULL,
+    item character varying(64) NOT NULL,
+    completed_by_name character varying(200) NOT NULL,
+    evidence_reference character varying(600) NOT NULL,
+    completed_at timestamp with time zone NOT NULL,
+    completed_by_user_id uuid NOT NULL,
+    CONSTRAINT "PK_regulated_provisioning_checklist" PRIMARY KEY (id),
+    CONSTRAINT "FK_regulated_provisioning_checklist_regulated_tenant_provision~" FOREIGN KEY (request_id) REFERENCES gccs.regulated_tenant_provisioning_requests (id) ON DELETE CASCADE,
+    CONSTRAINT "FK_regulated_provisioning_checklist_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.regulated_tenant_provisioning_history (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    request_id uuid NOT NULL,
+    previous_status character varying(64),
+    new_status character varying(64) NOT NULL,
+    changed_at timestamp with time zone NOT NULL,
+    changed_by_user_id uuid NOT NULL,
+    note character varying(600) NOT NULL,
+    CONSTRAINT "PK_regulated_tenant_provisioning_history" PRIMARY KEY (id),
+    CONSTRAINT "FK_regulated_tenant_provisioning_history_regulated_tenant_prov~" FOREIGN KEY (request_id) REFERENCES gccs.regulated_tenant_provisioning_requests (id) ON DELETE CASCADE,
+    CONSTRAINT "FK_regulated_tenant_provisioning_history_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_break_glass_access_grants_created_at_updated_at" ON gccs.break_glass_access_grants (created_at, updated_at);
+
+CREATE INDEX "IX_break_glass_access_grants_tenant_id_expires_at" ON gccs.break_glass_access_grants (tenant_id, expires_at);
+
+CREATE INDEX "IX_break_glass_access_grants_tenant_id_user_id_status" ON gccs.break_glass_access_grants (tenant_id, user_id, status);
+
+CREATE INDEX "IX_break_glass_access_grants_user_id" ON gccs.break_glass_access_grants (user_id);
+
+CREATE INDEX "IX_government_cloud_environment_status_history_environment_id" ON gccs.government_cloud_environment_status_history (environment_id);
+
+CREATE INDEX "IX_government_cloud_environment_status_history_tenant_id_envir~" ON gccs.government_cloud_environment_status_history (tenant_id, environment_id, changed_at);
+
+CREATE INDEX "IX_government_cloud_environments_created_at_updated_at" ON gccs.government_cloud_environments (created_at, updated_at);
+
+CREATE UNIQUE INDEX "IX_government_cloud_environments_tenant_id_name" ON gccs.government_cloud_environments (tenant_id, name);
+
+CREATE INDEX "IX_government_cloud_environments_tenant_id_status" ON gccs.government_cloud_environments (tenant_id, status);
+
+CREATE INDEX "IX_government_cloud_release_checklist_readiness_id" ON gccs.government_cloud_release_checklist (readiness_id);
+
+CREATE UNIQUE INDEX "IX_government_cloud_release_checklist_tenant_id_readiness_id_i~" ON gccs.government_cloud_release_checklist (tenant_id, readiness_id, item);
+
+CREATE INDEX "IX_government_cloud_release_evidence_readiness_id" ON gccs.government_cloud_release_evidence (readiness_id);
+
+CREATE UNIQUE INDEX "IX_government_cloud_release_evidence_tenant_id_readiness_id_ev~" ON gccs.government_cloud_release_evidence (tenant_id, readiness_id, evidence_type);
+
+CREATE INDEX "IX_government_cloud_release_gaps_created_at_updated_at" ON gccs.government_cloud_release_gaps (created_at, updated_at);
+
+CREATE INDEX "IX_government_cloud_release_gaps_readiness_id" ON gccs.government_cloud_release_gaps (readiness_id);
+
+CREATE INDEX "IX_government_cloud_release_gaps_tenant_id_readiness_id_severi~" ON gccs.government_cloud_release_gaps (tenant_id, readiness_id, severity, is_open);
+
+CREATE INDEX "IX_government_cloud_release_readiness_created_at_updated_at" ON gccs.government_cloud_release_readiness (created_at, updated_at);
+
+CREATE INDEX "IX_government_cloud_release_readiness_environment_id" ON gccs.government_cloud_release_readiness (environment_id);
+
+CREATE UNIQUE INDEX "IX_government_cloud_release_readiness_tenant_id_environment_id~" ON gccs.government_cloud_release_readiness (tenant_id, environment_id, version);
+
+CREATE INDEX "IX_regulated_provisioning_approvals_request_id" ON gccs.regulated_provisioning_approvals (request_id);
+
+CREATE UNIQUE INDEX "IX_regulated_provisioning_approvals_tenant_id_request_id_area" ON gccs.regulated_provisioning_approvals (tenant_id, request_id, area);
+
+CREATE INDEX "IX_regulated_provisioning_checklist_request_id" ON gccs.regulated_provisioning_checklist (request_id);
+
+CREATE UNIQUE INDEX "IX_regulated_provisioning_checklist_tenant_id_request_id_item" ON gccs.regulated_provisioning_checklist (tenant_id, request_id, item);
+
+CREATE INDEX "IX_regulated_tenant_provisioning_history_request_id" ON gccs.regulated_tenant_provisioning_history (request_id);
+
+CREATE INDEX "IX_regulated_tenant_provisioning_history_tenant_id_request_id_~" ON gccs.regulated_tenant_provisioning_history (tenant_id, request_id, changed_at);
+
+CREATE INDEX "IX_regulated_tenant_provisioning_requests_created_at_updated_at" ON gccs.regulated_tenant_provisioning_requests (created_at, updated_at);
+
+CREATE INDEX "IX_regulated_tenant_provisioning_requests_environment_id" ON gccs.regulated_tenant_provisioning_requests (environment_id);
+
+CREATE INDEX "IX_regulated_tenant_provisioning_requests_tenant_id_environmen~" ON gccs.regulated_tenant_provisioning_requests (tenant_id, environment_id);
+
+CREATE INDEX "IX_regulated_tenant_provisioning_requests_tenant_id_status" ON gccs.regulated_tenant_provisioning_requests (tenant_id, status);
+
+CREATE INDEX "IX_saml_account_links_created_at_updated_at" ON gccs.saml_account_links (created_at, updated_at);
+
+CREATE INDEX "IX_saml_account_links_membership_id" ON gccs.saml_account_links (membership_id);
+
+CREATE INDEX "IX_saml_account_links_tenant_id_email" ON gccs.saml_account_links (tenant_id, email);
+
+CREATE UNIQUE INDEX "IX_saml_account_links_tenant_id_saml_subject" ON gccs.saml_account_links (tenant_id, saml_subject);
+
+CREATE INDEX "IX_saml_account_links_tenant_id_user_id" ON gccs.saml_account_links (tenant_id, user_id);
+
+CREATE INDEX "IX_saml_account_links_user_id" ON gccs.saml_account_links (user_id);
+
+CREATE INDEX "IX_saml_identity_provider_configurations_created_at_updated_at" ON gccs.saml_identity_provider_configurations (created_at, updated_at);
+
+CREATE UNIQUE INDEX "IX_saml_identity_provider_configurations_tenant_id_entity_id" ON gccs.saml_identity_provider_configurations (tenant_id, entity_id);
+
+CREATE INDEX "IX_saml_identity_provider_configurations_tenant_id_status" ON gccs.saml_identity_provider_configurations (tenant_id, status);
+
+CREATE INDEX "IX_scim_group_mappings_created_at_updated_at" ON gccs.scim_group_mappings (created_at, updated_at);
+
+CREATE UNIQUE INDEX "IX_scim_group_mappings_tenant_id_group_display_name" ON gccs.scim_group_mappings (tenant_id, group_display_name);
+
+CREATE INDEX "IX_scim_provisioned_identities_created_at_updated_at" ON gccs.scim_provisioned_identities (created_at, updated_at);
+
+CREATE INDEX "IX_scim_provisioned_identities_external_id" ON gccs.scim_provisioned_identities (external_id);
+
+CREATE INDEX "IX_scim_provisioned_identities_membership_id" ON gccs.scim_provisioned_identities (membership_id);
+
+CREATE UNIQUE INDEX "IX_scim_provisioned_identities_tenant_id_external_id" ON gccs.scim_provisioned_identities (tenant_id, external_id);
+
+CREATE INDEX "IX_scim_provisioned_identities_tenant_id_user_name" ON gccs.scim_provisioned_identities (tenant_id, user_name);
+
+CREATE INDEX "IX_scim_provisioned_identities_user_id" ON gccs.scim_provisioned_identities (user_id);
+
+CREATE INDEX "IX_scim_provisioning_configurations_created_at_updated_at" ON gccs.scim_provisioning_configurations (created_at, updated_at);
+
+CREATE UNIQUE INDEX "IX_scim_provisioning_configurations_tenant_id" ON gccs.scim_provisioning_configurations (tenant_id);
+
+CREATE INDEX "IX_tenant_sso_policies_created_at_updated_at" ON gccs.tenant_sso_policies (created_at, updated_at);
+
+CREATE UNIQUE INDEX "IX_tenant_sso_policies_tenant_id" ON gccs.tenant_sso_policies (tenant_id);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260625224919_AddPendingReleaseReadinessModelChanges', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.audit_log_entries ADD new_value text;
+
+ALTER TABLE gccs.audit_log_entries ADD old_value text;
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260626151206_AddAuditLogOldNewValues', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE gccs.compliance_checklist_instances (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    template_key character varying(120) NOT NULL,
+    name character varying(240) NOT NULL,
+    checklist_type character varying(120) NOT NULL,
+    review_status character varying(64) NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_compliance_checklist_instances" PRIMARY KEY (id),
+    CONSTRAINT "FK_compliance_checklist_instances_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE CASCADE
+);
+
+CREATE TABLE gccs.compliance_checklist_items (
+    id uuid NOT NULL,
+    checklist_id uuid NOT NULL,
+    template_item_key character varying(120) NOT NULL,
+    title character varying(240) NOT NULL,
+    description character varying(1200) NOT NULL,
+    status character varying(64) NOT NULL,
+    owner_user_id uuid,
+    review_status character varying(64) NOT NULL,
+    reviewed_by_user_id uuid,
+    reviewed_at timestamp with time zone,
+    notes character varying(2000),
+    control_id character varying(120),
+    evidence_item_id uuid,
+    poam_item_id uuid,
+    completed_at timestamp with time zone,
+    completed_by_user_id uuid,
+    CONSTRAINT "PK_compliance_checklist_items" PRIMARY KEY (id),
+    CONSTRAINT "FK_compliance_checklist_items_compliance_checklist_instances_c~" FOREIGN KEY (checklist_id) REFERENCES gccs.compliance_checklist_instances (id) ON DELETE CASCADE,
+    CONSTRAINT "FK_compliance_checklist_items_evidence_items_evidence_item_id" FOREIGN KEY (evidence_item_id) REFERENCES gccs.evidence_items (id) ON DELETE SET NULL,
+    CONSTRAINT "FK_compliance_checklist_items_poam_items_poam_item_id" FOREIGN KEY (poam_item_id) REFERENCES gccs.poam_items (id) ON DELETE SET NULL
+);
+
+CREATE INDEX "IX_compliance_checklist_instances_created_at_updated_at" ON gccs.compliance_checklist_instances (created_at, updated_at);
+
+CREATE INDEX "IX_compliance_checklist_instances_tenant_id_template_key_creat~" ON gccs.compliance_checklist_instances (tenant_id, template_key, created_at);
+
+CREATE UNIQUE INDEX "IX_compliance_checklist_items_checklist_id_template_item_key" ON gccs.compliance_checklist_items (checklist_id, template_item_key);
+
+CREATE INDEX "IX_compliance_checklist_items_evidence_item_id" ON gccs.compliance_checklist_items (evidence_item_id);
+
+CREATE INDEX "IX_compliance_checklist_items_poam_item_id" ON gccs.compliance_checklist_items (poam_item_id);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260626194212_AddReusableComplianceChecklists', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE gccs.platform_tenant_onboardings (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    invitation_id uuid NOT NULL,
+    idempotency_key character varying(128) NOT NULL,
+    request_fingerprint character varying(64) NOT NULL,
+    onboarding_type character varying(64) NOT NULL,
+    status character varying(64) NOT NULL,
+    customer_reference character varying(120) NOT NULL,
+    owner_email character varying(320) NOT NULL,
+    owner_display_name character varying(200) NOT NULL,
+    plan_code character varying(80),
+    subscription_reference character varying(160),
+    commercial_approval_confirmed boolean NOT NULL,
+    setup_reason character varying(600) NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_platform_tenant_onboardings" PRIMARY KEY (id),
+    CONSTRAINT "FK_platform_tenant_onboardings_tenant_invitations_invitation_id" FOREIGN KEY (invitation_id) REFERENCES gccs.tenant_invitations (id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_platform_tenant_onboardings_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_platform_tenant_onboardings_created_at_updated_at" ON gccs.platform_tenant_onboardings (created_at, updated_at);
+
+CREATE UNIQUE INDEX "IX_platform_tenant_onboardings_customer_reference" ON gccs.platform_tenant_onboardings (customer_reference);
+
+CREATE UNIQUE INDEX "IX_platform_tenant_onboardings_idempotency_key" ON gccs.platform_tenant_onboardings (idempotency_key);
+
+CREATE UNIQUE INDEX "IX_platform_tenant_onboardings_invitation_id" ON gccs.platform_tenant_onboardings (invitation_id);
+
+CREATE UNIQUE INDEX "IX_platform_tenant_onboardings_subscription_reference" ON gccs.platform_tenant_onboardings (subscription_reference);
+
+CREATE UNIQUE INDEX "IX_platform_tenant_onboardings_tenant_id" ON gccs.platform_tenant_onboardings (tenant_id);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260722222845_AddPlatformTenantOnboarding', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+DROP INDEX gccs."IX_tenant_invitations_invitation_token";
+
+ALTER TABLE gccs.tenant_invitations DROP COLUMN invitation_token;
+
+ALTER TABLE gccs.tenant_invitations ADD delivery_attempt_count integer NOT NULL DEFAULT 0;
+
+ALTER TABLE gccs.tenant_invitations ADD delivery_failure_code character varying(120);
+
+ALTER TABLE gccs.tenant_invitations ADD delivery_lease_until timestamp with time zone;
+
+ALTER TABLE gccs.tenant_invitations ADD delivery_provider_message_id character varying(200);
+
+ALTER TABLE gccs.tenant_invitations ADD delivery_status character varying(64) NOT NULL DEFAULT '';
+
+ALTER TABLE gccs.tenant_invitations ADD invitation_token_hash character varying(64);
+
+ALTER TABLE gccs.tenant_invitations ADD last_delivery_attempt_at timestamp with time zone;
+
+ALTER TABLE gccs.tenant_invitations ADD next_delivery_attempt_at timestamp with time zone;
+
+UPDATE gccs.tenant_invitations
+SET delivery_status = CASE
+        WHEN notification_sent_at IS NOT NULL THEN 'Sent'
+        ELSE 'Queued'
+    END,
+    next_delivery_attempt_at = CASE
+        WHEN notification_sent_at IS NULL AND status = 'Pending' THEN CURRENT_TIMESTAMP
+        ELSE NULL
+    END,
+    notification_placeholder = CASE
+        WHEN notification_sent_at IS NOT NULL THEN 'Owner invitation email was sent.'
+        ELSE 'Owner invitation is queued for delivery.'
+    END;
+
+CREATE INDEX "IX_tenant_invitations_delivery_status_next_delivery_attempt_at~" ON gccs.tenant_invitations (delivery_status, next_delivery_attempt_at, delivery_lease_until);
+
+CREATE UNIQUE INDEX "IX_tenant_invitations_invitation_token_hash" ON gccs.tenant_invitations (invitation_token_hash);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260723005643_AddInvitationDeliveryWorkflow', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.platform_tenant_onboardings ADD cancellation_reason character varying(600);
+
+ALTER TABLE gccs.platform_tenant_onboardings ADD cancelled_at timestamp with time zone;
+
+ALTER TABLE gccs.platform_tenant_onboardings ADD cancelled_by_user_id uuid;
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260724023457_AddPlatformTenantCancellation', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.users ADD preferred_tenant_id uuid;
+
+CREATE INDEX "IX_users_preferred_tenant_id" ON gccs.users (preferred_tenant_id);
+
+ALTER TABLE gccs.users ADD CONSTRAINT "FK_users_tenants_preferred_tenant_id" FOREIGN KEY (preferred_tenant_id) REFERENCES gccs.tenants (id) ON DELETE SET NULL;
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260724212900_AddPreferredTenantWorkspace', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE UNIQUE INDEX "UX_tenant_invitations_tenant_email_pending" ON gccs.tenant_invitations (tenant_id, email) WHERE status = 'Pending';
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260725232215_PreventDuplicatePendingTenantInvitations', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE gccs.assignment_email_deliveries (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    notification_delivery_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    recipient_email character varying(320) NOT NULL,
+    recipient_display_name character varying(200) NOT NULL,
+    link_url character varying(400) NOT NULL,
+    status character varying(40) NOT NULL,
+    attempt_count integer NOT NULL,
+    next_attempt_at timestamp with time zone,
+    lease_until timestamp with time zone,
+    sent_at timestamp with time zone,
+    provider_message_id character varying(300),
+    failure_code character varying(120),
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_assignment_email_deliveries" PRIMARY KEY (id),
+    CONSTRAINT "FK_assignment_email_deliveries_notification_deliveries_notific~" FOREIGN KEY (notification_delivery_id) REFERENCES gccs.notification_deliveries (id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_assignment_email_deliveries_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_assignment_email_deliveries_created_at_updated_at" ON gccs.assignment_email_deliveries (created_at, updated_at);
+
+CREATE UNIQUE INDEX "IX_assignment_email_deliveries_notification_delivery_id" ON gccs.assignment_email_deliveries (notification_delivery_id);
+
+CREATE INDEX "IX_assignment_email_deliveries_status_next_attempt_at_lease_un~" ON gccs.assignment_email_deliveries (status, next_attempt_at, lease_until);
+
+CREATE INDEX "IX_assignment_email_deliveries_tenant_id_user_id" ON gccs.assignment_email_deliveries (tenant_id, user_id);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260727161036_AddAssignmentEmailDeliveries', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.evidence_items
+ADD CONSTRAINT "CK_evidence_items_effective_expiration_range"
+CHECK (effective_at IS NULL OR expires_at IS NULL OR expires_at >= effective_at)
+NOT VALID;
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260728011558_EnforceEvidenceDateRange', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.reports ADD archive_reason character varying(500);
+
+ALTER TABLE gccs.reports ADD archived_at timestamp with time zone;
+
+ALTER TABLE gccs.reports ADD archived_by_user_id uuid;
+
+ALTER TABLE gccs.reports ADD status_before_archive character varying(64);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260728235509_AddReportArchiveLifecycle', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.extraction_jobs ADD last_processing_attempt_at timestamp with time zone;
+
+ALTER TABLE gccs.extraction_jobs ADD processing_attempt_count integer NOT NULL DEFAULT 0;
+
+ALTER TABLE gccs.extraction_jobs ADD processing_lease_id uuid;
+
+ALTER TABLE gccs.extraction_jobs ADD processing_lease_until timestamp with time zone;
+
+CREATE INDEX "IX_extraction_jobs_status_processing_lease_until_requested_at" ON gccs.extraction_jobs (status, processing_lease_until, requested_at);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260729170941_AddExtractionProcessingLease', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE gccs.demo_requests (
+    id uuid NOT NULL,
+    first_name character varying(100) NOT NULL,
+    last_name character varying(100) NOT NULL,
+    email character varying(320) NOT NULL,
+    phone character varying(40),
+    company character varying(200) NOT NULL,
+    referral_source character varying(200),
+    employee_count character varying(20),
+    message character varying(2000),
+    consent_notice_version character varying(80) NOT NULL,
+    deduplication_key character varying(64) NOT NULL,
+    received_at timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_demo_requests" PRIMARY KEY (id)
+);
+
+CREATE TABLE gccs.demo_request_deliveries (
+    id uuid NOT NULL,
+    demo_request_id uuid NOT NULL,
+    status character varying(40) NOT NULL,
+    attempt_count integer NOT NULL,
+    next_attempt_at timestamp with time zone,
+    lease_until timestamp with time zone,
+    sent_at timestamp with time zone,
+    provider_message_id character varying(300),
+    failure_code character varying(120),
+    created_at timestamp with time zone NOT NULL,
+    updated_at timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_demo_request_deliveries" PRIMARY KEY (id),
+    CONSTRAINT "FK_demo_request_deliveries_demo_requests_demo_request_id" FOREIGN KEY (demo_request_id) REFERENCES gccs.demo_requests (id) ON DELETE RESTRICT
+);
+
+CREATE UNIQUE INDEX "IX_demo_request_deliveries_demo_request_id" ON gccs.demo_request_deliveries (demo_request_id);
+
+CREATE INDEX "IX_demo_request_deliveries_status_next_attempt_at_lease_until" ON gccs.demo_request_deliveries (status, next_attempt_at, lease_until);
+
+CREATE UNIQUE INDEX "IX_demo_requests_deduplication_key" ON gccs.demo_requests (deduplication_key);
+
+CREATE INDEX "IX_demo_requests_received_at" ON gccs.demo_requests (received_at);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260802210241_AddPublicDemoRequests', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+DROP INDEX gccs."IX_demo_request_deliveries_demo_request_id";
+
+ALTER TABLE gccs.demo_requests ADD preferred_start_at timestamp with time zone;
+
+ALTER TABLE gccs.demo_requests ADD preferred_time_zone character varying(100);
+
+ALTER TABLE gccs.demo_request_deliveries ADD delivery_kind character varying(40) NOT NULL DEFAULT 'InternalNotification';
+
+CREATE UNIQUE INDEX "IX_demo_request_deliveries_demo_request_id_delivery_kind" ON gccs.demo_request_deliveries (demo_request_id, delivery_kind);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260802233241_AddDemoRequestSchedulingAndAcknowledgements', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.demo_request_deliveries ALTER COLUMN delivery_kind TYPE character varying(80);
+
+ALTER TABLE gccs.demo_request_deliveries ADD requested_by_user_id uuid;
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260802235943_AddDemoRequestOperatorResponses', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE INDEX "IX_demo_requests_preferred_start_at" ON gccs.demo_requests (preferred_start_at);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260811013351_AddDemoRequestPreferredStartCalendarIndex', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.demo_request_deliveries ADD demo_appointment_event_id uuid;
+
+CREATE TABLE gccs.demo_appointments (
+    id uuid NOT NULL,
+    demo_request_id uuid NOT NULL,
+    status character varying(40) NOT NULL,
+    confirmed_start_at timestamp with time zone NOT NULL,
+    confirmed_end_at timestamp with time zone NOT NULL,
+    confirmed_time_zone character varying(100) NOT NULL,
+    duration_minutes integer NOT NULL,
+    host_user_id uuid NOT NULL,
+    meeting_method character varying(40) NOT NULL,
+    meeting_join_url character varying(2048),
+    confirmed_by_user_id uuid NOT NULL,
+    confirmed_at timestamp with time zone NOT NULL,
+    updated_at timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_demo_appointments" PRIMARY KEY (id),
+    CONSTRAINT ck_demo_appointments_duration CHECK (duration_minutes = 30),
+    CONSTRAINT ck_demo_appointments_time_range CHECK (confirmed_end_at > confirmed_start_at),
+    CONSTRAINT "FK_demo_appointments_demo_requests_demo_request_id" FOREIGN KEY (demo_request_id) REFERENCES gccs.demo_requests (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.demo_appointment_events (
+    id uuid NOT NULL,
+    demo_appointment_id uuid NOT NULL,
+    demo_request_id uuid NOT NULL,
+    event_type character varying(40) NOT NULL,
+    previous_status character varying(40),
+    new_status character varying(40) NOT NULL,
+    confirmed_start_at timestamp with time zone NOT NULL,
+    confirmed_end_at timestamp with time zone NOT NULL,
+    confirmed_time_zone character varying(100) NOT NULL,
+    duration_minutes integer NOT NULL,
+    host_user_id uuid NOT NULL,
+    meeting_method character varying(40) NOT NULL,
+    meeting_join_url character varying(2048),
+    actor_user_id uuid NOT NULL,
+    occurred_at timestamp with time zone NOT NULL,
+    ip_address character varying(120) NOT NULL,
+    user_agent character varying(500) NOT NULL,
+    correlation_id character varying(120) NOT NULL,
+    CONSTRAINT "PK_demo_appointment_events" PRIMARY KEY (id),
+    CONSTRAINT ck_demo_appointment_events_duration CHECK (duration_minutes = 30),
+    CONSTRAINT ck_demo_appointment_events_time_range CHECK (confirmed_end_at > confirmed_start_at),
+    CONSTRAINT "FK_demo_appointment_events_demo_appointments_demo_appointment_~" FOREIGN KEY (demo_appointment_id) REFERENCES gccs.demo_appointments (id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_demo_appointment_events_demo_requests_demo_request_id" FOREIGN KEY (demo_request_id) REFERENCES gccs.demo_requests (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_demo_request_deliveries_demo_appointment_event_id" ON gccs.demo_request_deliveries (demo_appointment_event_id);
+
+CREATE INDEX "IX_demo_appointment_events_demo_appointment_id_occurred_at" ON gccs.demo_appointment_events (demo_appointment_id, occurred_at);
+
+CREATE INDEX "IX_demo_appointment_events_demo_request_id_occurred_at" ON gccs.demo_appointment_events (demo_request_id, occurred_at);
+
+CREATE UNIQUE INDEX "IX_demo_appointments_demo_request_id" ON gccs.demo_appointments (demo_request_id);
+
+CREATE INDEX "IX_demo_appointments_host_user_id_status_confirmed_start_at_co~" ON gccs.demo_appointments (host_user_id, status, confirmed_start_at, confirmed_end_at);
+
+ALTER TABLE gccs.demo_request_deliveries ADD CONSTRAINT "FK_demo_request_deliveries_demo_appointment_events_demo_appoin~" FOREIGN KEY (demo_appointment_event_id) REFERENCES gccs.demo_appointment_events (id) ON DELETE RESTRICT;
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260812025344_AddDemoAppointmentConfirmations', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.demo_request_deliveries ADD demo_follow_up_request_id uuid;
+
+CREATE TABLE gccs.demo_follow_up_requests (
+    id uuid NOT NULL,
+    demo_request_id uuid NOT NULL,
+    token_hash character varying(64) NOT NULL,
+    status character varying(40) NOT NULL,
+    template_version character varying(80) NOT NULL,
+    no_cui_notice_version character varying(80) NOT NULL,
+    expires_at timestamp with time zone NOT NULL,
+    requested_by_user_id uuid NOT NULL,
+    requested_at timestamp with time zone NOT NULL,
+    responded_at timestamp with time zone,
+    updated_at timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_demo_follow_up_requests" PRIMARY KEY (id),
+    CONSTRAINT "AK_demo_follow_up_requests_id_demo_request_id" UNIQUE (id, demo_request_id),
+    CONSTRAINT "FK_demo_follow_up_requests_demo_requests_demo_request_id" FOREIGN KEY (demo_request_id) REFERENCES gccs.demo_requests (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.demo_follow_up_responses (
+    id uuid NOT NULL,
+    demo_follow_up_request_id uuid NOT NULL,
+    demo_request_id uuid NOT NULL,
+    workflows_json jsonb NOT NULL,
+    other_workflow character varying(200),
+    goals character varying(2000) NOT NULL,
+    challenges character varying(2000) NOT NULL,
+    current_process character varying(1000),
+    additional_context character varying(2000),
+    no_cui_confirmed boolean NOT NULL,
+    no_cui_notice_version character varying(80) NOT NULL,
+    submitted_at timestamp with time zone NOT NULL,
+    ip_address character varying(120) NOT NULL,
+    user_agent character varying(500) NOT NULL,
+    correlation_id character varying(120) NOT NULL,
+    CONSTRAINT "PK_demo_follow_up_responses" PRIMARY KEY (id),
+    CONSTRAINT ck_demo_follow_up_responses_no_cui CHECK (no_cui_confirmed = TRUE),
+    CONSTRAINT "FK_demo_follow_up_responses_demo_follow_up_requests_demo_follo~" FOREIGN KEY (demo_follow_up_request_id, demo_request_id) REFERENCES gccs.demo_follow_up_requests (id, demo_request_id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_demo_follow_up_responses_demo_requests_demo_request_id" FOREIGN KEY (demo_request_id) REFERENCES gccs.demo_requests (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_demo_request_deliveries_demo_follow_up_request_id_demo_requ~" ON gccs.demo_request_deliveries (demo_follow_up_request_id, demo_request_id);
+
+CREATE INDEX "IX_demo_follow_up_requests_demo_request_id_requested_at" ON gccs.demo_follow_up_requests (demo_request_id, requested_at);
+
+CREATE UNIQUE INDEX "IX_demo_follow_up_requests_demo_request_id_status" ON gccs.demo_follow_up_requests (demo_request_id, status) WHERE status = 'Pending';
+
+CREATE UNIQUE INDEX "IX_demo_follow_up_requests_token_hash" ON gccs.demo_follow_up_requests (token_hash);
+
+CREATE UNIQUE INDEX "IX_demo_follow_up_responses_demo_follow_up_request_id" ON gccs.demo_follow_up_responses (demo_follow_up_request_id);
+
+CREATE UNIQUE INDEX "IX_demo_follow_up_responses_demo_follow_up_request_id_demo_req~" ON gccs.demo_follow_up_responses (demo_follow_up_request_id, demo_request_id);
+
+CREATE INDEX "IX_demo_follow_up_responses_demo_request_id_submitted_at" ON gccs.demo_follow_up_responses (demo_request_id, submitted_at);
+
+ALTER TABLE gccs.demo_request_deliveries ADD CONSTRAINT "FK_demo_request_deliveries_demo_follow_up_requests_demo_follow~" FOREIGN KEY (demo_follow_up_request_id, demo_request_id) REFERENCES gccs.demo_follow_up_requests (id, demo_request_id) ON DELETE RESTRICT;
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260812145626_AddDemoFollowUpResponses', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE gccs.tenant_subscriptions (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    tenant_kind character varying(64) NOT NULL,
+    plan character varying(64) NOT NULL,
+    plan_code character varying(80) NOT NULL,
+    status character varying(64) NOT NULL,
+    starts_at timestamp with time zone NOT NULL,
+    ends_at timestamp with time zone,
+    grace_ends_at timestamp with time zone,
+    external_customer_reference character varying(160),
+    external_subscription_reference character varying(160),
+    status_reason character varying(600) NOT NULL,
+    version bigint NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_tenant_subscriptions" PRIMARY KEY (id),
+    CONSTRAINT "FK_tenant_subscriptions_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.tenant_subscription_transitions (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    subscription_id uuid NOT NULL,
+    idempotency_key character varying(128) NOT NULL,
+    request_fingerprint character varying(64) NOT NULL,
+    transition character varying(32) NOT NULL,
+    result_json jsonb NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    actor_user_id uuid NOT NULL,
+    CONSTRAINT "PK_tenant_subscription_transitions" PRIMARY KEY (id),
+    CONSTRAINT "FK_tenant_subscription_transitions_tenant_subscriptions_subscr~" FOREIGN KEY (subscription_id) REFERENCES gccs.tenant_subscriptions (id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_tenant_subscription_transitions_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_tenant_subscription_transitions_subscription_id" ON gccs.tenant_subscription_transitions (subscription_id);
+
+CREATE UNIQUE INDEX "IX_tenant_subscription_transitions_tenant_id_idempotency_key" ON gccs.tenant_subscription_transitions (tenant_id, idempotency_key);
+
+CREATE INDEX "IX_tenant_subscriptions_created_at_updated_at" ON gccs.tenant_subscriptions (created_at, updated_at);
+
+CREATE UNIQUE INDEX "IX_tenant_subscriptions_external_subscription_reference" ON gccs.tenant_subscriptions (external_subscription_reference);
+
+CREATE UNIQUE INDEX "IX_tenant_subscriptions_tenant_id" ON gccs.tenant_subscriptions (tenant_id);
+
+INSERT INTO gccs.tenant_subscriptions (
+    id, tenant_id, tenant_kind, plan, plan_code, status,
+    starts_at, ends_at, grace_ends_at,
+    external_customer_reference, external_subscription_reference,
+    status_reason, version, created_at, created_by_user_id)
+SELECT
+    onboarding.id,
+    onboarding.tenant_id,
+    'ContractorWorkspace',
+    CASE WHEN onboarding.onboarding_type = 'Pilot' THEN 'PilotEvaluation' ELSE 'CommercialStandard' END,
+    CASE WHEN onboarding.onboarding_type = 'Pilot' THEN 'PILOT-EVALUATION' ELSE onboarding.plan_code END,
+    CASE
+        WHEN onboarding.status = 'Cancelled' THEN 'Cancelled'
+        WHEN onboarding.status = 'PendingOwnerAcceptance' THEN 'Pending'
+        ELSE 'Active'
+    END,
+    onboarding.created_at,
+    CASE
+        WHEN onboarding.onboarding_type = 'Pilot' AND tenant.trial_ends_at IS NOT NULL
+        THEN (tenant.trial_ends_at + 1)::timestamp AT TIME ZONE 'UTC'
+        ELSE NULL
+    END,
+    CASE
+        WHEN onboarding.onboarding_type = 'Pilot' AND tenant.trial_ends_at IS NOT NULL
+        THEN (tenant.trial_ends_at + 8)::timestamp AT TIME ZONE 'UTC'
+        ELSE NULL
+    END,
+    onboarding.customer_reference,
+    onboarding.subscription_reference,
+    'Backfilled from platform tenant onboarding.',
+    1,
+    onboarding.created_at,
+    onboarding.created_by_user_id
+FROM gccs.platform_tenant_onboardings AS onboarding
+INNER JOIN gccs.tenants AS tenant ON tenant.id = onboarding.tenant_id;
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260813225849_AddTenantSubscriptionLifecycle', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE INDEX "IX_tenants_name" ON gccs.tenants (name);
+
+CREATE INDEX "IX_tenant_subscriptions_plan_status_ends_at" ON gccs.tenant_subscriptions (plan, status, ends_at);
+
+CREATE INDEX "IX_platform_tenant_onboardings_owner_email" ON gccs.platform_tenant_onboardings (owner_email);
+
+CREATE INDEX "IX_platform_tenant_onboardings_status_onboarding_type_created_~" ON gccs.platform_tenant_onboardings (status, onboarding_type, created_at);
+
+CREATE INDEX "IX_platform_customers_tenant_name_prefix"
+ON gccs.tenants (upper(name) text_pattern_ops);
+CREATE INDEX "IX_platform_customers_reference_prefix"
+ON gccs.platform_tenant_onboardings (upper(customer_reference) text_pattern_ops);
+CREATE INDEX "IX_platform_customers_owner_email_prefix"
+ON gccs.platform_tenant_onboardings (upper(owner_email) text_pattern_ops);
+CREATE INDEX "IX_platform_customers_subscription_reference_prefix"
+ON gccs.tenant_subscriptions (upper(external_subscription_reference) text_pattern_ops);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260815222415_AddPlatformCustomerDirectoryIndexes', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.reports ADD CONSTRAINT "AK_reports_tenant_id_id" UNIQUE (tenant_id, id);
+
+CREATE TABLE gccs.report_exports (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    report_id uuid NOT NULL,
+    format character varying(20) NOT NULL,
+    render_version character varying(40) NOT NULL,
+    status character varying(64) NOT NULL,
+    object_name character varying(500) NOT NULL,
+    file_name character varying(240) NOT NULL,
+    content_type character varying(100) NOT NULL,
+    content_length bigint,
+    e_tag character varying(200),
+    requested_by_user_id uuid NOT NULL,
+    requested_at timestamp with time zone NOT NULL,
+    processing_attempt_count integer NOT NULL,
+    processing_lease_id uuid,
+    processing_lease_until timestamp with time zone,
+    completed_at timestamp with time zone,
+    failure_code character varying(160),
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_report_exports" PRIMARY KEY (id),
+    CONSTRAINT "FK_report_exports_reports_tenant_id_report_id" FOREIGN KEY (tenant_id, report_id) REFERENCES gccs.reports (tenant_id, id) ON DELETE CASCADE,
+    CONSTRAINT "FK_report_exports_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_report_exports_created_at_updated_at" ON gccs.report_exports (created_at, updated_at);
+
+CREATE INDEX "IX_report_exports_status_requested_at" ON gccs.report_exports (status, requested_at);
+
+CREATE UNIQUE INDEX "IX_report_exports_tenant_id_report_id_format_render_version" ON gccs.report_exports (tenant_id, report_id, format, render_version);
+
+INSERT INTO gccs.role_permissions (role_id, permission)
+SELECT id, 'ExportReports'
+FROM gccs.roles
+WHERE name = 'Owner'
+ON CONFLICT (role_id, permission) DO NOTHING;
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260816173001_AddOwnerReportPdfExports', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+INSERT INTO gccs.mvp_modules (key, name, purpose, status)
+VALUES ('calendar', 'Compliance calendar', 'Track renewals, reports, training, affirmations, deliverables, and policy reviews.', 'planned');
+INSERT INTO gccs.mvp_modules (key, name, purpose, status)
+VALUES ('cmmc', 'CMMC readiness tracker', 'Track Level 1 and Level 2 controls, evidence, SSP, POA&M, assets, and affirmations.', 'planned');
+INSERT INTO gccs.mvp_modules (key, name, purpose, status)
+VALUES ('company-profile', 'Company compliance profile', 'Capture UEI, CAGE, SAM, NAICS, certifications, roles, and data posture.', 'planned');
+INSERT INTO gccs.mvp_modules (key, name, purpose, status)
+VALUES ('contract-intake', 'Contract and clause intake', 'Collect solicitations, contracts, flow-downs, wage determinations, and CUI guides.', 'active');
+INSERT INTO gccs.mvp_modules (key, name, purpose, status)
+VALUES ('evidence-vault', 'Evidence vault', 'Tag evidence by obligation, contract, control, vendor, employee, and expiration date.', 'planned');
+INSERT INTO gccs.mvp_modules (key, name, purpose, status)
+VALUES ('obligations', 'Obligation dashboard', 'Map clauses to required actions, owners, evidence, deadlines, and source links.', 'seeded');
+INSERT INTO gccs.mvp_modules (key, name, purpose, status)
+VALUES ('reports', 'Basic reports', 'Generate obligation matrices, readiness reports, evidence packages, and risk dashboards.', 'planned');
+INSERT INTO gccs.mvp_modules (key, name, purpose, status)
+VALUES ('subcontractors', 'Subcontractor flow-down tracker', 'Track flow-down clauses, CMMC status, insurance, NDAs, CUI access, and workshare.', 'planned');
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260816185344_SeedMvpModules', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+UPDATE gccs.mvp_modules SET status = 'active'
+WHERE key = 'calendar';
+
+UPDATE gccs.mvp_modules SET status = 'active'
+WHERE key = 'cmmc';
+
+UPDATE gccs.mvp_modules SET status = 'active'
+WHERE key = 'company-profile';
+
+UPDATE gccs.mvp_modules SET status = 'active'
+WHERE key = 'evidence-vault';
+
+UPDATE gccs.mvp_modules SET status = 'active'
+WHERE key = 'reports';
+
+UPDATE gccs.mvp_modules SET status = 'active'
+WHERE key = 'subcontractors';
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260816191524_UpdateMvpModuleStatuses', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE gccs.fedramp_control_mappings (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    control_id character varying(80) NOT NULL,
+    family character varying(120) NOT NULL,
+    baseline character varying(120) NOT NULL,
+    owner character varying(200) NOT NULL,
+    implementation_status character varying(64) NOT NULL,
+    implementation_summary character varying(1200) NOT NULL,
+    inherited_provider character varying(200),
+    gap_rationale character varying(1000),
+    source_reference character varying(600) NOT NULL,
+    review_state character varying(64) NOT NULL,
+    reviewer character varying(200),
+    review_date date,
+    version bigint NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_fedramp_control_mappings" PRIMARY KEY (id),
+    CONSTRAINT "AK_fedramp_control_mappings_tenant_id_id" UNIQUE (tenant_id, id),
+    CONSTRAINT "FK_fedramp_control_mappings_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.fedramp_readiness_packages (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    generated_at timestamp with time zone NOT NULL,
+    package_version character varying(120) NOT NULL,
+    scope character varying(400) NOT NULL,
+    environment character varying(200) NOT NULL,
+    reviewer character varying(200) NOT NULL,
+    authorization_language character varying(400) NOT NULL,
+    gaps_json jsonb NOT NULL,
+    accepted_risks_json jsonb NOT NULL,
+    readiness_summary character varying(2000) NOT NULL,
+    status character varying(64) NOT NULL,
+    last_actor character varying(320),
+    shared_at timestamp with time zone,
+    version bigint NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_fedramp_readiness_packages" PRIMARY KEY (id),
+    CONSTRAINT "AK_fedramp_readiness_packages_tenant_id_id" UNIQUE (tenant_id, id),
+    CONSTRAINT "FK_fedramp_readiness_packages_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.fedramp_control_mapping_history (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    mapping_id uuid NOT NULL,
+    previous_state character varying(64) NOT NULL,
+    new_state character varying(64) NOT NULL,
+    reviewer character varying(200) NOT NULL,
+    review_date date NOT NULL,
+    review_notes character varying(1200) NOT NULL,
+    changed_at timestamp with time zone NOT NULL,
+    changed_by_user_id uuid NOT NULL,
+    CONSTRAINT "PK_fedramp_control_mapping_history" PRIMARY KEY (id),
+    CONSTRAINT "FK_fedramp_control_mapping_history_fedramp_control_mappings_te~" FOREIGN KEY (tenant_id, mapping_id) REFERENCES gccs.fedramp_control_mappings (tenant_id, id) ON DELETE CASCADE,
+    CONSTRAINT "FK_fedramp_control_mapping_history_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.fedramp_evidence_links (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    mapping_id uuid NOT NULL,
+    label character varying(200) NOT NULL,
+    reference character varying(600) NOT NULL,
+    evidence_type character varying(64) NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid NOT NULL,
+    CONSTRAINT "PK_fedramp_evidence_links" PRIMARY KEY (id),
+    CONSTRAINT "FK_fedramp_evidence_links_fedramp_control_mappings_tenant_id_m~" FOREIGN KEY (tenant_id, mapping_id) REFERENCES gccs.fedramp_control_mappings (tenant_id, id) ON DELETE CASCADE,
+    CONSTRAINT "FK_fedramp_evidence_links_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.fedramp_gaps (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    mapping_id uuid NOT NULL,
+    rationale character varying(1000) NOT NULL,
+    severity character varying(64) NOT NULL,
+    owner character varying(200) NOT NULL,
+    target_date date NOT NULL,
+    is_open boolean NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid NOT NULL,
+    CONSTRAINT "PK_fedramp_gaps" PRIMARY KEY (id),
+    CONSTRAINT "FK_fedramp_gaps_fedramp_control_mappings_tenant_id_mapping_id" FOREIGN KEY (tenant_id, mapping_id) REFERENCES gccs.fedramp_control_mappings (tenant_id, id) ON DELETE CASCADE,
+    CONSTRAINT "FK_fedramp_gaps_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.fedramp_package_records (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    package_id uuid NOT NULL,
+    record_type character varying(120) NOT NULL,
+    record_id character varying(240) NOT NULL,
+    title character varying(400) NOT NULL,
+    status character varying(64) NOT NULL,
+    restricted boolean NOT NULL,
+    prohibited boolean NOT NULL,
+    CONSTRAINT "PK_fedramp_package_records" PRIMARY KEY (id),
+    CONSTRAINT "FK_fedramp_package_records_fedramp_readiness_packages_tenant_i~" FOREIGN KEY (tenant_id, package_id) REFERENCES gccs.fedramp_readiness_packages (tenant_id, id) ON DELETE CASCADE,
+    CONSTRAINT "FK_fedramp_package_records_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.fedramp_readiness_package_history (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    package_id uuid NOT NULL,
+    previous_status character varying(64) NOT NULL,
+    new_status character varying(64) NOT NULL,
+    actor character varying(320) NOT NULL,
+    notes character varying(1200),
+    changed_at timestamp with time zone NOT NULL,
+    changed_by_user_id uuid NOT NULL,
+    CONSTRAINT "PK_fedramp_readiness_package_history" PRIMARY KEY (id),
+    CONSTRAINT "FK_fedramp_readiness_package_history_fedramp_readiness_package~" FOREIGN KEY (tenant_id, package_id) REFERENCES gccs.fedramp_readiness_packages (tenant_id, id) ON DELETE CASCADE,
+    CONSTRAINT "FK_fedramp_readiness_package_history_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_fedramp_control_mapping_history_tenant_id_mapping_id_change~" ON gccs.fedramp_control_mapping_history (tenant_id, mapping_id, changed_at);
+
+CREATE INDEX "IX_fedramp_control_mappings_created_at_updated_at" ON gccs.fedramp_control_mappings (created_at, updated_at);
+
+CREATE UNIQUE INDEX "IX_fedramp_control_mappings_tenant_id_control_id_baseline" ON gccs.fedramp_control_mappings (tenant_id, control_id, baseline);
+
+CREATE INDEX "IX_fedramp_control_mappings_tenant_id_family_review_state" ON gccs.fedramp_control_mappings (tenant_id, family, review_state);
+
+CREATE UNIQUE INDEX "IX_fedramp_evidence_links_tenant_id_mapping_id_reference" ON gccs.fedramp_evidence_links (tenant_id, mapping_id, reference);
+
+CREATE INDEX "IX_fedramp_gaps_tenant_id_mapping_id_is_open_severity" ON gccs.fedramp_gaps (tenant_id, mapping_id, is_open, severity);
+
+CREATE UNIQUE INDEX "IX_fedramp_package_records_tenant_id_package_id_record_type_re~" ON gccs.fedramp_package_records (tenant_id, package_id, record_type, record_id);
+
+CREATE INDEX "IX_fedramp_readiness_package_history_tenant_id_package_id_chan~" ON gccs.fedramp_readiness_package_history (tenant_id, package_id, changed_at);
+
+CREATE INDEX "IX_fedramp_readiness_packages_created_at_updated_at" ON gccs.fedramp_readiness_packages (created_at, updated_at);
+
+CREATE UNIQUE INDEX "IX_fedramp_readiness_packages_tenant_id_package_version" ON gccs.fedramp_readiness_packages (tenant_id, package_version);
+
+CREATE INDEX "IX_fedramp_readiness_packages_tenant_id_status_generated_at" ON gccs.fedramp_readiness_packages (tenant_id, status, generated_at);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260904163954_AddDurableFedRampReadiness', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE gccs.object_cleanup (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    actor_user_id uuid NOT NULL,
+    container character varying(32) NOT NULL,
+    object_name character varying(1024) NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    next_attempt_at timestamp with time zone NOT NULL,
+    attempts integer NOT NULL,
+    completed_at timestamp with time zone,
+    last_error_code character varying(128),
+    CONSTRAINT "PK_object_cleanup" PRIMARY KEY (id),
+    CONSTRAINT "FK_object_cleanup_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_object_cleanup_completed_at_next_attempt_at" ON gccs.object_cleanup (completed_at, next_attempt_at);
+
+CREATE INDEX "IX_object_cleanup_tenant_id_id" ON gccs.object_cleanup (tenant_id, id);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260907230515_AddDurableObjectCleanup', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE gccs.classified_notes (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    title character varying(240) NOT NULL,
+    body character varying(20000) NOT NULL,
+    revision bigint NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    updated_at timestamp with time zone NOT NULL,
+    classification character varying(64) NOT NULL,
+    classification_source character varying(64) NOT NULL,
+    classification_confidence numeric,
+    classification_reviewed_by_user_id uuid,
+    classification_reviewed_at timestamp with time zone,
+    classification_reason character varying(600),
+    classification_is_approved_demo_content boolean NOT NULL,
+    CONSTRAINT "PK_classified_notes" PRIMARY KEY (id),
+    CONSTRAINT "FK_classified_notes_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_classified_notes_tenant_id_updated_at" ON gccs.classified_notes (tenant_id, updated_at);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260908144153_AddClassifiedNotes', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.reports ADD classification_revision bigint NOT NULL DEFAULT 0;
+
+ALTER TABLE gccs.extraction_jobs ADD classification_revision bigint NOT NULL DEFAULT 0;
+
+ALTER TABLE gccs.evidence_items ADD classification_revision bigint NOT NULL DEFAULT 0;
+
+ALTER TABLE gccs.evidence_file_versions ADD classification_revision bigint NOT NULL DEFAULT 0;
+
+ALTER TABLE gccs.contract_documents ADD classification_revision bigint NOT NULL DEFAULT 0;
+
+ALTER TABLE gccs.content_classification_history ADD previous_metadata_json jsonb;
+
+ALTER TABLE gccs.content_classification_history ADD revision bigint;
+
+ALTER TABLE gccs.classified_notes ADD classification_revision bigint NOT NULL DEFAULT 0;
+
+CREATE TABLE gccs.report_classifications (
+    id uuid NOT NULL,
+    classification_revision bigint NOT NULL,
+    classification character varying(64) NOT NULL,
+    classification_source character varying(64) NOT NULL,
+    classification_confidence numeric,
+    classification_reviewed_by_user_id uuid,
+    classification_reviewed_at timestamp with time zone,
+    classification_reason character varying(600),
+    classification_is_approved_demo_content boolean NOT NULL,
+    CONSTRAINT "PK_report_classifications" PRIMARY KEY (id),
+    CONSTRAINT "FK_report_classifications_reports_id" FOREIGN KEY (id) REFERENCES gccs.reports (id) ON DELETE RESTRICT
+);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260908151906_AddVersionedContentClassification', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.cui_ready_approval_checklist_items ADD supporting_record_id uuid;
+
+ALTER TABLE gccs.cui_ready_approval_checklist_items ADD supporting_version character varying(80);
+
+CREATE TABLE gccs.cui_readiness_evidence (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    kind character varying(80) NOT NULL,
+    version integer NOT NULL,
+    state character varying(40) NOT NULL,
+    reviewed_at timestamp with time zone NOT NULL,
+    reviewed_by_user_id uuid NOT NULL,
+    expires_at timestamp with time zone NOT NULL,
+    source_reference character varying(600) NOT NULL,
+    review_notes character varying(1200) NOT NULL,
+    details_json jsonb NOT NULL,
+    CONSTRAINT "PK_cui_readiness_evidence" PRIMARY KEY (id),
+    CONSTRAINT "FK_cui_readiness_evidence_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE UNIQUE INDEX "IX_cui_readiness_evidence_tenant_id_kind_version" ON gccs.cui_readiness_evidence (tenant_id, kind, version);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260908181858_AddVersionedCuiReadinessEvidence', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.reports ADD is_use_blocked boolean NOT NULL DEFAULT FALSE;
+
+ALTER TABLE gccs.reports ADD use_blocked_at timestamp with time zone;
+
+ALTER TABLE gccs.extraction_jobs ADD is_use_blocked boolean NOT NULL DEFAULT FALSE;
+
+ALTER TABLE gccs.extraction_jobs ADD use_blocked_at timestamp with time zone;
+
+ALTER TABLE gccs.evidence_items ADD is_use_blocked boolean NOT NULL DEFAULT FALSE;
+
+ALTER TABLE gccs.evidence_items ADD use_blocked_at timestamp with time zone;
+
+ALTER TABLE gccs.evidence_file_versions ADD is_use_blocked boolean NOT NULL DEFAULT FALSE;
+
+ALTER TABLE gccs.evidence_file_versions ADD use_blocked_at timestamp with time zone;
+
+ALTER TABLE gccs.contract_documents ADD is_use_blocked boolean NOT NULL DEFAULT FALSE;
+
+ALTER TABLE gccs.contract_documents ADD use_blocked_at timestamp with time zone;
+
+ALTER TABLE gccs.classified_notes ADD is_use_blocked boolean NOT NULL DEFAULT FALSE;
+
+ALTER TABLE gccs.classified_notes ADD use_blocked_at timestamp with time zone;
+
+UPDATE gccs.evidence_items AS content
+SET is_use_blocked = TRUE, use_blocked_at = active.first_blocked_at
+FROM (SELECT affected_entity_id::uuid AS id, MIN(created_at) AS first_blocked_at
+      FROM gccs.cui_support_escalations
+      WHERE affected_entity_type = 'EvidenceItem' AND is_affected_content_blocked
+      GROUP BY affected_entity_id) AS active
+WHERE content.id = active.id;
+
+UPDATE gccs.evidence_file_versions AS content
+SET is_use_blocked = TRUE, use_blocked_at = active.first_blocked_at
+FROM (SELECT affected_entity_id::uuid AS id, MIN(created_at) AS first_blocked_at
+      FROM gccs.cui_support_escalations
+      WHERE affected_entity_type = 'EvidenceFileVersion' AND is_affected_content_blocked
+      GROUP BY affected_entity_id) AS active
+WHERE content.id = active.id;
+
+UPDATE gccs.classified_notes AS content
+SET is_use_blocked = TRUE, use_blocked_at = active.first_blocked_at
+FROM (SELECT affected_entity_id::uuid AS id, MIN(created_at) AS first_blocked_at
+      FROM gccs.cui_support_escalations
+      WHERE affected_entity_type = 'ClassifiedNote' AND is_affected_content_blocked
+      GROUP BY affected_entity_id) AS active
+WHERE content.id = active.id;
+
+UPDATE gccs.contract_documents AS content
+SET is_use_blocked = TRUE, use_blocked_at = active.first_blocked_at
+FROM (SELECT affected_entity_id::uuid AS id, MIN(created_at) AS first_blocked_at
+      FROM gccs.cui_support_escalations
+      WHERE affected_entity_type = 'ContractDocument' AND is_affected_content_blocked
+      GROUP BY affected_entity_id) AS active
+WHERE content.id = active.id;
+
+UPDATE gccs.extraction_jobs AS content
+SET is_use_blocked = TRUE, use_blocked_at = active.first_blocked_at
+FROM (SELECT affected_entity_id::uuid AS id, MIN(created_at) AS first_blocked_at
+      FROM gccs.cui_support_escalations
+      WHERE affected_entity_type = 'ExtractionJob' AND is_affected_content_blocked
+      GROUP BY affected_entity_id) AS active
+WHERE content.id = active.id;
+
+UPDATE gccs.reports AS content
+SET is_use_blocked = TRUE, use_blocked_at = active.first_blocked_at
+FROM (SELECT affected_entity_id::uuid AS id, MIN(created_at) AS first_blocked_at
+      FROM gccs.cui_support_escalations
+      WHERE affected_entity_type = 'Report' AND is_affected_content_blocked
+      GROUP BY affected_entity_id) AS active
+WHERE content.id = active.id;
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260908211851_AddDurableCuiContentContainment', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.cui_support_escalations ADD sla_due_at timestamp with time zone;
+
+CREATE TABLE gccs.cui_support_escalation_events (
+    id uuid NOT NULL,
+    escalation_id uuid NOT NULL,
+    status character varying(64) NOT NULL,
+    note character varying(1200) NOT NULL,
+    occurred_at timestamp with time zone NOT NULL,
+    actor_user_id uuid NOT NULL,
+    CONSTRAINT "PK_cui_support_escalation_events" PRIMARY KEY (id),
+    CONSTRAINT "FK_cui_support_escalation_events_cui_support_escalations_escal~" FOREIGN KEY (escalation_id) REFERENCES gccs.cui_support_escalations (id) ON DELETE CASCADE
+);
+
+CREATE INDEX "IX_cui_support_escalation_events_escalation_id_occurred_at" ON gccs.cui_support_escalation_events (escalation_id, occurred_at);
+
+UPDATE gccs.cui_support_escalations
+SET sla_due_at = created_at + CASE severity
+    WHEN 'Critical' THEN INTERVAL '1 hour'
+    WHEN 'High' THEN INTERVAL '4 hours'
+    WHEN 'Medium' THEN INTERVAL '24 hours'
+    ELSE INTERVAL '72 hours' END;
+
+INSERT INTO gccs.cui_support_escalation_events
+    (id, escalation_id, status, note, occurred_at, actor_user_id)
+SELECT gen_random_uuid(), id, 'Submitted', 'Escalation submitted (migrated history baseline).', created_at,
+       COALESCE(created_by_user_id, '00000000-0000-0000-0000-000000000000'::uuid)
+FROM gccs.cui_support_escalations;
+
+INSERT INTO gccs.cui_support_escalation_events
+    (id, escalation_id, status, note, occurred_at, actor_user_id)
+SELECT gen_random_uuid(), id, status, COALESCE(status_note, 'Legacy workflow transition.'),
+       COALESCE(status_changed_at, updated_at, created_at),
+       COALESCE(status_changed_by_user_id, updated_by_user_id, created_by_user_id, '00000000-0000-0000-0000-000000000000'::uuid)
+FROM gccs.cui_support_escalations
+WHERE status <> 'Submitted';
+
+ALTER TABLE gccs.cui_support_escalations ALTER COLUMN sla_due_at SET NOT NULL;
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260908212323_AddCuiEscalationWorkflowHistory', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.audit_log_entries ADD classification character varying(80);
+
+ALTER TABLE gccs.audit_log_entries ADD event_type character varying(120);
+
+ALTER TABLE gccs.audit_log_entries ADD mode character varying(80);
+
+ALTER TABLE gccs.audit_log_entries ADD result character varying(40);
+
+UPDATE gccs.audit_log_entries
+SET classification = NULLIF(metadata_json ->> 'classification', ''),
+    mode = NULLIF(COALESCE(metadata_json ->> 'mode', metadata_json ->> 'afterDataHandlingMode', metadata_json ->> 'dataHandlingMode'), ''),
+    result = LOWER(COALESCE(NULLIF(metadata_json ->> 'result', ''), CASE WHEN action = 'Rejected' THEN 'rejected' ELSE 'succeeded' END)),
+    event_type = LOWER(TRIM(BOTH '-' FROM REGEXP_REPLACE(
+        COALESCE(NULLIF(metadata_json ->> 'eventType', ''), entity_type || '-' || action),
+        '[^A-Za-z0-9]+', '-', 'g')));
+
+ALTER TABLE gccs.audit_log_entries ALTER COLUMN event_type SET NOT NULL;
+
+ALTER TABLE gccs.audit_log_entries ALTER COLUMN result SET NOT NULL;
+
+CREATE INDEX "IX_audit_log_entries_tenant_id_event_type_occurred_at" ON gccs.audit_log_entries (tenant_id, event_type, occurred_at);
+
+CREATE INDEX "IX_audit_log_entries_tenant_id_result_occurred_at" ON gccs.audit_log_entries (tenant_id, result, occurred_at);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260908231633_AddNormalizedCuiAuditDimensions', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE gccs.incident_readiness_records (
+    id uuid NOT NULL,
+    review_due_at date NOT NULL,
+    review_basis character varying(40) NOT NULL,
+    tenant_id uuid NOT NULL,
+    version integer NOT NULL,
+    state character varying(32) NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid NOT NULL,
+    approved_at timestamp with time zone,
+    approved_by_user_id uuid,
+    approval_notes character varying(1200),
+    CONSTRAINT "PK_incident_readiness_records" PRIMARY KEY (id),
+    CONSTRAINT "FK_incident_readiness_records_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.readiness_approvals (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    record_type character varying(80) NOT NULL,
+    record_id uuid NOT NULL,
+    version integer NOT NULL,
+    approved_by_user_id uuid NOT NULL,
+    approved_at timestamp with time zone NOT NULL,
+    notes character varying(1200) NOT NULL,
+    CONSTRAINT "PK_readiness_approvals" PRIMARY KEY (id),
+    CONSTRAINT "FK_readiness_approvals_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.readiness_history (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    record_type character varying(80) NOT NULL,
+    record_id uuid NOT NULL,
+    version integer NOT NULL,
+    action character varying(80) NOT NULL,
+    actor_user_id uuid NOT NULL,
+    occurred_at timestamp with time zone NOT NULL,
+    summary character varying(1200) NOT NULL,
+    CONSTRAINT "PK_readiness_history" PRIMARY KEY (id),
+    CONSTRAINT "FK_readiness_history_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.security_review_records (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    version integer NOT NULL,
+    state character varying(32) NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid NOT NULL,
+    approved_at timestamp with time zone,
+    approved_by_user_id uuid,
+    approval_notes character varying(1200),
+    CONSTRAINT "PK_security_review_records" PRIMARY KEY (id),
+    CONSTRAINT "FK_security_review_records_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.technical_readiness_records (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    version integer NOT NULL,
+    state character varying(32) NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid NOT NULL,
+    approved_at timestamp with time zone,
+    approved_by_user_id uuid,
+    approval_notes character varying(1200),
+    CONSTRAINT "PK_technical_readiness_records" PRIMARY KEY (id),
+    CONSTRAINT "FK_technical_readiness_records_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.incident_contacts (
+    id uuid NOT NULL,
+    logical_id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    readiness_id uuid NOT NULL,
+    function character varying(80) NOT NULL,
+    contact character varying(240) NOT NULL,
+    escalation_role character varying(180) NOT NULL,
+    CONSTRAINT "PK_incident_contacts" PRIMARY KEY (id),
+    CONSTRAINT "FK_incident_contacts_incident_readiness_records_readiness_id" FOREIGN KEY (readiness_id) REFERENCES gccs.incident_readiness_records (id) ON DELETE CASCADE,
+    CONSTRAINT "FK_incident_contacts_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.incident_playbooks (
+    id uuid NOT NULL,
+    logical_id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    readiness_id uuid NOT NULL,
+    key character varying(160) NOT NULL,
+    trigger character varying(1200) NOT NULL,
+    containment_steps_json jsonb NOT NULL,
+    notification_path character varying(1200) NOT NULL,
+    evidence_to_collect_json jsonb NOT NULL,
+    owner character varying(180) NOT NULL,
+    closure_criteria character varying(1200) NOT NULL,
+    CONSTRAINT "PK_incident_playbooks" PRIMARY KEY (id),
+    CONSTRAINT "FK_incident_playbooks_incident_readiness_records_readiness_id" FOREIGN KEY (readiness_id) REFERENCES gccs.incident_readiness_records (id) ON DELETE CASCADE,
+    CONSTRAINT "FK_incident_playbooks_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.incident_tabletops (
+    id uuid NOT NULL,
+    logical_id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    readiness_id uuid NOT NULL,
+    executed_at date NOT NULL,
+    environment character varying(160) NOT NULL,
+    participants_json jsonb NOT NULL,
+    findings_json jsonb NOT NULL,
+    evidence_reference character varying(600) NOT NULL,
+    reviewer_user_id uuid NOT NULL,
+    CONSTRAINT "PK_incident_tabletops" PRIMARY KEY (id),
+    CONSTRAINT "FK_incident_tabletops_incident_readiness_records_readiness_id" FOREIGN KEY (readiness_id) REFERENCES gccs.incident_readiness_records (id) ON DELETE CASCADE,
+    CONSTRAINT "FK_incident_tabletops_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.security_review_checklist_items (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    review_id uuid NOT NULL,
+    area character varying(120) NOT NULL,
+    status integer NOT NULL,
+    reviewer_user_id uuid,
+    reviewed_at date,
+    evidence_link character varying(600),
+    rationale character varying(1200),
+    CONSTRAINT "PK_security_review_checklist_items" PRIMARY KEY (id),
+    CONSTRAINT "FK_security_review_checklist_items_security_review_records_rev~" FOREIGN KEY (review_id) REFERENCES gccs.security_review_records (id) ON DELETE CASCADE,
+    CONSTRAINT "FK_security_review_checklist_items_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.security_review_findings (
+    id uuid NOT NULL,
+    logical_id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    review_id uuid NOT NULL,
+    area character varying(120) NOT NULL,
+    severity integer NOT NULL,
+    status integer NOT NULL,
+    summary character varying(1200) NOT NULL,
+    remediation_owner character varying(180) NOT NULL,
+    due_at date,
+    closure_notes character varying(1200),
+    CONSTRAINT "PK_security_review_findings" PRIMARY KEY (id),
+    CONSTRAINT "FK_security_review_findings_security_review_records_review_id" FOREIGN KEY (review_id) REFERENCES gccs.security_review_records (id) ON DELETE CASCADE,
+    CONSTRAINT "FK_security_review_findings_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.executed_control_evidence (
+    id uuid NOT NULL,
+    logical_id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    readiness_id uuid NOT NULL,
+    control_type character varying(120) NOT NULL,
+    executed_at date NOT NULL,
+    environment character varying(160) NOT NULL,
+    reviewer_user_id uuid NOT NULL,
+    result character varying(80) NOT NULL,
+    evidence_reference character varying(600) NOT NULL,
+    expires_at date,
+    notes character varying(1200) NOT NULL,
+    CONSTRAINT "PK_executed_control_evidence" PRIMARY KEY (id),
+    CONSTRAINT "FK_executed_control_evidence_technical_readiness_records_readi~" FOREIGN KEY (readiness_id) REFERENCES gccs.technical_readiness_records (id) ON DELETE CASCADE,
+    CONSTRAINT "FK_executed_control_evidence_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.incident_follow_ups (
+    id uuid NOT NULL,
+    logical_id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    readiness_id uuid NOT NULL,
+    tabletop_id uuid NOT NULL,
+    severity integer NOT NULL,
+    status integer NOT NULL,
+    summary character varying(1200) NOT NULL,
+    owner character varying(180) NOT NULL,
+    due_at date NOT NULL,
+    closure_notes character varying(1200),
+    CONSTRAINT "PK_incident_follow_ups" PRIMARY KEY (id),
+    CONSTRAINT "FK_incident_follow_ups_incident_readiness_records_readiness_id" FOREIGN KEY (readiness_id) REFERENCES gccs.incident_readiness_records (id) ON DELETE CASCADE,
+    CONSTRAINT "FK_incident_follow_ups_incident_tabletops_tabletop_id" FOREIGN KEY (tabletop_id) REFERENCES gccs.incident_tabletops (id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_incident_follow_ups_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.accepted_security_risks (
+    id uuid NOT NULL,
+    logical_id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    review_id uuid NOT NULL,
+    finding_id uuid,
+    approver_user_id uuid NOT NULL,
+    accepted_at date NOT NULL,
+    scope character varying(1200) NOT NULL,
+    expires_at date,
+    review_at date,
+    mitigation_note character varying(1200) NOT NULL,
+    CONSTRAINT "PK_accepted_security_risks" PRIMARY KEY (id),
+    CONSTRAINT "FK_accepted_security_risks_security_review_findings_finding_id" FOREIGN KEY (finding_id) REFERENCES gccs.security_review_findings (id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_accepted_security_risks_security_review_records_review_id" FOREIGN KEY (review_id) REFERENCES gccs.security_review_records (id) ON DELETE CASCADE,
+    CONSTRAINT "FK_accepted_security_risks_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_accepted_security_risks_finding_id" ON gccs.accepted_security_risks (finding_id);
+
+CREATE UNIQUE INDEX "IX_accepted_security_risks_review_id_logical_id" ON gccs.accepted_security_risks (review_id, logical_id);
+
+CREATE INDEX "IX_accepted_security_risks_tenant_id_review_id" ON gccs.accepted_security_risks (tenant_id, review_id);
+
+CREATE INDEX "IX_executed_control_evidence_readiness_id_control_type" ON gccs.executed_control_evidence (readiness_id, control_type);
+
+CREATE UNIQUE INDEX "IX_executed_control_evidence_readiness_id_logical_id" ON gccs.executed_control_evidence (readiness_id, logical_id);
+
+CREATE INDEX "IX_executed_control_evidence_tenant_id" ON gccs.executed_control_evidence (tenant_id);
+
+CREATE UNIQUE INDEX "IX_incident_contacts_readiness_id_function" ON gccs.incident_contacts (readiness_id, function);
+
+CREATE UNIQUE INDEX "IX_incident_contacts_readiness_id_logical_id" ON gccs.incident_contacts (readiness_id, logical_id);
+
+CREATE INDEX "IX_incident_contacts_tenant_id" ON gccs.incident_contacts (tenant_id);
+
+CREATE UNIQUE INDEX "IX_incident_follow_ups_readiness_id_logical_id" ON gccs.incident_follow_ups (readiness_id, logical_id);
+
+CREATE INDEX "IX_incident_follow_ups_tabletop_id" ON gccs.incident_follow_ups (tabletop_id);
+
+CREATE INDEX "IX_incident_follow_ups_tenant_id_status_severity" ON gccs.incident_follow_ups (tenant_id, status, severity);
+
+CREATE UNIQUE INDEX "IX_incident_playbooks_readiness_id_key" ON gccs.incident_playbooks (readiness_id, key);
+
+CREATE UNIQUE INDEX "IX_incident_playbooks_readiness_id_logical_id" ON gccs.incident_playbooks (readiness_id, logical_id);
+
+CREATE INDEX "IX_incident_playbooks_tenant_id" ON gccs.incident_playbooks (tenant_id);
+
+CREATE INDEX "IX_incident_readiness_records_tenant_id_state" ON gccs.incident_readiness_records (tenant_id, state);
+
+CREATE UNIQUE INDEX "IX_incident_readiness_records_tenant_id_version" ON gccs.incident_readiness_records (tenant_id, version);
+
+CREATE UNIQUE INDEX "IX_incident_tabletops_readiness_id_logical_id" ON gccs.incident_tabletops (readiness_id, logical_id);
+
+CREATE INDEX "IX_incident_tabletops_tenant_id_executed_at" ON gccs.incident_tabletops (tenant_id, executed_at);
+
+CREATE UNIQUE INDEX "IX_readiness_approvals_tenant_id_record_type_record_id_version" ON gccs.readiness_approvals (tenant_id, record_type, record_id, version);
+
+CREATE INDEX "IX_readiness_history_tenant_id_occurred_at" ON gccs.readiness_history (tenant_id, occurred_at);
+
+CREATE UNIQUE INDEX "IX_security_review_checklist_items_review_id_area" ON gccs.security_review_checklist_items (review_id, area);
+
+CREATE INDEX "IX_security_review_checklist_items_tenant_id" ON gccs.security_review_checklist_items (tenant_id);
+
+CREATE UNIQUE INDEX "IX_security_review_findings_review_id_logical_id" ON gccs.security_review_findings (review_id, logical_id);
+
+CREATE INDEX "IX_security_review_findings_tenant_id_status_severity" ON gccs.security_review_findings (tenant_id, status, severity);
+
+CREATE INDEX "IX_security_review_records_tenant_id_state" ON gccs.security_review_records (tenant_id, state);
+
+CREATE UNIQUE INDEX "IX_security_review_records_tenant_id_version" ON gccs.security_review_records (tenant_id, version);
+
+CREATE INDEX "IX_technical_readiness_records_tenant_id_state" ON gccs.technical_readiness_records (tenant_id, state);
+
+CREATE UNIQUE INDEX "IX_technical_readiness_records_tenant_id_version" ON gccs.technical_readiness_records (tenant_id, version);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260909002242_AddPersistentSecurityIncidentReadiness', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.incident_tabletops ADD evidence_file_version_id uuid;
+
+ALTER TABLE gccs.incident_tabletops ADD evidence_source_type character varying(40) NOT NULL DEFAULT 'Legacy';
+
+ALTER TABLE gccs.incident_tabletops ADD external_uri character varying(2000);
+
+ALTER TABLE gccs.incident_tabletops ADD sha256_digest character varying(64);
+
+ALTER TABLE gccs.executed_control_evidence ADD evidence_file_version_id uuid;
+
+ALTER TABLE gccs.executed_control_evidence ADD evidence_source_type character varying(40) NOT NULL DEFAULT 'Legacy';
+
+ALTER TABLE gccs.executed_control_evidence ADD external_uri character varying(2000);
+
+ALTER TABLE gccs.executed_control_evidence ADD sha256_digest character varying(64);
+
+CREATE INDEX "IX_incident_tabletops_evidence_file_version_id" ON gccs.incident_tabletops (evidence_file_version_id);
+
+CREATE INDEX "IX_executed_control_evidence_evidence_file_version_id" ON gccs.executed_control_evidence (evidence_file_version_id);
+
+ALTER TABLE gccs.executed_control_evidence ADD CONSTRAINT "FK_executed_control_evidence_evidence_file_versions_evidence_f~" FOREIGN KEY (evidence_file_version_id) REFERENCES gccs.evidence_file_versions (id) ON DELETE RESTRICT;
+
+ALTER TABLE gccs.incident_tabletops ADD CONSTRAINT "FK_incident_tabletops_evidence_file_versions_evidence_file_ver~" FOREIGN KEY (evidence_file_version_id) REFERENCES gccs.evidence_file_versions (id) ON DELETE RESTRICT;
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260909013627_AddTypedReadinessEvidenceSources', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE gccs.ssp_sections (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    section_type character varying(64) NOT NULL,
+    title character varying(200) NOT NULL,
+    owner character varying(200) NOT NULL,
+    status character varying(64) NOT NULL,
+    reviewer character varying(200),
+    review_date date,
+    approval_rationale character varying(2000),
+    is_required boolean NOT NULL,
+    version bigint NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_ssp_sections" PRIMARY KEY (id),
+    CONSTRAINT "AK_ssp_sections_tenant_id_id" UNIQUE (tenant_id, id),
+    CONSTRAINT "FK_ssp_sections_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.ssp_section_links (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    section_id uuid NOT NULL,
+    record_type character varying(64) NOT NULL,
+    record_id character varying(120) NOT NULL,
+    relationship character varying(200) NOT NULL,
+    CONSTRAINT "PK_ssp_section_links" PRIMARY KEY (id),
+    CONSTRAINT "FK_ssp_section_links_ssp_sections_tenant_id_section_id" FOREIGN KEY (tenant_id, section_id) REFERENCES gccs.ssp_sections (tenant_id, id) ON DELETE CASCADE,
+    CONSTRAINT "FK_ssp_section_links_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.ssp_section_source_references (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    section_id uuid NOT NULL,
+    source character varying(200) NOT NULL,
+    source_url character varying(1000) NOT NULL,
+    last_reviewed_at date NOT NULL,
+    CONSTRAINT "PK_ssp_section_source_references" PRIMARY KEY (id),
+    CONSTRAINT "FK_ssp_section_source_references_ssp_sections_tenant_id_sectio~" FOREIGN KEY (tenant_id, section_id) REFERENCES gccs.ssp_sections (tenant_id, id) ON DELETE CASCADE,
+    CONSTRAINT "FK_ssp_section_source_references_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.ssp_section_status_history (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    section_id uuid NOT NULL,
+    status character varying(64) NOT NULL,
+    actor_user_id uuid NOT NULL,
+    actor_name character varying(200) NOT NULL,
+    changed_at timestamp with time zone NOT NULL,
+    notes character varying(2000),
+    CONSTRAINT "PK_ssp_section_status_history" PRIMARY KEY (id),
+    CONSTRAINT "FK_ssp_section_status_history_ssp_sections_tenant_id_section_id" FOREIGN KEY (tenant_id, section_id) REFERENCES gccs.ssp_sections (tenant_id, id) ON DELETE CASCADE,
+    CONSTRAINT "FK_ssp_section_status_history_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_ssp_section_links_tenant_id_record_type_record_id" ON gccs.ssp_section_links (tenant_id, record_type, record_id);
+
+CREATE UNIQUE INDEX "IX_ssp_section_links_tenant_id_section_id_record_type_record_id" ON gccs.ssp_section_links (tenant_id, section_id, record_type, record_id);
+
+CREATE INDEX "IX_ssp_section_source_references_tenant_id_section_id" ON gccs.ssp_section_source_references (tenant_id, section_id);
+
+CREATE INDEX "IX_ssp_section_status_history_tenant_id_section_id_changed_at" ON gccs.ssp_section_status_history (tenant_id, section_id, changed_at);
+
+CREATE INDEX "IX_ssp_sections_created_at_updated_at" ON gccs.ssp_sections (created_at, updated_at);
+
+CREATE INDEX "IX_ssp_sections_tenant_id_section_type" ON gccs.ssp_sections (tenant_id, section_type);
+
+CREATE INDEX "IX_ssp_sections_tenant_id_status" ON gccs.ssp_sections (tenant_id, status);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260909165957_AddDurableSspSections', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE INDEX IF NOT EXISTS "IX_compliance_tasks_tenant_id_assigned_to_user_id_due_at_id"
+ON gccs.compliance_tasks (tenant_id, assigned_to_user_id, due_at, id);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260909192654_AddComplianceTaskSearchIndex', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE gccs.ssp_narratives (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    section_id uuid NOT NULL,
+    generated_text character varying(20000) NOT NULL,
+    edited_text character varying(20000),
+    approved_text character varying(20000),
+    status character varying(64) NOT NULL,
+    ai_assisted boolean NOT NULL,
+    draft_only boolean NOT NULL,
+    reviewer_notes character varying(4000),
+    reviewer_user_id uuid,
+    reviewer character varying(320),
+    review_date date,
+    version bigint NOT NULL,
+    classification character varying(64) NOT NULL,
+    classification_source character varying(64) NOT NULL,
+    classification_confidence numeric,
+    classification_reviewed_by_user_id uuid,
+    classification_reviewed_at timestamp with time zone,
+    classification_reason character varying(600),
+    classification_is_approved_demo_content boolean NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_ssp_narratives" PRIMARY KEY (id),
+    CONSTRAINT "AK_ssp_narratives_tenant_id_id" UNIQUE (tenant_id, id),
+    CONSTRAINT "FK_ssp_narratives_ssp_sections_tenant_id_section_id" FOREIGN KEY (tenant_id, section_id) REFERENCES gccs.ssp_sections (tenant_id, id) ON DELETE CASCADE,
+    CONSTRAINT "FK_ssp_narratives_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.ssp_narrative_sources (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    narrative_id uuid NOT NULL,
+    source_type character varying(64) NOT NULL,
+    record_id character varying(120) NOT NULL,
+    label character varying(300) NOT NULL,
+    summary character varying(1000) NOT NULL,
+    source_url character varying(1000) NOT NULL,
+    fingerprint character varying(128) NOT NULL,
+    classification character varying(64) NOT NULL,
+    CONSTRAINT "PK_ssp_narrative_sources" PRIMARY KEY (id),
+    CONSTRAINT "FK_ssp_narrative_sources_ssp_narratives_tenant_id_narrative_id" FOREIGN KEY (tenant_id, narrative_id) REFERENCES gccs.ssp_narratives (tenant_id, id) ON DELETE CASCADE,
+    CONSTRAINT "FK_ssp_narrative_sources_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE UNIQUE INDEX "IX_ssp_narrative_sources_tenant_id_narrative_id_source_type_re~" ON gccs.ssp_narrative_sources (tenant_id, narrative_id, source_type, record_id);
+
+CREATE INDEX "IX_ssp_narrative_sources_tenant_id_source_type_record_id" ON gccs.ssp_narrative_sources (tenant_id, source_type, record_id);
+
+CREATE UNIQUE INDEX "IX_ssp_narratives_tenant_id_section_id" ON gccs.ssp_narratives (tenant_id, section_id) WHERE status = 'Approved';
+
+CREATE INDEX "IX_ssp_narratives_tenant_id_section_id_status" ON gccs.ssp_narratives (tenant_id, section_id, status);
+
+CREATE INDEX "IX_ssp_narratives_tenant_id_section_id_updated_at" ON gccs.ssp_narratives (tenant_id, section_id, updated_at);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260909213508_AddDurableSspNarratives', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.policy_revisions ADD classification character varying(64) NOT NULL DEFAULT 'Unknown';
+
+ALTER TABLE gccs.policy_revisions ADD classification_confidence numeric;
+
+ALTER TABLE gccs.policy_revisions ADD classification_is_approved_demo_content boolean NOT NULL DEFAULT FALSE;
+
+ALTER TABLE gccs.policy_revisions ADD classification_reason character varying(600);
+
+ALTER TABLE gccs.policy_revisions ADD classification_reviewed_at timestamp with time zone;
+
+ALTER TABLE gccs.policy_revisions ADD classification_reviewed_by_user_id uuid;
+
+ALTER TABLE gccs.policy_revisions ADD classification_revision bigint NOT NULL DEFAULT 1;
+
+ALTER TABLE gccs.policy_revisions ADD classification_source character varying(64) NOT NULL DEFAULT 'SystemSuggested';
+
+ALTER TABLE gccs.generated_policies ADD classification character varying(64) NOT NULL DEFAULT 'Unknown';
+
+ALTER TABLE gccs.generated_policies ADD classification_confidence numeric;
+
+ALTER TABLE gccs.generated_policies ADD classification_is_approved_demo_content boolean NOT NULL DEFAULT FALSE;
+
+ALTER TABLE gccs.generated_policies ADD classification_reason character varying(600);
+
+ALTER TABLE gccs.generated_policies ADD classification_reviewed_at timestamp with time zone;
+
+ALTER TABLE gccs.generated_policies ADD classification_reviewed_by_user_id uuid;
+
+ALTER TABLE gccs.generated_policies ADD classification_revision bigint NOT NULL DEFAULT 1;
+
+ALTER TABLE gccs.generated_policies ADD classification_source character varying(64) NOT NULL DEFAULT 'SystemSuggested';
+
+UPDATE gccs.evidence_items AS evidence
+SET classification = 'Unknown',
+    classification_source = 'SystemSuggested',
+    classification_reason = 'Legacy generated-policy evidence requires classification review before governed reuse.',
+    classification_is_approved_demo_content = FALSE,
+    classification_revision = CASE WHEN classification_revision < 1 THEN 1 ELSE classification_revision + 1 END
+WHERE evidence.id IN (
+    SELECT policy.evidence_item_id
+    FROM gccs.generated_policies AS policy
+    WHERE policy.evidence_item_id IS NOT NULL
+);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260910011549_AddGeneratedPolicyClassification', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE gccs.ssp_export_packages (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    tenant_name character varying(240) NOT NULL,
+    generated_at timestamp with time zone NOT NULL,
+    package_version character varying(80) NOT NULL,
+    system_boundary character varying(4000) NOT NULL,
+    reviewer character varying(200) NOT NULL,
+    format character varying(40) NOT NULL,
+    disclaimer character varying(2000) NOT NULL,
+    human_readable_report text NOT NULL,
+    machine_readable_metadata jsonb NOT NULL,
+    sections_json jsonb NOT NULL,
+    evidence_references_json jsonb NOT NULL,
+    poam_references_json jsonb NOT NULL,
+    status character varying(40) NOT NULL,
+    external_share_approved_by_user_id uuid,
+    external_share_approved_at timestamp with time zone,
+    external_share_approval_reason character varying(1000),
+    shared_by_user_id uuid,
+    shared_at timestamp with time zone,
+    shared_recipient character varying(320),
+    shared_purpose character varying(1000),
+    version bigint NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_ssp_export_packages" PRIMARY KEY (id),
+    CONSTRAINT "AK_ssp_export_packages_tenant_id_id" UNIQUE (tenant_id, id),
+    CONSTRAINT "FK_ssp_export_packages_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.ssp_export_package_history (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    package_id uuid NOT NULL,
+    action character varying(80) NOT NULL,
+    actor_user_id uuid NOT NULL,
+    actor_name character varying(320) NOT NULL,
+    occurred_at timestamp with time zone NOT NULL,
+    notes character varying(1000),
+    CONSTRAINT "PK_ssp_export_package_history" PRIMARY KEY (id),
+    CONSTRAINT "FK_ssp_export_package_history_ssp_export_packages_tenant_id_pa~" FOREIGN KEY (tenant_id, package_id) REFERENCES gccs.ssp_export_packages (tenant_id, id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_ssp_export_package_history_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_ssp_export_package_history_tenant_id_package_id_occurred_at" ON gccs.ssp_export_package_history (tenant_id, package_id, occurred_at);
+
+CREATE INDEX "IX_ssp_export_packages_created_at_updated_at" ON gccs.ssp_export_packages (created_at, updated_at);
+
+CREATE INDEX "IX_ssp_export_packages_tenant_id_generated_at" ON gccs.ssp_export_packages (tenant_id, generated_at);
+
+CREATE UNIQUE INDEX "IX_ssp_export_packages_tenant_id_package_version" ON gccs.ssp_export_packages (tenant_id, package_version);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260910150656_AddDurableSspExportPackages', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE gccs.sprs_score_calculations (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    assessment_id uuid NOT NULL,
+    rule_set_id character varying(200) NOT NULL,
+    rule_set_version character varying(120) NOT NULL,
+    rule_set_source_url character varying(2000) NOT NULL,
+    rule_set_source_sha256 character varying(64) NOT NULL,
+    maximum_score integer NOT NULL,
+    score integer NOT NULL,
+    total_deduction integer NOT NULL,
+    line_items_json jsonb NOT NULL,
+    unresolved_gaps_json jsonb NOT NULL,
+    generated_by_user_id uuid NOT NULL,
+    generated_at timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_sprs_score_calculations" PRIMARY KEY (id),
+    CONSTRAINT "FK_sprs_score_calculations_assessments_assessment_id" FOREIGN KEY (assessment_id) REFERENCES gccs.assessments (id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_sprs_score_calculations_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.sprs_score_calculation_notes (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    calculation_id uuid NOT NULL,
+    note character varying(2000) NOT NULL,
+    classification character varying(64) NOT NULL,
+    classification_source character varying(64) NOT NULL,
+    classification_confidence numeric,
+    classification_reviewed_by_user_id uuid,
+    classification_reviewed_at timestamp with time zone,
+    classification_reason character varying(600),
+    classification_is_approved_demo_content boolean NOT NULL,
+    created_by_user_id uuid NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_sprs_score_calculation_notes" PRIMARY KEY (id),
+    CONSTRAINT "FK_sprs_score_calculation_notes_sprs_score_calculations_calcul~" FOREIGN KEY (calculation_id) REFERENCES gccs.sprs_score_calculations (id) ON DELETE CASCADE,
+    CONSTRAINT "FK_sprs_score_calculation_notes_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_sprs_score_calculation_notes_calculation_id" ON gccs.sprs_score_calculation_notes (calculation_id);
+
+CREATE INDEX "IX_sprs_score_calculation_notes_tenant_id_calculation_id_creat~" ON gccs.sprs_score_calculation_notes (tenant_id, calculation_id, created_at);
+
+CREATE INDEX "IX_sprs_score_calculations_assessment_id" ON gccs.sprs_score_calculations (assessment_id);
+
+CREATE INDEX "IX_sprs_score_calculations_tenant_id_assessment_id_generated_at" ON gccs.sprs_score_calculations (tenant_id, assessment_id, generated_at);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260910200115_AddDurableSprsScoreCalculations', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.reports ADD idempotency_key character varying(128);
+
+ALTER TABLE gccs.reports ADD request_fingerprint character varying(64);
+
+CREATE UNIQUE INDEX "IX_reports_tenant_id_type_idempotency_key" ON gccs.reports (tenant_id, type, idempotency_key) WHERE idempotency_key IS NOT NULL;
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260910215445_AddSprsReadinessReportIdempotency', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE gccs.esrs_applicabilities (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    contract_id uuid NOT NULL,
+    task_id uuid NOT NULL,
+    contract_type character varying(120) NOT NULL,
+    agency character varying(240) NOT NULL,
+    subcontracting_plan_type character varying(120) NOT NULL,
+    prime_or_lower_tier_role character varying(80) NOT NULL,
+    report_type integer NOT NULL,
+    period_start date NOT NULL,
+    period_end date NOT NULL,
+    due_date date NOT NULL,
+    source_clause character varying(240),
+    rationale character varying(2000),
+    owner_function character varying(120) NOT NULL,
+    assigned_to_user_id uuid,
+    reviewed_by_user_id uuid NOT NULL,
+    reviewed_at timestamp with time zone NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_esrs_applicabilities" PRIMARY KEY (id),
+    CONSTRAINT "FK_esrs_applicabilities_compliance_tasks_task_id" FOREIGN KEY (task_id) REFERENCES gccs.compliance_tasks (id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_esrs_applicabilities_contracts_contract_id" FOREIGN KEY (contract_id) REFERENCES gccs.contracts (id) ON DELETE CASCADE,
+    CONSTRAINT "FK_esrs_applicabilities_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_esrs_applicabilities_contract_id" ON gccs.esrs_applicabilities (contract_id);
+
+CREATE INDEX "IX_esrs_applicabilities_created_at_updated_at" ON gccs.esrs_applicabilities (created_at, updated_at);
+
+CREATE UNIQUE INDEX "IX_esrs_applicabilities_task_id" ON gccs.esrs_applicabilities (task_id);
+
+CREATE INDEX "IX_esrs_applicabilities_tenant_id_contract_id_due_date" ON gccs.esrs_applicabilities (tenant_id, contract_id, due_date);
+
+CREATE UNIQUE INDEX "IX_esrs_applicabilities_tenant_id_contract_id_report_type_peri~" ON gccs.esrs_applicabilities (tenant_id, contract_id, report_type, period_start, period_end);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260910222911_AddDurableEsrsApplicabilities', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.subcontractors ADD CONSTRAINT "AK_subcontractors_tenant_id_id" UNIQUE (tenant_id, id);
+
+ALTER TABLE gccs.evidence_items ADD CONSTRAINT "AK_evidence_items_tenant_id_id" UNIQUE (tenant_id, id);
+
+ALTER TABLE gccs.contracts ADD CONSTRAINT "AK_contracts_tenant_id_id" UNIQUE (tenant_id, id);
+
+CREATE TABLE gccs.esrs_report_data_rows (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    contract_id uuid NOT NULL,
+    subcontractor_id uuid NOT NULL,
+    report_type character varying(64) NOT NULL,
+    report_period_start date NOT NULL,
+    report_period_end date NOT NULL,
+    row_period_start date NOT NULL,
+    row_period_end date NOT NULL,
+    socioeconomic_category character varying(120) NOT NULL,
+    socioeconomic_category_key character varying(120) NOT NULL,
+    plan_category character varying(120) NOT NULL,
+    plan_category_key character varying(120) NOT NULL,
+    amount numeric(14,2) NOT NULL,
+    source_reference character varying(500) NOT NULL,
+    review_status character varying(64) NOT NULL,
+    reviewed_by_user_id uuid,
+    reviewed_at timestamp with time zone,
+    reviewer_notes character varying(2000),
+    version integer NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_esrs_report_data_rows" PRIMARY KEY (id),
+    CONSTRAINT "AK_esrs_report_data_rows_tenant_id_id" UNIQUE (tenant_id, id),
+    CONSTRAINT "CK_esrs_report_data_rows_amount_nonnegative" CHECK (amount >= 0),
+    CONSTRAINT "CK_esrs_report_data_rows_report_period" CHECK (report_period_end >= report_period_start),
+    CONSTRAINT "CK_esrs_report_data_rows_row_period" CHECK (row_period_end >= row_period_start AND row_period_start >= report_period_start AND row_period_end <= report_period_end),
+    CONSTRAINT "FK_esrs_report_data_rows_contracts_tenant_id_contract_id" FOREIGN KEY (tenant_id, contract_id) REFERENCES gccs.contracts (tenant_id, id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_esrs_report_data_rows_subcontractors_tenant_id_subcontracto~" FOREIGN KEY (tenant_id, subcontractor_id) REFERENCES gccs.subcontractors (tenant_id, id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_esrs_report_data_rows_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_esrs_report_data_rows_users_reviewed_by_user_id" FOREIGN KEY (reviewed_by_user_id) REFERENCES gccs.users (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.esrs_report_data_evidence (
+    tenant_id uuid NOT NULL,
+    report_data_row_id uuid NOT NULL,
+    evidence_item_id uuid NOT NULL,
+    CONSTRAINT "PK_esrs_report_data_evidence" PRIMARY KEY (tenant_id, report_data_row_id, evidence_item_id),
+    CONSTRAINT "FK_esrs_report_data_evidence_esrs_report_data_rows_tenant_id_r~" FOREIGN KEY (tenant_id, report_data_row_id) REFERENCES gccs.esrs_report_data_rows (tenant_id, id) ON DELETE CASCADE,
+    CONSTRAINT "FK_esrs_report_data_evidence_evidence_items_tenant_id_evidence~" FOREIGN KEY (tenant_id, evidence_item_id) REFERENCES gccs.evidence_items (tenant_id, id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_esrs_report_data_evidence_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_esrs_report_data_evidence_tenant_id_evidence_item_id" ON gccs.esrs_report_data_evidence (tenant_id, evidence_item_id);
+
+CREATE INDEX "IX_esrs_report_data_rows_created_at_updated_at" ON gccs.esrs_report_data_rows (created_at, updated_at);
+
+CREATE INDEX "IX_esrs_report_data_rows_reviewed_by_user_id" ON gccs.esrs_report_data_rows (reviewed_by_user_id);
+
+CREATE INDEX "IX_esrs_report_data_rows_tenant_id_contract_id_report_type_rep~" ON gccs.esrs_report_data_rows (tenant_id, contract_id, report_type, report_period_start, report_period_end);
+
+CREATE UNIQUE INDEX "IX_esrs_report_data_rows_tenant_id_contract_id_subcontractor_i~" ON gccs.esrs_report_data_rows (tenant_id, contract_id, subcontractor_id, report_type, report_period_start, report_period_end, row_period_start, row_period_end, socioeconomic_category_key, plan_category_key);
+
+CREATE INDEX "IX_esrs_report_data_rows_tenant_id_subcontractor_id" ON gccs.esrs_report_data_rows (tenant_id, subcontractor_id);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260910232537_AddDurableSubcontractingReportData', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.esrs_report_data_rows ADD prime_contract_piid character varying(64);
+
+ALTER TABLE gccs.esrs_report_data_rows ADD reporting_entity_uei character varying(12);
+
+ALTER TABLE gccs.esrs_report_data_rows ADD reporting_fiscal_year integer;
+
+ALTER TABLE gccs.esrs_report_data_rows ADD reporting_period character varying(64);
+
+ALTER TABLE gccs.esrs_report_data_rows ADD reporting_role character varying(64);
+
+ALTER TABLE gccs.esrs_report_data_rows ADD spr_eligibility_basis character varying(500);
+
+ALTER TABLE gccs.esrs_report_data_rows ADD spr_eligibility_confirmed boolean NOT NULL DEFAULT FALSE;
+
+ALTER TABLE gccs.esrs_report_data_rows ADD subcontract_number character varying(64);
+
+ALTER TABLE gccs.esrs_report_data_rows ADD CONSTRAINT "CK_esrs_report_data_rows_spr_readiness" CHECK (spr_eligibility_confirmed = FALSE OR (reporting_role IS NOT NULL AND reporting_fiscal_year IS NOT NULL AND reporting_period IS NOT NULL AND reporting_entity_uei IS NOT NULL AND prime_contract_piid IS NOT NULL AND spr_eligibility_basis IS NOT NULL));
+
+ALTER TABLE gccs.esrs_report_data_rows ADD CONSTRAINT "CK_esrs_report_data_rows_spr_uei" CHECK (reporting_entity_uei IS NULL OR (length(reporting_entity_uei) = 12 AND reporting_entity_uei ~ '^[A-Z0-9]{12}$'));
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260910234532_AddSamGovSprReportMetadata', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.esrs_report_data_rows ADD spr_schema_definition_sha256 character varying(64);
+
+ALTER TABLE gccs.esrs_report_data_rows ADD spr_schema_profile_id character varying(160);
+
+ALTER TABLE gccs.esrs_report_data_rows ADD spr_schema_source_url character varying(2000);
+
+ALTER TABLE gccs.esrs_report_data_rows ADD spr_schema_version character varying(80);
+
+ALTER TABLE gccs.esrs_report_data_rows ADD CONSTRAINT "CK_esrs_report_data_rows_spr_schema" CHECK (spr_schema_profile_id IS NULL OR (spr_schema_version IS NOT NULL AND spr_schema_source_url IS NOT NULL AND length(spr_schema_definition_sha256) = 64));
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260911003208_AddSprSchemaProvenance', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE gccs.spr_report_packages (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    contract_id uuid NOT NULL,
+    report_type character varying(64) NOT NULL,
+    period_start date NOT NULL,
+    period_end date NOT NULL,
+    status character varying(64) NOT NULL,
+    version integer NOT NULL,
+    not_submitted_disclaimer character varying(1000) NOT NULL,
+    snapshot_json jsonb NOT NULL,
+    reviewer_name character varying(200),
+    reviewer_user_id uuid,
+    approved_at timestamp with time zone,
+    review_notes character varying(2000),
+    generated_at timestamp with time zone NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_spr_report_packages" PRIMARY KEY (id),
+    CONSTRAINT "AK_spr_report_packages_tenant_id_id" UNIQUE (tenant_id, id),
+    CONSTRAINT "FK_spr_report_packages_contracts_tenant_id_contract_id" FOREIGN KEY (tenant_id, contract_id) REFERENCES gccs.contracts (tenant_id, id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_spr_report_packages_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_spr_report_packages_users_reviewer_user_id" FOREIGN KEY (reviewer_user_id) REFERENCES gccs.users (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.spr_manual_submission_receipts (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    package_id uuid NOT NULL,
+    submitted_at timestamp with time zone NOT NULL,
+    confirmation_reference character varying(200) NOT NULL,
+    outcome character varying(64) NOT NULL,
+    notes character varying(2000),
+    evidence_item_id uuid,
+    supersedes_receipt_id uuid,
+    recorded_by_user_id uuid NOT NULL,
+    recorded_at timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_spr_manual_submission_receipts" PRIMARY KEY (id),
+    CONSTRAINT "AK_spr_manual_submission_receipts_tenant_id_id" UNIQUE (tenant_id, id),
+    CONSTRAINT "FK_spr_manual_submission_receipts_evidence_items_tenant_id_evi~" FOREIGN KEY (tenant_id, evidence_item_id) REFERENCES gccs.evidence_items (tenant_id, id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_spr_manual_submission_receipts_spr_manual_submission_receip~" FOREIGN KEY (tenant_id, supersedes_receipt_id) REFERENCES gccs.spr_manual_submission_receipts (tenant_id, id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_spr_manual_submission_receipts_spr_report_packages_tenant_i~" FOREIGN KEY (tenant_id, package_id) REFERENCES gccs.spr_report_packages (tenant_id, id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_spr_manual_submission_receipts_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_spr_manual_submission_receipts_users_recorded_by_user_id" FOREIGN KEY (recorded_by_user_id) REFERENCES gccs.users (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_spr_manual_submission_receipts_recorded_by_user_id" ON gccs.spr_manual_submission_receipts (recorded_by_user_id);
+
+CREATE INDEX "IX_spr_manual_submission_receipts_tenant_id_evidence_item_id" ON gccs.spr_manual_submission_receipts (tenant_id, evidence_item_id);
+
+CREATE INDEX "IX_spr_manual_submission_receipts_tenant_id_package_id_recorde~" ON gccs.spr_manual_submission_receipts (tenant_id, package_id, recorded_at);
+
+CREATE INDEX "IX_spr_manual_submission_receipts_tenant_id_supersedes_receipt~" ON gccs.spr_manual_submission_receipts (tenant_id, supersedes_receipt_id);
+
+CREATE INDEX "IX_spr_report_packages_created_at_updated_at" ON gccs.spr_report_packages (created_at, updated_at);
+
+CREATE INDEX "IX_spr_report_packages_reviewer_user_id" ON gccs.spr_report_packages (reviewer_user_id);
+
+CREATE UNIQUE INDEX "IX_spr_report_packages_tenant_id_contract_id_report_type_perio~" ON gccs.spr_report_packages (tenant_id, contract_id, report_type, period_start, period_end, version);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260911004959_AddDurableSprPackagesAndReceipts', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE gccs.shared_portal_packages (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    package_id uuid NOT NULL,
+    invitation_id uuid NOT NULL,
+    version integer NOT NULL,
+    state character varying(64) NOT NULL,
+    expires_at timestamp with time zone NOT NULL,
+    reminder_at timestamp with time zone NOT NULL,
+    reminder_sent_at timestamp with time zone,
+    supersedes_shared_package_id uuid,
+    replacement_shared_package_id uuid,
+    replacement_package_id uuid,
+    revocation_reason character varying(500),
+    revoked_at timestamp with time zone,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_shared_portal_packages" PRIMARY KEY (id),
+    CONSTRAINT "AK_shared_portal_packages_tenant_id_id" UNIQUE (tenant_id, id),
+    CONSTRAINT "FK_shared_portal_packages_shared_portal_packages_tenant_id_rep~" FOREIGN KEY (tenant_id, replacement_shared_package_id) REFERENCES gccs.shared_portal_packages (tenant_id, id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_shared_portal_packages_shared_portal_packages_tenant_id_sup~" FOREIGN KEY (tenant_id, supersedes_shared_package_id) REFERENCES gccs.shared_portal_packages (tenant_id, id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_shared_portal_packages_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.portal_package_activities (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    shared_package_id uuid NOT NULL,
+    activity_type character varying(64) NOT NULL,
+    actor_user_id uuid NOT NULL,
+    occurred_at timestamp with time zone NOT NULL,
+    detail character varying(500),
+    CONSTRAINT "PK_portal_package_activities" PRIMARY KEY (id),
+    CONSTRAINT "FK_portal_package_activities_shared_portal_packages_tenant_id_~" FOREIGN KEY (tenant_id, shared_package_id) REFERENCES gccs.shared_portal_packages (tenant_id, id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_portal_package_activities_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_portal_package_activities_tenant_id_occurred_at" ON gccs.portal_package_activities (tenant_id, occurred_at);
+
+CREATE INDEX "IX_portal_package_activities_tenant_id_shared_package_id_activ~" ON gccs.portal_package_activities (tenant_id, shared_package_id, activity_type);
+
+CREATE INDEX "IX_shared_portal_packages_created_at_updated_at" ON gccs.shared_portal_packages (created_at, updated_at);
+
+CREATE INDEX "IX_shared_portal_packages_state_reminder_at_reminder_sent_at" ON gccs.shared_portal_packages (state, reminder_at, reminder_sent_at);
+
+CREATE UNIQUE INDEX "IX_shared_portal_packages_tenant_id_invitation_id_package_id" ON gccs.shared_portal_packages (tenant_id, invitation_id, package_id) WHERE state = 'Active';
+
+CREATE UNIQUE INDEX "IX_shared_portal_packages_tenant_id_invitation_id_version" ON gccs.shared_portal_packages (tenant_id, invitation_id, version);
+
+CREATE INDEX "IX_shared_portal_packages_tenant_id_replacement_shared_package~" ON gccs.shared_portal_packages (tenant_id, replacement_shared_package_id);
+
+CREATE INDEX "IX_shared_portal_packages_tenant_id_state_expires_at" ON gccs.shared_portal_packages (tenant_id, state, expires_at);
+
+CREATE INDEX "IX_shared_portal_packages_tenant_id_supersedes_shared_package_~" ON gccs.shared_portal_packages (tenant_id, supersedes_shared_package_id);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260911034444_AddPortalPackageLifecycle', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE gccs.labor_applicabilities (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    contract_id uuid NOT NULL,
+    task_id uuid,
+    sca_applicable boolean NOT NULL,
+    dba_applicable boolean NOT NULL,
+    other_far_part22_obligations character varying(2000),
+    place_of_performance character varying(240) NOT NULL,
+    contract_period_start date NOT NULL,
+    contract_period_end date NOT NULL,
+    wage_determination_reference character varying(240),
+    wage_determination_evidence_item_id uuid,
+    source_contract_clause_id uuid,
+    source_clause character varying(240),
+    rationale character varying(2000),
+    owner_function character varying(120) NOT NULL,
+    status character varying(64) NOT NULL,
+    review_status character varying(64) NOT NULL,
+    review_notes character varying(2000),
+    reviewed_by_user_id uuid,
+    reviewed_at timestamp with time zone,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_labor_applicabilities" PRIMARY KEY (id),
+    CONSTRAINT "AK_labor_applicabilities_tenant_id_id" UNIQUE (tenant_id, id),
+    CONSTRAINT "CK_labor_applicabilities_contract_period" CHECK (contract_period_end >= contract_period_start),
+    CONSTRAINT "FK_labor_applicabilities_compliance_tasks_task_id" FOREIGN KEY (task_id) REFERENCES gccs.compliance_tasks (id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_labor_applicabilities_contract_clauses_source_contract_clau~" FOREIGN KEY (source_contract_clause_id) REFERENCES gccs.contract_clauses (id) ON DELETE SET NULL,
+    CONSTRAINT "FK_labor_applicabilities_contracts_tenant_id_contract_id" FOREIGN KEY (tenant_id, contract_id) REFERENCES gccs.contracts (tenant_id, id) ON DELETE CASCADE,
+    CONSTRAINT "FK_labor_applicabilities_evidence_items_wage_determination_evi~" FOREIGN KEY (wage_determination_evidence_item_id) REFERENCES gccs.evidence_items (id) ON DELETE SET NULL,
+    CONSTRAINT "FK_labor_applicabilities_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_labor_applicabilities_created_at_updated_at" ON gccs.labor_applicabilities (created_at, updated_at);
+
+CREATE INDEX "IX_labor_applicabilities_source_contract_clause_id" ON gccs.labor_applicabilities (source_contract_clause_id);
+
+CREATE UNIQUE INDEX "IX_labor_applicabilities_task_id" ON gccs.labor_applicabilities (task_id) WHERE task_id IS NOT NULL;
+
+CREATE INDEX "IX_labor_applicabilities_tenant_id_contract_id_status" ON gccs.labor_applicabilities (tenant_id, contract_id, status);
+
+CREATE INDEX "IX_labor_applicabilities_tenant_id_contract_period_end" ON gccs.labor_applicabilities (tenant_id, contract_period_end);
+
+CREATE INDEX "IX_labor_applicabilities_wage_determination_evidence_item_id" ON gccs.labor_applicabilities (wage_determination_evidence_item_id);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260911040908_AddLaborApplicabilities', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.ssp_export_packages ADD language_policy_version character varying(40) DEFAULT 'legacy-29.3.0' NOT NULL;
+
+CREATE TABLE gccs.ssp_export_policies (
+    tenant_id uuid NOT NULL,
+    require_independent_approval boolean NOT NULL,
+    version bigint NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_ssp_export_policies" PRIMARY KEY (tenant_id),
+    CONSTRAINT "FK_ssp_export_policies_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_ssp_export_policies_created_at_updated_at" ON gccs.ssp_export_policies (created_at, updated_at);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260926221414_RecoverSspExportReviewPolicy', '10.0.4');
+
+COMMIT;

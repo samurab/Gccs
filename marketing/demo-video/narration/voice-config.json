@@ -1,0 +1,18 @@
+{
+  "provider": "openai",
+  "model": "gpt-4o-mini-tts",
+  "responseFormat": "wav",
+  "voiceEnvironmentVariable": "TTS_VOICE",
+  "defaultVoice": "cedar",
+  "auditionVoices": ["cedar", "marin", "coral"],
+  "instructions": "Speak in a calm, professional, credible, and conversational tone. Use a neutral American accent and a measured pace suitable for a B2B software demonstration. Sound confident but not theatrical, exaggerated, or overly promotional. Use brief natural pauses between ideas. Clearly pronounce technical compliance terminology and acronyms. Maintain consistent volume, tone, pace, and delivery across all scenes.",
+  "auditionExcerpt": "FeDril helps teams organize CMMC readiness work by bringing ownership, evidence metadata, gaps, and remediation into one No-CUI workspace. Leadership can see what needs attention without relying on disconnected spreadsheets, email threads, or shared folders before each readiness review.",
+  "estimatedWordsPerMinute": 145,
+  "normalization": {
+    "integratedLoudnessLufs": -16,
+    "loudnessRange": 11,
+    "truePeakDb": -1.5,
+    "sampleRateHz": 48000,
+    "channels": 1
+  }
+}

@@ -1,0 +1,78 @@
+using Gccs.Domain.Common;
+
+namespace Gccs.Domain.Identity;
+
+public sealed record User(
+    Guid Id,
+    Guid TenantId,
+    string Email,
+    string DisplayName,
+    UserStatus Status,
+    bool MfaEnabled,
+    IReadOnlyList<Guid> RoleIds,
+    DateTimeOffset? LastSignedInAt,
+    EntityAudit Audit);
+
+public enum UserStatus
+{
+    Invited,
+    Active,
+    Disabled
+}
+
+public sealed record TenantMembership(
+    Guid Id,
+    Guid TenantId,
+    Guid UserId,
+    MembershipStatus Status,
+    string RoleName,
+    DateTimeOffset? LastAccessedAt,
+    EntityAudit Audit);
+
+public enum MembershipStatus
+{
+    Active,
+    Suspended,
+    Deactivated
+}
+
+public sealed record TenantInvitation(
+    Guid Id,
+    Guid TenantId,
+    string Email,
+    string RoleName,
+    string? InvitationTokenHash,
+    TenantInvitationStatus Status,
+    DateTimeOffset ExpiresAt,
+    DateTimeOffset? AcceptedAt,
+    Guid? AcceptedByUserId,
+    DateTimeOffset? RevokedAt,
+    Guid? RevokedByUserId,
+    DateTimeOffset? NotificationSentAt,
+    string NotificationPlaceholder,
+    InvitationDeliveryStatus DeliveryStatus,
+    int DeliveryAttemptCount,
+    DateTimeOffset? NextDeliveryAttemptAt,
+    DateTimeOffset? DeliveryLeaseUntil,
+    DateTimeOffset? LastDeliveryAttemptAt,
+    string? DeliveryProviderMessageId,
+    string? DeliveryFailureCode,
+    EntityAudit Audit);
+
+public enum TenantInvitationStatus
+{
+    Pending,
+    Accepted,
+    Expired,
+    Revoked
+}
+
+public enum InvitationDeliveryStatus
+{
+    Queued,
+    Processing,
+    RetryScheduled,
+    Sent,
+    Failed,
+    Cancelled
+}

@@ -1,0 +1,186 @@
+using Gccs.Application.Common;
+using Gccs.Domain.Common;
+using Gccs.Domain.Companies;
+using Gccs.Domain.Contracts;
+
+namespace Gccs.Application.Contracts;
+
+public sealed record ContractDto(
+    Guid Id,
+    Guid TenantId,
+    string ContractNumber,
+    string Title,
+    string AgencyOrPrimeName,
+    ContractorRelationship Relationship,
+    ContractKind Kind,
+    ContractStatus Status,
+    DateOnly? AwardedAt,
+    DateOnly PeriodOfPerformanceStart,
+    DateOnly PeriodOfPerformanceEnd,
+    string PlaceOfPerformance,
+    string Description,
+    DataHandlingPosture DataHandlingPosture,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? UpdatedAt);
+
+public sealed record UpsertContractRequest(
+    string ContractNumber,
+    string Title,
+    string AgencyOrPrimeName,
+    ContractorRelationship Relationship,
+    ContractKind Kind,
+    ContractStatus Status,
+    DateOnly? AwardedAt,
+    DateOnly PeriodOfPerformanceStart,
+    DateOnly PeriodOfPerformanceEnd,
+    string PlaceOfPerformance,
+    string Description,
+    DataHandlingPosture DataHandlingPosture);
+
+public sealed record ContractDocumentDto(
+    Guid Id,
+    Guid ContractId,
+    ContractDocumentType Type,
+    string FileName,
+    string ContentType,
+    long SizeBytes,
+    string? StorageUri,
+    string? ExtractedTextHash,
+    string ValidationStatus,
+    string MalwareScanStatus,
+    string NoticeVersion,
+    DateTimeOffset UploadedAt,
+    Guid UploadedByUserId,
+    bool ContainsPotentialCui,
+    ContentClassificationDto Classification);
+
+public sealed record ContractDocumentUploadRequest(
+    ContractDocumentType Type,
+    string FileName,
+    string ContentType,
+    long SizeBytes,
+    bool ContainsPotentialCui,
+    ContentClassificationRequest? Classification = null);
+
+public sealed record ExtractionJobDto(
+    Guid Id,
+    Guid TenantId,
+    Guid SourceDocumentId,
+    Guid RequestedByUserId,
+    ExtractionJobStatus Status,
+    DateTimeOffset RequestedAt,
+    DateTimeOffset? StartedAt,
+    DateTimeOffset? CompletedAt,
+    string? FailureReason)
+{
+    public ContentClassificationDto Classification { get; init; } = new(ContentClassification.Unknown,
+        ContentClassificationSource.SystemSuggested, null, null, null, null, false);
+}
+
+public sealed record ExtractionJobProcessingInputDto(
+    ExtractionJobDto Job,
+    ContractDocumentDto SourceDocument);
+
+public sealed record ClauseCandidateDto(
+    Guid Id,
+    Guid TenantId,
+    Guid ExtractionJobId,
+    Guid SourceDocumentId,
+    string NormalizedCitation,
+    string RawExtractedText,
+    string? DetectedTitle,
+    decimal Confidence,
+    string LocationMetadata,
+    string MatchMethod,
+    string? ClauseLibraryId,
+    string ReviewStatus,
+    Guid? ReviewedByUserId,
+    DateTimeOffset? ReviewedAt,
+    string? DecisionNote,
+    string? DecisionReason,
+    DateTimeOffset CreatedAt);
+
+public sealed record ClauseCandidateCreateDto(
+    string NormalizedCitation,
+    string RawExtractedText,
+    string? DetectedTitle,
+    decimal Confidence,
+    string LocationMetadata,
+    string MatchMethod,
+    string? ClauseLibraryId);
+
+public sealed record ExtractionJobProcessResultDto(
+    ExtractionJobDto Job,
+    IReadOnlyList<ClauseCandidateDto> Candidates);
+
+public sealed record ContractDocumentExtractionResultsDto(
+    Guid ContractId,
+    Guid SourceDocumentId,
+    ExtractionJobStatus? LatestJobStatus,
+    string? FailureReason,
+    int CandidateCount,
+    IReadOnlyList<ClauseCandidateDto> Candidates)
+{
+    public ContentClassificationDto? LatestJobClassification { get; init; }
+}
+
+public sealed record ClauseCandidateEditRequest(
+    string NormalizedCitation,
+    string? ClauseLibraryId);
+
+public sealed record ClauseCandidateReviewRequest(
+    string? ClauseLibraryId,
+    string Reason,
+    string? DecisionNote = null);
+
+public sealed record ClauseCandidateStateChangeRequest(
+    string Reason,
+    string? DecisionNote = null);
+
+public sealed record ContractDeliverableDto(
+    Guid Id,
+    Guid ContractId,
+    string Name,
+    string Description,
+    DateOnly? DueAt,
+    string OwnerFunction,
+    DeliverableStatus Status,
+    bool IsOverdue);
+
+public sealed record UpsertContractDeliverableRequest(
+    string Name,
+    string Description,
+    DateOnly? DueAt,
+    string OwnerFunction,
+    DeliverableStatus Status);
+
+public sealed record ContractClauseDto(
+    Guid Id,
+    Guid ContractId,
+    string ClauseLibraryId,
+    string ClauseNumber,
+    string Title,
+    ClauseSource Source,
+    string SourceUrl,
+    DateOnly LastReviewedAt,
+    Guid? ReviewedByUserId,
+    DateOnly? NextReviewDueAt,
+    string Confidence,
+    bool RequiresExpertReview,
+    string ReviewState,
+    string AttachmentReason,
+    string? SourceDocumentReference,
+    DateTimeOffset AttachedAt,
+    Guid AttachedByUserId);
+
+public sealed record AttachContractClauseRequest(
+    string ClauseLibraryId,
+    string AttachmentReason,
+    string? SourceDocumentReference);
+
+public sealed record RemoveContractClauseRequest(string Reason);
+
+public sealed record GeneratedContractObligationsDto(
+    Guid ContractClauseId,
+    IReadOnlyList<string> ObligationIds,
+    int TasksCreated);

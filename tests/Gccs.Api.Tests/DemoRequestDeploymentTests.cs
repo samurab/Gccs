@@ -1,0 +1,175 @@
+using System.Text.Json;
+using Gccs.Infrastructure.Marketing;
+using Xunit;
+
+namespace Gccs.Api.Tests;
+
+public sealed class DemoRequestDeploymentTests
+{
+    [Fact]
+    public void Development_uses_capture_transport_without_external_delivery_configuration()
+    {
+        using var document = JsonDocument.Parse(ReadText("apps", "api", "appsettings.Development.json"));
+        var demoRequests = document.RootElement.GetProperty("DemoRequests");
+
+        Assert.True(demoRequests.GetProperty("Enabled").GetBoolean());
+        Assert.Equal(DemoRequestOptions.DevelopmentCaptureProvider, demoRequests.GetProperty("Provider").GetString());
+
+        var options = new DemoRequestOptions
+        {
+            Enabled = true,
+            Provider = DemoRequestOptions.DevelopmentCaptureProvider
+        };
+        DemoRequestOptions.ValidateEnabledConfiguration(options, isDevelopment: true);
+    }
+
+    [Fact]
+    public void Development_capture_transport_is_rejected_outside_development()
+    {
+        var options = new DemoRequestOptions
+        {
+            Enabled = true,
+            Provider = DemoRequestOptions.DevelopmentCaptureProvider
+        };
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            DemoRequestOptions.ValidateEnabledConfiguration(options, isDevelopment: false));
+
+        Assert.Contains("only in the Development environment", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Development_requester_email_accepts_loopback_http_without_an_internal_recipient()
+    {
+        var options = new DemoRequestOptions
+        {
+            Enabled = true,
+            Provider = DemoRequestOptions.DevelopmentRequesterEmailProvider,
+            Endpoint = "https://example.communication.azure.com",
+            UseManagedIdentity = true,
+            SenderAddress = "donotreply@example.com",
+            PublicWebBaseUrl = "http://127.0.0.1:5173",
+            FollowUpTokenSigningKey = string.Concat(Enumerable.Repeat("demo-follow-up-test-", 3))
+        };
+
+        DemoRequestOptions.ValidateEnabledConfiguration(options, isDevelopment: true);
+    }
+
+    [Fact]
+    public void Development_requester_email_is_rejected_outside_development()
+    {
+        var options = new DemoRequestOptions
+        {
+            Enabled = true,
+            Provider = DemoRequestOptions.DevelopmentRequesterEmailProvider
+        };
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            DemoRequestOptions.ValidateEnabledConfiguration(options, isDevelopment: false));
+
+        Assert.Contains("only in the Development environment", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Azure_communication_delivery_remains_valid_outside_development()
+    {
+        var options = new DemoRequestOptions
+        {
+            Enabled = true,
+            Provider = DemoRequestOptions.AzureCommunicationServicesProvider,
+            Endpoint = "https://fedril-test.communication.azure.com",
+            UseManagedIdentity = true,
+            SenderAddress = "donotreply@example.com",
+            RecipientAddress = "sales@example.com",
+            PublicWebBaseUrl = "https://fedril.example",
+            FollowUpTokenSigningKey = string.Concat(Enumerable.Repeat("demo-follow-up-test-", 3))
+        };
+
+        DemoRequestOptions.ValidateEnabledConfiguration(options, isDevelopment: false);
+    }
+
+    [Fact]
+    public void Enabled_unknown_delivery_provider_is_rejected()
+    {
+        var options = new DemoRequestOptions { Enabled = true, Provider = "UnknownProvider" };
+
+        Assert.Throws<InvalidOperationException>(() =>
+            DemoRequestOptions.ValidateEnabledConfiguration(options, isDevelopment: true));
+    }
+
+    [Fact]
+    public void Development_does_not_grant_platform_permissions_to_every_persona()
+    {
+        using var document = JsonDocument.Parse(ReadText("apps", "api", "appsettings.Development.json"));
+
+        var permissions = document.RootElement
+            .GetProperty("Security")
+            .GetProperty("DevelopmentAuth")
+            .GetProperty("DefaultPlatformPermissions")
+            .GetString();
+
+        Assert.True(string.IsNullOrEmpty(permissions));
+    }
+
+    [Theory]
+    [InlineData("staging.yml", "STAGING_RESOURCE_GROUP")]
+    [InlineData("production.yml", "PRODUCTION_RESOURCE_GROUP")]
+    public void Deployment_fails_closed_and_configures_demo_delivery_before_api_deploy(string workflowName, string resourceGroupSetting)
+    {
+        var workflow = ReadText(".github", "workflows", workflowName);
+
+        foreach (var signal in new[]
+        {
+            "DEMO_REQUESTS_ENDPOINT: ${{ vars.DEMO_REQUESTS_ENDPOINT }}",
+            "DEMO_REQUESTS_SENDER_ADDRESS: ${{ vars.DEMO_REQUESTS_SENDER_ADDRESS }}",
+            "DEMO_REQUESTS_RECIPIENT_ADDRESS: ${{ vars.DEMO_REQUESTS_RECIPIENT_ADDRESS }}",
+            "DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY: ${{ secrets.DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY }}",
+            "test -n \"$DEMO_REQUESTS_ENDPOINT\"",
+            "test -n \"$DEMO_REQUESTS_SENDER_ADDRESS\"",
+            "test -n \"$DEMO_REQUESTS_RECIPIENT_ADDRESS\"",
+            "test -n \"$DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY\"",
+            "DemoRequests__Enabled=true",
+            "DemoRequests__UseManagedIdentity=true",
+            "DemoRequests__Endpoint=\"$DEMO_REQUESTS_ENDPOINT\"",
+            "DemoRequests__SenderAddress=\"$DEMO_REQUESTS_SENDER_ADDRESS\"",
+            "DemoRequests__RecipientAddress=\"$DEMO_REQUESTS_RECIPIENT_ADDRESS\"",
+            "DemoRequests__PublicWebBaseUrl=",
+            "DemoRequests__FollowUpTokenSigningKey=\"$DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY\"",
+            "DemoRequests__FollowUpTokenLifetimeHours=72"
+        })
+        {
+            Assert.Contains(signal, workflow);
+        }
+
+        Assert.Contains(resourceGroupSetting, workflow);
+        if (workflowName == "production.yml")
+        {
+            Assert.Contains("HUBSPOT_PRIVATE_APP_TOKEN: ${{ secrets.HUBSPOT_PRIVATE_APP_TOKEN }}", workflow);
+            Assert.Contains("test -n \"$HUBSPOT_PRIVATE_APP_TOKEN\"", workflow);
+            Assert.Contains("DemoRequests__HubSpot__Enabled=true", workflow);
+            Assert.Contains("DemoRequests__HubSpot__BaseUrl=https://api.hubapi.com", workflow);
+            Assert.Contains("DemoRequests__HubSpot__PrivateAppToken=\"$HUBSPOT_PRIVATE_APP_TOKEN\"", workflow);
+        }
+        else
+        {
+            Assert.Contains("DemoRequests__HubSpot__Enabled=false", workflow);
+            Assert.DoesNotContain("DemoRequests__HubSpot__PrivateAppToken=", workflow);
+        }
+        Assert.True(
+            workflow.IndexOf("Configure " + (workflowName == "staging.yml" ? "staging" : "production") + " demo-request delivery", StringComparison.Ordinal) <
+            workflow.IndexOf("Deploy " + (workflowName == "staging.yml" ? "staging" : "production") + " API App Service", StringComparison.Ordinal),
+            "Demo-request runtime configuration must be applied before the API starts.");
+    }
+
+    private static string ReadText(params string[] path)
+    {
+        var directory = new DirectoryInfo(Directory.GetCurrentDirectory());
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Gccs.slnx")))
+        {
+            directory = directory.Parent;
+        }
+
+        Assert.NotNull(directory);
+        return File.ReadAllText(Path.Combine([directory.FullName, .. path]));
+    }
+}

@@ -1,0 +1,124 @@
+# Development Database Models
+
+These artifacts turn the MVP domain model into a migration-ready PostgreSQL schema for the development phase. The schema supports CuiReady workflows while keeping real CUI storage tenant-gated until production authorization is approved.
+
+## Artifact Set
+
+- EF Core DbContext: `src/Gccs.Infrastructure/Persistence/GccsDbContext.cs`
+- Persistence entities: `src/Gccs.Infrastructure/Persistence/Models/`
+- Initial migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260610031239_InitialDevelopmentSchema.cs`
+- Clause review/versioning migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260610051044_AddClauseReviewVersioning.cs`
+- Tenant membership migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260613213418_AddTenantMemberships.cs`
+- Tenant invitation migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260613221118_AddTenantInvitations.cs`
+- No-CUI acknowledgement migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260615003848_AddNoCuiAcknowledgements.cs`
+- Tenant data handling mode history migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260618205911_AddTenantDataHandlingModeHistory.cs`
+- Evidence upload guardrails migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260615005659_AddEvidenceUploadGuardrails.cs`
+- Audit request metadata migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260615010139_AddAuditRequestMetadata.cs`
+- Obligation publication metadata migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260615011257_AddObligationPublicationMetadata.cs`
+- Clause tenant scope migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260615040552_AddClauseTenantScope.cs`
+- Contract clause attachment workflow migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260615041300_AddContractClauseAttachmentWorkflow.cs`
+- Content classification metadata migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260618212037_AddContentClassificationMetadata.cs`
+- Versioned CUI-readiness evidence migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260908181858_AddVersionedCuiReadinessEvidence.cs`
+- Durable SSP section migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260909165957_AddDurableSspSections.cs`
+- Durable SSP narrative migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260909213508_AddDurableSspNarratives.cs`
+- Durable SSP export package migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260910150656_AddDurableSspExportPackages.cs`
+- SSP review-policy recovery migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260926221414_RecoverSspExportReviewPolicy.cs`; existing and rolling-version package writes receive the truthful legacy language-policy marker, while new application writes persist the active predicate version and tenant policy overrides remain versioned and audited.
+- SPRS readiness report idempotency migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260910215445_AddSprsReadinessReportIdempotency.cs`; nullable keys preserve historical reports while a filtered tenant/type/key unique index coordinates new generation requests.
+- Durable subcontracting report data migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260910232537_AddDurableSubcontractingReportData.cs`; tenant-qualified foreign keys bind rows to contracts, subcontractors, and evidence, reviewer metadata references the acting user, and a normalized unique key prevents duplicate report rows under concurrent writes.
+- SAM.gov SPR metadata migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260910234532_AddSamGovSprReportMetadata.cs`; nullable fields preserve legacy rows while canonical writes capture reporting role, fiscal year/period, UEI, PIID, conditional subcontract number, and explicit external eligibility evidence. Existing rows remain `NeedsVerification` rather than being silently marked ready.
+- SPR schema provenance migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260911003208_AddSprSchemaProvenance.cs`; nullable profile ID, version, source URL, and definition SHA-256 preserve legacy history while canonical writes snapshot the current reviewed schema profile.
+- Assistant retrieval full-text migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260912224320_AddAiRetrievalFullTextSearch.cs`; stored English `tsvector` columns and GIN indexes provide pre-limit relevance search for published obligations, reviewed clause candidates, approved evidence metadata, and approved SPR package metadata.
+- Durable SPR package migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260911004959_AddDurableSprPackagesAndReceipts.cs`; immutable tenant-scoped package snapshots retain report scope and governed schema references, while append-only manual receipt records use tenant-qualified package, evidence, and supersession relationships.
+- Labor applicability migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260911040908_AddLaborApplicabilities.cs`; tenant-qualified contract ownership, source-clause, review-task, and evidence links persist explicit SCA/DBA/FAR Part 22 decisions and review metadata.
+- Durable labor classification migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260911153031_AddDurableLaborClassifications.cs`; tenant-qualified contract, employee, category, and evidence relationships preserve source-backed rates, effective periods, review metadata, and append-only reclassification history. A PostgreSQL exclusion constraint rejects overlapping active assignments for the same tenant, employee, and contract.
+- Guarded assistant migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260912192858_AddGuardedAssistantExperience.cs`; tenant-qualified answer, draft-action, and feedback records preserve citation snapshots, support/review status, actor identity, timestamps, and cross-tenant-safe relationships. Prohibited prompt text is not persisted in audit metadata.
+- AI output logging and review migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260913000504_AddAiOutputLoggingAndReview.cs`; extends authoritative assistant answers with sanitized prompt/configuration/result/classification/retention metadata and adds append-only tenant-qualified review history plus approved deliverable provenance links.
+- Generated-policy classification migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260910011549_AddGeneratedPolicyClassification.cs`; existing generated policies and revisions migrate to `Unknown`/`SystemSuggested` and require review before governed reuse.
+- Compliance task search index migration: staging and production first run `infra/database/predeploy-compliance-task-search-index.sql` as standalone concurrent DDL, then apply `src/Gccs.Infrastructure/Persistence/Migrations/20260909192654_AddComplianceTaskSearchIndex.cs`. The EF migration uses `IF NOT EXISTS`, so it is idempotent and does not rebuild the predeployed index; fresh development databases can create it transactionally while the table is empty.
+- Generated SQL script: `infra/database/development-schema.sql`
+- Local EF tool manifest: `dotnet-tools.json`
+
+## Local Commands
+
+Start local services:
+
+```bash
+docker compose -f infra/docker/docker-compose.yml up -d
+```
+
+Apply the development migration:
+
+```bash
+dotnet tool restore
+dotnet tool run dotnet-ef database update \
+  --project src/Gccs.Infrastructure/Gccs.Infrastructure.csproj \
+  --startup-project apps/api/Gccs.Api.csproj \
+  --context GccsDbContext
+```
+
+Generate a SQL review script:
+
+```bash
+dotnet tool run dotnet-ef migrations script \
+  --project src/Gccs.Infrastructure/Gccs.Infrastructure.csproj \
+  --startup-project apps/api/Gccs.Api.csproj \
+  --context GccsDbContext \
+  --output infra/database/development-schema.sql
+```
+
+Override the design-time connection string with `GCCS_DATABASE`. The development default matches the Docker Postgres service:
+
+```text
+Host=localhost;Port=15432;Database=gccs;Username=gccs;Password=gccs_dev_password
+```
+
+## Model Groups
+
+Required fields, source systems, provenance rules, and deferred external integrations are identified in `docs/data-requirements-and-source-systems.md`. Schema changes should preserve that contract by storing source/provenance metadata for imported, extracted, governed, or reportable data.
+
+| Group | Primary tables | Purpose |
+| --- | --- | --- |
+| Tenancy and RBAC | `tenants`, `tenant_data_handling_mode_history`, `cui_ready_approval_checklists`, `cui_ready_approval_checklist_items`, `cui_readiness_evidence`, `security_review_records`, `security_review_checklist_items`, `security_review_findings`, `accepted_security_risks`, `technical_readiness_records`, `executed_control_evidence`, `incident_readiness_records`, `incident_contacts`, `incident_playbooks`, `incident_tabletops`, `incident_follow_ups`, `readiness_approvals`, `readiness_history`, `users`, `tenant_memberships`, `tenant_invitations`, `external_portal_invitations`, `external_portal_invitation_package_scopes`, `external_portal_invitation_contract_scopes`, `external_portal_access_history`, `portal_package_review_messages`, `no_cui_acknowledgements`, `roles`, `user_roles`, `role_permissions` | Tenant isolation, active data handling mode, mode-change history, fail-closed CUI-readiness approvals linked to versioned authoritative security, technical-control, and incident-readiness records, explicit tenant membership assignments, invitation onboarding workflow, durable read-only external portal identities and scopes, append-only portal access decisions and reviewer messages, user-scoped data handling acknowledgement records, MFA-ready user profile, and role permissions. |
+| Company profile | `company_profiles`, `company_naics_codes`, `company_certifications`, `company_locations` | SAM/SBA profile data, NAICS size support, certifications, locations, IT posture, and data handling posture. |
+| Compliance content | `clauses`, `obligations`, `mvp_modules` | Source-backed clause and obligation library with source URL, review metadata, confidence, and expert-review flags. |
+| SSP builder | `ssp_sections`, `ssp_section_links`, `ssp_section_source_references`, `ssp_section_status_history`, `ssp_narratives`, `ssp_narrative_sources`, `ssp_export_packages`, `ssp_export_package_history`, `ssp_export_policies` | Tenant-scoped structured sections and narrative versions; server-resolved source snapshots and fingerprints; immutable human- and machine-readable review packages with language-policy provenance; default-on, tenant-versioned independent external-share approval policy; package-specific external-share approval; classification and reviewer metadata; optimistic versions; one current approved narrative per section; and append-only audit integration. |
+| Contract intake | `contracts`, `solicitations`, `contract_documents`, `contract_clauses`, `contract_clause_obligations`, `contract_deliverables`, `contract_reporting_deadlines`, `esrs_applicabilities` | Contract records, document metadata with classification metadata, extracted/manual clauses, obligations, deliverables, source-backed SAM.gov SPR reporting periods, reporting dates, and flow-down signals. The `esrs_applicabilities` name remains for migration compatibility. |
+| Calendar and work | `compliance_tasks` | Due dates, renewals, evidence requests, policy reviews, corrective actions, control assessment tasks, and task-backed SPR reminders. |
+| Evidence vault | `evidence_items`, `evidence_file_versions`, `content_classification_history`, `evidence_obligations`, `evidence_contracts`, `evidence_controls`, `evidence_vendors`, `evidence_employees` | Folderless evidence tagging across obligations, contracts, controls, vendors, and employees, with classification metadata and reclassification history. |
+| CMMC workspace | `controls`, `assessments`, `control_assessments`, `sprs_score_calculations`, `sprs_score_calculation_notes`, `poam_items`, `poam_evidence`, `assets`, `system_boundaries`, `system_boundary_assets`, `system_boundary_external_service_providers`, `system_boundary_evidence`, `annual_affirmations` | Level 1/2 readiness, immutable tenant-scoped draft SPRS calculation snapshots with reviewer notes stored separately, evidence mapping, POA&M, asset inventory, system boundaries, ESP responsibility support, and affirmation tracking. |
+| Vendors and subcontractors | `vendors`, `subcontractors`, `flow_down_clauses`, `contract_subcontractors`, `subcontractor_evidence` | Supplier risk, subcontractor access posture, contract workshare, required flow-downs, and evidence collection. |
+| People and labor | `employees`, `training_records`, `wage_determinations`, `labor_applicabilities`, `labor_categories`, `labor_employee_assignments`, `labor_classification_history`, `labor_classification_evidence`, `labor_category_rates`, `labor_classifications`, `payroll_records` | Training, tenant-scoped source-backed SCA/DBA/FAR Part 22 applicability decisions, wage and fringe categories, employee classifications, effective-date validation, review metadata, append-only classification history, evidence links, and payroll evidence references. |
+| Reporting and audit | `reports`, `report_contracts`, `report_obligations`, `report_evidence`, `esrs_report_data_rows`, `esrs_report_data_evidence`, `spr_report_packages`, `spr_manual_submission_receipts`, `audit_log_entries` | Generated reports, tenant-scoped SAM.gov SPR preparation inputs, immutable package snapshots, append-only user-recorded external receipt history, evidence and review metadata, immutable activity/audit history, and tenant/type-scoped SPRS generation idempotency keys. Legacy eSRS table names remain compatibility identifiers. |
+| Guarded assistant | `assistant_answers`, `assistant_output_reviews`, `assistant_output_usages`, `assistant_draft_actions`, `assistant_feedback`; assistant-linked `expert_review_items`; read-only retrieval from governed source tables | Tenant-scoped sanitized prompt/output/configuration/citation snapshots, retention metadata, append-only review decisions, explicit approved-output deliverable provenance, bounded approved-source retrieval, reviewable draft actions, and user feedback. Prohibited prompt bodies are replaced before persistence. A deliverable provenance link requires current `Approved` state but cannot detect unreported copy-and-paste use. |
+
+## Design Choices
+
+- The database schema uses the `gccs` PostgreSQL schema and snake_case table/column names.
+- Enums are stored as strings for readable migrations and safer future enum additions.
+- Frequently queried relationships are relational joins; descriptive lists such as tags, source clause numbers, applicability dimensions, and evidence examples are JSONB during development.
+- Source-backed compliance content keeps source name, source URL, last-reviewed date, effective date, confidence, and expert-review requirements as first-class data.
+- Clause records keep text version, effective date, source hash, review state, review owner, optional tenant scope, and superseded/replaced metadata so source updates remain auditable while tenant-owned custom clauses stay isolated.
+- Contract clause attachments keep source library id, attachment reason, source document reference, soft-removal timestamp/user/reason, and audit columns so manual tagging remains traceable.
+- Obligation records carry publication review metadata, flow-down flags, trigger logic, required action text, owner, risk, confidence, and linked evidence examples before customer-facing publication.
+- Evidence upload intents are stateless guardrail preflights: they return normalized file metadata, validation status, and a pending malware-scan status without changing the evidence item or consuming a file-version identity. A durable `evidence_file_versions` row is created only after file bytes pass validation and malware scanning and are written to object storage; its ID is the file-version identity returned by download, deletion, audit, and downstream evidence references.
+- CUI-relevant content tables store classification, classification source, confidence, reviewer, review timestamp, reason, and approved-demo flags; reclassification changes append to `content_classification_history`.
+- CUI-ready checklist items link to exact supporting-record ids and versions. Security review, executed backup/restore controls, and incident readiness are supplied by their relational, append-versioned readiness aggregates; generic JSON evidence can no longer satisfy those three gate slots. Support evidence remains append-versioned in `cui_readiness_evidence`. A replacement, rejection, expiry, open high/critical security finding, or open critical incident gap invalidates the earlier link. Current published notice and responsibility-matrix acknowledgements remain their authoritative supporting records.
+- Tenant-scoped operational tables include `tenant_id` indexes and tenant-qualified relationships. Current repositories implement tenant-scoped access; indexes alone do not enforce authorization, and complete path verification remains a separate security task.
+- Audit log entries are append-only through normal application APIs and record tenant, actor, action, entity, timestamp, IP address, user agent, correlation ID, summary, and structured metadata.
+- Subcontracting report data is preparation-only. Canonical SPR writes require a matching source-backed applicability period, a contract-linked subcontractor, current-tenant evidence references, reporting-role UEI, matching contract PIID, current fiscal-year/period metadata, whole-dollar amounts, and documented external eligibility confirmation. Edits reset review eligibility; only SPR-ready rows that are `Reviewed` or explicitly `Accepted` can enter final package preparation.
+- Schema profiles are source-control governed compliance content. Only reviewed, published, currently effective profiles can govern new rows; definition hashes detect unreviewed rule drift. Remediation suggestions are read-only and tenant-resolved, and legacy rows remain blocked until an authorized user explicitly saves and re-reviews enrichment.
+- SPR packages snapshot eligible rows and exact schema references into JSONB and receive a unique version per tenant, contract, report type, and period. Lifecycle transitions never replace the snapshot and use an expected-status update predicate to reject stale concurrent decisions. Manual submission receipts are append-only; corrections point to a prior same-package receipt, and optional evidence must be current-tenant and not blocked from use.
+- Labor applicability records keep explicit SCA, DBA, and other FAR Part 22 fields. Activation requires a source clause/citation or documented rationale and creates or updates one shared compliance task. Wage determination files use contract-linked evidence and the standard acknowledgement, classification, tenant-mode, malware-scan, storage, versioning, and audit pipeline.
+- Labor category and assignment foreign keys include `tenant_id`; employee identity is resolved from the tenant-owned employee row instead of request display fields. Active assignment periods are checked in the application and coordinated under concurrency by `labor_assignment_no_overlap`. Reclassification appends prior/new category snapshots, actor, timestamp, and reason, then resets classification review metadata to `PendingReview`.
+- Shared portal package lifecycle records are durable and tenant-scoped. They retain source package and invitation identifiers, version, expiration/reminder timestamps, revocation reason, and bidirectional reissue/supersede links. A filtered unique index permits only one active share for the same tenant, invitation, and source package. Portal access and lifecycle events are append-only rows keyed by tenant and shared-package identity.
+- External portal invitations are tenant-scoped and retain normalized email, external role, expiration, download and strong-authentication requirements, bound external subject, last access, revocation evidence, resend counters, and optimistic concurrency version. Package and contract scopes are normalized join rows; contract scope uses a tenant-qualified foreign key. Access decisions are append-only and contain sanitized identifiers and result codes. Historical Story 34.3 shared-package rows are not yet constrained by an invitation foreign key because existing deployment data requires an explicit backfill and compatibility review before that constraint is safe.
+- Portal package review messages are append-only tenant-scoped rows linked by tenant-qualified foreign keys to both the invitation and shared-package lifecycle record. They store only the reviewer identity id, message kind, bounded body, source package id, and server timestamp; source package and evidence rows are never updated by reviewer messaging. The source package id remains a polymorphic reference across generic report, SSP, and SPR package tables and is therefore validated by the tenant-qualified application repository rather than a single database foreign key.
+- Each `shared_portal_packages` row records the distinct review deadline and immutable external-review approval metadata: approval time, actor, reason, approved source version, and source fingerprint. Existing rows migrate their deadline and approval time from expiration/creation metadata and retain an empty fingerprint to truthfully indicate that historical source bytes were not fingerprinted; those rows are not externally visible until re-shared with a captured fingerprint.
+
+## Current Implementation And Remaining Verification
+
+Repository adapters, API tenant context, compliance-content seeding, object-storage-backed file versions and governed report/export records are **Implemented** in the repository. Earlier tasks to introduce those components are historical, not current omissions.
+
+Corporate retention/disposal approval, deployed migration reconciliation, restore verification and complete tenant-path coverage remain **Partially implemented or unverified**. Feature-specific retention and cleanup code does not establish an approved corporate retention schedule. Table names such as `payroll_records` do not authorize sensitive payroll ingestion under the No-CUI posture.
+
+The [SOC 2 system boundary index](soc2/system-boundary-index.md) records the assessed boundary, evidence limitations and required follow-up.

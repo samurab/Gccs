@@ -1,0 +1,2729 @@
+using System.Text;
+using Gccs.Application.Ai;
+using Gccs.Application.Compliance;
+using Gccs.Application.Reports;
+using Gccs.Application.Identity;
+using Gccs.Application.Labor;
+using Gccs.Application.Tenancy;
+using Gccs.Domain.Audit;
+using Gccs.Domain.Cmmc;
+using Gccs.Domain.Companies;
+using Gccs.Domain.Compliance;
+using Gccs.Domain.Common;
+using Gccs.Domain.Contracts;
+using Gccs.Domain.Evidence;
+using Gccs.Domain.Identity;
+using Gccs.Domain.Labor;
+using Gccs.Domain.People;
+using Gccs.Domain.Reports;
+using Gccs.Domain.Tenancy;
+using Gccs.Domain.Vendors;
+using Gccs.Infrastructure.Compliance;
+using Gccs.Infrastructure.Persistence.Models;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+
+namespace Gccs.Infrastructure.Persistence;
+
+public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbContext(options)
+{
+    public DbSet<TenantEntity> Tenants => Set<TenantEntity>();
+    public DbSet<PlatformTenantOnboardingEntity> PlatformTenantOnboardings => Set<PlatformTenantOnboardingEntity>();
+    public DbSet<TenantSubscriptionEntity> TenantSubscriptions => Set<TenantSubscriptionEntity>();
+    public DbSet<TenantSubscriptionTransitionEntity> TenantSubscriptionTransitions => Set<TenantSubscriptionTransitionEntity>();
+    public DbSet<TenantDataHandlingModeHistoryEntity> TenantDataHandlingModeHistory => Set<TenantDataHandlingModeHistoryEntity>();
+    public DbSet<GovernmentCloudEnvironmentEntity> GovernmentCloudEnvironments => Set<GovernmentCloudEnvironmentEntity>();
+    public DbSet<GovernmentCloudEnvironmentStatusHistoryEntity> GovernmentCloudEnvironmentStatusHistory => Set<GovernmentCloudEnvironmentStatusHistoryEntity>();
+    public DbSet<RegulatedTenantProvisioningRequestEntity> RegulatedTenantProvisioningRequests => Set<RegulatedTenantProvisioningRequestEntity>();
+    public DbSet<RegulatedProvisioningApprovalEntity> RegulatedProvisioningApprovals => Set<RegulatedProvisioningApprovalEntity>();
+    public DbSet<RegulatedProvisioningChecklistEntity> RegulatedProvisioningChecklist => Set<RegulatedProvisioningChecklistEntity>();
+    public DbSet<RegulatedTenantProvisioningHistoryEntity> RegulatedTenantProvisioningHistory => Set<RegulatedTenantProvisioningHistoryEntity>();
+    public DbSet<GovernmentCloudReleaseReadinessEntity> GovernmentCloudReleaseReadiness => Set<GovernmentCloudReleaseReadinessEntity>();
+    public DbSet<GovernmentCloudReleaseChecklistEntity> GovernmentCloudReleaseChecklist => Set<GovernmentCloudReleaseChecklistEntity>();
+    public DbSet<GovernmentCloudReleaseEvidenceEntity> GovernmentCloudReleaseEvidence => Set<GovernmentCloudReleaseEvidenceEntity>();
+    public DbSet<GovernmentCloudReleaseGapEntity> GovernmentCloudReleaseGaps => Set<GovernmentCloudReleaseGapEntity>();
+    public DbSet<CuiReadyApprovalChecklistEntity> CuiReadyApprovalChecklists => Set<CuiReadyApprovalChecklistEntity>();
+    public DbSet<CuiReadyApprovalChecklistItemEntity> CuiReadyApprovalChecklistItems => Set<CuiReadyApprovalChecklistItemEntity>();
+    public DbSet<SharedResponsibilityMatrixAcknowledgementEntity> SharedResponsibilityMatrixAcknowledgements => Set<SharedResponsibilityMatrixAcknowledgementEntity>();
+    public DbSet<DataHandlingNoticeAcknowledgementEntity> DataHandlingNoticeAcknowledgements => Set<DataHandlingNoticeAcknowledgementEntity>();
+    public DbSet<CuiSupportEscalationEntity> CuiSupportEscalations => Set<CuiSupportEscalationEntity>();
+    public DbSet<CuiSupportEscalationResolutionEntity> CuiSupportEscalationResolutions => Set<CuiSupportEscalationResolutionEntity>();
+    public DbSet<CuiSupportEscalationEventEntity> CuiSupportEscalationEvents => Set<CuiSupportEscalationEventEntity>();
+    public DbSet<SecurityReviewRecordEntity> SecurityReviewRecords => Set<SecurityReviewRecordEntity>();
+    public DbSet<SecurityReviewChecklistItemRecordEntity> SecurityReviewChecklistItems => Set<SecurityReviewChecklistItemRecordEntity>();
+    public DbSet<SecurityReviewFindingRecordEntity> SecurityReviewFindings => Set<SecurityReviewFindingRecordEntity>();
+    public DbSet<AcceptedSecurityRiskRecordEntity> AcceptedSecurityRisks => Set<AcceptedSecurityRiskRecordEntity>();
+    public DbSet<TechnicalReadinessRecordEntity> TechnicalReadinessRecords => Set<TechnicalReadinessRecordEntity>();
+    public DbSet<ExecutedControlEvidenceEntity> ExecutedControlEvidence => Set<ExecutedControlEvidenceEntity>();
+    public DbSet<IncidentReadinessRecordEntity> IncidentReadinessRecords => Set<IncidentReadinessRecordEntity>();
+    public DbSet<IncidentContactRecordEntity> IncidentContacts => Set<IncidentContactRecordEntity>();
+    public DbSet<IncidentPlaybookRecordEntity> IncidentPlaybooks => Set<IncidentPlaybookRecordEntity>();
+    public DbSet<IncidentTabletopRecordEntity> IncidentTabletops => Set<IncidentTabletopRecordEntity>();
+    public DbSet<IncidentFollowUpRecordEntity> IncidentFollowUps => Set<IncidentFollowUpRecordEntity>();
+    public DbSet<ReadinessApprovalEntity> ReadinessApprovals => Set<ReadinessApprovalEntity>();
+    public DbSet<ReadinessHistoryEntity> ReadinessHistory => Set<ReadinessHistoryEntity>();
+    public DbSet<UserEntity> Users => Set<UserEntity>();
+    public DbSet<TenantMembershipEntity> TenantMemberships => Set<TenantMembershipEntity>();
+    public DbSet<TenantInvitationEntity> TenantInvitations => Set<TenantInvitationEntity>();
+    public DbSet<SamlIdentityProviderConfigurationEntity> SamlIdentityProviderConfigurations => Set<SamlIdentityProviderConfigurationEntity>();
+    public DbSet<TenantSsoPolicyEntity> TenantSsoPolicies => Set<TenantSsoPolicyEntity>();
+    public DbSet<SamlAccountLinkEntity> SamlAccountLinks => Set<SamlAccountLinkEntity>();
+    public DbSet<BreakGlassAccessGrantEntity> BreakGlassAccessGrants => Set<BreakGlassAccessGrantEntity>();
+    public DbSet<ScimProvisioningConfigurationEntity> ScimProvisioningConfigurations => Set<ScimProvisioningConfigurationEntity>();
+    public DbSet<ScimGroupMappingEntity> ScimGroupMappings => Set<ScimGroupMappingEntity>();
+    public DbSet<ScimProvisionedIdentityEntity> ScimProvisionedIdentities => Set<ScimProvisionedIdentityEntity>();
+    public DbSet<NoCuiAcknowledgementEntity> NoCuiAcknowledgements => Set<NoCuiAcknowledgementEntity>();
+    public DbSet<NotificationPreferenceEntity> NotificationPreferences => Set<NotificationPreferenceEntity>();
+    public DbSet<NotificationDeliveryEntity> NotificationDeliveries => Set<NotificationDeliveryEntity>();
+    public DbSet<AssignmentEmailDeliveryEntity> AssignmentEmailDeliveries => Set<AssignmentEmailDeliveryEntity>();
+    public DbSet<DemoRequestEntity> DemoRequests => Set<DemoRequestEntity>();
+    public DbSet<DemoRequestDeliveryEntity> DemoRequestDeliveries => Set<DemoRequestDeliveryEntity>();
+    public DbSet<DemoAppointmentEntity> DemoAppointments => Set<DemoAppointmentEntity>();
+    public DbSet<DemoAppointmentEventEntity> DemoAppointmentEvents => Set<DemoAppointmentEventEntity>();
+    public DbSet<DemoFollowUpRequestEntity> DemoFollowUpRequests => Set<DemoFollowUpRequestEntity>();
+    public DbSet<DemoFollowUpResponseEntity> DemoFollowUpResponses => Set<DemoFollowUpResponseEntity>();
+    public DbSet<RoleEntity> Roles => Set<RoleEntity>();
+    public DbSet<CompanyProfileEntity> CompanyProfiles => Set<CompanyProfileEntity>();
+    public DbSet<ClauseEntity> Clauses => Set<ClauseEntity>();
+    public DbSet<ObligationEntity> Obligations => Set<ObligationEntity>();
+    public DbSet<SuggestedObligationEntity> SuggestedObligations => Set<SuggestedObligationEntity>();
+    public DbSet<ExpertReviewItemEntity> ExpertReviewItems => Set<ExpertReviewItemEntity>();
+    public DbSet<ClauseObligationMappingEntity> ClauseObligationMappings => Set<ClauseObligationMappingEntity>();
+    public DbSet<SbaSizeStandardEntity> SbaSizeStandards => Set<SbaSizeStandardEntity>();
+    public DbSet<ObligationApplicabilityEvaluationEntity> ObligationApplicabilityEvaluations => Set<ObligationApplicabilityEvaluationEntity>();
+    public DbSet<ContractEntity> Contracts => Set<ContractEntity>();
+    public DbSet<ContractSizeCheckEntity> ContractSizeChecks => Set<ContractSizeCheckEntity>();
+    public DbSet<SolicitationEntity> Solicitations => Set<SolicitationEntity>();
+    public DbSet<ComplianceTaskEntity> ComplianceTasks => Set<ComplianceTaskEntity>();
+    public DbSet<EsrsApplicabilityEntity> EsrsApplicabilities => Set<EsrsApplicabilityEntity>();
+    public DbSet<LaborApplicabilityEntity> LaborApplicabilities => Set<LaborApplicabilityEntity>();
+    public DbSet<SubcontractingReportDataRowEntity> SubcontractingReportDataRows => Set<SubcontractingReportDataRowEntity>();
+    public DbSet<SprReportPackageEntity> SprReportPackages => Set<SprReportPackageEntity>();
+    public DbSet<SprManualSubmissionReceiptEntity> SprManualSubmissionReceipts => Set<SprManualSubmissionReceiptEntity>();
+    public DbSet<SharedPortalPackageEntity> SharedPortalPackages => Set<SharedPortalPackageEntity>();
+    public DbSet<ExternalPortalInvitationEntity> ExternalPortalInvitations => Set<ExternalPortalInvitationEntity>();
+    public DbSet<ExternalPortalInvitationPackageScopeEntity> ExternalPortalInvitationPackageScopes => Set<ExternalPortalInvitationPackageScopeEntity>();
+    public DbSet<ExternalPortalInvitationContractScopeEntity> ExternalPortalInvitationContractScopes => Set<ExternalPortalInvitationContractScopeEntity>();
+    public DbSet<ExternalPortalAccessHistoryEntity> ExternalPortalAccessHistory => Set<ExternalPortalAccessHistoryEntity>();
+    public DbSet<PortalPackageActivityEntity> PortalPackageActivities => Set<PortalPackageActivityEntity>();
+    public DbSet<PortalPackageReviewMessageEntity> PortalPackageReviewMessages => Set<PortalPackageReviewMessageEntity>();
+    public DbSet<SubcontractingReportDataEvidenceEntity> SubcontractingReportDataEvidence => Set<SubcontractingReportDataEvidenceEntity>();
+    public DbSet<EvidenceItemEntity> EvidenceItems => Set<EvidenceItemEntity>();
+    public DbSet<EvidenceRequestEntity> EvidenceRequests => Set<EvidenceRequestEntity>();
+    public DbSet<EvidenceFileVersionEntity> EvidenceFileVersions => Set<EvidenceFileVersionEntity>();
+    public DbSet<ContentClassificationHistoryEntity> ContentClassificationHistory => Set<ContentClassificationHistoryEntity>();
+    public DbSet<ControlEntity> Controls => Set<ControlEntity>();
+    public DbSet<AssessmentEntity> Assessments => Set<AssessmentEntity>();
+    public DbSet<ControlAssessmentEntity> ControlAssessments => Set<ControlAssessmentEntity>();
+    public DbSet<ControlAssessmentHistoryEntity> ControlAssessmentHistory => Set<ControlAssessmentHistoryEntity>();
+    public DbSet<SprsScoreCalculationEntity> SprsScoreCalculations => Set<SprsScoreCalculationEntity>();
+    public DbSet<SprsScoreCalculationNoteEntity> SprsScoreCalculationNotes => Set<SprsScoreCalculationNoteEntity>();
+    public DbSet<PoamItemEntity> PoamItems => Set<PoamItemEntity>();
+    public DbSet<ComplianceChecklistInstanceEntity> ComplianceChecklistInstances => Set<ComplianceChecklistInstanceEntity>();
+    public DbSet<ComplianceChecklistItemEntity> ComplianceChecklistItems => Set<ComplianceChecklistItemEntity>();
+    public DbSet<AssetEntity> Assets => Set<AssetEntity>();
+    public DbSet<SystemBoundaryEntity> SystemBoundaries => Set<SystemBoundaryEntity>();
+    public DbSet<AnnualAffirmationEntity> AnnualAffirmations => Set<AnnualAffirmationEntity>();
+    public DbSet<VendorEntity> Vendors => Set<VendorEntity>();
+    public DbSet<SubcontractorEntity> Subcontractors => Set<SubcontractorEntity>();
+    public DbSet<FlowDownClauseEntity> FlowDownClauses => Set<FlowDownClauseEntity>();
+    public DbSet<SubcontractorEvidenceRequestEntity> SubcontractorEvidenceRequests => Set<SubcontractorEvidenceRequestEntity>();
+    public DbSet<PolicyTemplateEntity> PolicyTemplates => Set<PolicyTemplateEntity>();
+    public DbSet<PolicyTemplateVersionEntity> PolicyTemplateVersions => Set<PolicyTemplateVersionEntity>();
+    public DbSet<GeneratedPolicyEntity> GeneratedPolicies => Set<GeneratedPolicyEntity>();
+    public DbSet<PolicyRevisionEntity> PolicyRevisions => Set<PolicyRevisionEntity>();
+    public DbSet<EmployeeEntity> Employees => Set<EmployeeEntity>();
+    public DbSet<TrainingRecordEntity> TrainingRecords => Set<TrainingRecordEntity>();
+    public DbSet<WageDeterminationEntity> WageDeterminations => Set<WageDeterminationEntity>();
+    public DbSet<LaborClassificationEntity> LaborClassifications => Set<LaborClassificationEntity>();
+    public DbSet<LaborCategoryEntity> LaborCategories => Set<LaborCategoryEntity>();
+    public DbSet<LaborEmployeeAssignmentEntity> LaborEmployeeAssignments => Set<LaborEmployeeAssignmentEntity>();
+    public DbSet<LaborClassificationHistoryEntity> LaborClassificationHistory => Set<LaborClassificationHistoryEntity>();
+    public DbSet<LaborClassificationEvidenceEntity> LaborClassificationEvidence => Set<LaborClassificationEvidenceEntity>();
+    public DbSet<PayrollRecordEntity> PayrollRecords => Set<PayrollRecordEntity>();
+    public DbSet<ReportEntity> Reports => Set<ReportEntity>();
+    public DbSet<ReportExportEntity> ReportExports => Set<ReportExportEntity>();
+    public DbSet<AuditLogEntryEntity> AuditLogEntries => Set<AuditLogEntryEntity>();
+    public DbSet<MvpModuleEntity> MvpModules => Set<MvpModuleEntity>();
+    public DbSet<FedRampControlMappingEntity> FedRampControlMappings => Set<FedRampControlMappingEntity>();
+    public DbSet<FedRampEvidenceLinkEntity> FedRampEvidenceLinks => Set<FedRampEvidenceLinkEntity>();
+    public DbSet<FedRampGapEntity> FedRampGaps => Set<FedRampGapEntity>();
+    public DbSet<FedRampControlMappingHistoryEntity> FedRampControlMappingHistory => Set<FedRampControlMappingHistoryEntity>();
+    public DbSet<FedRampReadinessPackageEntity> FedRampReadinessPackages => Set<FedRampReadinessPackageEntity>();
+    public DbSet<FedRampPackageRecordEntity> FedRampPackageRecords => Set<FedRampPackageRecordEntity>();
+    public DbSet<FedRampReadinessPackageHistoryEntity> FedRampReadinessPackageHistory => Set<FedRampReadinessPackageHistoryEntity>();
+    public DbSet<SspSectionEntity> SspSections => Set<SspSectionEntity>();
+    public DbSet<SspSectionLinkEntity> SspSectionLinks => Set<SspSectionLinkEntity>();
+    public DbSet<SspSectionSourceReferenceEntity> SspSectionSourceReferences => Set<SspSectionSourceReferenceEntity>();
+    public DbSet<SspSectionHistoryEntity> SspSectionHistory => Set<SspSectionHistoryEntity>();
+    public DbSet<SspNarrativeEntity> SspNarratives => Set<SspNarrativeEntity>();
+    public DbSet<SspNarrativeSourceEntity> SspNarrativeSources => Set<SspNarrativeSourceEntity>();
+    public DbSet<SspExportPackageEntity> SspExportPackages => Set<SspExportPackageEntity>();
+    public DbSet<SspExportPolicyEntity> SspExportPolicies => Set<SspExportPolicyEntity>();
+    public DbSet<SspExportPackageHistoryEntity> SspExportPackageHistory => Set<SspExportPackageHistoryEntity>();
+    public DbSet<AssistantAnswerEntity> AssistantAnswers => Set<AssistantAnswerEntity>();
+    public DbSet<AssistantDraftActionEntity> AssistantDraftActions => Set<AssistantDraftActionEntity>();
+    public DbSet<AssistantFeedbackEntity> AssistantFeedback => Set<AssistantFeedbackEntity>();
+    public DbSet<AssistantOutputReviewEntity> AssistantOutputReviews => Set<AssistantOutputReviewEntity>();
+    public DbSet<AssistantOutputUsageEntity> AssistantOutputUsages => Set<AssistantOutputUsageEntity>();
+
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        configurationBuilder.Properties<AffirmationStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<AssessmentResult>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<AssessmentStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<AssessmentType>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<AssetType>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<AuditAction>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<AssistantDraftActionType>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<AssistantFeedbackType>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<BoundaryStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<BreakGlassGrantStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<CertificationStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<CertificationType>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<ClauseSource>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<CmmcLevel>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<CompanyRange>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<ComplianceTaskStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<ComplianceTaskType>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<ContentClassification>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<ContentClassificationSource>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<CuiReadyChecklistItemStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<CuiReadyChecklistState>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<CuiSupportEscalationCategory>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<CuiSupportEscalationResolutionType>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<CuiSupportEscalationSeverity>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<CuiSupportEscalationStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<ContractDocumentType>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<ContractKind>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<ContractorRelationship>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<ContractorRole>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<ContractStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<ControlFramework>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<ControlImplementationStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<DataHandlingPosture>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<DeliverableStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<EmploymentStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<EnvironmentDeploymentType>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<EnvironmentReadinessStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<EvidenceStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<EvidenceType>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<FedRampEvidenceType>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<FedRampGapSeverity>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<FedRampImplementationStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<FedRampPackageRecordStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<FedRampReadinessPackageStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<FedRampReviewState>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<ExtractionJobStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<FlowDownStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<GovernmentCloudReleaseChecklistItem>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<GovernmentCloudReleaseEvidenceType>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<GovernmentCloudReleaseGapArea>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<GovernmentCloudReleaseGapSeverity>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<GovernmentCloudReleaseStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<MembershipStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<Permission>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<PoamStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<RecurrencePattern>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<RegulatedProvisioningApprovalArea>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<RegulatedProvisioningChecklistItem>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<RegulatedProvisioningStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<ReportStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<ReportExportStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<ReportType>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<ReviewState>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<RiskLevel>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<SamlConfigurationStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<SamlNameIdFormat>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<SamlSigningRequirement>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<SamlTestResult>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<SsoEnforcementMode>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<SubcontractorStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<SubcontractorEvidenceRequestStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<SspSectionType>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<SspSectionStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<SspLinkedRecordType>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<SspNarrativeStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<SspNarrativeSourceType>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<SubcontractingReportDataReviewStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<TenantDataPosture>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<InvitationDeliveryStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<LaborApplicabilityStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<LaborApplicabilityReviewStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<TenantInvitationStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<TenantOnboardingStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<TenantOnboardingType>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<TenantKind>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<SubscriptionPlan>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<SubscriptionStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<TenantStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<TrainingStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<TrainingType>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<UserStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<VendorRiskLevel>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<VendorType>().HaveConversion<string>().HaveMaxLength(64);
+    }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.HasDefaultSchema("gccs");
+        ConfigureSsp(modelBuilder);
+        foreach (var type in new[] { typeof(EvidenceItemEntity), typeof(EvidenceFileVersionEntity), typeof(ContractDocumentEntity), typeof(GeneratedPolicyEntity),
+            typeof(ExtractionJobEntity), typeof(ClassifiedNoteEntity), typeof(ReportEntity), typeof(ReportClassificationEntity) })
+            modelBuilder.Entity(type).Property<long>("ClassificationRevision").IsConcurrencyToken();
+        modelBuilder.Entity<ReportClassificationEntity>(entity =>
+        {
+            entity.ToTable("report_classifications");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).ValueGeneratedNever();
+            entity.Property(e => e.ClassificationReason).HasMaxLength(600);
+            entity.HasOne<ReportEntity>().WithOne(e => e.CurrentClassification).HasForeignKey<ReportClassificationEntity>(e => e.Id)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<ContentClassificationHistoryEntity>().Property(e => e.PreviousMetadataJson).HasColumnType("jsonb");
+        modelBuilder.Entity<ClassifiedNoteEntity>(entity =>
+        {
+            entity.ToTable("classified_notes");
+            entity.HasKey(n => n.Id);
+            entity.HasIndex(n => new { n.TenantId, n.UpdatedAt });
+            entity.Property(n => n.Title).HasMaxLength(240).IsRequired();
+            entity.Property(n => n.Body).HasMaxLength(20000).IsRequired();
+            entity.Property(n => n.ClassificationReason).HasMaxLength(600);
+            entity.Property(n => n.Revision).IsConcurrencyToken();
+            entity.HasOne<TenantEntity>().WithMany().HasForeignKey(n => n.TenantId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ObjectWriteIntentEntity>(entity =>
+        {
+            entity.ToTable("object_write_intents");
+            entity.HasKey(item => item.Id);
+            entity.HasAlternateKey(item => new { item.TenantId, item.Id });
+            entity.Property(item => item.Container).HasConversion<string>().HasMaxLength(32);
+            entity.Property(item => item.State).HasConversion<string>().HasMaxLength(32).IsConcurrencyToken();
+            entity.Property(item => item.OwnerId).IsConcurrencyToken();
+            entity.Property(item => item.Generation).IsConcurrencyToken();
+            entity.Property(item => item.ObjectName).HasMaxLength(1024).IsRequired();
+            entity.Property(item => item.ResourceType).HasMaxLength(32).IsRequired();
+            entity.Property(item => item.ETag).HasMaxLength(200);
+            entity.Property(item => item.ResultCode).HasMaxLength(128);
+            entity.HasIndex(item => new { item.TenantId, item.Container, item.ObjectName }).IsUnique();
+            entity.HasIndex(item => new { item.State, item.LeaseUntil });
+        });
+
+        modelBuilder.Entity<ObjectCleanupEntity>(entity =>
+        {
+            entity.ToTable("object_cleanup");
+            entity.Property(item => item.ExpectedETag).HasMaxLength(200);
+            entity.HasIndex(item => item.ObjectWriteIntentId).IsUnique()
+                .HasFilter("object_write_intent_id IS NOT NULL AND completed_at IS NULL");
+            entity.HasOne<ObjectWriteIntentEntity>().WithMany().HasForeignKey(item => new { item.TenantId, item.ObjectWriteIntentId })
+                .HasPrincipalKey(item => new { item.TenantId, item.Id }).OnDelete(DeleteBehavior.Restrict);
+            entity.HasKey(item => item.Id);
+            entity.Property(item => item.Container).HasConversion<string>().HasMaxLength(32);
+            entity.Property(item => item.ObjectName).HasMaxLength(1024).IsRequired();
+            entity.Property(item => item.LastErrorCode).HasMaxLength(128);
+            entity.HasIndex(item => new { item.CompletedAt, item.NextAttemptAt });
+            entity.HasIndex(item => new { item.TenantId, item.Id });
+        });
+
+        ConfigureCore(modelBuilder);
+        ConfigureMarketing(modelBuilder);
+        ConfigureComplianceContent(modelBuilder);
+        ConfigureContracts(modelBuilder);
+        ConfigureEvidence(modelBuilder);
+        ConfigureCmmc(modelBuilder);
+        ConfigureVendors(modelBuilder);
+        ConfigurePeopleAndLabor(modelBuilder);
+        ConfigureReports(modelBuilder);
+        ConfigureAudit(modelBuilder);
+        ConfigureAssistant(modelBuilder);
+        ConfigureFedRamp(modelBuilder);
+
+        if (Database.ProviderName?.Contains("Npgsql", StringComparison.Ordinal) != true)
+        {
+            modelBuilder.Entity<ObligationEntity>().Ignore(x => x.SearchVector);
+            modelBuilder.Entity<ClauseCandidateEntity>().Ignore(x => x.SearchVector);
+            modelBuilder.Entity<EvidenceItemEntity>().Ignore(x => x.SearchVector);
+            modelBuilder.Entity<SprReportPackageEntity>().Ignore(x => x.SearchVector);
+        }
+
+        ConfigureTenantForeignKeys(modelBuilder);
+        ApplyPostgresConventions(modelBuilder);
+    }
+
+    private static void ConfigureAssistant(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<AssistantAnswerEntity>(entity =>
+        {
+            entity.ToTable("assistant_answers");
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
+            entity.HasIndex(x => new { x.TenantId, x.CreatedAt });
+            entity.Property(x => x.WorkflowContext).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.Prompt).HasMaxLength(4_000).IsRequired();
+            entity.Property(x => x.PromptMetadataJson).HasColumnType("jsonb").IsRequired();
+            entity.Property(x => x.ModelConfigurationJson).HasColumnType("jsonb").IsRequired();
+            entity.Property(x => x.RetrievalPolicyJson).HasColumnType("jsonb").IsRequired();
+            entity.Property(x => x.Status).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.Answer).HasMaxLength(20_000).IsRequired();
+            entity.Property(x => x.CitationsJson).HasColumnType("jsonb").IsRequired();
+            entity.Property(x => x.SupportStatus).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.DraftLabel).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.BlockedReason).HasMaxLength(80);
+            entity.Property(x => x.HumanReviewStatus).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.ReviewDecision).HasMaxLength(64);
+            entity.Property(x => x.ReviewNotes).HasMaxLength(1_000);
+            entity.Property(x => x.RejectionReason).HasMaxLength(1_000);
+            entity.Property(x => x.Result).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.Version).IsConcurrencyToken();
+        });
+
+        modelBuilder.Entity<AssistantOutputReviewEntity>(entity =>
+        {
+            entity.ToTable("assistant_output_reviews");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.AnswerId, x.CreatedAt });
+            entity.Property(x => x.Note).HasMaxLength(1_000);
+            entity.Property(x => x.RejectionReason).HasMaxLength(1_000);
+            entity.HasOne(x => x.Answer).WithMany(x => x.Reviews)
+                .HasForeignKey(x => new { x.TenantId, x.AnswerId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id })
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<AssistantOutputUsageEntity>(entity =>
+        {
+            entity.ToTable("assistant_output_usages");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.DeliverableType, x.DeliverableId }).IsUnique();
+            entity.Property(x => x.DeliverableId).HasMaxLength(200).IsRequired();
+            entity.HasOne(x => x.Answer).WithMany(x => x.DeliverableUses)
+                .HasForeignKey(x => new { x.TenantId, x.AnswerId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id })
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<AssistantDraftActionEntity>(entity =>
+        {
+            entity.ToTable("assistant_draft_actions");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.AnswerId, x.CreatedAt });
+            entity.Property(x => x.Title).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.Body).HasMaxLength(4_000).IsRequired();
+            entity.Property(x => x.Status).HasMaxLength(40).IsRequired();
+            entity.HasOne(x => x.Answer).WithMany(x => x.Actions)
+                .HasForeignKey(x => new { x.TenantId, x.AnswerId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id })
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<AssistantFeedbackEntity>(entity =>
+        {
+            entity.ToTable("assistant_feedback");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.AnswerId, x.CreatedAt });
+            entity.Property(x => x.Reason).HasMaxLength(1_000).IsRequired();
+            entity.HasOne(x => x.Answer).WithMany(x => x.Feedback)
+                .HasForeignKey(x => new { x.TenantId, x.AnswerId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id })
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+    }
+
+    private static void ConfigureFedRamp(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<FedRampControlMappingEntity>(entity =>
+        {
+            entity.ToTable("fedramp_control_mappings");
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
+            entity.HasIndex(x => new { x.TenantId, x.ControlId, x.Baseline }).IsUnique();
+            entity.HasIndex(x => new { x.TenantId, x.Family, x.ReviewState });
+            entity.Property(x => x.ControlId).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.Family).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.Baseline).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.Owner).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.ImplementationSummary).HasMaxLength(1200).IsRequired();
+            entity.Property(x => x.InheritedProvider).HasMaxLength(200);
+            entity.Property(x => x.GapRationale).HasMaxLength(1000);
+            entity.Property(x => x.SourceReference).HasMaxLength(600).IsRequired();
+            entity.Property(x => x.Reviewer).HasMaxLength(200);
+            entity.Property(x => x.Version).IsConcurrencyToken();
+            entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<FedRampEvidenceLinkEntity>(entity =>
+        {
+            entity.ToTable("fedramp_evidence_links");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.MappingId, x.Reference }).IsUnique();
+            entity.Property(x => x.Label).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Reference).HasMaxLength(600).IsRequired();
+            entity.HasOne(x => x.Mapping).WithMany(x => x.EvidenceLinks)
+                .HasForeignKey(x => new { x.TenantId, x.MappingId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id })
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<FedRampGapEntity>(entity =>
+        {
+            entity.ToTable("fedramp_gaps");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.MappingId, x.IsOpen, x.Severity });
+            entity.Property(x => x.Rationale).HasMaxLength(1000).IsRequired();
+            entity.Property(x => x.Owner).HasMaxLength(200).IsRequired();
+            entity.HasOne(x => x.Mapping).WithMany(x => x.Gaps)
+                .HasForeignKey(x => new { x.TenantId, x.MappingId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id })
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<FedRampControlMappingHistoryEntity>(entity =>
+        {
+            entity.ToTable("fedramp_control_mapping_history");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.MappingId, x.ChangedAt });
+            entity.Property(x => x.Reviewer).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.ReviewNotes).HasMaxLength(1200).IsRequired();
+            entity.HasOne(x => x.Mapping).WithMany(x => x.History)
+                .HasForeignKey(x => new { x.TenantId, x.MappingId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id })
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<FedRampReadinessPackageEntity>(entity =>
+        {
+            entity.ToTable("fedramp_readiness_packages");
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
+            entity.HasIndex(x => new { x.TenantId, x.PackageVersion }).IsUnique();
+            entity.HasIndex(x => new { x.TenantId, x.Status, x.GeneratedAt });
+            entity.Property(x => x.PackageVersion).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.Scope).HasMaxLength(400).IsRequired();
+            entity.Property(x => x.Environment).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Reviewer).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.AuthorizationLanguage).HasMaxLength(400).IsRequired();
+            entity.Property(x => x.GapsJson).IsRequired();
+            entity.Property(x => x.AcceptedRisksJson).IsRequired();
+            entity.Property(x => x.ReadinessSummary).HasMaxLength(2000).IsRequired();
+            entity.Property(x => x.LastActor).HasMaxLength(320);
+            entity.Property(x => x.Version).IsConcurrencyToken();
+            entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<FedRampPackageRecordEntity>(entity =>
+        {
+            entity.ToTable("fedramp_package_records");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.PackageId, x.RecordType, x.RecordId }).IsUnique();
+            entity.Property(x => x.RecordType).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.RecordId).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.Title).HasMaxLength(400).IsRequired();
+            entity.HasOne(x => x.Package).WithMany(x => x.IncludedRecords)
+                .HasForeignKey(x => new { x.TenantId, x.PackageId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id })
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<FedRampReadinessPackageHistoryEntity>(entity =>
+        {
+            entity.ToTable("fedramp_readiness_package_history");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.PackageId, x.ChangedAt });
+            entity.Property(x => x.Actor).HasMaxLength(320).IsRequired();
+            entity.Property(x => x.Notes).HasMaxLength(1200);
+            entity.HasOne(x => x.Package).WithMany(x => x.History)
+                .HasForeignKey(x => new { x.TenantId, x.PackageId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id })
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+    }
+
+    private static void ConfigureMarketing(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<DemoRequestEntity>(entity =>
+        {
+            entity.ToTable("demo_requests");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.DeduplicationKey).IsUnique();
+            entity.HasIndex(x => x.ReceivedAt);
+            entity.HasIndex(x => x.PreferredStartAt);
+            entity.Property(x => x.FirstName).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.LastName).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.Email).HasMaxLength(320).IsRequired();
+            entity.Property(x => x.Phone).HasMaxLength(40);
+            entity.Property(x => x.Company).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.ReferralSource).HasMaxLength(200);
+            entity.Property(x => x.EmployeeCount).HasMaxLength(20);
+            entity.Property(x => x.Message).HasMaxLength(2000);
+            entity.Property(x => x.PreferredTimeZone).HasMaxLength(100);
+            entity.Property(x => x.ConsentNoticeVersion).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.DeduplicationKey).HasMaxLength(64).IsRequired();
+        });
+
+        modelBuilder.Entity<DemoRequestDeliveryEntity>(entity =>
+        {
+            entity.ToTable("demo_request_deliveries");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.DemoRequestId, x.DeliveryKind }).IsUnique();
+            entity.HasIndex(x => new { x.Status, x.NextAttemptAt, x.LeaseUntil });
+            entity.Property(x => x.Status).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.DeliveryKind).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.ProviderMessageId).HasMaxLength(300);
+            entity.Property(x => x.FailureCode).HasMaxLength(120);
+            entity.HasOne(x => x.DemoRequest).WithMany().HasForeignKey(x => x.DemoRequestId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.DemoAppointmentEvent).WithMany().HasForeignKey(x => x.DemoAppointmentEventId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.DemoFollowUpRequest).WithMany()
+                .HasForeignKey(x => new { x.DemoFollowUpRequestId, x.DemoRequestId })
+                .HasPrincipalKey(x => new { x.Id, x.DemoRequestId })
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<DemoAppointmentEntity>(entity =>
+        {
+            entity.ToTable("demo_appointments", table =>
+            {
+                table.HasCheckConstraint("ck_demo_appointments_duration", "duration_minutes = 30");
+                table.HasCheckConstraint("ck_demo_appointments_time_range", "confirmed_end_at > confirmed_start_at");
+            });
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.DemoRequestId).IsUnique();
+            entity.HasIndex(x => new { x.HostUserId, x.Status, x.ConfirmedStartAt, x.ConfirmedEndAt });
+            entity.Property(x => x.Status).HasMaxLength(40).IsRequired().IsConcurrencyToken();
+            entity.Property(x => x.ConfirmedTimeZone).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.MeetingMethod).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.MeetingJoinUrl).HasMaxLength(2048);
+            entity.HasOne(x => x.DemoRequest).WithMany().HasForeignKey(x => x.DemoRequestId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<DemoAppointmentEventEntity>(entity =>
+        {
+            entity.ToTable("demo_appointment_events", table =>
+            {
+                table.HasCheckConstraint("ck_demo_appointment_events_duration", "duration_minutes = 30");
+                table.HasCheckConstraint("ck_demo_appointment_events_time_range", "confirmed_end_at > confirmed_start_at");
+            });
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.DemoAppointmentId, x.OccurredAt });
+            entity.HasIndex(x => new { x.DemoRequestId, x.OccurredAt });
+            entity.Property(x => x.EventType).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.PreviousStatus).HasMaxLength(40);
+            entity.Property(x => x.NewStatus).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.ConfirmedTimeZone).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.MeetingMethod).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.MeetingJoinUrl).HasMaxLength(2048);
+            entity.Property(x => x.IpAddress).HasMaxLength(120);
+            entity.Property(x => x.UserAgent).HasMaxLength(500);
+            entity.Property(x => x.CorrelationId).HasMaxLength(120);
+            entity.HasOne(x => x.DemoAppointment).WithMany().HasForeignKey(x => x.DemoAppointmentId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.DemoRequest).WithMany().HasForeignKey(x => x.DemoRequestId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<DemoFollowUpRequestEntity>(entity =>
+        {
+            entity.ToTable("demo_follow_up_requests");
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.Id, x.DemoRequestId });
+            entity.HasIndex(x => x.TokenHash).IsUnique();
+            entity.HasIndex(x => new { x.DemoRequestId, x.RequestedAt });
+            entity.HasIndex(x => new { x.DemoRequestId, x.Status })
+                .IsUnique()
+                .HasFilter("status = 'Pending'");
+            entity.Property(x => x.TokenHash).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.Status).HasMaxLength(40).IsRequired().IsConcurrencyToken();
+            entity.Property(x => x.TemplateVersion).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.NoCuiNoticeVersion).HasMaxLength(80).IsRequired();
+            entity.HasOne(x => x.DemoRequest).WithMany().HasForeignKey(x => x.DemoRequestId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<DemoFollowUpResponseEntity>(entity =>
+        {
+            entity.ToTable("demo_follow_up_responses", table =>
+                table.HasCheckConstraint("ck_demo_follow_up_responses_no_cui", "no_cui_confirmed = TRUE"));
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.DemoFollowUpRequestId).IsUnique();
+            entity.HasIndex(x => new { x.DemoRequestId, x.SubmittedAt });
+            entity.Property(x => x.WorkflowsJson).HasColumnType("jsonb").IsRequired();
+            entity.Property(x => x.OtherWorkflow).HasMaxLength(200);
+            entity.Property(x => x.Goals).HasMaxLength(2000).IsRequired();
+            entity.Property(x => x.Challenges).HasMaxLength(2000).IsRequired();
+            entity.Property(x => x.CurrentProcess).HasMaxLength(1000);
+            entity.Property(x => x.AdditionalContext).HasMaxLength(2000);
+            entity.Property(x => x.NoCuiNoticeVersion).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.IpAddress).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.UserAgent).HasMaxLength(500).IsRequired();
+            entity.Property(x => x.CorrelationId).HasMaxLength(120).IsRequired();
+            entity.HasOne(x => x.DemoFollowUpRequest).WithOne(x => x.Response)
+                .HasForeignKey<DemoFollowUpResponseEntity>(x => new { x.DemoFollowUpRequestId, x.DemoRequestId })
+                .HasPrincipalKey<DemoFollowUpRequestEntity>(x => new { x.Id, x.DemoRequestId })
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.DemoRequest).WithMany().HasForeignKey(x => x.DemoRequestId).OnDelete(DeleteBehavior.Restrict);
+        });
+    }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        EnforceAuditLogAppendOnly();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(
+        bool acceptAllChangesOnSuccess,
+        CancellationToken cancellationToken = default)
+    {
+        EnforceAuditLogAppendOnly();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+
+    private static void ConfigureCore(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<TenantEntity>(entity =>
+        {
+            entity.ToTable("tenants");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.Name);
+            entity.Property(x => x.Name).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.Status).IsConcurrencyToken();
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<PlatformTenantOnboardingEntity>(entity =>
+        {
+            entity.ToTable("platform_tenant_onboardings");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.TenantId).IsUnique();
+            entity.HasIndex(x => x.InvitationId).IsUnique();
+            entity.HasIndex(x => x.IdempotencyKey).IsUnique();
+            entity.HasIndex(x => x.CustomerReference).IsUnique();
+            entity.HasIndex(x => x.SubscriptionReference).IsUnique();
+            entity.HasIndex(x => x.OwnerEmail);
+            entity.HasIndex(x => new { x.Status, x.OnboardingType, x.CreatedAt });
+            entity.Property(x => x.IdempotencyKey).HasMaxLength(128).IsRequired();
+            entity.Property(x => x.RequestFingerprint).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.CustomerReference).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.OwnerEmail).HasMaxLength(320).IsRequired();
+            entity.Property(x => x.OwnerDisplayName).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.PlanCode).HasMaxLength(80);
+            entity.Property(x => x.SubscriptionReference).HasMaxLength(160);
+            entity.Property(x => x.SetupReason).HasMaxLength(600).IsRequired();
+            entity.Property(x => x.CancellationReason).HasMaxLength(600);
+            entity.Property(x => x.Status).IsConcurrencyToken();
+            entity.HasOne(x => x.Tenant).WithOne(x => x.PlatformOnboarding).HasForeignKey<PlatformTenantOnboardingEntity>(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Invitation).WithMany().HasForeignKey(x => x.InvitationId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<TenantSubscriptionEntity>(entity =>
+        {
+            entity.ToTable("tenant_subscriptions");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.TenantId).IsUnique();
+            entity.HasIndex(x => x.ExternalSubscriptionReference).IsUnique();
+            entity.HasIndex(x => new { x.Plan, x.Status, x.EndsAt });
+            entity.Property(x => x.PlanCode).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.ExternalCustomerReference).HasMaxLength(160);
+            entity.Property(x => x.ExternalSubscriptionReference).HasMaxLength(160);
+            entity.Property(x => x.StatusReason).HasMaxLength(600).IsRequired();
+            entity.Property(x => x.Version).IsConcurrencyToken();
+            entity.HasOne(x => x.Tenant).WithOne(x => x.Subscription)
+                .HasForeignKey<TenantSubscriptionEntity>(x => x.TenantId)
+                .OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<TenantSubscriptionTransitionEntity>(entity =>
+        {
+            entity.ToTable("tenant_subscription_transitions");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.IdempotencyKey }).IsUnique();
+            entity.Property(x => x.IdempotencyKey).HasMaxLength(128).IsRequired();
+            entity.Property(x => x.RequestFingerprint).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.Transition).HasMaxLength(32).IsRequired();
+            entity.Property(x => x.ResultJson).IsRequired();
+            entity.HasOne(x => x.Subscription).WithMany(x => x.Transitions)
+                .HasForeignKey(x => x.SubscriptionId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<TenantDataHandlingModeHistoryEntity>(entity =>
+        {
+            entity.ToTable("tenant_data_handling_mode_history");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.ChangedAt });
+            entity.Property(x => x.Reason).HasMaxLength(600).IsRequired();
+            entity.Property(x => x.ApprovalRecordReference).HasMaxLength(160);
+            entity.HasOne(x => x.Tenant).WithMany(x => x.DataHandlingModeHistory).HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<GovernmentCloudEnvironmentEntity>(entity =>
+        {
+            entity.ToTable("government_cloud_environments");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.Name }).IsUnique();
+            entity.HasIndex(x => new { x.TenantId, x.Status });
+            entity.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Region).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.Boundary).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.NetworkSegment).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.StorageAccount).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.DatabaseService).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.KeyManagementService).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.LoggingWorkspace).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.BackupPolicy).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.ReviewerName).HasMaxLength(200);
+            entity.Property(x => x.ReviewNotes).HasMaxLength(1200);
+            entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<GovernmentCloudEnvironmentStatusHistoryEntity>(entity =>
+        {
+            entity.ToTable("government_cloud_environment_status_history");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.EnvironmentId, x.ChangedAt });
+            entity.Property(x => x.ReviewerName).HasMaxLength(200);
+            entity.Property(x => x.ReviewNotes).HasMaxLength(1200);
+            entity.Property(x => x.HistoryNote).HasMaxLength(600).IsRequired();
+            entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Environment).WithMany(x => x.StatusHistory).HasForeignKey(x => x.EnvironmentId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<RegulatedTenantProvisioningRequestEntity>(entity =>
+        {
+            entity.ToTable("regulated_tenant_provisioning_requests");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.Status });
+            entity.HasIndex(x => new { x.TenantId, x.EnvironmentId });
+            entity.Property(x => x.TenantName).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.CustomerType).HasMaxLength(160).IsRequired();
+            entity.Property(x => x.KeyPolicy).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.SupportModel).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.MigrationSource).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.FailureReason).HasMaxLength(1200);
+            entity.Property(x => x.RollbackDecision).HasMaxLength(1200);
+            entity.Property(x => x.FailureOwner).HasMaxLength(200);
+            entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Environment).WithMany().HasForeignKey(x => x.EnvironmentId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<RegulatedProvisioningApprovalEntity>(entity =>
+        {
+            entity.ToTable("regulated_provisioning_approvals");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.RequestId, x.Area }).IsUnique();
+            entity.Property(x => x.ApproverName).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Notes).HasMaxLength(1200).IsRequired();
+            entity.HasOne(x => x.Request).WithMany(x => x.Approvals).HasForeignKey(x => x.RequestId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<RegulatedProvisioningChecklistEntity>(entity =>
+        {
+            entity.ToTable("regulated_provisioning_checklist");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.RequestId, x.Item }).IsUnique();
+            entity.Property(x => x.CompletedByName).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.EvidenceReference).HasMaxLength(600).IsRequired();
+            entity.HasOne(x => x.Request).WithMany(x => x.Checklist).HasForeignKey(x => x.RequestId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<RegulatedTenantProvisioningHistoryEntity>(entity =>
+        {
+            entity.ToTable("regulated_tenant_provisioning_history");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.RequestId, x.ChangedAt });
+            entity.Property(x => x.Note).HasMaxLength(600).IsRequired();
+            entity.HasOne(x => x.Request).WithMany().HasForeignKey(x => x.RequestId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<GovernmentCloudReleaseReadinessEntity>(entity =>
+        {
+            entity.ToTable("government_cloud_release_readiness");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.EnvironmentId, x.Version }).IsUnique();
+            entity.Property(x => x.Version).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.ReleaseWindow).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.Owner).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.ApproverName).HasMaxLength(200);
+            entity.Property(x => x.ApprovalNotes).HasMaxLength(1200);
+            entity.Property(x => x.Result).HasMaxLength(400);
+            entity.Property(x => x.RollbackStatus).HasMaxLength(400);
+            entity.HasOne(x => x.Environment).WithMany().HasForeignKey(x => x.EnvironmentId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<GovernmentCloudReleaseChecklistEntity>(entity =>
+        {
+            entity.ToTable("government_cloud_release_checklist");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.ReadinessId, x.Item }).IsUnique();
+            entity.Property(x => x.EvidenceReference).HasMaxLength(600).IsRequired();
+            entity.HasOne(x => x.Readiness).WithMany(x => x.Checklist).HasForeignKey(x => x.ReadinessId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<GovernmentCloudReleaseEvidenceEntity>(entity =>
+        {
+            entity.ToTable("government_cloud_release_evidence");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.ReadinessId, x.EvidenceType }).IsUnique();
+            entity.Property(x => x.Link).HasMaxLength(600).IsRequired();
+            entity.HasOne(x => x.Readiness).WithMany(x => x.Evidence).HasForeignKey(x => x.ReadinessId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<GovernmentCloudReleaseGapEntity>(entity =>
+        {
+            entity.ToTable("government_cloud_release_gaps");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.ReadinessId, x.Severity, x.IsOpen });
+            entity.Property(x => x.Description).HasMaxLength(1000).IsRequired();
+            entity.HasOne(x => x.Readiness).WithMany(x => x.Gaps).HasForeignKey(x => x.ReadinessId).OnDelete(DeleteBehavior.Cascade);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<CuiReadyApprovalChecklistEntity>(entity =>
+        {
+            entity.ToTable("cui_ready_approval_checklists");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.State, x.CreatedAt });
+            entity.Property(x => x.Version).IsRequired();
+            entity.Property(x => x.RejectionReason).HasMaxLength(1000);
+            entity.Property(x => x.ReviewNotes).HasMaxLength(1000);
+            entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<CuiReadinessEvidenceEntity>(entity =>
+        {
+            entity.ToTable("cui_readiness_evidence");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.Kind, x.Version }).IsUnique();
+            entity.Property(x => x.Kind).HasMaxLength(80);
+            entity.Property(x => x.State).HasMaxLength(40);
+            entity.Property(x => x.SourceReference).HasMaxLength(600);
+            entity.Property(x => x.ReviewNotes).HasMaxLength(1200);
+            entity.HasOne<TenantEntity>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<CuiReadyApprovalChecklistItemEntity>(entity =>
+        {
+            entity.ToTable("cui_ready_approval_checklist_items");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.ChecklistId, x.ItemKey }).IsUnique();
+            entity.Property(x => x.ItemKey).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.Section).HasMaxLength(180).IsRequired();
+            entity.Property(x => x.Description).HasMaxLength(1000).IsRequired();
+            entity.Property(x => x.Owner).HasMaxLength(180);
+            entity.Property(x => x.EvidenceLink).HasMaxLength(600);
+            entity.Property(x => x.Notes).HasMaxLength(1200);
+            entity.Property(x => x.SupportingVersion).HasMaxLength(80);
+            entity.HasOne(x => x.Checklist).WithMany(x => x.Items).HasForeignKey(x => x.ChecklistId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        ConfigureReadinessRecords(modelBuilder);
+
+        modelBuilder.Entity<SharedResponsibilityMatrixAcknowledgementEntity>(entity =>
+        {
+            entity.ToTable("shared_responsibility_matrix_acknowledgements");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.MatrixId, x.MatrixVersion }).IsUnique();
+            entity.HasIndex(x => new { x.TenantId, x.AcknowledgedAt });
+            entity.Property(x => x.MatrixId).HasMaxLength(160).IsRequired();
+            entity.Property(x => x.MatrixVersion).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.MatrixTitle).HasMaxLength(240).IsRequired();
+            entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<DataHandlingNoticeAcknowledgementEntity>(entity =>
+        {
+            entity.ToTable("data_handling_notice_acknowledgements");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.UserId, x.Mode, x.WorkflowContext, x.NoticeId, x.NoticeVersion }).IsUnique();
+            entity.HasIndex(x => new { x.TenantId, x.UserId, x.AcknowledgedAt });
+            entity.Property(x => x.WorkflowContext).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.NoticeId).HasMaxLength(160).IsRequired();
+            entity.Property(x => x.NoticeVersion).HasMaxLength(80).IsRequired();
+            entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<CuiSupportEscalationEntity>(entity =>
+        {
+            entity.ToTable("cui_support_escalations");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.Status, x.CreatedAt });
+            entity.HasIndex(x => new { x.TenantId, x.AffectedEntityType, x.AffectedEntityId });
+            entity.Property(x => x.SourceWorkflow).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.AffectedEntityType).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.AffectedEntityId).HasMaxLength(160).IsRequired();
+            entity.Property(x => x.Owner).HasMaxLength(180);
+            entity.Property(x => x.Description).HasMaxLength(1200).IsRequired();
+            entity.Property(x => x.StatusNote).HasMaxLength(1200);
+            entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<CuiSupportEscalationResolutionEntity>(entity =>
+        {
+            entity.ToTable("cui_support_escalation_resolutions");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.EscalationId, x.ResolvedAt });
+            entity.Property(x => x.Summary).HasMaxLength(1200).IsRequired();
+            entity.HasOne(x => x.Escalation).WithMany(x => x.Resolutions).HasForeignKey(x => x.EscalationId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<CuiSupportEscalationEventEntity>(entity =>
+        {
+            entity.ToTable("cui_support_escalation_events");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.EscalationId, x.OccurredAt });
+            entity.Property(x => x.Note).HasMaxLength(1200).IsRequired();
+            entity.HasOne(x => x.Escalation).WithMany(x => x.Events).HasForeignKey(x => x.EscalationId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<UserEntity>(entity =>
+        {
+            entity.ToTable("users");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.Email }).IsUnique();
+            entity.HasIndex(x => x.PreferredTenantId);
+            entity.Property(x => x.Email).HasMaxLength(320).IsRequired();
+            entity.Property(x => x.DisplayName).HasMaxLength(200).IsRequired();
+            entity.HasOne(x => x.Tenant).WithMany(x => x.Users).HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.PreferredTenant).WithMany().HasForeignKey(x => x.PreferredTenantId).OnDelete(DeleteBehavior.SetNull);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<TenantMembershipEntity>(entity =>
+        {
+            entity.ToTable("tenant_memberships");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.UserId }).IsUnique();
+            entity.HasIndex(x => new { x.TenantId, x.Status });
+            entity.Property(x => x.RoleName).HasMaxLength(120).IsRequired();
+            entity.HasOne(x => x.Tenant).WithMany(x => x.Memberships).HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.User).WithMany(x => x.Memberships).HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<TenantInvitationEntity>(entity =>
+        {
+            entity.ToTable("tenant_invitations");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.InvitationTokenHash).IsUnique();
+            entity.HasIndex(x => new { x.TenantId, x.Status, x.ExpiresAt });
+            entity.HasIndex(x => new { x.TenantId, x.Email, x.Status });
+            entity.HasIndex(x => new { x.TenantId, x.Email })
+                .HasDatabaseName("UX_tenant_invitations_tenant_email_pending")
+                .IsUnique()
+                .HasFilter("status = 'Pending'");
+            entity.HasIndex(x => new { x.DeliveryStatus, x.NextDeliveryAttemptAt, x.DeliveryLeaseUntil });
+            entity.Property(x => x.Email).HasMaxLength(320).IsRequired();
+            entity.Property(x => x.RoleName).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.InvitationTokenHash).HasColumnName("invitation_token_hash").HasMaxLength(64);
+            entity.Property(x => x.NotificationPlaceholder).HasMaxLength(600).IsRequired();
+            entity.Property(x => x.DeliveryProviderMessageId).HasMaxLength(200);
+            entity.Property(x => x.DeliveryFailureCode).HasMaxLength(120);
+            entity.Property(x => x.Status).IsConcurrencyToken();
+            entity.Property(x => x.DeliveryStatus).IsConcurrencyToken();
+            entity.HasOne(x => x.Tenant).WithMany(x => x.Invitations).HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<SamlIdentityProviderConfigurationEntity>(entity =>
+        {
+            entity.ToTable("saml_identity_provider_configurations");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.EntityId }).IsUnique();
+            entity.HasIndex(x => new { x.TenantId, x.Status });
+            entity.Property(x => x.EntityId).HasMaxLength(512).IsRequired();
+            entity.Property(x => x.SsoUrl).HasMaxLength(1000).IsRequired();
+            entity.Property(x => x.CertificatePem).HasMaxLength(8000);
+            entity.Property(x => x.CertificateFingerprint).HasMaxLength(128);
+            entity.Property(x => x.AttributeMappingsJson).HasColumnType("jsonb");
+            entity.Property(x => x.MetadataUrl).HasMaxLength(1000);
+            entity.Property(x => x.CallbackUrl).HasMaxLength(1000).IsRequired();
+            entity.Property(x => x.LastTestDiagnosticSummary).HasMaxLength(1200);
+            entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<TenantSsoPolicyEntity>(entity =>
+        {
+            entity.ToTable("tenant_sso_policies");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.TenantId).IsUnique();
+            entity.Property(x => x.RequiredEmailDomain).HasMaxLength(160);
+            entity.Property(x => x.RequiredAttributesJson).HasColumnType("jsonb");
+            entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<SamlAccountLinkEntity>(entity =>
+        {
+            entity.ToTable("saml_account_links");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.SamlSubject }).IsUnique();
+            entity.HasIndex(x => new { x.TenantId, x.Email });
+            entity.HasIndex(x => new { x.TenantId, x.UserId });
+            entity.Property(x => x.SamlSubject).HasMaxLength(512).IsRequired();
+            entity.Property(x => x.Email).HasMaxLength(320).IsRequired();
+            entity.Property(x => x.AttributesJson).HasColumnType("jsonb");
+            entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Membership).WithMany().HasForeignKey(x => x.MembershipId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<BreakGlassAccessGrantEntity>(entity =>
+        {
+            entity.ToTable("break_glass_access_grants");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.UserId, x.Status });
+            entity.HasIndex(x => new { x.TenantId, x.ExpiresAt });
+            entity.Property(x => x.Reason).HasMaxLength(800).IsRequired();
+            entity.Property(x => x.ApprovalReference).HasMaxLength(240).IsRequired();
+            entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<ScimProvisioningConfigurationEntity>(entity =>
+        {
+            entity.ToTable("scim_provisioning_configurations");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.TenantId).IsUnique();
+            entity.Property(x => x.TokenHash).HasMaxLength(128);
+            entity.Property(x => x.EndpointLabel).HasMaxLength(160);
+            entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<ScimGroupMappingEntity>(entity =>
+        {
+            entity.ToTable("scim_group_mappings");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.GroupDisplayName }).IsUnique();
+            entity.Property(x => x.GroupDisplayName).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.RoleName).HasMaxLength(120).IsRequired();
+            entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<ScimProvisionedIdentityEntity>(entity =>
+        {
+            entity.ToTable("scim_provisioned_identities");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.ExternalId }).IsUnique();
+            entity.HasIndex(x => new { x.TenantId, x.UserName });
+            entity.HasIndex(x => x.ExternalId);
+            entity.Property(x => x.ExternalId).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.UserName).HasMaxLength(320).IsRequired();
+            entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Membership).WithMany().HasForeignKey(x => x.MembershipId).OnDelete(DeleteBehavior.Cascade);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<NoCuiAcknowledgementEntity>(entity =>
+        {
+            entity.ToTable("no_cui_acknowledgements");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.UserId, x.NoticeVersion }).IsUnique();
+            entity.Property(x => x.NoticeVersion).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.NoticeCopy).HasMaxLength(1000).IsRequired();
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<NotificationPreferenceEntity>(entity =>
+        {
+            entity.ToTable("notification_preferences");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.UserId }).IsUnique();
+            entity.Property(x => x.RoleName).HasMaxLength(120).IsRequired();
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<NotificationDeliveryEntity>(entity =>
+        {
+            entity.ToTable("notification_deliveries");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.SourceTaskId, x.Category, x.UserId }).IsUnique();
+            entity.HasIndex(x => new { x.TenantId, x.AttemptedAt });
+            entity.Property(x => x.Category).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.SourceType).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.LinkUrl).HasMaxLength(400).IsRequired();
+            entity.Property(x => x.Status).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.Placeholder).HasMaxLength(800).IsRequired();
+            entity.Property(x => x.FailureMessage).HasMaxLength(800);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<AssignmentEmailDeliveryEntity>(entity =>
+        {
+            entity.ToTable("assignment_email_deliveries");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.NotificationDeliveryId).IsUnique();
+            entity.HasIndex(x => new { x.Status, x.NextAttemptAt, x.LeaseUntil });
+            entity.HasIndex(x => new { x.TenantId, x.UserId });
+            entity.Property(x => x.RecipientEmail).HasMaxLength(320).IsRequired();
+            entity.Property(x => x.RecipientDisplayName).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.LinkUrl).HasMaxLength(400).IsRequired();
+            entity.Property(x => x.Status).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.ProviderMessageId).HasMaxLength(300);
+            entity.Property(x => x.FailureCode).HasMaxLength(120);
+            entity.HasOne<NotificationDeliveryEntity>()
+                .WithOne()
+                .HasForeignKey<AssignmentEmailDeliveryEntity>(x => x.NotificationDeliveryId)
+                .OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<RoleEntity>(entity =>
+        {
+            entity.ToTable("roles");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.Name }).IsUnique();
+            entity.Property(x => x.Name).HasMaxLength(120).IsRequired();
+            entity.HasOne(x => x.Tenant).WithMany(x => x.Roles).HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<UserRoleEntity>(entity =>
+        {
+            entity.ToTable("user_roles");
+            entity.HasKey(x => new { x.UserId, x.RoleId });
+            entity.HasOne(x => x.User).WithMany(x => x.UserRoles).HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Role).WithMany(x => x.UserRoles).HasForeignKey(x => x.RoleId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<RolePermissionEntity>(entity =>
+        {
+            entity.ToTable("role_permissions");
+            entity.HasKey(x => new { x.RoleId, x.Permission });
+            entity.HasOne(x => x.Role).WithMany(x => x.Permissions).HasForeignKey(x => x.RoleId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<CompanyProfileEntity>(entity =>
+        {
+            entity.ToTable("company_profiles");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.TenantId).IsUnique();
+            entity.HasIndex(x => x.Uei);
+            entity.Property(x => x.LegalEntityName).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.Uei).HasMaxLength(32);
+            entity.Property(x => x.CageCode).HasMaxLength(16);
+            entity.Property(x => x.KeySystemsJson).HasColumnType("jsonb");
+            entity.Property(x => x.AgencyCustomersJson).HasColumnType("jsonb");
+            entity.HasOne(x => x.Tenant).WithOne().HasForeignKey<CompanyProfileEntity>(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<CompanyNaicsCodeEntity>(entity =>
+        {
+            entity.ToTable("company_naics_codes");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.CompanyProfileId, x.Code }).IsUnique();
+            entity.Property(x => x.Code).HasMaxLength(12).IsRequired();
+            entity.Property(x => x.Title).HasMaxLength(240).IsRequired();
+            entity.HasOne(x => x.CompanyProfile).WithMany(x => x.NaicsCodes).HasForeignKey(x => x.CompanyProfileId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<CompanyCertificationEntity>(entity =>
+        {
+            entity.ToTable("company_certifications");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.CompanyProfileId, x.Type });
+            entity.Property(x => x.Issuer).HasMaxLength(180).IsRequired();
+            entity.Property(x => x.ReferenceNumber).HasMaxLength(120);
+            entity.HasOne(x => x.CompanyProfile).WithMany(x => x.Certifications).HasForeignKey(x => x.CompanyProfileId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<CompanyLocationEntity>(entity =>
+        {
+            entity.ToTable("company_locations");
+            entity.HasKey(x => x.Id);
+            entity.HasOne(x => x.CompanyProfile).WithMany(x => x.Locations).HasForeignKey(x => x.CompanyProfileId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ComplianceTaskEntity>(entity =>
+        {
+            entity.ToTable("compliance_tasks");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.Status, x.DueAt });
+            entity.HasIndex(x => new { x.TenantId, x.AssignedToUserId, x.DueAt, x.Id });
+            entity.HasIndex(x => new { x.TenantId, x.ContractId });
+            entity.HasIndex(x => new { x.TenantId, x.ObligationId });
+            entity.Property(x => x.Title).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.OwnerFunction).HasMaxLength(120).IsRequired();
+            ConfigureAuditColumns(entity);
+        });
+    }
+
+    private static void ConfigureComplianceContent(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<ClauseEntity>(entity =>
+        {
+            entity.ToTable("clauses");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.Source, x.Number }).IsUnique();
+            entity.HasIndex(x => new { x.TenantId, x.ReviewState });
+            entity.Property(x => x.RequiredActionIdsJson).HasColumnType("jsonb");
+            entity.Property(x => x.ClauseTextVersion).HasMaxLength(120).HasDefaultValue("current").IsRequired();
+            entity.Property(x => x.SourceHash).HasMaxLength(128);
+            entity.Property(x => x.SupersededByClauseId).HasMaxLength(120);
+            entity.Property(x => x.ReviewState).HasDefaultValue(ReviewState.Draft);
+        });
+
+        modelBuilder.Entity<ObligationEntity>(entity =>
+        {
+            entity.ToTable("obligations");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.Source);
+            entity.Property(x => x.ApplicabilityJson).HasColumnType("jsonb");
+            entity.Property(x => x.EvidenceExamplesJson).HasColumnType("jsonb");
+            entity.Property(x => x.Confidence).HasDefaultValue("unknown");
+            entity.Property(x => x.ReviewState).HasDefaultValue(ReviewState.Draft);
+            entity.HasGeneratedTsVectorColumn(
+                x => x.SearchVector,
+                "english",
+                x => new { x.Id, x.Title, x.Source, x.SourceName, x.PlainEnglishSummary, x.RequiredAction });
+            entity.HasIndex(x => x.SearchVector).HasMethod("GIN");
+        });
+
+        modelBuilder.Entity<MvpModuleEntity>(entity =>
+        {
+            entity.ToTable("mvp_modules");
+            entity.HasKey(x => x.Key);
+            entity.HasData(MvpModuleCatalog.CreateEntities());
+        });
+    }
+
+    private static void ConfigureContracts(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<ContractEntity>(entity =>
+        {
+            entity.ToTable("contracts");
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
+            entity.HasIndex(x => new { x.TenantId, x.ContractNumber }).IsUnique();
+            entity.HasIndex(x => new { x.TenantId, x.Status });
+            entity.Property(x => x.ContractNumber).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.Title).HasMaxLength(300).IsRequired();
+            entity.Property(x => x.AgencyOrPrimeName).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.PlaceOfPerformance).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.Description).HasMaxLength(1200);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<EsrsApplicabilityEntity>(entity =>
+        {
+            entity.ToTable("esrs_applicabilities");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.ContractId, x.DueDate });
+            entity.HasIndex(x => new { x.TenantId, x.ContractId, x.ReportType, x.PeriodStart, x.PeriodEnd }).IsUnique();
+            entity.HasIndex(x => x.TaskId).IsUnique();
+            entity.Property(x => x.ContractType).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.Agency).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.SubcontractingPlanType).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.PrimeOrLowerTierRole).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.SourceClause).HasMaxLength(240);
+            entity.Property(x => x.Rationale).HasMaxLength(2000);
+            entity.Property(x => x.OwnerFunction).HasMaxLength(120).IsRequired();
+            entity.HasOne(x => x.Contract).WithMany(x => x.EsrsApplicabilities).HasForeignKey(x => x.ContractId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Task).WithOne().HasForeignKey<EsrsApplicabilityEntity>(x => x.TaskId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<LaborApplicabilityEntity>(entity =>
+        {
+            entity.ToTable("labor_applicabilities", table => table.HasCheckConstraint(
+                "CK_labor_applicabilities_contract_period", "contract_period_end >= contract_period_start"));
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
+            entity.HasIndex(x => new { x.TenantId, x.ContractId, x.Status });
+            entity.HasIndex(x => new { x.TenantId, x.ContractPeriodEnd });
+            entity.HasIndex(x => x.TaskId).IsUnique().HasFilter("task_id IS NOT NULL");
+            entity.Property(x => x.OtherFarPart22Obligations).HasMaxLength(2_000);
+            entity.Property(x => x.PlaceOfPerformance).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.WageDeterminationReference).HasMaxLength(240);
+            entity.Property(x => x.SourceClause).HasMaxLength(240);
+            entity.Property(x => x.Rationale).HasMaxLength(2_000);
+            entity.Property(x => x.OwnerFunction).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.ReviewNotes).HasMaxLength(2_000);
+            entity.Property(x => x.Status).IsConcurrencyToken();
+            entity.HasOne(x => x.Contract).WithMany(x => x.LaborApplicabilities)
+                .HasForeignKey(x => new { x.TenantId, x.ContractId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.SourceContractClause).WithMany().HasForeignKey(x => x.SourceContractClauseId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(x => x.Task).WithOne().HasForeignKey<LaborApplicabilityEntity>(x => x.TaskId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.WageDeterminationEvidenceItem).WithMany()
+                .HasForeignKey(x => x.WageDeterminationEvidenceItemId).OnDelete(DeleteBehavior.SetNull);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<SolicitationEntity>(entity =>
+        {
+            entity.ToTable("solicitations");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.SolicitationNumber }).IsUnique();
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<ContractDocumentEntity>(entity =>
+        {
+            entity.ToTable("contract_documents", table => table.HasCheckConstraint("ck_contract_documents_intent_pair",
+                "(object_write_intent_id IS NULL) = (object_write_intent_tenant_id IS NULL)"));
+            entity.HasOne<ObjectWriteIntentEntity>().WithMany().HasForeignKey(x => new { x.ObjectWriteIntentTenantId, x.ObjectWriteIntentId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<ContractEntity>().WithMany().HasForeignKey(x => new { x.ObjectWriteIntentTenantId, x.ContractId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.ContractId, x.Type });
+            entity.Property(x => x.FileName).HasMaxLength(300).IsRequired();
+            entity.Property(x => x.ContentType).HasMaxLength(160).IsRequired();
+            entity.Property(x => x.ValidationStatus).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.MalwareScanStatus).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.NoticeVersion).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.ClassificationReason).HasMaxLength(600);
+            entity.HasOne(x => x.Contract).WithMany(x => x.Documents).HasForeignKey(x => x.ContractId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ExtractionJobEntity>(entity =>
+        {
+            entity.ToTable("extraction_jobs");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.Status, x.RequestedAt });
+            entity.HasIndex(x => new { x.Status, x.ProcessingLeaseUntil, x.RequestedAt });
+            entity.HasIndex(x => x.SourceDocumentId);
+            entity.Property(x => x.FailureReason).HasMaxLength(1000);
+            entity.Property(x => x.ClassificationReason).HasMaxLength(600);
+            entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.SourceDocument).WithMany(x => x.ExtractionJobs).HasForeignKey(x => x.SourceDocumentId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ClauseCandidateEntity>(entity =>
+        {
+            entity.ToTable("clause_candidates");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.SourceDocumentId });
+            entity.HasIndex(x => new { x.ExtractionJobId, x.NormalizedCitation });
+            entity.Property(x => x.NormalizedCitation).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.RawExtractedText).HasMaxLength(2000).IsRequired();
+            entity.Property(x => x.DetectedTitle).HasMaxLength(300);
+            entity.Property(x => x.Confidence).HasPrecision(5, 4);
+            entity.Property(x => x.LocationMetadata).HasMaxLength(300).IsRequired();
+            entity.Property(x => x.MatchMethod).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.ClauseLibraryId).HasMaxLength(160);
+            entity.Property(x => x.ReviewStatus).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.DecisionNote).HasMaxLength(1000);
+            entity.Property(x => x.DecisionReason).HasMaxLength(600);
+            entity.HasGeneratedTsVectorColumn(
+                x => x.SearchVector,
+                "english",
+                x => new { x.NormalizedCitation, x.DetectedTitle, x.RawExtractedText });
+            entity.HasIndex(x => x.SearchVector).HasMethod("GIN");
+            entity.HasOne(x => x.ExtractionJob).WithMany(x => x.Candidates).HasForeignKey(x => x.ExtractionJobId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.SourceDocument).WithMany().HasForeignKey(x => x.SourceDocumentId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ContractClauseEntity>(entity =>
+        {
+            entity.ToTable("contract_clauses");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.ContractId, x.ClauseNumber });
+            entity.HasIndex(x => new { x.ContractId, x.ClauseLibraryId, x.RemovedAt });
+            entity.Property(x => x.ClauseLibraryId).HasMaxLength(160).IsRequired();
+            entity.Property(x => x.SourceUrl).HasMaxLength(600).IsRequired();
+            entity.Property(x => x.AttachmentReason).HasMaxLength(600).IsRequired();
+            entity.Property(x => x.SourceDocumentReference).HasMaxLength(300);
+            entity.Property(x => x.RemovalReason).HasMaxLength(600);
+            entity.Property(x => x.SourceHash).HasMaxLength(128);
+            entity.Property(x => x.ReviewState).HasDefaultValue(ReviewState.Draft);
+            entity.HasOne(x => x.Contract).WithMany(x => x.Clauses).HasForeignKey(x => x.ContractId).OnDelete(DeleteBehavior.Cascade);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<ContractClauseObligationEntity>(entity =>
+        {
+            entity.ToTable("contract_clause_obligations");
+            entity.HasKey(x => new { x.ContractClauseId, x.ObligationId });
+            entity.HasOne(x => x.ContractClause).WithMany(x => x.Obligations).HasForeignKey(x => x.ContractClauseId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Obligation).WithMany(x => x.ContractClauses).HasForeignKey(x => x.ObligationId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ObligationApplicabilityEvaluationEntity>(entity =>
+        {
+            entity.ToTable("obligation_applicability_evaluations");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.ContractClauseId, x.ObligationId, x.EvaluatedAt });
+            entity.Property(x => x.ObligationId).HasMaxLength(160).IsRequired();
+            entity.Property(x => x.SourceRuleId).HasMaxLength(160).IsRequired();
+            entity.Property(x => x.State).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.Explanation).HasMaxLength(2000).IsRequired();
+            entity.Property(x => x.FactsUsedJson).HasColumnType("jsonb");
+            entity.Property(x => x.MissingFactsJson).HasColumnType("jsonb");
+            entity.Property(x => x.MetadataJson).HasColumnType("jsonb");
+            entity.HasOne(x => x.ContractClauseObligation)
+                .WithMany(x => x.ApplicabilityEvaluations)
+                .HasForeignKey(x => new { x.ContractClauseId, x.ObligationId })
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.PreviousEvaluation)
+                .WithMany()
+                .HasForeignKey(x => x.PreviousEvaluationId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<SuggestedObligationEntity>(entity =>
+        {
+            entity.ToTable("suggested_obligations");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.ReviewStatus, x.CreatedAt });
+            entity.Property(x => x.Source).HasMaxLength(160).IsRequired();
+            entity.Property(x => x.SourceUrl).HasMaxLength(600).IsRequired();
+            entity.Property(x => x.GeneratedSummary).HasMaxLength(2000).IsRequired();
+            entity.Property(x => x.ProposedTitle).HasMaxLength(300).IsRequired();
+            entity.Property(x => x.ProposedOwnerFunction).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.RequiredAction).HasMaxLength(1200).IsRequired();
+            entity.Property(x => x.EvidenceSuggestionsJson).HasColumnType("jsonb");
+            entity.Property(x => x.SourceCitationsJson).HasColumnType("jsonb");
+            entity.Property(x => x.Confidence).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.PromptVersion).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.ModelIdentifier).HasMaxLength(160).IsRequired();
+            entity.Property(x => x.RetrievedSourceReferencesJson).HasColumnType("jsonb");
+            entity.Property(x => x.ReviewStatus).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.ReviewReason).HasMaxLength(1000);
+        });
+
+        modelBuilder.Entity<ExpertReviewItemEntity>(entity =>
+        {
+            entity.ToTable("expert_review_items");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.Status, x.SourceType });
+            entity.HasIndex(x => new { x.TenantId, x.AssignedExpertUserId, x.DueAt });
+            entity.HasIndex(x => new { x.TenantId, x.SourceType, x.SourceId })
+                .IsUnique()
+                .HasFilter("status = 'open' AND source_type = 'assistant_answer'");
+            entity.Property(x => x.SourceType).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.Reason).HasMaxLength(1000).IsRequired();
+            entity.Property(x => x.Priority).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.Topic).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.Status).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.ResolutionDecision).HasMaxLength(120);
+            entity.Property(x => x.ResolutionNotes).HasMaxLength(1000);
+        });
+
+        modelBuilder.Entity<ClauseObligationMappingEntity>(entity =>
+        {
+            entity.ToTable("clause_obligation_mappings");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.ClauseId, x.ReviewState });
+            entity.HasIndex(x => new { x.TenantId, x.ClauseId, x.ObligationId });
+            entity.Property(x => x.ClauseId).HasMaxLength(160).IsRequired();
+            entity.Property(x => x.ObligationId).HasMaxLength(160).IsRequired();
+            entity.Property(x => x.TriggerCondition).HasMaxLength(1200).IsRequired();
+            entity.Property(x => x.RequiredAction).HasMaxLength(1200).IsRequired();
+            entity.Property(x => x.SourceUrl).HasMaxLength(600).IsRequired();
+            entity.Property(x => x.Confidence).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.ReviewState).HasDefaultValue(ReviewState.Draft);
+            entity.HasOne(x => x.Clause).WithMany().HasForeignKey(x => x.ClauseId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Obligation).WithMany().HasForeignKey(x => x.ObligationId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<SbaSizeStandardEntity>(entity =>
+        {
+            entity.ToTable("sba_size_standards");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.NaicsCode, x.Status });
+            entity.Property(x => x.NaicsCode).HasMaxLength(16).IsRequired();
+            entity.Property(x => x.Metric).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.Threshold).HasPrecision(18, 2);
+            entity.Property(x => x.Unit).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.SourceUrl).HasMaxLength(600).IsRequired();
+            entity.Property(x => x.Status).HasDefaultValue(ReviewState.Draft);
+        });
+
+        modelBuilder.Entity<ContractDeliverableEntity>(entity =>
+        {
+            entity.ToTable("contract_deliverables");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.ContractId, x.DueAt });
+            entity.HasOne(x => x.Contract).WithMany(x => x.Deliverables).HasForeignKey(x => x.ContractId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ContractSizeCheckEntity>(entity =>
+        {
+            entity.ToTable("contract_size_checks");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.ContractId, x.RunAt });
+            entity.Property(x => x.NaicsCode).HasMaxLength(16).IsRequired();
+            entity.Property(x => x.Result).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.Metric).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.Threshold).HasPrecision(18, 2);
+            entity.Property(x => x.Unit).HasMaxLength(80);
+            entity.Property(x => x.MissingInformationJson).HasColumnType("jsonb");
+            entity.Property(x => x.SourceUrl).HasMaxLength(600);
+            entity.HasOne(x => x.Contract).WithMany().HasForeignKey(x => x.ContractId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.ExpertReviewTask).WithMany().HasForeignKey(x => x.ExpertReviewTaskId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<ContractReportingDeadlineEntity>(entity =>
+        {
+            entity.ToTable("contract_reporting_deadlines");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.ContractId, x.DueAt });
+            entity.Property(x => x.SourceClauseNumbersJson).HasColumnType("jsonb");
+            entity.HasOne(x => x.Contract).WithMany(x => x.ReportingDeadlines).HasForeignKey(x => x.ContractId).OnDelete(DeleteBehavior.Cascade);
+        });
+    }
+
+    private static void ConfigureSsp(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<SspSectionEntity>(entity =>
+        {
+            entity.ToTable("ssp_sections");
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
+            entity.HasIndex(x => new { x.TenantId, x.SectionType });
+            entity.HasIndex(x => new { x.TenantId, x.Status });
+            entity.Property(x => x.Title).HasMaxLength(200);
+            entity.Property(x => x.Owner).HasMaxLength(200);
+            entity.Property(x => x.Reviewer).HasMaxLength(200);
+            entity.Property(x => x.ApprovalRationale).HasMaxLength(2000);
+            entity.Property(x => x.Version).IsConcurrencyToken();
+            entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<SspSectionLinkEntity>(entity =>
+        {
+            entity.ToTable("ssp_section_links");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.RecordType, x.RecordId });
+            entity.HasIndex(x => new { x.TenantId, x.SectionId, x.RecordType, x.RecordId }).IsUnique();
+            entity.Property(x => x.RecordId).HasMaxLength(120);
+            entity.Property(x => x.Relationship).HasMaxLength(200);
+            entity.HasOne(x => x.Section).WithMany(x => x.LinkedRecords).HasForeignKey(x => new { x.TenantId, x.SectionId }).HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SspSectionSourceReferenceEntity>(entity =>
+        {
+            entity.ToTable("ssp_section_source_references");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.SectionId });
+            entity.Property(x => x.Source).HasMaxLength(200);
+            entity.Property(x => x.SourceUrl).HasMaxLength(1000);
+            entity.HasOne(x => x.Section).WithMany(x => x.SourceReferences).HasForeignKey(x => new { x.TenantId, x.SectionId }).HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SspSectionHistoryEntity>(entity =>
+        {
+            entity.ToTable("ssp_section_status_history");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.SectionId, x.ChangedAt });
+            entity.Property(x => x.ActorName).HasMaxLength(200);
+            entity.Property(x => x.Notes).HasMaxLength(2000);
+            entity.HasOne(x => x.Section).WithMany(x => x.History).HasForeignKey(x => new { x.TenantId, x.SectionId }).HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SspNarrativeEntity>(entity =>
+        {
+            entity.ToTable("ssp_narratives");
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
+            entity.HasIndex(x => new { x.TenantId, x.SectionId, x.UpdatedAt });
+            entity.HasIndex(x => new { x.TenantId, x.SectionId, x.Status });
+            entity.HasIndex(x => new { x.TenantId, x.SectionId }).IsUnique().HasFilter("status = 'Approved'");
+            entity.Property(x => x.GeneratedText).HasMaxLength(20_000);
+            entity.Property(x => x.EditedText).HasMaxLength(20_000);
+            entity.Property(x => x.ApprovedText).HasMaxLength(20_000);
+            entity.Property(x => x.ReviewerNotes).HasMaxLength(4_000);
+            entity.Property(x => x.Reviewer).HasMaxLength(320);
+            entity.Property(x => x.ClassificationReason).HasMaxLength(600);
+            entity.Property(x => x.Version).IsConcurrencyToken();
+            entity.HasOne(x => x.Section).WithMany(x => x.Narratives)
+                .HasForeignKey(x => new { x.TenantId, x.SectionId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id })
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SspNarrativeSourceEntity>(entity =>
+        {
+            entity.ToTable("ssp_narrative_sources");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.NarrativeId, x.SourceType, x.RecordId }).IsUnique();
+            entity.HasIndex(x => new { x.TenantId, x.SourceType, x.RecordId });
+            entity.Property(x => x.RecordId).HasMaxLength(120);
+            entity.Property(x => x.Label).HasMaxLength(300);
+            entity.Property(x => x.Summary).HasMaxLength(1_000);
+            entity.Property(x => x.SourceUrl).HasMaxLength(1_000);
+            entity.Property(x => x.Fingerprint).HasMaxLength(128);
+            entity.HasOne(x => x.Narrative).WithMany(x => x.Sources)
+                .HasForeignKey(x => new { x.TenantId, x.NarrativeId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id })
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SspExportPackageEntity>(entity =>
+        {
+            entity.ToTable("ssp_export_packages");
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
+            entity.HasIndex(x => new { x.TenantId, x.PackageVersion }).IsUnique();
+            entity.HasIndex(x => new { x.TenantId, x.GeneratedAt });
+            entity.Property(x => x.TenantName).HasMaxLength(240);
+            entity.Property(x => x.PackageVersion).HasMaxLength(80);
+            entity.Property(x => x.SystemBoundary).HasMaxLength(4_000);
+            entity.Property(x => x.Reviewer).HasMaxLength(200);
+            entity.Property(x => x.Format).HasMaxLength(40);
+            entity.Property(x => x.LanguagePolicyVersion).HasMaxLength(40).HasDefaultValue("legacy-29.3.0");
+            entity.Property(x => x.Disclaimer).HasMaxLength(2_000);
+            entity.Property(x => x.HumanReadableReport).HasColumnType("text");
+            entity.Property(x => x.MachineReadableMetadata).HasColumnType("jsonb");
+            entity.Property(x => x.SectionsJson).HasColumnType("jsonb");
+            entity.Property(x => x.EvidenceReferencesJson).HasColumnType("jsonb");
+            entity.Property(x => x.PoamReferencesJson).HasColumnType("jsonb");
+            entity.Property(x => x.Status).HasMaxLength(40);
+            entity.Property(x => x.ExternalShareApprovalReason).HasMaxLength(1_000);
+            entity.Property(x => x.SharedRecipient).HasMaxLength(320);
+            entity.Property(x => x.SharedPurpose).HasMaxLength(1_000);
+            entity.Property(x => x.Version).IsConcurrencyToken();
+            entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<SspExportPolicyEntity>(entity =>
+        {
+            entity.ToTable("ssp_export_policies");
+            entity.HasKey(x => x.TenantId);
+            entity.Property(x => x.Version).IsConcurrencyToken();
+            entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<SspExportPackageHistoryEntity>(entity =>
+        {
+            entity.ToTable("ssp_export_package_history");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.PackageId, x.OccurredAt });
+            entity.Property(x => x.Action).HasMaxLength(80);
+            entity.Property(x => x.ActorName).HasMaxLength(320);
+            entity.Property(x => x.Notes).HasMaxLength(1_000);
+            entity.HasOne(x => x.Package).WithMany(x => x.History)
+                .HasForeignKey(x => new { x.TenantId, x.PackageId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id })
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+    }
+
+    private static void ConfigureEvidence(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<EvidenceItemEntity>(entity =>
+        {
+            entity.ToTable(
+                "evidence_items",
+                table => table.HasCheckConstraint(
+                    "CK_evidence_items_effective_expiration_range",
+                    "effective_at IS NULL OR expires_at IS NULL OR expires_at >= effective_at"));
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
+            entity.HasIndex(x => new { x.TenantId, x.Status });
+            entity.HasIndex(x => new { x.TenantId, x.ExpiresAt });
+            entity.Property(x => x.Name).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.OwnerFunction).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.OriginalFileName).HasMaxLength(240);
+            entity.Property(x => x.ContentType).HasMaxLength(160);
+            entity.Property(x => x.UploadValidationStatus).HasMaxLength(80);
+            entity.Property(x => x.MalwareScanStatus).HasMaxLength(80);
+            entity.Property(x => x.TagsJson).HasColumnType("jsonb");
+            entity.Property(x => x.ClassificationReason).HasMaxLength(600);
+            entity.HasGeneratedTsVectorColumn(
+                x => x.SearchVector,
+                "english",
+                x => new { x.Name, x.Description, x.OwnerFunction });
+            entity.HasIndex(x => x.SearchVector).HasMethod("GIN");
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<EvidenceRequestEntity>(entity =>
+        {
+            entity.ToTable("evidence_requests");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.Status, x.DueDate });
+            entity.HasIndex(x => new { x.TenantId, x.Priority });
+            entity.Property(x => x.Status).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.Priority).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.Instructions).HasMaxLength(2000).IsRequired();
+            entity.Property(x => x.RelatedRecordType).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.RelatedRecordId).HasMaxLength(160).IsRequired();
+            entity.Property(x => x.SubmissionComment).HasMaxLength(2000);
+            entity.Property(x => x.ReviewComment).HasMaxLength(2000);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<EvidenceObligationEntity>(entity =>
+        {
+            entity.ToTable("evidence_obligations");
+            entity.HasKey(x => new { x.EvidenceItemId, x.ObligationId });
+            entity.HasOne(x => x.EvidenceItem).WithMany(x => x.Obligations).HasForeignKey(x => x.EvidenceItemId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Obligation).WithMany(x => x.EvidenceItems).HasForeignKey(x => x.ObligationId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<EvidenceContractEntity>(entity =>
+        {
+            entity.ToTable("evidence_contracts");
+            entity.HasKey(x => new { x.EvidenceItemId, x.ContractId });
+            entity.HasOne(x => x.EvidenceItem).WithMany(x => x.Contracts).HasForeignKey(x => x.EvidenceItemId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Contract).WithMany().HasForeignKey(x => x.ContractId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<EvidenceControlEntity>(entity =>
+        {
+            entity.ToTable("evidence_controls");
+            entity.HasKey(x => new { x.EvidenceItemId, x.ControlId });
+            entity.HasOne(x => x.EvidenceItem).WithMany(x => x.Controls).HasForeignKey(x => x.EvidenceItemId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Control).WithMany().HasForeignKey(x => x.ControlId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<EvidenceVendorEntity>(entity =>
+        {
+            entity.ToTable("evidence_vendors");
+            entity.HasKey(x => new { x.EvidenceItemId, x.VendorId });
+            entity.HasOne(x => x.EvidenceItem).WithMany(x => x.Vendors).HasForeignKey(x => x.EvidenceItemId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Vendor).WithMany().HasForeignKey(x => x.VendorId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<EvidenceEmployeeEntity>(entity =>
+        {
+            entity.ToTable("evidence_employees");
+            entity.HasKey(x => new { x.EvidenceItemId, x.EmployeeId });
+            entity.HasOne(x => x.EvidenceItem).WithMany(x => x.Employees).HasForeignKey(x => x.EvidenceItemId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<EvidenceFileVersionEntity>(entity =>
+        {
+            entity.ToTable("evidence_file_versions", table => table.HasCheckConstraint("ck_evidence_file_versions_intent_pair",
+                "(object_write_intent_id IS NULL) = (object_write_intent_tenant_id IS NULL)"));
+            entity.HasOne<ObjectWriteIntentEntity>().WithMany().HasForeignKey(x => new { x.ObjectWriteIntentTenantId, x.ObjectWriteIntentId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<EvidenceItemEntity>().WithMany().HasForeignKey(x => new { x.ObjectWriteIntentTenantId, x.EvidenceItemId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.EvidenceItemId, x.VersionNumber }).IsUnique();
+            entity.Property(x => x.FileName).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.ContentType).HasMaxLength(160).IsRequired();
+            entity.Property(x => x.ValidationStatus).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.MalwareScanStatus).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.ClassificationReason).HasMaxLength(600);
+            entity.HasOne(x => x.EvidenceItem).WithMany(x => x.FileVersions).HasForeignKey(x => x.EvidenceItemId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ContentClassificationHistoryEntity>(entity =>
+        {
+            entity.ToTable("content_classification_history");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.EntityType, x.EntityId, x.ChangedAt });
+            entity.Property(x => x.EntityType).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.EntityId).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.Reason).HasMaxLength(600);
+        });
+    }
+
+    private static void ConfigureCmmc(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<ControlEntity>(entity =>
+        {
+            entity.ToTable("controls");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.Framework, x.CmmcLevel });
+            entity.Property(x => x.EvidenceExamplesJson).HasColumnType("jsonb");
+        });
+
+        modelBuilder.Entity<AssessmentEntity>(entity =>
+        {
+            entity.ToTable("assessments");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.Status, x.Level });
+            entity.Property(x => x.Name).HasMaxLength(240).HasDefaultValue("CMMC readiness assessment").IsRequired();
+            entity.Property(x => x.Framework).HasMaxLength(120).HasDefaultValue("CMMC").IsRequired();
+            entity.Property(x => x.OwnerFunction).HasMaxLength(120).HasDefaultValue("Compliance").IsRequired();
+            entity.Property(x => x.ContractIdsJson).HasColumnType("jsonb");
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<ControlAssessmentEntity>(entity =>
+        {
+            entity.ToTable("control_assessments");
+            entity.HasKey(x => new { x.AssessmentId, x.ControlId });
+            entity.Property(x => x.EvidenceItemIdsJson).HasColumnType("jsonb");
+            entity.Property(x => x.TaskIdsJson).HasColumnType("jsonb");
+            entity.Property(x => x.AssetIdsJson).HasColumnType("jsonb");
+            entity.Property(x => x.PoamItemIdsJson).HasColumnType("jsonb");
+            entity.Property(x => x.ImplementationDetails).HasMaxLength(2000);
+            entity.Property(x => x.InheritedFrom).HasMaxLength(240);
+            entity.Property(x => x.EspName).HasMaxLength(240);
+            entity.Property(x => x.ResponsibilityType).HasConversion<string>().HasMaxLength(64);
+            entity.Property(x => x.OwnerFunction).HasMaxLength(120);
+            entity.Property(x => x.ResponsibilityProvider).HasMaxLength(240);
+            entity.Property(x => x.ResponsibilityNotes).HasMaxLength(1000);
+            entity.HasOne(x => x.Assessment).WithMany(x => x.Controls).HasForeignKey(x => x.AssessmentId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Control).WithMany().HasForeignKey(x => x.ControlId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<SprsScoreCalculationEntity>(entity =>
+        {
+            entity.ToTable("sprs_score_calculations");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).ValueGeneratedNever();
+            entity.HasIndex(x => new { x.TenantId, x.AssessmentId, x.GeneratedAt });
+            entity.Property(x => x.RuleSetId).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.RuleSetVersion).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.RuleSetSourceUrl).HasMaxLength(2000).IsRequired();
+            entity.Property(x => x.RuleSetSourceSha256).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.LineItemsJson).HasColumnType("jsonb");
+            entity.Property(x => x.UnresolvedGapsJson).HasColumnType("jsonb");
+            entity.HasOne(x => x.Assessment).WithMany().HasForeignKey(x => x.AssessmentId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<SprsScoreCalculationNoteEntity>(entity =>
+        {
+            entity.ToTable("sprs_score_calculation_notes");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).ValueGeneratedNever();
+            entity.HasIndex(x => new { x.TenantId, x.CalculationId, x.CreatedAt });
+            entity.Property(x => x.Note).HasMaxLength(2000).IsRequired();
+            entity.Property(x => x.ClassificationReason).HasMaxLength(600);
+            entity.HasOne(x => x.Calculation).WithMany(x => x.ReviewerNotes).HasForeignKey(x => x.CalculationId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ControlAssessmentHistoryEntity>(entity =>
+        {
+            entity.ToTable("control_assessment_history");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).ValueGeneratedNever();
+            entity.HasIndex(x => new { x.AssessmentId, x.ControlId, x.ChangedAt });
+            entity.Property(x => x.Notes).HasMaxLength(1000);
+            entity.HasOne(x => x.ControlAssessment)
+                .WithMany(x => x.History)
+                .HasForeignKey(x => new { x.AssessmentId, x.ControlId })
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PoamItemEntity>(entity =>
+        {
+            entity.ToTable("poam_items");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.Status, x.TargetCompletionAt });
+            entity.HasIndex(x => new { x.AssessmentId, x.ControlId });
+            entity.Property(x => x.OwnerFunction).HasMaxLength(120).HasDefaultValue("Security").IsRequired();
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<PoamEvidenceEntity>(entity =>
+        {
+            entity.ToTable("poam_evidence");
+            entity.HasKey(x => new { x.PoamItemId, x.EvidenceItemId });
+            entity.HasOne(x => x.PoamItem).WithMany(x => x.EvidenceItems).HasForeignKey(x => x.PoamItemId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.EvidenceItem).WithMany().HasForeignKey(x => x.EvidenceItemId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ComplianceChecklistInstanceEntity>(entity =>
+        {
+            entity.ToTable("compliance_checklist_instances");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.TemplateKey, x.CreatedAt });
+            entity.Property(x => x.TemplateKey).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.Name).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.ChecklistType).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.ReviewStatus).HasMaxLength(64).IsRequired();
+            entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<ComplianceChecklistItemEntity>(entity =>
+        {
+            entity.ToTable("compliance_checklist_items");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.ChecklistId, x.TemplateItemKey }).IsUnique();
+            entity.HasIndex(x => x.EvidenceItemId);
+            entity.HasIndex(x => x.PoamItemId);
+            entity.Property(x => x.TemplateItemKey).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.Title).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.Description).HasMaxLength(1200).IsRequired();
+            entity.Property(x => x.Status).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.ReviewStatus).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.Notes).HasMaxLength(2000);
+            entity.Property(x => x.ControlId).HasMaxLength(120);
+            entity.HasOne(x => x.Checklist).WithMany(x => x.Items).HasForeignKey(x => x.ChecklistId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.EvidenceItem).WithMany().HasForeignKey(x => x.EvidenceItemId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(x => x.PoamItem).WithMany().HasForeignKey(x => x.PoamItemId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<AssetEntity>(entity =>
+        {
+            entity.ToTable("assets");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.SystemBoundaryId });
+            entity.Property(x => x.TagsJson).HasColumnType("jsonb");
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<SystemBoundaryEntity>(entity =>
+        {
+            entity.ToTable("system_boundaries");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.Status });
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<SystemBoundaryAssetEntity>(entity =>
+        {
+            entity.ToTable("system_boundary_assets");
+            entity.HasKey(x => new { x.SystemBoundaryId, x.AssetId });
+            entity.HasOne(x => x.SystemBoundary).WithMany(x => x.Assets).HasForeignKey(x => x.SystemBoundaryId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Asset).WithMany().HasForeignKey(x => x.AssetId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SystemBoundaryExternalServiceProviderEntity>(entity =>
+        {
+            entity.ToTable("system_boundary_external_service_providers");
+            entity.HasKey(x => new { x.SystemBoundaryId, x.VendorId });
+            entity.HasOne(x => x.SystemBoundary).WithMany(x => x.ExternalServiceProviders).HasForeignKey(x => x.SystemBoundaryId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Vendor).WithMany().HasForeignKey(x => x.VendorId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SystemBoundaryEvidenceEntity>(entity =>
+        {
+            entity.ToTable("system_boundary_evidence");
+            entity.HasKey(x => new { x.SystemBoundaryId, x.EvidenceItemId });
+            entity.HasOne(x => x.SystemBoundary).WithMany(x => x.EvidenceItems).HasForeignKey(x => x.SystemBoundaryId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.EvidenceItem).WithMany().HasForeignKey(x => x.EvidenceItemId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<AnnualAffirmationEntity>(entity =>
+        {
+            entity.ToTable("annual_affirmations");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.Status, x.DueAt });
+            entity.Property(x => x.EvidenceItemIdsJson).HasColumnType("jsonb");
+            ConfigureAuditColumns(entity);
+        });
+    }
+
+    private static void ConfigureVendors(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<VendorEntity>(entity =>
+        {
+            entity.ToTable("vendors");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.Type });
+            entity.Property(x => x.Name).HasMaxLength(240).IsRequired();
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<SubcontractorEntity>(entity =>
+        {
+            entity.ToTable("subcontractors");
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
+            entity.HasIndex(x => new { x.TenantId, x.Name });
+            entity.HasIndex(x => new { x.TenantId, x.Uei });
+            entity.Property(x => x.RoleDescription).HasMaxLength(160).HasDefaultValue("").IsRequired();
+            entity.Property(x => x.SmallBusinessStatus).HasMaxLength(120).HasDefaultValue("Unknown").IsRequired();
+            entity.Property(x => x.NaicsCodesJson).HasColumnType("jsonb").HasDefaultValue("[]");
+            entity.Property(x => x.CertificationsJson).HasColumnType("jsonb").HasDefaultValue("[]");
+            entity.Property(x => x.CmmcStatus).HasMaxLength(120).HasDefaultValue("Unknown").IsRequired();
+            entity.Property(x => x.NdaStatus).HasMaxLength(120).HasDefaultValue("NotOnFile").IsRequired();
+            entity.Property(x => x.OwnerFunction).HasMaxLength(120);
+            entity.Property(x => x.SamRegistrationStatus).HasMaxLength(120);
+            entity.Property(x => x.SamSource).HasMaxLength(120);
+            entity.Property(x => x.SamNaicsJson).HasColumnType("jsonb").HasDefaultValue("[]");
+            entity.Property(x => x.SamExclusionStatus).HasMaxLength(120);
+            entity.Property(x => x.WorksharePercentage).HasPrecision(5, 2);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<FlowDownClauseEntity>(entity =>
+        {
+            entity.ToTable("flow_down_clauses");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.SubcontractorId, x.ClauseNumber });
+            entity.HasIndex(x => new { x.SubcontractorId, x.ContractId });
+            entity.HasIndex(x => new { x.ContractId, x.ClauseNumber });
+            entity.Property(x => x.ObligationId).HasMaxLength(160);
+            entity.HasOne(x => x.Subcontractor).WithMany(x => x.FlowDownClauses).HasForeignKey(x => x.SubcontractorId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Contract).WithMany().HasForeignKey(x => x.ContractId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.ContractClause).WithMany().HasForeignKey(x => x.ContractClauseId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Obligation).WithMany().HasForeignKey(x => x.ObligationId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.SignedEvidenceItem).WithMany().HasForeignKey(x => x.SignedEvidenceItemId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<ContractSubcontractorEntity>(entity =>
+        {
+            entity.ToTable("contract_subcontractors");
+            entity.HasKey(x => new { x.ContractId, x.SubcontractorId });
+            entity.HasOne(x => x.Contract).WithMany(x => x.Subcontractors).HasForeignKey(x => x.ContractId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Subcontractor).WithMany(x => x.Contracts).HasForeignKey(x => x.SubcontractorId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SubcontractorEvidenceEntity>(entity =>
+        {
+            entity.ToTable("subcontractor_evidence");
+            entity.HasKey(x => new { x.SubcontractorId, x.EvidenceItemId });
+            entity.HasOne(x => x.Subcontractor).WithMany(x => x.EvidenceItems).HasForeignKey(x => x.SubcontractorId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.EvidenceItem).WithMany().HasForeignKey(x => x.EvidenceItemId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SubcontractorEvidenceRequestEntity>(entity =>
+        {
+            entity.ToTable("subcontractor_evidence_requests");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.Status, x.DueDate });
+            entity.HasIndex(x => new { x.SubcontractorId, x.DueDate });
+            entity.Property(x => x.RequestedItem).HasMaxLength(300).IsRequired();
+            entity.Property(x => x.RequestedEvidenceTypesJson).HasColumnType("jsonb");
+            entity.Property(x => x.OwnerFunction).HasMaxLength(160);
+            entity.Property(x => x.RecipientName).HasMaxLength(160);
+            entity.Property(x => x.RecipientEmail).HasMaxLength(320);
+            entity.Property(x => x.ObligationId).HasMaxLength(160);
+            entity.HasOne(x => x.Subcontractor).WithMany(x => x.EvidenceRequests).HasForeignKey(x => x.SubcontractorId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Obligation).WithMany().HasForeignKey(x => x.ObligationId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.RelatedFlowDownClause).WithMany().HasForeignKey(x => x.RelatedFlowDownClauseId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.ReceivedEvidenceItem).WithMany().HasForeignKey(x => x.ReceivedEvidenceItemId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<PolicyTemplateEntity>(entity =>
+        {
+            entity.ToTable("policy_templates");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.Status, x.Category });
+            entity.Property(x => x.Title).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.Category).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.Body).IsRequired();
+            entity.Property(x => x.PlaceholdersJson).HasColumnType("jsonb");
+            entity.Property(x => x.SourceReferencesJson).HasColumnType("jsonb");
+            entity.Property(x => x.Version).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.Status).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.OwnerFunction).HasMaxLength(160).IsRequired();
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<PolicyTemplateVersionEntity>(entity =>
+        {
+            entity.ToTable("policy_template_versions");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TemplateId, x.Version });
+            entity.Property(x => x.Version).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.BodyPreview).HasMaxLength(500).IsRequired();
+            entity.Property(x => x.Status).HasMaxLength(40).IsRequired();
+            entity.HasOne(x => x.Template).WithMany(x => x.Versions).HasForeignKey(x => x.TemplateId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<GeneratedPolicyEntity>(entity =>
+        {
+            entity.ToTable("generated_policies");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.Status, x.GeneratedAt });
+            entity.Property(x => x.SourceTemplateVersion).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.Title).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.Body).IsRequired();
+            entity.Property(x => x.Status).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.PlaceholderValuesJson).HasColumnType("jsonb");
+            entity.Property(x => x.MissingPlaceholdersJson).HasColumnType("jsonb");
+            entity.Property(x => x.ClassificationReason).HasMaxLength(600);
+            entity.HasOne(x => x.SourceTemplate).WithMany().HasForeignKey(x => x.SourceTemplateId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.EvidenceItem).WithMany().HasForeignKey(x => x.EvidenceItemId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<PolicyRevisionEntity>(entity =>
+        {
+            entity.ToTable("policy_revisions");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.GeneratedPolicyId, x.PreservedAt });
+            entity.Property(x => x.Title).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.Body).IsRequired();
+            entity.Property(x => x.Status).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.ClassificationReason).HasMaxLength(600);
+            entity.HasOne(x => x.GeneratedPolicy).WithMany(x => x.Revisions).HasForeignKey(x => x.GeneratedPolicyId).OnDelete(DeleteBehavior.Cascade);
+        });
+    }
+
+    private static void ConfigurePeopleAndLabor(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<EmployeeEntity>(entity =>
+        {
+            entity.ToTable("employees");
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
+            entity.HasIndex(x => new { x.TenantId, x.EmployeeNumber }).IsUnique();
+            entity.HasIndex(x => new { x.TenantId, x.Email });
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<TrainingRecordEntity>(entity =>
+        {
+            entity.ToTable("training_records");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.EmployeeId, x.Status });
+            entity.HasIndex(x => new { x.TenantId, x.ExpiresAt });
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<WageDeterminationEntity>(entity =>
+        {
+            entity.ToTable("wage_determinations");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.DeterminationNumber, x.Revision }).IsUnique();
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<LaborCategoryRateEntity>(entity =>
+        {
+            entity.ToTable("labor_category_rates");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.HourlyWage).HasPrecision(12, 2);
+            entity.Property(x => x.FringeBenefitRate).HasPrecision(12, 2);
+            entity.HasOne(x => x.WageDetermination).WithMany(x => x.Rates).HasForeignKey(x => x.WageDeterminationId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<LaborClassificationEntity>(entity =>
+        {
+            entity.ToTable("labor_classifications");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.EmployeeId, x.ContractId });
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<LaborCategoryEntity>(entity =>
+        {
+            entity.ToTable("labor_categories", table =>
+            {
+                table.HasCheckConstraint("CK_labor_categories_effective_dates", "effective_end IS NULL OR effective_end >= effective_start");
+                table.HasCheckConstraint("CK_labor_categories_nonnegative_rates", "hourly_wage >= 0 AND fringe_rate >= 0");
+            });
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
+            entity.HasIndex(x => new { x.TenantId, x.ContractId, x.IsActive });
+            entity.Property(x => x.Title).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.WageDeterminationClassification).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.HourlyWage).HasPrecision(12, 2);
+            entity.Property(x => x.FringeRate).HasPrecision(12, 2);
+            entity.Property(x => x.FringeDescription).HasMaxLength(1_000);
+            entity.Property(x => x.Currency).HasMaxLength(3).IsRequired();
+            entity.Property(x => x.SourceReference).HasMaxLength(500).IsRequired();
+            entity.HasOne(x => x.Contract).WithMany().HasForeignKey(x => new { x.TenantId, x.ContractId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Cascade);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<LaborEmployeeAssignmentEntity>(entity =>
+        {
+            entity.ToTable("labor_employee_assignments", table =>
+            {
+                table.HasCheckConstraint("CK_labor_employee_assignments_effective_dates", "effective_end IS NULL OR effective_end >= effective_start");
+                table.HasCheckConstraint("CK_labor_employee_assignments_review_metadata",
+                    "(review_status = 0 AND reviewed_by_user_id IS NULL AND reviewed_at IS NULL) OR " +
+                    "(review_status IN (1, 2) AND review_notes IS NOT NULL AND reviewed_by_user_id IS NOT NULL AND reviewed_at IS NOT NULL)");
+            });
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
+            entity.HasIndex(x => new { x.TenantId, x.EmployeeId, x.ContractId });
+            entity.HasIndex(x => new { x.TenantId, x.ContractId, x.Status });
+            entity.Property(x => x.WorkLocation).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.SourceReference).HasMaxLength(500).IsRequired();
+            entity.Property(x => x.ReviewNotes).HasMaxLength(1_000);
+            entity.HasOne(x => x.Employee).WithMany().HasForeignKey(x => new { x.TenantId, x.EmployeeId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Contract).WithMany().HasForeignKey(x => new { x.TenantId, x.ContractId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Category).WithMany(x => x.Assignments).HasForeignKey(x => new { x.TenantId, x.LaborCategoryId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<LaborClassificationHistoryEntity>(entity =>
+        {
+            entity.ToTable("labor_classification_history");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.AssignmentId, x.ChangedAt });
+            entity.Property(x => x.PriorCategoryTitle).HasMaxLength(240);
+            entity.Property(x => x.NewCategoryTitle).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.Reason).HasMaxLength(1_000).IsRequired();
+            entity.HasOne(x => x.Assignment).WithMany(x => x.History)
+                .HasForeignKey(x => new { x.TenantId, x.AssignmentId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<LaborClassificationEvidenceEntity>(entity =>
+        {
+            entity.ToTable("labor_classification_evidence");
+            entity.HasKey(x => new { x.TenantId, x.AssignmentId, x.EvidenceItemId });
+            entity.Property(x => x.EvidenceType).IsRequired();
+            entity.HasOne(x => x.Assignment).WithMany(x => x.EvidenceLinks)
+                .HasForeignKey(x => new { x.TenantId, x.AssignmentId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.EvidenceItem).WithMany().HasForeignKey(x => new { x.TenantId, x.EvidenceItemId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<PayrollRecordEntity>(entity =>
+        {
+            entity.ToTable("payroll_records");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.EmployeeId, x.PeriodStart, x.PeriodEnd });
+            entity.Property(x => x.HoursWorked).HasPrecision(10, 2);
+            entity.Property(x => x.WagePaid).HasPrecision(12, 2);
+            entity.Property(x => x.FringePaid).HasPrecision(12, 2);
+            ConfigureAuditColumns(entity);
+        });
+    }
+
+    private static void ConfigureReports(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<SubcontractingReportDataRowEntity>(entity =>
+        {
+            entity.ToTable("esrs_report_data_rows", table =>
+            {
+                table.HasCheckConstraint("CK_esrs_report_data_rows_amount_nonnegative", "amount >= 0");
+                table.HasCheckConstraint("CK_esrs_report_data_rows_report_period", "report_period_end >= report_period_start");
+                table.HasCheckConstraint("CK_esrs_report_data_rows_row_period", "row_period_end >= row_period_start AND row_period_start >= report_period_start AND row_period_end <= report_period_end");
+                table.HasCheckConstraint("CK_esrs_report_data_rows_spr_uei", "reporting_entity_uei IS NULL OR (length(reporting_entity_uei) = 12 AND reporting_entity_uei ~ '^[A-Z0-9]{12}$')");
+                table.HasCheckConstraint("CK_esrs_report_data_rows_spr_readiness", "spr_eligibility_confirmed = FALSE OR (reporting_role IS NOT NULL AND reporting_fiscal_year IS NOT NULL AND reporting_period IS NOT NULL AND reporting_entity_uei IS NOT NULL AND prime_contract_piid IS NOT NULL AND spr_eligibility_basis IS NOT NULL)");
+                table.HasCheckConstraint("CK_esrs_report_data_rows_spr_schema", "spr_schema_profile_id IS NULL OR (spr_schema_version IS NOT NULL AND spr_schema_source_url IS NOT NULL AND length(spr_schema_definition_sha256) = 64)");
+            });
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
+            entity.HasIndex(x => new { x.TenantId, x.ContractId, x.ReportType, x.ReportPeriodStart, x.ReportPeriodEnd });
+            entity.HasIndex(x => new { x.TenantId, x.ContractId, x.SubcontractorId, x.ReportType,
+                x.ReportPeriodStart, x.ReportPeriodEnd, x.RowPeriodStart, x.RowPeriodEnd,
+                x.SocioeconomicCategoryKey, x.PlanCategoryKey }).IsUnique();
+            entity.Property(x => x.SocioeconomicCategory).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.SocioeconomicCategoryKey).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.PlanCategory).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.PlanCategoryKey).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.ReportType).HasConversion<string>().HasMaxLength(64);
+            entity.Property(x => x.Amount).HasPrecision(14, 2);
+            entity.Property(x => x.SourceReference).HasMaxLength(500).IsRequired();
+            entity.Property(x => x.ReportingRole).HasConversion<string>().HasMaxLength(64);
+            entity.Property(x => x.ReportingPeriod).HasConversion<string>().HasMaxLength(64);
+            entity.Property(x => x.ReportingEntityUei).HasMaxLength(12);
+            entity.Property(x => x.PrimeContractPiid).HasMaxLength(64);
+            entity.Property(x => x.SubcontractNumber).HasMaxLength(64);
+            entity.Property(x => x.SprEligibilityBasis).HasMaxLength(500);
+            entity.Property(x => x.SprSchemaProfileId).HasMaxLength(160);
+            entity.Property(x => x.SprSchemaVersion).HasMaxLength(80);
+            entity.Property(x => x.SprSchemaSourceUrl).HasMaxLength(2_000);
+            entity.Property(x => x.SprSchemaDefinitionSha256).HasMaxLength(64);
+            entity.Property(x => x.ReviewerNotes).HasMaxLength(2_000);
+            entity.Property(x => x.Version).IsConcurrencyToken();
+            entity.HasOne(x => x.Contract).WithMany(x => x.SubcontractingReportDataRows)
+                .HasForeignKey(x => new { x.TenantId, x.ContractId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Subcontractor).WithMany(x => x.ReportDataRows)
+                .HasForeignKey(x => new { x.TenantId, x.SubcontractorId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Reviewer).WithMany()
+                .HasForeignKey(x => x.ReviewedByUserId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<SubcontractingReportDataEvidenceEntity>(entity =>
+        {
+            entity.ToTable("esrs_report_data_evidence");
+            entity.HasKey(x => new { x.TenantId, x.ReportDataRowId, x.EvidenceItemId });
+            entity.HasIndex(x => new { x.TenantId, x.EvidenceItemId });
+            entity.HasOne(x => x.ReportDataRow).WithMany(x => x.EvidenceLinks)
+                .HasForeignKey(x => new { x.TenantId, x.ReportDataRowId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.EvidenceItem).WithMany(x => x.SubcontractingReportDataRows)
+                .HasForeignKey(x => new { x.TenantId, x.EvidenceItemId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<SprReportPackageEntity>(entity =>
+        {
+            entity.ToTable("spr_report_packages");
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
+            entity.HasIndex(x => new { x.TenantId, x.ContractId, x.ReportType, x.PeriodStart, x.PeriodEnd, x.Version }).IsUnique();
+            entity.Property(x => x.ReportType).HasConversion<string>().HasMaxLength(64);
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(64).IsConcurrencyToken();
+            entity.Property(x => x.NotSubmittedDisclaimer).HasMaxLength(1_000).IsRequired();
+            entity.Property(x => x.SnapshotJson).HasColumnType("jsonb").IsRequired();
+            entity.Property(x => x.ReviewerName).HasMaxLength(200);
+            entity.Property(x => x.ReviewNotes).HasMaxLength(2_000);
+            entity.HasGeneratedTsVectorColumn(
+                x => x.SearchVector,
+                "english",
+                x => new { x.ReportType, x.NotSubmittedDisclaimer, x.ReviewerName, x.ReviewNotes });
+            entity.HasIndex(x => x.SearchVector).HasMethod("GIN");
+            entity.HasOne(x => x.Contract).WithMany().HasForeignKey(x => new { x.TenantId, x.ContractId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Reviewer).WithMany().HasForeignKey(x => x.ReviewerUserId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<SprManualSubmissionReceiptEntity>(entity =>
+        {
+            entity.ToTable("spr_manual_submission_receipts");
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
+            entity.HasIndex(x => new { x.TenantId, x.PackageId, x.RecordedAt });
+            entity.Property(x => x.ConfirmationReference).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Outcome).HasConversion<string>().HasMaxLength(64);
+            entity.Property(x => x.Notes).HasMaxLength(2_000);
+            entity.HasOne(x => x.Package).WithMany(x => x.ManualSubmissionReceipts)
+                .HasForeignKey(x => new { x.TenantId, x.PackageId }).HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.EvidenceItem).WithMany().HasForeignKey(x => new { x.TenantId, x.EvidenceItemId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.SupersedesReceipt).WithMany().HasForeignKey(x => new { x.TenantId, x.SupersedesReceiptId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.RecordedByUser).WithMany().HasForeignKey(x => x.RecordedByUserId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ExternalPortalInvitationEntity>(entity =>
+        {
+            entity.ToTable("external_portal_invitations");
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
+            entity.HasIndex(x => new { x.TenantId, x.Email, x.Status });
+            entity.HasIndex(x => new { x.TenantId, x.ExpiresAt });
+            entity.Property(x => x.Email).HasMaxLength(320).IsRequired();
+            entity.Property(x => x.Role).HasConversion<string>().HasMaxLength(64);
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(64).IsConcurrencyToken();
+            entity.Property(x => x.RevocationReason).HasMaxLength(500);
+            entity.Property(x => x.Version).IsConcurrencyToken();
+            entity.HasOne(x => x.Tenant).WithMany()
+                .HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<ExternalPortalInvitationPackageScopeEntity>(entity =>
+        {
+            entity.ToTable("external_portal_invitation_package_scopes");
+            entity.HasKey(x => new { x.TenantId, x.InvitationId, x.PackageId });
+            entity.HasIndex(x => new { x.TenantId, x.PackageId });
+            entity.HasOne(x => x.Invitation).WithMany(x => x.PackageScopes)
+                .HasForeignKey(x => new { x.TenantId, x.InvitationId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ExternalPortalInvitationContractScopeEntity>(entity =>
+        {
+            entity.ToTable("external_portal_invitation_contract_scopes");
+            entity.HasKey(x => new { x.TenantId, x.InvitationId, x.ContractId });
+            entity.HasIndex(x => new { x.TenantId, x.ContractId });
+            entity.HasOne(x => x.Invitation).WithMany(x => x.ContractScopes)
+                .HasForeignKey(x => new { x.TenantId, x.InvitationId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Contract).WithMany()
+                .HasForeignKey(x => new { x.TenantId, x.ContractId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ExternalPortalAccessHistoryEntity>(entity =>
+        {
+            entity.ToTable("external_portal_access_history");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.InvitationId, x.OccurredAt });
+            entity.HasIndex(x => new { x.TenantId, x.ActorUserId, x.OccurredAt });
+            entity.Property(x => x.ResultCode).HasMaxLength(64).IsRequired();
+            entity.HasOne(x => x.Invitation).WithMany(x => x.AccessHistory)
+                .HasForeignKey(x => new { x.TenantId, x.InvitationId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<SharedPortalPackageEntity>(entity =>
+        {
+            entity.ToTable("shared_portal_packages");
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
+            entity.HasIndex(x => new { x.TenantId, x.InvitationId, x.Version }).IsUnique();
+            entity.HasIndex(x => new { x.TenantId, x.InvitationId, x.PackageId })
+                .IsUnique()
+                .HasFilter("state = 'Active'");
+            entity.HasIndex(x => new { x.TenantId, x.State, x.ExpiresAt });
+            entity.HasIndex(x => new { x.State, x.ReminderAt, x.ReminderSentAt });
+            entity.Property(x => x.State).HasConversion<string>().HasMaxLength(64).IsConcurrencyToken();
+            entity.Property(x => x.RevocationReason).HasMaxLength(500);
+            entity.Property(x => x.ExternalReviewApprovalReason).HasMaxLength(1_000).IsRequired();
+            entity.Property(x => x.ApprovedSourceFingerprint).HasMaxLength(64).IsRequired();
+            entity.HasOne<SharedPortalPackageEntity>().WithMany()
+                .HasForeignKey(x => new { x.TenantId, x.SupersedesSharedPackageId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<SharedPortalPackageEntity>().WithMany()
+                .HasForeignKey(x => new { x.TenantId, x.ReplacementSharedPackageId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<PortalPackageActivityEntity>(entity =>
+        {
+            entity.ToTable("portal_package_activities");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.OccurredAt });
+            entity.HasIndex(x => new { x.TenantId, x.SharedPackageId, x.ActivityType });
+            entity.Property(x => x.ActivityType).HasConversion<string>().HasMaxLength(64);
+            entity.Property(x => x.Detail).HasMaxLength(500);
+            entity.HasOne(x => x.SharedPackage).WithMany()
+                .HasForeignKey(x => new { x.TenantId, x.SharedPackageId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<PortalPackageReviewMessageEntity>(entity =>
+        {
+            entity.ToTable("portal_package_review_messages");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.SharedPackageId, x.CreatedAt });
+            entity.HasIndex(x => new { x.TenantId, x.ActorUserId, x.CreatedAt });
+            entity.Property(x => x.Kind).HasConversion<string>().HasMaxLength(64);
+            entity.Property(x => x.Body).HasMaxLength(2_000).IsRequired();
+            entity.HasOne(x => x.Invitation).WithMany()
+                .HasForeignKey(x => new { x.TenantId, x.InvitationId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.SharedPackage).WithMany()
+                .HasForeignKey(x => new { x.TenantId, x.SharedPackageId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ReportEntity>(entity =>
+        {
+            entity.ToTable("reports");
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
+            entity.HasIndex(x => new { x.TenantId, x.Type, x.Status });
+            entity.HasIndex(x => new { x.TenantId, x.Type, x.IdempotencyKey })
+                .IsUnique()
+                .HasFilter("idempotency_key IS NOT NULL");
+            entity.Property(x => x.Status).IsConcurrencyToken();
+            entity.Property(x => x.SnapshotJson).HasColumnType("jsonb");
+            entity.Property(x => x.IdempotencyKey).HasMaxLength(128);
+            entity.Property(x => x.RequestFingerprint).HasMaxLength(64);
+            entity.Property(x => x.ClassificationReason).HasMaxLength(600);
+            entity.Property(x => x.ArchiveReason).HasMaxLength(500);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<ReportExportEntity>(entity =>
+        {
+            entity.ToTable("report_exports");
+            entity.HasOne<ObjectWriteIntentEntity>().WithMany().HasForeignKey(x => new { x.TenantId, x.ObjectWriteIntentId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.ReportId, x.Format, x.RenderVersion }).IsUnique();
+            entity.HasIndex(x => new { x.Status, x.RequestedAt });
+            entity.Property(x => x.Format).HasMaxLength(20);
+            entity.Property(x => x.RenderVersion).HasMaxLength(40);
+            entity.Property(x => x.ObjectName).HasMaxLength(500);
+            entity.Property(x => x.FileName).HasMaxLength(240);
+            entity.Property(x => x.ContentType).HasMaxLength(100);
+            entity.Property(x => x.ETag).HasMaxLength(200);
+            entity.Property(x => x.FailureCode).HasMaxLength(160);
+            entity.Property(x => x.Status).IsConcurrencyToken();
+            entity.HasOne(x => x.Report)
+                .WithMany(x => x.Exports)
+                .HasForeignKey(x => new { x.TenantId, x.ReportId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id })
+                .OnDelete(DeleteBehavior.Cascade);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<ReportContractEntity>(entity =>
+        {
+            entity.ToTable("report_contracts");
+            entity.HasKey(x => new { x.ReportId, x.ContractId });
+        });
+
+        modelBuilder.Entity<ReportObligationEntity>(entity =>
+        {
+            entity.ToTable("report_obligations");
+            entity.HasKey(x => new { x.ReportId, x.ObligationId });
+        });
+
+        modelBuilder.Entity<ReportEvidenceEntity>(entity =>
+        {
+            entity.ToTable("report_evidence");
+            entity.HasKey(x => new { x.ReportId, x.EvidenceItemId });
+        });
+    }
+
+    private static void ConfigureAudit(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<AuditLogEntryEntity>(entity =>
+        {
+            entity.ToTable("audit_log_entries");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.OccurredAt });
+            entity.HasIndex(x => new { x.TenantId, x.EntityType, x.EntityId });
+            entity.HasIndex(x => new { x.TenantId, x.EventType, x.OccurredAt });
+            entity.HasIndex(x => new { x.TenantId, x.Result, x.OccurredAt });
+            entity.Property(x => x.EventType).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.Classification).HasMaxLength(80);
+            entity.Property(x => x.Mode).HasMaxLength(80);
+            entity.Property(x => x.Result).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.CorrelationId).HasMaxLength(120);
+            entity.Property(x => x.OldValue).HasColumnType("text");
+            entity.Property(x => x.NewValue).HasColumnType("text");
+            entity.Property(x => x.MetadataJson).HasColumnType("jsonb");
+        });
+    }
+
+    private void EnforceAuditLogAppendOnly()
+    {
+        if (ChangeTracker.Entries<ContentClassificationHistoryEntity>().Any(e => e.State is EntityState.Modified or EntityState.Deleted))
+            throw new InvalidOperationException("Classification history is append-only and cannot be updated or deleted.");
+        var invalidAuditLogMutations = ChangeTracker
+            .Entries<AuditLogEntryEntity>()
+            .Where(entry => entry.State is EntityState.Modified or EntityState.Deleted)
+            .ToArray();
+
+        if (invalidAuditLogMutations.Length > 0)
+        {
+            throw new InvalidOperationException("Audit log entries are append-only and cannot be updated or deleted.");
+        }
+
+        if (ChangeTracker.Entries<PortalPackageReviewMessageEntity>()
+            .Any(entry => entry.State is EntityState.Modified or EntityState.Deleted))
+            throw new InvalidOperationException("Portal package review messages are append-only and cannot be updated or deleted.");
+
+        var invalidAppointmentEventMutations = ChangeTracker
+            .Entries<DemoAppointmentEventEntity>()
+            .Where(entry => entry.State is EntityState.Modified or EntityState.Deleted)
+            .ToArray();
+
+        if (invalidAppointmentEventMutations.Length > 0)
+        {
+            throw new InvalidOperationException("Demo appointment events are append-only and cannot be updated or deleted.");
+        }
+
+        var invalidFollowUpResponseMutations = ChangeTracker
+            .Entries<DemoFollowUpResponseEntity>()
+            .Where(entry => entry.State is EntityState.Modified or EntityState.Deleted)
+            .ToArray();
+
+        if (invalidFollowUpResponseMutations.Length > 0)
+        {
+            throw new InvalidOperationException("Demo follow-up responses are append-only and cannot be updated or deleted.");
+        }
+
+        var invalidSubscriptionTransitionMutations = ChangeTracker
+            .Entries<TenantSubscriptionTransitionEntity>()
+            .Where(entry => entry.State is EntityState.Modified or EntityState.Deleted)
+            .ToArray();
+
+        if (invalidSubscriptionTransitionMutations.Length > 0)
+        {
+            throw new InvalidOperationException("Tenant subscription transitions are append-only and cannot be updated or deleted.");
+        }
+    }
+
+    private static void ConfigureReadinessRecords(ModelBuilder modelBuilder)
+    {
+        void Record<TEntity>(string table) where TEntity : ReadinessRecordEntity
+        {
+            modelBuilder.Entity<TEntity>(entity =>
+            {
+                entity.ToTable(table); entity.HasKey(x => x.Id);
+                entity.HasIndex(x => new { x.TenantId, x.Version }).IsUnique();
+                entity.HasIndex(x => new { x.TenantId, x.State });
+                entity.Property(x => x.State).HasMaxLength(32).IsRequired();
+                entity.Property(x => x.ApprovalNotes).HasMaxLength(1200);
+            });
+        }
+        Record<SecurityReviewRecordEntity>("security_review_records");
+        Record<TechnicalReadinessRecordEntity>("technical_readiness_records");
+        Record<IncidentReadinessRecordEntity>("incident_readiness_records");
+        modelBuilder.Entity<IncidentReadinessRecordEntity>(e => e.Property(x => x.ReviewBasis).HasMaxLength(40));
+        modelBuilder.Entity<SecurityReviewChecklistItemRecordEntity>(e => { e.ToTable("security_review_checklist_items"); e.HasKey(x=>x.Id); e.HasIndex(x=>new{x.ReviewId,x.Area}).IsUnique(); e.Property(x=>x.Area).HasMaxLength(120); e.Property(x=>x.EvidenceLink).HasMaxLength(600); e.Property(x=>x.Rationale).HasMaxLength(1200); e.HasOne(x=>x.Review).WithMany(x=>x.Items).HasForeignKey(x=>x.ReviewId).OnDelete(DeleteBehavior.Cascade); });
+        modelBuilder.Entity<SecurityReviewFindingRecordEntity>(e => { e.ToTable("security_review_findings"); e.HasKey(x=>x.Id); e.HasIndex(x=>new{x.TenantId,x.Status,x.Severity}); e.Property(x=>x.Area).HasMaxLength(120); e.Property(x=>x.Summary).HasMaxLength(1200); e.Property(x=>x.RemediationOwner).HasMaxLength(180); e.Property(x=>x.ClosureNotes).HasMaxLength(1200); e.HasOne(x=>x.Review).WithMany(x=>x.Findings).HasForeignKey(x=>x.ReviewId).OnDelete(DeleteBehavior.Cascade); });
+        modelBuilder.Entity<AcceptedSecurityRiskRecordEntity>(e => { e.ToTable("accepted_security_risks"); e.HasKey(x=>x.Id); e.HasIndex(x=>new{x.TenantId,x.ReviewId}); e.Property(x=>x.Scope).HasMaxLength(1200); e.Property(x=>x.MitigationNote).HasMaxLength(1200); e.HasOne(x=>x.Review).WithMany(x=>x.AcceptedRisks).HasForeignKey(x=>x.ReviewId).OnDelete(DeleteBehavior.Cascade); e.HasOne(x=>x.Finding).WithMany().HasForeignKey(x=>x.FindingId).OnDelete(DeleteBehavior.Restrict); });
+        modelBuilder.Entity<ExecutedControlEvidenceEntity>(e => { e.ToTable("executed_control_evidence"); e.HasKey(x=>x.Id); e.HasIndex(x=>new{x.ReadinessId,x.ControlType}); e.Property(x=>x.ControlType).HasMaxLength(120); e.Property(x=>x.Environment).HasMaxLength(160); e.Property(x=>x.Result).HasMaxLength(80); e.Property(x=>x.EvidenceReference).HasMaxLength(600); e.Property(x=>x.EvidenceSourceType).HasMaxLength(40); e.Property(x=>x.ExternalUri).HasMaxLength(2000); e.Property(x=>x.Sha256Digest).HasMaxLength(64); e.Property(x=>x.Notes).HasMaxLength(1200); e.HasOne(x=>x.Readiness).WithMany(x=>x.Evidence).HasForeignKey(x=>x.ReadinessId).OnDelete(DeleteBehavior.Cascade); e.HasOne<EvidenceFileVersionEntity>().WithMany().HasForeignKey(x=>x.EvidenceFileVersionId).OnDelete(DeleteBehavior.Restrict); });
+        modelBuilder.Entity<IncidentPlaybookRecordEntity>(e => { e.ToTable("incident_playbooks"); e.HasKey(x=>x.Id); e.HasIndex(x=>new{x.ReadinessId,x.Key}).IsUnique(); e.Property(x=>x.Key).HasMaxLength(160); e.Property(x=>x.Trigger).HasMaxLength(1200); e.Property(x=>x.NotificationPath).HasMaxLength(1200); e.Property(x=>x.Owner).HasMaxLength(180); e.Property(x=>x.ClosureCriteria).HasMaxLength(1200); e.HasOne(x=>x.Readiness).WithMany(x=>x.Playbooks).HasForeignKey(x=>x.ReadinessId).OnDelete(DeleteBehavior.Cascade); });
+        modelBuilder.Entity<IncidentContactRecordEntity>(e => { e.ToTable("incident_contacts"); e.HasKey(x=>x.Id); e.HasIndex(x=>new{x.ReadinessId,x.Function}).IsUnique(); e.Property(x=>x.Function).HasMaxLength(80); e.Property(x=>x.Contact).HasMaxLength(240); e.Property(x=>x.EscalationRole).HasMaxLength(180); e.HasOne(x=>x.Readiness).WithMany(x=>x.Contacts).HasForeignKey(x=>x.ReadinessId).OnDelete(DeleteBehavior.Cascade); });
+        modelBuilder.Entity<IncidentTabletopRecordEntity>(e => { e.ToTable("incident_tabletops"); e.HasKey(x=>x.Id); e.HasIndex(x=>new{x.TenantId,x.ExecutedAt}); e.Property(x=>x.Environment).HasMaxLength(160); e.Property(x=>x.EvidenceReference).HasMaxLength(600); e.Property(x=>x.EvidenceSourceType).HasMaxLength(40); e.Property(x=>x.ExternalUri).HasMaxLength(2000); e.Property(x=>x.Sha256Digest).HasMaxLength(64); e.HasOne(x=>x.Readiness).WithMany(x=>x.Tabletops).HasForeignKey(x=>x.ReadinessId).OnDelete(DeleteBehavior.Cascade); e.HasOne<EvidenceFileVersionEntity>().WithMany().HasForeignKey(x=>x.EvidenceFileVersionId).OnDelete(DeleteBehavior.Restrict); });
+        modelBuilder.Entity<IncidentFollowUpRecordEntity>(e => { e.ToTable("incident_follow_ups"); e.HasKey(x=>x.Id); e.HasIndex(x=>new{x.TenantId,x.Status,x.Severity}); e.Property(x=>x.Summary).HasMaxLength(1200); e.Property(x=>x.Owner).HasMaxLength(180); e.Property(x=>x.ClosureNotes).HasMaxLength(1200); e.HasOne(x=>x.Readiness).WithMany(x=>x.FollowUps).HasForeignKey(x=>x.ReadinessId).OnDelete(DeleteBehavior.Cascade); e.HasOne(x=>x.Tabletop).WithMany().HasForeignKey(x=>x.TabletopId).OnDelete(DeleteBehavior.Restrict); });
+        modelBuilder.Entity<ReadinessApprovalEntity>(e => { e.ToTable("readiness_approvals"); e.HasKey(x=>x.Id); e.HasIndex(x=>new{x.TenantId,x.RecordType,x.RecordId,x.Version}).IsUnique(); e.Property(x=>x.RecordType).HasMaxLength(80); e.Property(x=>x.Notes).HasMaxLength(1200); });
+        modelBuilder.Entity<ReadinessHistoryEntity>(e => { e.ToTable("readiness_history"); e.HasKey(x=>x.Id); e.HasIndex(x=>new{x.TenantId,x.OccurredAt}); e.Property(x=>x.RecordType).HasMaxLength(80); e.Property(x=>x.Action).HasMaxLength(80); e.Property(x=>x.Summary).HasMaxLength(1200); });
+        modelBuilder.Entity<SecurityReviewFindingRecordEntity>().HasIndex(x => new { x.ReviewId, x.LogicalId }).IsUnique();
+        modelBuilder.Entity<AcceptedSecurityRiskRecordEntity>().HasIndex(x => new { x.ReviewId, x.LogicalId }).IsUnique();
+        modelBuilder.Entity<ExecutedControlEvidenceEntity>().HasIndex(x => new { x.ReadinessId, x.LogicalId }).IsUnique();
+        modelBuilder.Entity<IncidentContactRecordEntity>().HasIndex(x => new { x.ReadinessId, x.LogicalId }).IsUnique();
+        modelBuilder.Entity<IncidentPlaybookRecordEntity>().HasIndex(x => new { x.ReadinessId, x.LogicalId }).IsUnique();
+        modelBuilder.Entity<IncidentTabletopRecordEntity>().HasIndex(x => new { x.ReadinessId, x.LogicalId }).IsUnique();
+        modelBuilder.Entity<IncidentFollowUpRecordEntity>().HasIndex(x => new { x.ReadinessId, x.LogicalId }).IsUnique();
+    }
+
+    private static void ConfigureAuditColumns<T>(EntityTypeBuilder<T> entity)
+        where T : AuditedEntity
+    {
+        entity.Property(x => x.CreatedAt).IsRequired();
+        entity.HasIndex(x => new { x.CreatedAt, x.UpdatedAt });
+    }
+
+    private static void ConfigureTenantForeignKeys(ModelBuilder modelBuilder)
+    {
+        var tenantScopedTypes = modelBuilder.Model.GetEntityTypes()
+            .Where(entityType =>
+                entityType.ClrType != typeof(TenantEntity) &&
+                entityType.ClrType != typeof(AuditLogEntryEntity) &&
+                entityType.ClrType != typeof(NoCuiAcknowledgementEntity) &&
+                entityType.FindProperty(nameof(UserEntity.TenantId)) is not null &&
+                !entityType.GetForeignKeys().Any(foreignKey =>
+                    foreignKey.PrincipalEntityType.ClrType == typeof(TenantEntity)))
+            .Select(entityType => entityType.ClrType)
+            .ToArray();
+
+        foreach (var clrType in tenantScopedTypes)
+        {
+            modelBuilder.Entity(clrType)
+                .HasOne(typeof(TenantEntity))
+                .WithMany()
+                .HasForeignKey(nameof(UserEntity.TenantId))
+                .OnDelete(DeleteBehavior.Restrict);
+        }
+    }
+
+    private static void ApplyPostgresConventions(ModelBuilder modelBuilder)
+    {
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            foreach (var property in entityType.GetProperties())
+            {
+                property.SetColumnName(ToSnakeCase(property.Name));
+
+                if (property.ClrType == typeof(string) && property.Name.EndsWith("Json", StringComparison.Ordinal))
+                {
+                    property.SetColumnType("jsonb");
+                }
+            }
+        }
+    }
+
+    private static string ToSnakeCase(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return value;
+        }
+
+        var builder = new StringBuilder(value.Length + 8);
+        for (var i = 0; i < value.Length; i++)
+        {
+            var current = value[i];
+            if (char.IsUpper(current) && i > 0)
+            {
+                builder.Append('_');
+            }
+
+            builder.Append(char.ToLowerInvariant(current));
+        }
+
+        return builder.ToString();
+    }
+}

@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 2,
+  "status": "approved",
+  "version": "0.1.1",
+  "candidateTag": "v0.1.1-rc.1",
+  "releaseTag": "v0.1.1",
+  "commitSha": "2c1784a0e79ea6db0f9de0eaa119c88c2a911948",
+  "approvedAt": "2026-09-26",
+  "approvalScope": "Solo-controlled No-CUI pilot production release",
+  "dataPosture": "no-cui-only",
+  "staging": {
+    "environment": "staging",
+    "runId": 36276437698,
+    "evidenceUrl": "https://github.com/samurab/Gccs/actions/runs/36276437698"
+  },
+  "artifacts": {
+    "mode": "immutable-promotion",
+    "releaseAssetTag": "v0.1.1-rc.1",
+    "api": {
+      "name": "fedril-api.zip",
+      "sha256": "02e707c747469a8269554815e757ea47ec209ac718df98923c8604b707604d20"
+    },
+    "web": {
+      "name": "fedril-web.zip",
+      "sha256": "441421d6a02debeacd344755637e5775364fc6ec8893dbb13be7c453ac48fc7a"
+    },
+    "migration": {
+      "name": "fedril-migrations.zip",
+      "sha256": "2c1b740ec6b516e0d66ef6e2e880d753a18c16f2bae330af0d68d01b6a03f3a0"
+    },
+    "sbom": {
+      "name": "fedril-sbom.spdx.json",
+      "sha256": "bfa0630455e730c7b36767fcb3e1e9d40c8151420cbe230dcc5aa64f3d1f93b0"
+    },
+    "metadata": {
+      "name": "release-metadata.json",
+      "sha256": "8ac9321caf5e770529d3c13ee5c75897b298e99a3e93e14383f6e72292e20180"
+    }
+  },
+  "approvals": {
+    "engineering": true,
+    "security": true,
+    "product": true
+  },
+  "rollback": {
+    "sourceTag": "v0.1.0"
+  }
+}

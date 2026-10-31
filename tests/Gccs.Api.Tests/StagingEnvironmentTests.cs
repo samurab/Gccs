@@ -1,0 +1,188 @@
+using Xunit;
+
+namespace Gccs.Api.Tests;
+
+public sealed class StagingEnvironmentTests
+{
+    [Fact]
+    public void TC_17_3_1_Staging_deployment_workflow_covers_core_services_and_migrations()
+    {
+        var root = FindRepositoryRoot();
+        var workflow = File.ReadAllText(Path.Combine(root, ".github", "workflows", "staging.yml"));
+        var terraform = File.ReadAllText(Path.Combine(root, "infra", "terraform", "environments", "staging", "main.tf"));
+
+        Assert.Contains("name: Staging deployment", workflow);
+        Assert.Contains("environment:", workflow);
+        Assert.Contains("name: staging", workflow);
+        Assert.Contains("Build staging artifacts", workflow);
+        Assert.Contains("dotnet publish apps/api/Gccs.Api.csproj", workflow);
+        Assert.Contains("npm run build:web", workflow);
+        Assert.Contains("Generate idempotent migration script", workflow);
+        Assert.Contains("migrations script --idempotent", workflow);
+        Assert.Contains("Apply staging migrations through approved CI/CD", workflow);
+        Assert.Contains("STAGING_DATABASE_URL", workflow);
+        Assert.Contains("psql \"$STAGING_DATABASE_URL\" --set ON_ERROR_STOP=on", workflow);
+        Assert.True(
+            workflow.IndexOf("Apply staging migrations through approved CI/CD", StringComparison.Ordinal) <
+            workflow.IndexOf("Deploy staging API App Service", StringComparison.Ordinal),
+            "Staging migrations must run before the API artifact is deployed.");
+        Assert.Contains("Deploy staging API, web, data, storage, cache, queue, and secrets", workflow);
+
+        foreach (var serviceSignal in new[] { "api", "web", "database", "object_storage", "cache", "queue", "secrets" })
+        {
+            Assert.Contains(serviceSignal, terraform);
+            Assert.Contains(serviceSignal, workflow);
+        }
+    }
+
+    [Fact]
+    public void TC_17_3_2_Staging_contract_blocks_production_customer_data_and_secrets()
+    {
+        var root = FindRepositoryRoot();
+        var workflow = File.ReadAllText(Path.Combine(root, ".github", "workflows", "staging.yml"));
+        var terraform = File.ReadAllText(Path.Combine(root, "infra", "terraform", "environments", "staging", "main.tf"));
+        var runbook = File.ReadAllText(Path.Combine(root, "docs", "staging-environment.md"));
+
+        Assert.Contains("STAGING_CUSTOMER_DATA_MODE: synthetic-only", workflow);
+        Assert.Contains("Validate staging No-CUI and no production data guardrails", workflow);
+        Assert.Contains("No-CUI / compliance management only", workflow);
+        Assert.Contains("synthetic-only", terraform);
+        Assert.Contains("must not contain production customer data", terraform);
+        Assert.Contains("Staging contains no production customer data.", runbook);
+        Assert.Contains("must not reuse production secrets", runbook);
+        Assert.Contains("sanitized fixtures or synthetic seed data", runbook);
+    }
+
+    [Fact]
+    public void TC_17_3_3_Staging_health_checks_cover_api_database_cache_storage_and_jobs()
+    {
+        var root = FindRepositoryRoot();
+        var workflow = File.ReadAllText(Path.Combine(root, ".github", "workflows", "staging.yml"));
+        var healthService = File.ReadAllText(Path.Combine(root, "apps", "api", "LocalDevelopment", "LocalDependencyHealthService.cs"));
+        var runbook = File.ReadAllText(Path.Combine(root, "docs", "staging-environment.md"));
+
+        Assert.Contains("/health", workflow);
+        Assert.Contains(".status == \"ok\"", workflow);
+        Assert.Contains(".service == \"gccs-api\"", workflow);
+        Assert.Contains(".dataPosture == \"No-CUI / compliance management only\"", workflow);
+        Assert.Contains("[\"background-jobs\", \"object-storage\", \"postgresql\", \"redis\"]", workflow);
+        Assert.Contains("select(.status == \"ok\")", workflow);
+        Assert.Contains("CheckBackgroundJobsAsync", healthService);
+        Assert.Contains("Background job queue coordination is reachable through Redis.", healthService);
+
+        foreach (var requiredSignal in new[] { "API status", "Database dependency", "Cache dependency", "Storage dependency", "Background job dependency" })
+        {
+            Assert.Contains(requiredSignal, runbook);
+        }
+    }
+
+    [Fact]
+    public void TC_17_3_4_Staging_smoke_tests_are_visible_in_ci_cd()
+    {
+        var root = FindRepositoryRoot();
+        var workflow = File.ReadAllText(Path.Combine(root, ".github", "workflows", "staging.yml"));
+        var runbook = File.ReadAllText(Path.Combine(root, "docs", "staging-environment.md"));
+
+        Assert.Contains("Run staging smoke tests", workflow);
+        Assert.Contains("curl --fail --show-error --silent \"$STAGING_API_BASE_URL/health\"", workflow);
+        Assert.Contains("tee \"$RUNNER_TEMP/staging-health.json\"", workflow);
+        Assert.Contains("for attempt in {1..30}", workflow);
+        Assert.Contains(".commitSha == $commitSha", workflow);
+        Assert.Contains("select(.status == \"ok\")", workflow);
+        Assert.Contains("curl --fail --show-error --silent \"$STAGING_WEB_BASE_URL/runtime-config.js\"", workflow);
+        Assert.Contains("Staging did not converge to release", workflow);
+        Assert.Contains("Upload staging smoke test results", workflow);
+        Assert.Contains("if: always()", workflow);
+        Assert.Contains("staging-smoke-test-results", workflow);
+        Assert.Contains("staging-health.json", workflow);
+        Assert.Contains("success or failure is visible in CI/CD", runbook);
+    }
+
+    [Fact]
+    public void Staging_deployment_enables_and_verifies_invitation_delivery_before_api_deployment()
+    {
+        var root = FindRepositoryRoot();
+        var workflow = File.ReadAllText(Path.Combine(root, ".github", "workflows", "staging.yml"));
+
+        foreach (var requiredSetting in new[]
+        {
+            "InvitationDelivery__Enabled=true",
+            "InvitationDelivery__Provider=AzureCommunicationServices",
+            "InvitationDelivery__PublicWebBaseUrl=\"$STAGING_WEB_BASE_URL\"",
+            "InvitationDelivery__Endpoint=\"$DEMO_REQUESTS_ENDPOINT\"",
+            "InvitationDelivery__UseManagedIdentity=true",
+            "InvitationDelivery__SenderAddress=\"$DEMO_REQUESTS_SENDER_ADDRESS\"",
+            "InvitationDelivery__PollIntervalSeconds=5",
+            "InvitationDelivery__LeaseMinutes=5",
+            "InvitationDelivery__MaximumAttempts=5"
+        })
+        {
+            Assert.Contains(requiredSetting, workflow);
+        }
+
+        Assert.Contains("name=='InvitationDelivery__Enabled'", workflow);
+        Assert.Contains("test \"$invitation_delivery_enabled\" = \"true\"", workflow);
+        Assert.True(
+            workflow.IndexOf("Configure staging email delivery", StringComparison.Ordinal) <
+            workflow.IndexOf("Deploy staging API App Service", StringComparison.Ordinal),
+            "Invitation delivery must be configured before the staging API starts.");
+    }
+
+    [Fact]
+    public void TC_PR_3_1_Staging_smoke_evidence_records_pipeline_guardrails_health_and_blockers()
+    {
+        var root = FindRepositoryRoot();
+        var evidence = File.ReadAllText(Path.Combine(root, "docs", "production-readiness-staging-smoke-evidence.md"));
+
+        Assert.Contains("Story: PR-3.1 - Deploy And Smoke Test Staging.", evidence);
+        Assert.Contains("Evidence date: 2026-07-01.", evidence);
+        Assert.Contains("Approved deployment path: `.github/workflows/staging.yml`.", evidence);
+        Assert.Contains("Resource group: `gccs-staging-rg`.", evidence);
+        Assert.Contains("No-CUI / compliance management only", evidence);
+
+        foreach (var requiredSignal in new[] { "postgresql", "redis", "object-storage", "background-jobs" })
+        {
+            Assert.Contains(requiredSignal, evidence);
+        }
+
+        foreach (var guardrail in new[]
+        {
+            "No production customer data.",
+            "No real customer CUI.",
+            "No production secrets.",
+            "No production uploads.",
+            "No production unrestricted logs.",
+            "Synthetic-only staging data."
+        })
+        {
+            Assert.Contains(guardrail, evidence);
+        }
+
+        Assert.Contains("Evidence status: Passed", evidence);
+        Assert.Contains("GitHub Actions run", evidence);
+        Assert.Contains("staging-smoke-test-results/staging-health.json", evidence);
+        Assert.Contains("\"status\":\"ok\"", evidence);
+
+        foreach (var closedBlocker in new[]
+        {
+            "STAGE-GAP-001",
+            "STAGE-GAP-002",
+            "STAGE-GAP-003",
+            "Closed on 2026-07-01"
+        })
+        {
+            Assert.Contains(closedBlocker, evidence);
+        }
+    }
+
+    private static string FindRepositoryRoot()
+    {
+        var directory = new DirectoryInfo(Directory.GetCurrentDirectory());
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Gccs.slnx")))
+        {
+            directory = directory.Parent;
+        }
+
+        return directory?.FullName ?? throw new InvalidOperationException("Could not locate repository root.");
+    }
+}

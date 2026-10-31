@@ -1,0 +1,291 @@
+using Gccs.Application.Audit;
+using Gccs.Domain.Audit;
+using Gccs.Domain.Companies;
+
+namespace Gccs.Application.Companies;
+
+public sealed class CompanyProfileService(
+    ICompanyProfileRepository repository,
+    IAuditEventWriter auditEventWriter)
+{
+    public async Task<CompanyProfileDto?> GetCurrentTenantProfileAsync(CancellationToken cancellationToken = default)
+    {
+        var profile = await repository.FindCurrentTenantProfileAsync(cancellationToken);
+        return profile is null ? null : WithCompletion(profile, exposeValidationErrors: false);
+    }
+
+    public async Task<CompanyProfileDto> SaveCurrentTenantProfileAsync(
+        UpsertCompanyProfileRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var normalized = Normalize(request);
+        var validationErrors = Validate(normalized);
+
+        if (request.CompleteProfile && validationErrors.Count > 0)
+        {
+            throw new CompanyProfileValidationException(validationErrors);
+        }
+
+        var saved = await repository.UpsertCurrentTenantProfileAsync(normalized, actorUserId, cancellationToken);
+        var completed = WithCompletion(saved, exposeValidationErrors: request.CompleteProfile);
+        var wasCreated = completed.UpdatedAt is null;
+
+        await auditEventWriter.WriteAsync(
+            completed.TenantId,
+            actorUserId,
+            wasCreated ? AuditAction.Created : AuditAction.Updated,
+            "CompanyProfile",
+            completed.Id.ToString(),
+            wasCreated
+                ? $"Company profile '{completed.LegalEntityName}' was created."
+                : $"Company profile '{completed.LegalEntityName}' was updated.",
+            new Dictionary<string, string>
+            {
+                ["legalEntityName"] = completed.LegalEntityName,
+                ["completionPercentage"] = completed.CompletionPercentage.ToString(),
+                ["isComplete"] = completed.IsComplete.ToString(),
+                ["dataHandlingPosture"] = completed.DataHandlingPosture.ToString()
+            },
+            cancellationToken);
+
+        await auditEventWriter.WriteAsync(
+            completed.TenantId,
+            actorUserId,
+            AuditAction.Updated,
+            "CompanyCertification",
+            completed.Id.ToString(),
+            $"Company profile certifications for '{completed.LegalEntityName}' were updated.",
+            new Dictionary<string, string>
+            {
+                ["certificationCount"] = completed.Certifications.Count.ToString(),
+                ["certificationTypes"] = string.Join(",", completed.Certifications.Select(certification => certification.Type))
+            },
+            cancellationToken);
+
+        return completed;
+    }
+
+    private static CompanyProfileDto WithCompletion(
+        CompanyProfileDto profile,
+        bool exposeValidationErrors)
+    {
+        var request = ToRequest(profile);
+        var errors = Validate(request);
+        var completionPercentage = CalculateCompletionPercentage(profile);
+        return profile with
+        {
+            CompletionPercentage = completionPercentage,
+            IsComplete = errors.Count == 0,
+            ValidationErrors = exposeValidationErrors ? errors : ValidateDraftVisibleGaps(request)
+        };
+    }
+
+    private static UpsertCompanyProfileRequest Normalize(UpsertCompanyProfileRequest request) =>
+        request with
+        {
+            LegalEntityName = NormalizeRequired(request.LegalEntityName),
+            DoingBusinessAs = NormalizeOptional(request.DoingBusinessAs),
+            Uei = NormalizeOptional(request.Uei)?.ToUpperInvariant(),
+            CageCode = NormalizeOptional(request.CageCode)?.ToUpperInvariant(),
+            ProductsAndServices = NormalizeRequired(request.ProductsAndServices),
+            NaicsCodes = NormalizeNaicsCodes(request.NaicsCodes),
+            Certifications = NormalizeCertifications(request.Certifications),
+            AgencyCustomers = request.AgencyCustomers
+                .Select(NormalizeRequired)
+                .Where(customer => !string.IsNullOrWhiteSpace(customer))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray(),
+            Locations = request.Locations.Select(location => location with
+            {
+                Name = NormalizeRequired(location.Name),
+                Street1 = NormalizeRequired(location.Street1),
+                Street2 = NormalizeOptional(location.Street2),
+                City = NormalizeRequired(location.City),
+                StateOrProvince = NormalizeRequired(location.StateOrProvince),
+                PostalCode = NormalizeRequired(location.PostalCode),
+                Country = NormalizeRequired(location.Country)
+            }).Where(location => !string.IsNullOrWhiteSpace(location.Name)).ToArray(),
+            ItEnvironment = request.ItEnvironment with
+            {
+                Description = NormalizeRequired(request.ItEnvironment.Description),
+                ExternalServiceProviderName = NormalizeOptional(request.ItEnvironment.ExternalServiceProviderName),
+                KeySystems = request.ItEnvironment.KeySystems
+                    .Select(NormalizeRequired)
+                    .Where(system => !string.IsNullOrWhiteSpace(system))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray()
+            }
+        };
+
+    private static IReadOnlyDictionary<string, string[]> Validate(UpsertCompanyProfileRequest request)
+    {
+        var errors = new Dictionary<string, string[]>(StringComparer.Ordinal);
+
+        AddIf(errors, string.IsNullOrWhiteSpace(request.LegalEntityName), "legalEntityName", "Legal entity name is required.");
+        AddIf(errors, request.LegalEntityName.Length > 240, "legalEntityName", "Legal entity name must be 240 characters or fewer.");
+        AddIf(errors, string.IsNullOrWhiteSpace(request.Uei), "uei", "UEI is required before profile completion.");
+        AddIf(errors, string.IsNullOrWhiteSpace(request.CageCode), "cageCode", "CAGE code is required before profile completion.");
+        AddIf(errors, request.SamRegistrationExpiresAt is null, "samRegistrationExpiresAt", "SAM expiration date is required before profile completion.");
+        AddIf(errors, request.NaicsCodes.Count == 0, "naicsCodes", "At least one NAICS code is required before profile completion.");
+        AddNaicsSizeStatusGaps(errors, request.NaicsCodes);
+        AddIf(errors, request.ContractorRole is ContractorRole.Unknown, "contractorRole", "Contractor role is required before profile completion.");
+        AddIf(errors, string.IsNullOrWhiteSpace(request.ProductsAndServices), "productsAndServices", "Products and services are required before profile completion.");
+        AddIf(errors, request.EmployeeRange is CompanyRange.Unknown, "employeeRange", "Employee range is required before profile completion.");
+        AddIf(errors, request.RevenueRange is CompanyRange.Unknown, "revenueRange", "Revenue range is required before profile completion.");
+        AddIf(errors, request.Locations.Count == 0, "locations", "At least one location is required before profile completion.");
+        AddIf(errors, string.IsNullOrWhiteSpace(request.ItEnvironment.Description), "itEnvironment.description", "IT environment summary is required before profile completion.");
+        AddIf(errors, request.DataHandlingPosture is DataHandlingPosture.Unknown, "dataHandlingPosture", "FCI/CUI posture is required before profile completion.");
+
+        return errors;
+    }
+
+    private static IReadOnlyDictionary<string, string[]> ValidateDraftVisibleGaps(UpsertCompanyProfileRequest request)
+    {
+        var errors = new Dictionary<string, string[]>(StringComparer.Ordinal);
+        AddNaicsSizeStatusGaps(errors, request.NaicsCodes);
+        return errors;
+    }
+
+    private static int CalculateCompletionPercentage(CompanyProfileDto profile)
+    {
+        var completed = 0;
+        const int total = 13;
+
+        completed += string.IsNullOrWhiteSpace(profile.LegalEntityName) ? 0 : 1;
+        completed += string.IsNullOrWhiteSpace(profile.Uei) ? 0 : 1;
+        completed += string.IsNullOrWhiteSpace(profile.CageCode) ? 0 : 1;
+        completed += profile.SamRegistrationExpiresAt is null ? 0 : 1;
+        completed += profile.NaicsCodes.Count == 0 ? 0 : 1;
+        completed += profile.ContractorRole is ContractorRole.Unknown ? 0 : 1;
+        completed += string.IsNullOrWhiteSpace(profile.ProductsAndServices) ? 0 : 1;
+        completed += profile.EmployeeRange is CompanyRange.Unknown ? 0 : 1;
+        completed += profile.RevenueRange is CompanyRange.Unknown ? 0 : 1;
+        completed += profile.Locations.Count == 0 ? 0 : 1;
+        completed += string.IsNullOrWhiteSpace(profile.ItEnvironment.Description) ? 0 : 1;
+        completed += profile.DataHandlingPosture is DataHandlingPosture.Unknown ? 0 : 1;
+        completed += profile.AgencyCustomers.Count == 0 && profile.Certifications.Count == 0 ? 0 : 1;
+
+        return (int)Math.Round(completed / (double)total * 100, MidpointRounding.AwayFromZero);
+    }
+
+    private static UpsertCompanyProfileRequest ToRequest(CompanyProfileDto profile) =>
+        new(
+            profile.LegalEntityName,
+            profile.DoingBusinessAs,
+            profile.Uei,
+            profile.CageCode,
+            profile.SamRegistrationExpiresAt,
+            profile.NaicsCodes,
+            profile.Certifications,
+            profile.AgencyCustomers,
+            profile.ContractorRole,
+            profile.ProductsAndServices,
+            profile.EmployeeRange,
+            profile.RevenueRange,
+            profile.Locations,
+            profile.ItEnvironment,
+            profile.DataHandlingPosture,
+            profile.IsComplete);
+
+    private static string? NormalizeOptional(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static string NormalizeRequired(string? value) =>
+        value?.Trim() ?? string.Empty;
+
+    private static IReadOnlyList<CompanyNaicsCodeDto> NormalizeNaicsCodes(IReadOnlyList<CompanyNaicsCodeDto> naicsCodes)
+    {
+        var normalized = naicsCodes
+            .Select(naics => naics with
+            {
+                Code = NormalizeRequired(naics.Code),
+                Title = NormalizeRequired(naics.Title),
+                SizeStandard = NormalizeOptional(naics.SizeStandard)
+            })
+            .Where(naics => !string.IsNullOrWhiteSpace(naics.Code))
+            .GroupBy(naics => naics.Code, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .ToArray();
+
+        if (normalized.Length == 0)
+        {
+            return normalized;
+        }
+
+        var primaryCode = normalized.FirstOrDefault(naics => naics.IsPrimary)?.Code ?? normalized[0].Code;
+        return normalized
+            .Select(naics => naics with { IsPrimary = string.Equals(naics.Code, primaryCode, StringComparison.OrdinalIgnoreCase) })
+            .ToArray();
+    }
+
+    private static IReadOnlyList<CompanyCertificationDto> NormalizeCertifications(IReadOnlyList<CompanyCertificationDto> certifications)
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var expiringSoon = today.AddDays(90);
+
+        return certifications
+            .Select(certification =>
+            {
+                var status = certification.Status;
+                if (certification.ExpiresAt is { } expiresAt)
+                {
+                    if (expiresAt < today)
+                    {
+                        status = CertificationStatus.Expired;
+                    }
+                    else if (expiresAt <= expiringSoon && status is CertificationStatus.Active)
+                    {
+                        status = CertificationStatus.ExpiringSoon;
+                    }
+                }
+
+                return certification with
+                {
+                    Status = status,
+                    Issuer = NormalizeRequired(certification.Issuer),
+                    ReferenceNumber = NormalizeOptional(certification.ReferenceNumber)
+                };
+            })
+            .Where(certification => !string.IsNullOrWhiteSpace(certification.Issuer))
+            .GroupBy(certification => $"{certification.Type}:{certification.Issuer}", StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .ToArray();
+    }
+
+    private static void AddNaicsSizeStatusGaps(IDictionary<string, string[]> errors, IReadOnlyList<CompanyNaicsCodeDto> naicsCodes)
+    {
+        for (var index = 0; index < naicsCodes.Count; index++)
+        {
+            var naics = naicsCodes[index];
+            if (string.IsNullOrWhiteSpace(naics.SizeStandard) || naics.QualifiesAsSmall is null)
+            {
+                errors[$"naicsCodes[{index}].sizeStatus"] = [$"NAICS {naics.Code} is missing size status or size basis."];
+            }
+        }
+    }
+
+    private static void AddIf(IDictionary<string, string[]> errors, bool condition, string field, string message)
+    {
+        if (condition)
+        {
+            errors[field] = [message];
+        }
+    }
+}
+
+public interface ICompanyProfileRepository
+{
+    Task<CompanyProfileDto?> FindCurrentTenantProfileAsync(CancellationToken cancellationToken = default);
+
+    Task<CompanyProfileDto> UpsertCurrentTenantProfileAsync(
+        UpsertCompanyProfileRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed class CompanyProfileValidationException(IReadOnlyDictionary<string, string[]> errors)
+    : InvalidOperationException("Company profile is missing required completion fields.")
+{
+    public IReadOnlyDictionary<string, string[]> Errors { get; } = errors;
+}

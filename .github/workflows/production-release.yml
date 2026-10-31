@@ -1,0 +1,719 @@
+name: Production deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Protected final SemVer tag from docs/release/approved-release.json, for example v0.2.0.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  attestations: read
+
+concurrency:
+  group: production-deployment
+  cancel-in-progress: false
+
+jobs:
+  production-deploy:
+    defaults:
+      run:
+        working-directory: fedril-source
+    name: Promote approved immutable release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: read
+      actions: read
+      attestations: read
+      id-token: write
+    environment:
+      name: Production
+      url: ${{ vars.PRODUCTION_WEB_BASE_URL }}
+    env:
+      APPROVED_RELEASE_MANIFEST: docs/release/approved-release.json
+      DEPLOYMENT_AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      DOTNET_ENVIRONMENT: Production
+      ASPNETCORE_ENVIRONMENT: Production
+      Gccs__DataPosture: No-CUI / compliance management only
+      PRODUCTION_API_APP_NAME: ${{ vars.PRODUCTION_API_APP_NAME }}
+      PRODUCTION_RESOURCE_GROUP: ${{ vars.PRODUCTION_RESOURCE_GROUP }}
+      PRODUCTION_POSTGRES_SERVER_NAME: ${{ vars.PRODUCTION_POSTGRES_SERVER_NAME }}
+      PRODUCTION_APP_INSIGHTS_NAME: ${{ vars.PRODUCTION_APP_INSIGHTS_NAME }}
+      FEDRIL_REQUIRE_CUSTOMER_AUTH: "true"
+      FEDRIL_WORKFORCE_CLIENT_ID: ${{ vars.PRODUCTION_MSAL_CLIENT_ID }}
+      FEDRIL_WORKFORCE_TENANT_ID: ${{ vars.PRODUCTION_MSAL_TENANT_ID }}
+      FEDRIL_WORKFORCE_API_SCOPE: ${{ vars.PRODUCTION_MSAL_API_SCOPE }}
+      FEDRIL_CUSTOMER_CLIENT_ID: ${{ vars.PRODUCTION_CUSTOMER_MSAL_CLIENT_ID }}
+      FEDRIL_CUSTOMER_TENANT_ID: ${{ vars.PRODUCTION_CUSTOMER_MSAL_TENANT_ID }}
+      FEDRIL_CUSTOMER_TENANT_SUBDOMAIN: ${{ vars.PRODUCTION_CUSTOMER_MSAL_TENANT_SUBDOMAIN }}
+      FEDRIL_CUSTOMER_API_SCOPE: ${{ vars.PRODUCTION_CUSTOMER_MSAL_API_SCOPE }}
+      FEDRIL_CUSTOMER_AUTHORITY: ${{ vars.PRODUCTION_CUSTOMER_AUTHORITY }}
+      FEDRIL_CUSTOMER_AUDIENCE: ${{ vars.PRODUCTION_CUSTOMER_AUDIENCE }}
+      PRODUCTION_API_BASE_URL: ${{ vars.PRODUCTION_API_BASE_URL }}
+      PRODUCTION_WEB_BASE_URL: ${{ vars.PRODUCTION_WEB_BASE_URL }}
+      PRODUCTION_CUSTOMER_DATA_MODE: no-cui-only
+      PRODUCTION_MSAL_CLIENT_ID: ${{ vars.PRODUCTION_MSAL_CLIENT_ID }}
+      PRODUCTION_MSAL_TENANT_ID: ${{ vars.PRODUCTION_MSAL_TENANT_ID }}
+      PRODUCTION_MSAL_API_SCOPE: ${{ vars.PRODUCTION_MSAL_API_SCOPE }}
+      PRODUCTION_CUSTOMER_MSAL_CLIENT_ID: ${{ vars.PRODUCTION_CUSTOMER_MSAL_CLIENT_ID }}
+      PRODUCTION_CUSTOMER_MSAL_TENANT_ID: ${{ vars.PRODUCTION_CUSTOMER_MSAL_TENANT_ID }}
+      PRODUCTION_CUSTOMER_MSAL_TENANT_SUBDOMAIN: ${{ vars.PRODUCTION_CUSTOMER_MSAL_TENANT_SUBDOMAIN }}
+      PRODUCTION_CUSTOMER_MSAL_API_SCOPE: ${{ vars.PRODUCTION_CUSTOMER_MSAL_API_SCOPE }}
+      DEMO_REQUESTS_ENDPOINT: ${{ vars.DEMO_REQUESTS_ENDPOINT }}
+      DEMO_REQUESTS_SENDER_ADDRESS: ${{ vars.DEMO_REQUESTS_SENDER_ADDRESS }}
+      DEMO_REQUESTS_RECIPIENT_ADDRESS: ${{ vars.DEMO_REQUESTS_RECIPIENT_ADDRESS }}
+    steps:
+      - name: Setup Node.js for trusted pre-checkout admission
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: "24.22.1"
+
+      - name: Authenticate exact current-attempt protected admission
+        id: protected_admission
+        timeout-minutes: 10
+        working-directory: ${{ github.workspace }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FEDRIL_MODE: production
+          FEDRIL_WORKFLOW_SHA: ${{ github.workflow_sha }}
+          FEDRIL_WORKFLOW_REF: ${{ github.workflow_ref }}
+          PROTECTED_ASSERTIONS_APP_ID: ${{ vars.PROTECTED_ASSERTIONS_APP_ID }}
+        run: |
+          node --input-type=module <<'FEDRIL_BOOTSTRAP'
+          import { createHash } from 'node:crypto';
+          
+          export const CHECK_NAME = 'FeDril protected historical assertions (129)';
+          export const EXPECTED_HELPERS = Object.freeze([
+            'tools/release/protected/admission.mjs', 'tools/release/protected/runner.mjs',
+            'tools/release/protected/ci-runner.mjs',
+            'tools/release/protected/inline-bootstrap.mjs',
+            'tools/release/protected/native-checkout.mjs', 'tools/release/protected/composition.mjs',
+            'tools/release/protected/workflow-bootstrap-binding.mjs', 'tools/release/protected/finite-canonical-transport.mjs',
+            'tools/release/protected/native-canonical-transport.mjs', 'tools/release/protected/migration-source-snapshots.mjs',
+            'tools/release/protected/migration-source-snapshots-cli.mjs', 'tools/release/protected/release-control.mjs',
+            'tools/release/check-api-package.py', 'tools/release/release-control.mjs', 'tools/release/release-evidence.mjs',
+            'tools/release/validate-auth-config.mjs', 'tools/release/check-azure-settings.mjs', 'tools/release/check-cleanup-quiescence.mjs',
+          ]);
+          export const hash = bytes => createHash('sha256').update(bytes).digest('hex');
+          const sha = value => typeof value === 'string' && /^[a-f0-9]{40}$/.test(value);
+          const digest = value => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
+          const positive = value => typeof value === 'string' && /^[1-9][0-9]{0,19}$/.test(value);
+          const reject = () => { throw new Error('protected_admission_rejected'); };
+          const require = condition => { if (!condition) reject(); };
+          function keys(value, expected) {
+            require(value && typeof value === 'object' && !Array.isArray(value) &&
+              Object.keys(value).sort().join('\0') === [...expected].sort().join('\0'));
+          }
+          const freeze = value => {
+            if (value && typeof value === 'object') { for (const nested of Object.values(value)) freeze(nested); Object.freeze(value); }
+            return value;
+          };
+          
+          export function decodeAuthority(value, cap) {
+            require(typeof value === 'string' && value.length <= Math.ceil(cap / 3) * 4);
+            const bytes = Buffer.from(value, 'base64');
+            require(bytes.length > 0 && bytes.length <= cap && bytes.toString('base64') === value);
+            return bytes;
+          }
+          
+          export function validateContext(context) {
+            keys(context, ['repository', 'appId', 'mode', 'workflowSha', 'candidateSha', 'candidateTreeSha', 'candidateTag',
+              'stagingWorkflowSha', 'runId', 'runAttempt', 'event', 'ref', 'workflowRef', 'comparisonBaseSha', 'prHeadSha']);
+            require(typeof context.repository === 'string' && /^[A-Za-z0-9][A-Za-z0-9-]*\/[A-Za-z0-9][A-Za-z0-9._-]*$/.test(context.repository));
+            require(positive(context.appId) && positive(context.runId) && positive(context.runAttempt) &&
+              sha(context.workflowSha) && sha(context.candidateSha) && sha(context.candidateTreeSha) && context.candidateSha !== '0'.repeat(40));
+            require(['ci', 'staging', 'production'].includes(context.mode));
+            require(context.candidateTag === null || (typeof context.candidateTag === 'string' &&
+              /^v(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)-rc\.[1-9][0-9]*$/.test(context.candidateTag)));
+            require(context.stagingWorkflowSha === null || sha(context.stagingWorkflowSha));
+            const path = context.mode === 'ci' ? '.github/workflows/ci.yml' : context.mode === 'staging' ?
+              '.github/workflows/staging.yml' : '.github/workflows/production-release.yml';
+            require(context.workflowRef === `${context.repository}/${path}@${context.ref}`);
+            if (context.mode === 'ci') {
+              require(['push', 'pull_request', 'workflow_dispatch'].includes(context.event) && context.candidateTag === null &&
+                context.stagingWorkflowSha === null && typeof context.ref === 'string');
+              require(context.event === 'pull_request' ? /^refs\/pull\/[1-9][0-9]*\/merge$/.test(context.ref) :
+                /^refs\/heads\/[A-Za-z0-9_./-]+$/.test(context.ref));
+              require(sha(context.comparisonBaseSha) && (context.event === 'pull_request' ?
+                sha(context.prHeadSha) && context.prHeadSha !== '0'.repeat(40) && context.comparisonBaseSha !== '0'.repeat(40) : context.prHeadSha === null));
+            } else {
+              require(context.comparisonBaseSha === null && context.prHeadSha === null);
+              require(context.event === 'workflow_dispatch' && context.ref === 'refs/heads/release-main');
+              if (context.mode === 'production') require(sha(context.stagingWorkflowSha) && context.candidateTag !== null);
+            }
+            return true;
+          }
+          
+          export function requireAdmission(checks, context) {
+            try {
+              validateContext(context);
+              require(Array.isArray(checks) && checks.length <= 1000);
+              const details = `https://github.com/${context.repository}/actions/runs/${context.runId}/attempts/${context.runAttempt}`;
+              const matches = checks.filter(check => check && check.name === CHECK_NAME && check.head_sha === context.candidateSha &&
+                Number.isSafeInteger(check.app?.id) && String(check.app.id) === context.appId && check.details_url === details);
+              require(matches.length === 1);
+              const check = matches[0];
+              require(Number.isSafeInteger(check.id) && check.id > 0 && check.status === 'completed' && check.conclusion === 'success' &&
+                typeof check.external_id === 'string' && /^fedril-historical129:[a-f0-9]{64}$/.test(check.external_id));
+              const text = check.output?.text;
+              require(typeof text === 'string' && Buffer.byteLength(text, 'utf8') <= 60000);
+              const carrier = JSON.parse(text);
+              keys(carrier, ['schemaVersion', 'purpose', 'repository', 'runId', 'runAttempt', 'mode', 'workflowSha', 'candidate',
+                'bindingSha256', 'bootstrapPolicyBase64', 'canonicalAuthorityBase64', 'helperSha256', 'baselineSnapshot']);
+              require(carrier.schemaVersion === 1 && carrier.purpose === 'fedril-workflow-admission-v1' &&
+                ['repository', 'runId', 'runAttempt', 'mode', 'workflowSha'].every(key => carrier[key] === context[key]) &&
+                digest(carrier.bindingSha256) && check.external_id === 'fedril-historical129:' + carrier.bindingSha256);
+              keys(carrier.candidate, ['sha', 'treeSha', 'tag', 'stagingWorkflowSha']);
+              require(carrier.candidate.sha === context.candidateSha && carrier.candidate.treeSha === context.candidateTreeSha &&
+                carrier.candidate.tag === context.candidateTag && carrier.candidate.stagingWorkflowSha === context.stagingWorkflowSha);
+              if (context.mode === 'ci') {
+                keys(carrier.helperSha256, EXPECTED_HELPERS);
+                require(Object.values(carrier.helperSha256).every(digest));
+                require(carrier.bootstrapPolicyBase64 === null && carrier.baselineSnapshot === null);
+                const authority = JSON.parse(decodeAuthority(carrier.canonicalAuthorityBase64, 1024 * 1024).toString('utf8'));
+                require(authority.schemaVersion === 2 && authority.purpose === 'classified-ci-history' &&
+                  authority.repository === context.repository && authority.workflowSha === context.workflowSha && authority.tipSha === context.candidateSha &&
+                  authority.sourceRef === context.ref && authority.comparisonBaseSha === context.comparisonBaseSha && authority.prHeadSha === context.prHeadSha);
+              } else {
+                keys(carrier.helperSha256, EXPECTED_HELPERS);
+                require(Object.values(carrier.helperSha256).every(digest));
+                keys(carrier.baselineSnapshot, ['path', 'sha256']);
+                require(carrier.baselineSnapshot.path === 'release/migration-baseline.snapshot.json' && digest(carrier.baselineSnapshot.sha256));
+                decodeAuthority(carrier.bootstrapPolicyBase64, 16384);
+                decodeAuthority(carrier.canonicalAuthorityBase64, 1024 * 1024);
+              }
+              return freeze({ carrier, checkRunId: check.id, detailsUrl: details, releaseAuthorized: false });
+            } catch { reject(); }
+          }
+          
+          export function currentAdmissionTargets(checks, context) {
+            const details = `https://github.com/${context.repository}/actions/runs/${context.runId}/attempts/${context.runAttempt}`;
+            return checks.filter(check => check && check.name === CHECK_NAME && check.head_sha === context.candidateSha &&
+              Number.isSafeInteger(check.app?.id) && String(check.app.id) === context.appId && check.details_url === details);
+          }
+          
+          const admission = { CHECK_NAME, EXPECTED_HELPERS, hash, decodeAuthority, validateContext, requireAdmission, currentAdmissionTargets };
+          import { mkdir, writeFile, appendFile } from 'node:fs/promises';
+          import { dirname, join } from 'node:path';
+          import { setTimeout as delay } from 'node:timers/promises';
+          
+          const fixedFailure = () => { throw new Error('protected_bootstrap_held_reconcile_no_retry'); };
+          const sha40 = value => typeof value === 'string' && /^[a-f0-9]{40}$/.test(value);
+          const repoName = value => typeof value === 'string' && /^[A-Za-z0-9][A-Za-z0-9-]*\/[A-Za-z0-9][A-Za-z0-9._-]*$/.test(value);
+          
+          export async function readResponse(response, cap) {
+            if (response.status !== 200 || !response.body) fixedFailure();
+            const chunks = []; let length = 0;
+            for await (const chunk of response.body) {
+              length += chunk.length; if (length > cap) fixedFailure(); chunks.push(Buffer.from(chunk));
+            }
+            return Buffer.concat(chunks);
+          }
+          
+          export async function providerJson(repository, suffix, token, fetchImpl = fetch) {
+            if (!repoName(repository) || typeof suffix !== 'string' || !suffix.startsWith('/') || /[\r\n#]/.test(suffix) ||
+                typeof token !== 'string' || !token || /[\r\n]/.test(token)) fixedFailure();
+            try {
+              const response = await fetchImpl(`https://api.github.com/repos/${repository}${suffix}`, { redirect: 'error',
+                signal: AbortSignal.timeout(30000), headers: { Accept: 'application/vnd.github+json', Authorization: `Bearer ${token}`,
+                  'X-GitHub-Api-Version': '2026-03-10', 'User-Agent': 'FeDril-protected-admission-reader' } });
+              return JSON.parse((await readResponse(response, 8 * 1024 * 1024)).toString('utf8'));
+            } catch { fixedFailure(); }
+          }
+          
+          export async function rawBytes(repository, workflowSha, path, cap, fetchImpl = fetch) {
+            if (!repoName(repository) || !sha40(workflowSha) || typeof path !== 'string' ||
+                !/^[A-Za-z0-9_.\/-]+$/.test(path) || path.split('/').some(part => !part || ['.', '..'].includes(part))) fixedFailure();
+            try {
+              return await readResponse(await fetchImpl(`https://raw.githubusercontent.com/${repository}/${workflowSha}/${path}`,
+                { redirect: 'error', signal: AbortSignal.timeout(30000), headers: { 'User-Agent': 'FeDril-protected-admission-reader' } }), cap);
+            } catch { fixedFailure(); }
+          }
+          
+          export async function readAllChecks(context, read = providerJson, token) {
+            context = Object.freeze({ ...context });
+            admission.validateContext(context);
+            const all = [], ids = new Set(); let expected;
+            for (let page = 1; page <= 10; page++) {
+              const result = await read(context.repository, `/commits/${context.candidateSha}/check-runs?filter=all&per_page=100&app_id=${context.appId}&check_name=${encodeURIComponent(admission.CHECK_NAME)}&page=${page}`, token);
+              if (!Number.isSafeInteger(result.total_count) || result.total_count < 0 || result.total_count > 1000 ||
+                  !Array.isArray(result.check_runs) || result.check_runs.length > 100 || (expected !== undefined && expected !== result.total_count)) fixedFailure();
+              expected = result.total_count;
+              for (const check of result.check_runs) {
+                if (!Number.isSafeInteger(check?.id) || check.id <= 0 || ids.has(check.id)) fixedFailure();
+                ids.add(check.id); all.push(check);
+              }
+              if (all.length === expected) return all;
+              if (all.length > expected || result.check_runs.length !== 100) fixedFailure();
+            }
+            fixedFailure();
+          }
+          
+          export async function waitForAdmission(context, read = providerJson, token, pause = delay) {
+            context = Object.freeze({ ...context });
+            admission.validateContext(context);
+            for (let attempt = 0; attempt < 20; attempt++) {
+              const checks = await readAllChecks(context, read, token);
+              if (admission.currentAdmissionTargets(checks, context).length) return admission.requireAdmission(checks, context);
+              if (attempt < 19) await pause(15000);
+            }
+            fixedFailure();
+          }
+          
+          export async function reconcileExactAdmission(context, checkRunId, read = providerJson, token) {
+            context = Object.freeze({ ...context });
+            const identity = Number(checkRunId);
+            if (!Number.isSafeInteger(identity) || identity <= 0 || String(identity) !== String(checkRunId)) fixedFailure();
+            const selected = admission.requireAdmission(await readAllChecks(context, read, token), context);
+            if (selected.checkRunId !== identity) fixedFailure();
+            const exact = admission.requireAdmission([await read(context.repository, "/check-runs/" + identity, token)], context);
+            if (exact.checkRunId !== identity || JSON.stringify(exact.carrier) !== JSON.stringify(selected.carrier)) fixedFailure();
+            return selected;
+          }
+          
+          export async function bootstrapFromEnvironment(env, { read = providerJson, raw = rawBytes, wait = waitForAdmission,
+              makeDirectory = mkdir, put = writeFile, append = appendFile } = {}) {
+            try {
+              env = Object.freeze(Object.fromEntries(['GITHUB_REPOSITORY', 'GITHUB_REPOSITORY_ID', 'GITHUB_SHA', 'GITHUB_EVENT_NAME',
+                'GITHUB_REF', 'GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT', 'FEDRIL_WORKFLOW_SHA', 'FEDRIL_WORKFLOW_REF', 'FEDRIL_MODE',
+                'PROTECTED_ASSERTIONS_APP_ID', 'CANDIDATE_TAG', 'GH_TOKEN', 'RUNNER_TEMP', 'GITHUB_ENV', 'FEDRIL_COMPARISON_BASE_SHA',
+                'FEDRIL_PR_HEAD_SHA', 'FEDRIL_EVENT_DELETED', 'FEDRIL_ADMISSION_CHECK_ID'].map(key => [key, env[key]])));
+              const repository = env.GITHUB_REPOSITORY, workflowSha = env.FEDRIL_WORKFLOW_SHA, mode = env.FEDRIL_MODE;
+              if (!repoName(repository) || !sha40(workflowSha) || !['ci', 'staging', 'production'].includes(mode)) fixedFailure();
+              const token = env.GH_TOKEN;
+              if (env.FEDRIL_ADMISSION_CHECK_ID && !/^[1-9][0-9]{0,19}$/.test(env.FEDRIL_ADMISSION_CHECK_ID)) fixedFailure();
+              let candidateSha, candidateTag = null, stagingWorkflowSha = null, approvedManifest = null, approvedManifestBytes = null, stagingRun = null;
+              if (mode === 'ci') {
+                candidateSha = env.GITHUB_SHA;
+                if (candidateSha === '0'.repeat(40) || env.FEDRIL_EVENT_DELETED === 'true' ||
+                    !['push', 'pull_request', 'workflow_dispatch'].includes(env.GITHUB_EVENT_NAME) ||
+                    !sha40(env.FEDRIL_COMPARISON_BASE_SHA || '0'.repeat(40)) ||
+                    (env.GITHUB_EVENT_NAME === 'pull_request' && (!sha40(env.FEDRIL_PR_HEAD_SHA) || !env.FEDRIL_COMPARISON_BASE_SHA || env.FEDRIL_COMPARISON_BASE_SHA === '0'.repeat(40))) ||
+                    (env.GITHUB_EVENT_NAME === 'pull_request' && !/^refs\/pull\/[1-9][0-9]*\/merge$/.test(env.GITHUB_REF))) fixedFailure();
+              } else if (mode === 'staging') {
+                candidateTag = env.CANDIDATE_TAG || null;
+                if (candidateTag) {
+                  if (!/^v(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)-rc\.[1-9][0-9]*$/.test(candidateTag)) fixedFailure();
+                  const ref = await read(repository, `/git/ref/tags/${candidateTag}`, token);
+                  if (ref.object?.type !== 'commit') fixedFailure(); candidateSha = ref.object.sha;
+                } else candidateSha = workflowSha;
+                approvedManifestBytes = await raw(repository, workflowSha, 'docs/release/approved-release.json', 1024 * 1024);
+                approvedManifest = JSON.parse(approvedManifestBytes.toString('utf8'));
+              } else {
+                approvedManifestBytes = await raw(repository, workflowSha, 'docs/release/approved-release.json', 1024 * 1024);
+                approvedManifest = JSON.parse(approvedManifestBytes.toString('utf8'));
+                candidateSha = approvedManifest.commitSha; candidateTag = approvedManifest.candidateTag;
+                const runId = approvedManifest.staging?.runId;
+                if (!Number.isSafeInteger(runId) || runId <= 0) fixedFailure();
+                stagingRun = await read(repository, `/actions/runs/${runId}`, token);
+                if (stagingRun.id !== runId || stagingRun.repository?.full_name !== repository ||
+                    String(stagingRun.repository?.id) !== env.GITHUB_REPOSITORY_ID || stagingRun.path !== '.github/workflows/staging.yml' ||
+                    stagingRun.event !== 'workflow_dispatch' || stagingRun.head_branch !== 'release-main' ||
+                    stagingRun.status !== 'completed' || stagingRun.conclusion !== 'success' || !sha40(stagingRun.head_sha)) fixedFailure();
+                stagingWorkflowSha = stagingRun.head_sha;
+              }
+              if (!sha40(candidateSha)) fixedFailure();
+              const commit = await read(repository, `/commits/${candidateSha}`, token);
+              if (commit.sha !== candidateSha || !sha40(commit.commit?.tree?.sha)) fixedFailure();
+              const context = { repository, appId: env.PROTECTED_ASSERTIONS_APP_ID, mode, workflowSha,
+                candidateSha, candidateTreeSha: commit.commit.tree.sha, candidateTag, stagingWorkflowSha,
+                runId: env.GITHUB_RUN_ID, runAttempt: env.GITHUB_RUN_ATTEMPT, event: env.GITHUB_EVENT_NAME,
+                ref: env.GITHUB_REF, workflowRef: env.FEDRIL_WORKFLOW_REF,
+                comparisonBaseSha: mode === 'ci' ? env.FEDRIL_COMPARISON_BASE_SHA || '0'.repeat(40) : null,
+                prHeadSha: mode === 'ci' ? env.FEDRIL_PR_HEAD_SHA || null : null };
+              admission.validateContext(context);
+              const selected = env.FEDRIL_ADMISSION_CHECK_ID ?
+                await reconcileExactAdmission(context, env.FEDRIL_ADMISSION_CHECK_ID, read, token) : await wait(context, read, token);
+              const root = join(env.RUNNER_TEMP, `fedril-trusted-${context.runId}-${context.runAttempt}`);
+              await makeDirectory(root, { mode: 0o700 });
+              const document = { context, carrier: selected.carrier, checkRunId: selected.checkRunId,
+                sourceSha: env.GITHUB_SHA, repositoryId: env.GITHUB_REPOSITORY_ID, approvedManifest, stagingRun };
+              await put(join(root, 'admission-context.json'), JSON.stringify(document), { flag: 'wx', mode: 0o600 });
+              {
+                for (const path of admission.EXPECTED_HELPERS) {
+                  const bytes = await raw(repository, workflowSha, path, 1024 * 1024);
+                  if (admission.hash(bytes) !== selected.carrier.helperSha256[path]) fixedFailure();
+                  const destination = join(root, path);
+                  await makeDirectory(dirname(destination), { recursive: true, mode: 0o700 });
+                  await put(destination, bytes, { flag: 'wx', mode: 0o600 });
+                }
+                if (mode !== 'ci') {
+                  const baseline = selected.carrier.baselineSnapshot;
+                  const bytes = await raw(repository, workflowSha, baseline.path, 64 * 1024 * 1024);
+                  if (admission.hash(bytes) !== baseline.sha256) fixedFailure();
+                  await put(join(root, 'baseline.snapshot.json'), bytes, { flag: 'wx', mode: 0o600 });
+                  await put(join(root, 'approved-release.json'), approvedManifestBytes, { flag: 'wx', mode: 0o600 });
+                  if (stagingRun) await put(join(root, 'approved-staging-run.json'), JSON.stringify(stagingRun), { flag: 'wx', mode: 0o600 });
+                }
+              }
+              await append(env.GITHUB_ENV, `FEDRIL_TRUSTED_ROOT=${root}\nFEDRIL_ADMITTED_SHA=${candidateSha}\n`);
+              return { trustedRoot: root, candidateSha, workflowSha, checkRunId: selected.checkRunId, releaseAuthorized: false };
+            } catch { fixedFailure(); }
+          }
+          
+          const admissionResult = await bootstrapFromEnvironment(process.env);
+          FEDRIL_BOOTSTRAP
+
+      - name: Prepare verified workflow and candidate sources with snapshot comparison
+        timeout-minutes: 10
+        working-directory: ${{ github.workspace }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node "$FEDRIL_TRUSTED_ROOT/tools/release/protected/runner.mjs" "$FEDRIL_TRUSTED_ROOT/admission-context.json"
+
+      - name: Validate approved immutable release
+        env:
+          RELEASE_TAG_INPUT: ${{ github.event.inputs.release_tag }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          set -o noclobber
+          node "$FEDRIL_TRUSTED_ROOT/tools/release/release-control.mjs" production "$APPROVED_RELEASE_MANIFEST" "$RELEASE_TAG_INPUT"
+          gh attestation verify "$APPROVED_RELEASE_MANIFEST" --repo "$GITHUB_REPOSITORY" --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/approved-release-attestation.yml"
+          release_version="$(jq -r '.version' "$APPROVED_RELEASE_MANIFEST")"
+          candidate_tag="$(jq -r '.candidateTag' "$APPROVED_RELEASE_MANIFEST")"
+          release_tag="$(jq -r '.releaseTag' "$APPROVED_RELEASE_MANIFEST")"
+          commit_sha="$(jq -r '.commitSha' "$APPROVED_RELEASE_MANIFEST")"
+          test "$commit_sha" = "$FEDRIL_ADMITTED_SHA"
+          test "$(git --no-replace-objects rev-parse HEAD)" = "$commit_sha"
+          staging_run_id="$(jq -r '.staging.runId' "$APPROVED_RELEASE_MANIFEST")"
+          release_asset_tag="$(jq -r '.artifacts.releaseAssetTag' "$APPROVED_RELEASE_MANIFEST")"
+          ruleset_id="$(gh api "repos/${GITHUB_REPOSITORY}/rulesets" --jq '.[] | select(.name == "Immutable semantic release tags" and .target == "tag" and .enforcement == "active") | .id' | head -n 1)"
+          test -n "$ruleset_id"
+          ruleset="$(gh api "repos/${GITHUB_REPOSITORY}/rulesets/${ruleset_id}")"
+          jq -e '.conditions.ref_name.include | index("refs/tags/v*") != null' <<<"$ruleset" >/dev/null
+          jq -e '([.rules[].type] | index("deletion") != null) and ([.rules[].type] | index("non_fast_forward") != null)' <<<"$ruleset" >/dev/null
+          for tag in "$candidate_tag" "$release_tag"; do
+            tag_ref="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${tag}")"
+            test "$(jq -r '.object.type' <<<"$tag_ref")" = "commit"
+            test "$(jq -r '.object.sha' <<<"$tag_ref")" = "$commit_sha"
+            node "$FEDRIL_TRUSTED_ROOT/tools/release/release-evidence.mjs" artifact-policy "$GITHUB_REPOSITORY" "$GITHUB_REPOSITORY_ID" "$commit_sha" "refs/tags/$tag"
+          done
+          gh api "repos/${GITHUB_REPOSITORY}/commits/${commit_sha}" --jq '.commit.verification.verified' | grep -Fx true
+          test "$release_asset_tag" = "$candidate_tag"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${staging_run_id}" > "$RUNNER_TEMP/approved-staging-run.json"
+          staging_workflow_sha="$(node "$FEDRIL_TRUSTED_ROOT/tools/release/release-evidence.mjs" staging-run "$APPROVED_RELEASE_MANIFEST" "$RUNNER_TEMP/approved-staging-run.json")"
+          gh api "repos/${GITHUB_REPOSITORY}/commits/${staging_workflow_sha}" --jq '.commit.verification.verified' | grep -Fx true
+          echo "RELEASE_VERSION=$release_version" >> "$GITHUB_ENV"
+          echo "CANDIDATE_TAG=$candidate_tag" >> "$GITHUB_ENV"
+          echo "RELEASE_TAG=$release_tag" >> "$GITHUB_ENV"
+          echo "COMMIT_SHA=$commit_sha" >> "$GITHUB_ENV"
+          echo "STAGING_RUN_ID=$staging_run_id" >> "$GITHUB_ENV"
+          echo "RELEASE_ASSET_TAG=$release_asset_tag" >> "$GITHUB_ENV"
+
+      - name: Download staged release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/release-bundle"
+          gh release download "$RELEASE_ASSET_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --dir "$RUNNER_TEMP/release-bundle"
+          node "$FEDRIL_TRUSTED_ROOT/tools/release/release-control.mjs" bundle "$APPROVED_RELEASE_MANIFEST" "$RUNNER_TEMP/release-bundle"
+          for artifact in $(jq -r '.artifacts | [.api.name, .web.name, .migration.name, .sbom.name, .metadata.name] | .[]' "$APPROVED_RELEASE_MANIFEST"); do
+            gh attestation verify "$RUNNER_TEMP/release-bundle/$artifact" --repo "$GITHUB_REPOSITORY" --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/staging.yml" --format json |
+              node "$FEDRIL_TRUSTED_ROOT/tools/release/release-evidence.mjs" attestation "$APPROVED_RELEASE_MANIFEST" "$RUNNER_TEMP/approved-staging-run.json"
+          done
+
+      - name: Inspect manifest-selected API ZIP before extraction
+        id: api_package
+        run: |
+          printf '%s  %s\n' "$API_PACKAGE_GUARD_SHA256" "$API_PACKAGE_GUARD" | sha256sum --check --status
+          api_name="$(jq -r '.artifacts.api.name' "$APPROVED_RELEASE_MANIFEST")"
+          [[ "$api_name" =~ ^[0-9A-Za-z][0-9A-Za-z._-]*$ ]]
+          api_zip="$RUNNER_TEMP/release-bundle/$api_name"
+          api_sha="$(jq -r '.artifacts.api.sha256' "$APPROVED_RELEASE_MANIFEST")"
+          python3 -I -B "$API_PACKAGE_GUARD" "$api_zip" "$api_sha"
+          echo "path=$api_zip" >> "$GITHUB_OUTPUT"
+          echo "API_PACKAGE_PATH=$api_zip" >> "$GITHUB_ENV"
+          echo "API_PACKAGE_SHA256=$api_sha" >> "$GITHUB_ENV"
+
+      - name: Extract approved deployment artifacts
+        run: |
+          mkdir "$RUNNER_TEMP/gccs-api-production"
+          unzip -q "$API_PACKAGE_PATH" -d "$RUNNER_TEMP/gccs-api-production"
+          printf '%s  %s\n' "$API_PACKAGE_GUARD_SHA256" "$API_PACKAGE_GUARD" | sha256sum --check --status
+          python3 -I -B "$API_PACKAGE_GUARD" "$API_PACKAGE_PATH" "$API_PACKAGE_SHA256" --publish-root "$RUNNER_TEMP/gccs-api-production"
+          mkdir -p "$GITHUB_WORKSPACE/.release/web" "$RUNNER_TEMP/gccs-migrations-production"
+          unzip -q "$RUNNER_TEMP/release-bundle/$(jq -r '.artifacts.web.name' "$APPROVED_RELEASE_MANIFEST")" -d "$GITHUB_WORKSPACE/.release/web"
+          unzip -q "$RUNNER_TEMP/release-bundle/$(jq -r '.artifacts.migration.name' "$APPROVED_RELEASE_MANIFEST")" -d "$RUNNER_TEMP/gccs-migrations-production"
+
+      - name: Validate production CI/CD and No-CUI deployment guardrails
+        env:
+          DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY: ${{ secrets.DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY }}
+          HUBSPOT_PRIVATE_APP_TOKEN: ${{ secrets.HUBSPOT_PRIVATE_APP_TOKEN }}
+          TASK_SEARCH_CURSOR_SIGNING_KEY: ${{ secrets.TASK_SEARCH_CURSOR_SIGNING_KEY }}
+          TASK_SEARCH_PREVIOUS_CURSOR_SIGNING_KEY: ${{ secrets.TASK_SEARCH_PREVIOUS_CURSOR_SIGNING_KEY }}
+        run: |
+          node "$FEDRIL_TRUSTED_ROOT/tools/release/validate-auth-config.mjs"
+          test -n "$PRODUCTION_POSTGRES_SERVER_NAME"
+          test -n "$PRODUCTION_APP_INSIGHTS_NAME"
+          test "$PRODUCTION_CUSTOMER_DATA_MODE" = "no-cui-only"
+          test "$Gccs__DataPosture" = "No-CUI / compliance management only"
+          test -n "$PRODUCTION_API_APP_NAME"
+          test -n "$PRODUCTION_RESOURCE_GROUP"
+          test -n "$PRODUCTION_API_BASE_URL"
+          test -n "$PRODUCTION_WEB_BASE_URL"
+          test -n "$PRODUCTION_MSAL_CLIENT_ID"
+          test -n "$PRODUCTION_MSAL_TENANT_ID"
+          test -n "$PRODUCTION_MSAL_API_SCOPE"
+          test -n "$DEMO_REQUESTS_ENDPOINT"
+          test -n "$DEMO_REQUESTS_SENDER_ADDRESS"
+          test -n "$DEMO_REQUESTS_RECIPIENT_ADDRESS"
+          test -n "$DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY"
+          test "${#DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY}" -ge 32
+          test -n "$HUBSPOT_PRIVATE_APP_TOKEN"
+          test -n "$TASK_SEARCH_CURSOR_SIGNING_KEY"
+          test "$(printf %s "$TASK_SEARCH_CURSOR_SIGNING_KEY" | base64 --decode | wc -c)" -ge 32
+          if [[ -n "$TASK_SEARCH_PREVIOUS_CURSOR_SIGNING_KEY" ]]; then
+            test "$(printf %s "$TASK_SEARCH_PREVIOUS_CURSOR_SIGNING_KEY" | base64 --decode | wc -c)" -ge 32
+          fi
+          test -f infra/terraform/environments/production/main.tf
+          test -f infra/terraform/environments/production/imports.tf
+          test -f infra/terraform/environments/production/.terraform.lock.hcl
+          grep -F "No-CUI / compliance management only" infra/terraform/environments/production/main.tf
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4
+        with:
+          terraform_version: "1.9.8"
+
+      - name: Verify production Terraform without live changes
+        run: |
+          terraform -chdir=infra/terraform/environments/production fmt -check
+          terraform -chdir=infra/terraform/environments/production init -backend=false
+          terraform -chdir=infra/terraform/environments/production validate
+
+      - name: Login to Azure production subscription
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Verify live production point-in-time recovery window
+        run: |
+          az postgres flexible-server show \
+            --resource-group "$PRODUCTION_RESOURCE_GROUP" \
+            --name "$PRODUCTION_POSTGRES_SERVER_NAME" \
+            --output json > "$RUNNER_TEMP/production-postgres-recovery.json"
+          jq -e '
+            ((.backup.backupRetentionDays // .backupRetentionDays) | tonumber) >= 7 and
+            ((.backup.earliestRestoreDate // .earliestRestoreDate // "") | length) > 0
+          ' "$RUNNER_TEMP/production-postgres-recovery.json"
+
+      - name: Apply the staged migration artifact
+        env:
+          PRODUCTION_DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: |
+          test -n "$PRODUCTION_DATABASE_URL"
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+          node "$FEDRIL_TRUSTED_ROOT/tools/release/check-cleanup-quiescence.mjs" production Stopped
+          psql "$PRODUCTION_DATABASE_URL" --set ON_ERROR_STOP=on --file "$RUNNER_TEMP/gccs-migrations-production/001-predeploy-compliance-task-search-index.sql"
+          psql "$PRODUCTION_DATABASE_URL" --set ON_ERROR_STOP=on --file "$RUNNER_TEMP/gccs-migrations-production/002-ef-core-migrations.sql"
+
+      - name: Configure production services and release identity
+        env:
+          DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY: ${{ secrets.DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY }}
+          HUBSPOT_PRIVATE_APP_TOKEN: ${{ secrets.HUBSPOT_PRIVATE_APP_TOKEN }}
+          TASK_SEARCH_CURSOR_SIGNING_KEY: ${{ secrets.TASK_SEARCH_CURSOR_SIGNING_KEY }}
+          TASK_SEARCH_PREVIOUS_CURSOR_SIGNING_KEY: ${{ secrets.TASK_SEARCH_PREVIOUS_CURSOR_SIGNING_KEY }}
+        run: |
+          application_insights_connection_string="$(az monitor app-insights component show \
+            --app "$PRODUCTION_APP_INSIGHTS_NAME" \
+            --resource-group "$PRODUCTION_RESOURCE_GROUP" \
+            --query connectionString \
+            --output tsv)"
+          test -n "$application_insights_connection_string"
+          az webapp config appsettings set \
+            --resource-group "$PRODUCTION_RESOURCE_GROUP" \
+            --name "$PRODUCTION_API_APP_NAME" \
+            --settings \
+              Authentication__Customer__Authority="$FEDRIL_CUSTOMER_AUTHORITY" \
+              Authentication__Customer__Audience="$FEDRIL_CUSTOMER_AUDIENCE" \
+              InvitationDelivery__Enabled=true \
+              InvitationDelivery__Provider=AzureCommunicationServices \
+              InvitationDelivery__PublicWebBaseUrl="$PRODUCTION_WEB_BASE_URL" \
+              InvitationDelivery__Endpoint="$DEMO_REQUESTS_ENDPOINT" \
+              InvitationDelivery__UseManagedIdentity=true \
+              InvitationDelivery__SenderAddress="$DEMO_REQUESTS_SENDER_ADDRESS" \
+              InvitationDelivery__PollIntervalSeconds=5 \
+              InvitationDelivery__LeaseMinutes=5 \
+              InvitationDelivery__MaximumAttempts=5 \
+              DemoRequests__Enabled=true \
+              DemoRequests__Provider=AzureCommunicationServices \
+              DemoRequests__Endpoint="$DEMO_REQUESTS_ENDPOINT" \
+              DemoRequests__UseManagedIdentity=true \
+              DemoRequests__SenderAddress="$DEMO_REQUESTS_SENDER_ADDRESS" \
+              DemoRequests__RecipientAddress="$DEMO_REQUESTS_RECIPIENT_ADDRESS" \
+              DemoRequests__PublicWebBaseUrl="$PRODUCTION_WEB_BASE_URL" \
+              DemoRequests__FollowUpTokenSigningKey="$DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY" \
+              DemoRequests__FollowUpTokenLifetimeHours=72 \
+              DemoRequests__PollIntervalSeconds=5 \
+              DemoRequests__LeaseMinutes=5 \
+              DemoRequests__MaximumAttempts=5 \
+              DemoRequests__HubSpot__Enabled=true \
+              DemoRequests__HubSpot__BaseUrl=https://api.hubapi.com \
+              DemoRequests__HubSpot__PrivateAppToken="$HUBSPOT_PRIVATE_APP_TOKEN" \
+              DemoRequests__RetentionDays=365 \
+              TaskSearch__CursorSigningKey="$TASK_SEARCH_CURSOR_SIGNING_KEY" \
+              TaskSearch__PreviousCursorSigningKey="$TASK_SEARCH_PREVIOUS_CURSOR_SIGNING_KEY" \
+              Gccs__Release__Version="$RELEASE_VERSION" \
+              Gccs__Release__CandidateTag="$CANDIDATE_TAG" \
+              Gccs__Release__ReleaseTag="$RELEASE_TAG" \
+              Gccs__Release__CommitSha="$COMMIT_SHA" \
+              Gccs__Release__BuildId="$GITHUB_RUN_ID" \
+              APPLICATIONINSIGHTS_CONNECTION_STRING="$application_insights_connection_string" \
+            --output none
+
+      - name: Verify production public settings contract
+        env:
+          PRODUCTION_CUSTOMER_AUTHORITY: ${{ env.FEDRIL_CUSTOMER_AUTHORITY }}
+          PRODUCTION_CUSTOMER_AUDIENCE: ${{ env.FEDRIL_CUSTOMER_AUDIENCE }}
+        run: node "$FEDRIL_TRUSTED_ROOT/tools/release/check-azure-settings.mjs" production
+
+      - name: Write production runtime configuration overlay
+        env:
+          FEDRIL_API_BASE_URL: ${{ env.PRODUCTION_API_BASE_URL }}
+          FEDRIL_WORKFORCE_CLIENT_ID: ${{ env.PRODUCTION_MSAL_CLIENT_ID }}
+          FEDRIL_WORKFORCE_TENANT_ID: ${{ env.PRODUCTION_MSAL_TENANT_ID }}
+          FEDRIL_WORKFORCE_API_SCOPE: ${{ env.PRODUCTION_MSAL_API_SCOPE }}
+          FEDRIL_CUSTOMER_CLIENT_ID: ${{ env.PRODUCTION_CUSTOMER_MSAL_CLIENT_ID }}
+          FEDRIL_CUSTOMER_TENANT_ID: ${{ env.PRODUCTION_CUSTOMER_MSAL_TENANT_ID }}
+          FEDRIL_CUSTOMER_TENANT_SUBDOMAIN: ${{ env.PRODUCTION_CUSTOMER_MSAL_TENANT_SUBDOMAIN }}
+          FEDRIL_CUSTOMER_API_SCOPE: ${{ env.PRODUCTION_CUSTOMER_MSAL_API_SCOPE }}
+          FEDRIL_APP_VERSION: ${{ env.RELEASE_VERSION }}
+          FEDRIL_CANDIDATE_TAG: ${{ env.CANDIDATE_TAG }}
+          FEDRIL_RELEASE_TAG: ${{ env.RELEASE_TAG }}
+          FEDRIL_COMMIT_SHA: ${{ env.COMMIT_SHA }}
+          FEDRIL_BUILD_ID: ${{ github.run_id }}
+        run: node tools/release/write-runtime-config.mjs "$GITHUB_WORKSPACE/.release/web/runtime-config.js"
+
+      - name: Recheck original promoted API ZIP immediately before deployment
+        run: |
+          printf '%s  %s\n' "$API_PACKAGE_GUARD_SHA256" "$API_PACKAGE_GUARD" | sha256sum --check --status
+          python3 -I -B "$API_PACKAGE_GUARD" "$API_PACKAGE_PATH" "$API_PACKAGE_SHA256" --publish-root "$RUNNER_TEMP/gccs-api-production"
+
+      - name: Deploy the staged API artifact
+        uses: azure/webapps-deploy@02a81bead70021f5284939794bcec79c271ab383 # v3
+        with:
+          app-name: ${{ env.PRODUCTION_API_APP_NAME }}
+          package: ${{ steps.api_package.outputs.path }}
+          restart: false
+
+      - name: Start production API with cleanup held
+        run: |
+          node "$FEDRIL_TRUSTED_ROOT/tools/release/check-cleanup-quiescence.mjs" production Stopped
+          az webapp start --subscription "$DEPLOYMENT_AZURE_SUBSCRIPTION_ID" --resource-group "$PRODUCTION_RESOURCE_GROUP" --name "$PRODUCTION_API_APP_NAME" --output none
+          node "$FEDRIL_TRUSTED_ROOT/tools/release/check-cleanup-quiescence.mjs" production Running
+
+      - name: Deploy the staged web artifact
+        uses: Azure/static-web-apps-deploy@1a947af9992250f3bc2e68ad0754c0b0c11566c9 # v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_GCCS_PRODUCTION }}
+          action: upload
+          app_location: .release/web
+          api_location: ""
+          output_location: ""
+          skip_app_build: true
+
+      - name: Verify production release identity and health
+        run: |
+          set -o pipefail
+          for attempt in {1..12}; do
+            if curl --fail --show-error --silent "$PRODUCTION_API_BASE_URL/health" | tee "$RUNNER_TEMP/production-health.json"; then
+              break
+            fi
+            if [[ "$attempt" -eq 12 ]]; then exit 1; fi
+            sleep 10
+          done
+          jq -e --arg version "$RELEASE_VERSION" --arg candidate "$CANDIDATE_TAG" --arg release "$RELEASE_TAG" --arg sha "$COMMIT_SHA" '
+            .status == "ok" and
+            .service == "gccs-api" and
+            .dataPosture == "No-CUI / compliance management only" and
+            .version == $version and
+            .candidateTag == $candidate and
+            .releaseTag == $release and
+            .commitSha == $sha and
+            ([.dependencies[].name] | index("postgresql") != null) and
+            ([.dependencies[].name] | index("redis") != null) and
+            ([.dependencies[].name] | index("object-storage") != null) and
+            ([.dependencies[].name] | index("background-jobs") != null)
+          ' "$RUNNER_TEMP/production-health.json"
+          curl --fail --show-error --silent "$PRODUCTION_WEB_BASE_URL/runtime-config.js" | tee "$RUNNER_TEMP/production-runtime-config.js"
+          grep -F "\"appVersion\":\"$RELEASE_VERSION\"" "$RUNNER_TEMP/production-runtime-config.js"
+          grep -F "\"candidateTag\":\"$CANDIDATE_TAG\"" "$RUNNER_TEMP/production-runtime-config.js"
+          grep -F "\"releaseTag\":\"$RELEASE_TAG\"" "$RUNNER_TEMP/production-runtime-config.js"
+          grep -F "\"commitSha\":\"$COMMIT_SHA\"" "$RUNNER_TEMP/production-runtime-config.js"
+          grep -F "\"apiBaseUrl\":\"$PRODUCTION_API_BASE_URL\"" "$RUNNER_TEMP/production-runtime-config.js"
+
+      - name: Record production promotion evidence
+        run: |
+          {
+            echo "deployment_time_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "version=$RELEASE_VERSION"
+            echo "candidate_tag=$CANDIDATE_TAG"
+            echo "release_tag=$RELEASE_TAG"
+            echo "commit_sha=$COMMIT_SHA"
+            echo "staging_run_id=$STAGING_RUN_ID"
+            echo "operator=${{ github.actor }}"
+            echo "environment=production"
+            echo "run_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo "data_posture=$Gccs__DataPosture"
+            echo "artifact_mode=immutable-promotion"
+            echo "result=deployment-and-health-checks-passed"
+          } | tee "$RUNNER_TEMP/production-release-evidence.txt"
+
+      - name: Upload production promotion evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: production-release-evidence-${{ github.event.inputs.release_tag }}
+          path: |
+            ${{ runner.temp }}/production-release-evidence.txt
+            ${{ runner.temp }}/production-health.json
+            ${{ runner.temp }}/production-runtime-config.js
+            ${{ runner.temp }}/production-postgres-recovery.json
+            ${{ runner.temp }}/release-bundle
+            ${{ env.APPROVED_RELEASE_MANIFEST }}
+
+  publish-release-record:
+    name: Publish final GitHub release record
+    if: needs.production-deploy.result == 'success'
+    needs: production-deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout approved release record
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Publish immutable final release record
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.inputs.release_tag }}
+        run: |
+          candidate_tag="$(jq -r '.candidateTag' docs/release/approved-release.json)"
+          version="$(jq -r '.version' docs/release/approved-release.json)"
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            is_draft="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft')"
+            if [[ "$is_draft" = "false" ]]; then exit 0; fi
+            mkdir -p "$RUNNER_TEMP/existing-final-draft"
+            gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --dir "$RUNNER_TEMP/existing-final-draft"
+            cmp docs/release/approved-release.json "$RUNNER_TEMP/existing-final-draft/approved-release.json"
+          else
+            gh release create "$RELEASE_TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --verify-tag \
+              --draft \
+              --title "FeDril $version" \
+              --notes "Promoted from immutable candidate $candidate_tag after protected production deployment run $GITHUB_RUN_ID." \
+              docs/release/approved-release.json
+          fi
+          gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --draft=false

@@ -1,0 +1,1347 @@
+using System.Net;
+using System.Net.Http.Json;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Gccs.Application.Audit;
+using Gccs.Application.Contracts;
+using Gccs.Application.Common;
+using Gccs.Application.NoCui;
+using Gccs.Application.Security;
+using Gccs.Application.Storage;
+using Gccs.Domain.Audit;
+using Gccs.Domain.Companies;
+using Gccs.Domain.Compliance;
+using Gccs.Domain.Common;
+using Gccs.Domain.Contracts;
+using Gccs.Domain.Identity;
+using Gccs.Domain.Tenancy;
+using Gccs.Infrastructure.Audit;
+using Gccs.Infrastructure.Contracts;
+using Gccs.Infrastructure.NoCui;
+using Gccs.Infrastructure.Persistence;
+using Gccs.Infrastructure.Persistence.Models;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Xunit;
+
+namespace Gccs.Api.Tests;
+
+public sealed class ContractRecordTests : IClassFixture<WebApplicationFactory<Program>>
+{
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new JsonStringEnumConverter() }
+    };
+
+    private readonly WebApplicationFactory<Program> _factory;
+
+    public ContractRecordTests(WebApplicationFactory<Program> factory)
+    {
+        _factory = factory;
+    }
+
+    [Fact]
+    public async Task TC_8_1_1_Create_draft_and_active_contract_records()
+    {
+        var tenantId = Guid.Parse("81818181-8181-8181-8181-8181818181a1");
+        await using var factory = CreateFactory("tc-8-1-1", dbContext => SeedTenant(dbContext, tenantId));
+        using var client = factory.CreateClient();
+
+        using var draftRequest = CreateRequest(
+            HttpMethod.Post,
+            "/api/contracts",
+            CreateRequestBody("W15QKN-26-C-0001", ContractStatus.Draft),
+            tenantId,
+            Guid.NewGuid(),
+            Permission.ManageContracts);
+        var draftResponse = await client.SendAsync(draftRequest);
+        var draft = await draftResponse.Content.ReadFromJsonAsync<ContractDto>(JsonOptions);
+        using var activeRequest = CreateRequest(
+            HttpMethod.Post,
+            "/api/contracts",
+            CreateRequestBody("W15QKN-26-C-0002", ContractStatus.Active),
+            tenantId,
+            Guid.NewGuid(),
+            Permission.ManageContracts);
+        var activeResponse = await client.SendAsync(activeRequest);
+        var active = await activeResponse.Content.ReadFromJsonAsync<ContractDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.Created, draftResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, activeResponse.StatusCode);
+        Assert.NotNull(draft);
+        Assert.NotNull(active);
+        Assert.Equal(ContractStatus.Draft, draft.Status);
+        Assert.Equal(ContractStatus.Active, active.Status);
+        Assert.Equal(DataHandlingPosture.FciOnly, active.DataHandlingPosture);
+    }
+
+    [Fact]
+    public async Task TC_8_1_2_Contract_list_is_tenant_scoped()
+    {
+        var tenantAId = Guid.Parse("81818181-8181-8181-8181-8181818181a2");
+        var tenantBId = Guid.Parse("81818181-8181-8181-8181-8181818181b2");
+        await using var factory = CreateFactory("tc-8-1-2", dbContext =>
+        {
+            SeedTenant(dbContext, tenantAId, "Tenant A");
+            SeedTenant(dbContext, tenantBId, "Tenant B");
+            dbContext.Contracts.Add(CreateContractEntity(tenantAId, "A-ONLY", "Tenant A contract"));
+            dbContext.Contracts.Add(CreateContractEntity(tenantBId, "B-ONLY", "Tenant B contract"));
+        });
+        using var client = factory.CreateClient();
+
+        using var tenantARequest = CreateRequest(HttpMethod.Get, "/api/contracts", tenantAId, Guid.NewGuid(), Permission.ViewContracts);
+        var tenantAResponse = await client.SendAsync(tenantARequest);
+        var tenantAContracts = await tenantAResponse.Content.ReadFromJsonAsync<ContractDto[]>(JsonOptions);
+        using var tenantBRequest = CreateRequest(HttpMethod.Get, "/api/contracts", tenantBId, Guid.NewGuid(), Permission.ViewContracts);
+        var tenantBResponse = await client.SendAsync(tenantBRequest);
+        var tenantBContracts = await tenantBResponse.Content.ReadFromJsonAsync<ContractDto[]>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, tenantAResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, tenantBResponse.StatusCode);
+        Assert.NotNull(tenantAContracts);
+        Assert.NotNull(tenantBContracts);
+        Assert.Equal(["A-ONLY"], tenantAContracts.Select(contract => contract.ContractNumber).ToArray());
+        Assert.Equal(["B-ONLY"], tenantBContracts.Select(contract => contract.ContractNumber).ToArray());
+    }
+
+    [Fact]
+    public async Task TC_8_1_3_Contract_detail_shows_key_fields()
+    {
+        var tenantId = Guid.Parse("81818181-8181-8181-8181-8181818181a3");
+        await using var factory = CreateFactory("tc-8-1-3", dbContext => SeedTenant(dbContext, tenantId));
+        using var client = factory.CreateClient();
+        using var createRequest = CreateRequest(
+            HttpMethod.Post,
+            "/api/contracts",
+            CreateRequestBody("FA8750-26-F-0003", ContractStatus.Active),
+            tenantId,
+            Guid.NewGuid(),
+            Permission.ManageContracts);
+        var createResponse = await client.SendAsync(createRequest);
+        var created = await createResponse.Content.ReadFromJsonAsync<ContractDto>(JsonOptions);
+        Assert.NotNull(created);
+
+        using var detailRequest = CreateRequest(HttpMethod.Get, $"/api/contracts/{created.Id}", tenantId, Guid.NewGuid(), Permission.ViewContracts);
+        var detailResponse = await client.SendAsync(detailRequest);
+        var detail = await detailResponse.Content.ReadFromJsonAsync<ContractDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, detailResponse.StatusCode);
+        Assert.NotNull(detail);
+        Assert.Equal("FA8750-26-F-0003", detail.ContractNumber);
+        Assert.Equal("Department of Defense", detail.AgencyOrPrimeName);
+        Assert.Equal(ContractorRelationship.Subcontractor, detail.Relationship);
+        Assert.Equal(ContractKind.FixedPrice, detail.Kind);
+        Assert.Equal(new DateOnly(2026, 7, 1), detail.PeriodOfPerformanceStart);
+        Assert.Equal(new DateOnly(2027, 6, 30), detail.PeriodOfPerformanceEnd);
+        Assert.Equal(DataHandlingPosture.FciOnly, detail.DataHandlingPosture);
+    }
+
+    [Fact]
+    public async Task TC_8_1_4_Contract_create_and_update_are_audit_logged()
+    {
+        var tenantId = Guid.Parse("81818181-8181-8181-8181-8181818181a4");
+        var actorUserId = Guid.Parse("81818181-8181-8181-8181-8181818181b4");
+        await using var factory = CreateFactory("tc-8-1-4", dbContext => SeedTenant(dbContext, tenantId));
+        using var client = factory.CreateClient();
+
+        using var createRequest = CreateRequest(
+            HttpMethod.Post,
+            "/api/contracts",
+            CreateRequestBody("N00178-26-C-0004", ContractStatus.Draft),
+            tenantId,
+            actorUserId,
+            Permission.ManageContracts);
+        var createResponse = await client.SendAsync(createRequest);
+        var created = await createResponse.Content.ReadFromJsonAsync<ContractDto>(JsonOptions);
+        Assert.NotNull(created);
+        using var updateRequest = CreateRequest(
+            HttpMethod.Put,
+            $"/api/contracts/{created.Id}",
+            CreateRequestBody("N00178-26-C-0004", ContractStatus.Active) with { Title = "Updated support services contract" },
+            tenantId,
+            actorUserId,
+            Permission.ManageContracts);
+        var updateResponse = await client.SendAsync(updateRequest);
+
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        var auditEvents = await dbContext.AuditLogEntries
+            .Where(audit => audit.TenantId == tenantId && audit.EntityType == "Contract")
+            .OrderBy(audit => audit.OccurredAt)
+            .ToArrayAsync();
+
+        Assert.Equal([AuditAction.Created, AuditAction.Updated], auditEvents.Select(audit => audit.Action).ToArray());
+        Assert.All(auditEvents, audit => Assert.Equal(actorUserId, audit.ActorUserId));
+    }
+
+    [Fact]
+    public async Task TC_8_2_1_Contract_document_upload_requires_no_cui_acknowledgement()
+    {
+        var tenantId = Guid.Parse("82828282-8282-8282-8282-8282828282a1");
+        var contractId = Guid.Parse("82828282-8282-8282-8282-8282828282b1");
+        await using var factory = CreateFactory("tc-8-2-1", dbContext =>
+        {
+            SeedTenant(dbContext, tenantId);
+            dbContext.Contracts.Add(CreateContractEntity(tenantId, "DOC-ACK", "Document acknowledgement contract", contractId));
+        });
+        using var client = factory.CreateClient();
+
+        using var uploadRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/contracts/{contractId}/documents",
+            CreateDocumentRequest("contract.pdf", "application/pdf"),
+            tenantId,
+            Guid.NewGuid(),
+            Permission.ManageContracts);
+        var uploadResponse = await client.SendAsync(uploadRequest);
+
+        Assert.Equal((HttpStatusCode)428, uploadResponse.StatusCode);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Empty(await dbContext.Set<ContractDocumentEntity>().Where(document => document.ContractId == contractId).ToArrayAsync());
+    }
+
+    [Fact]
+    public async Task TC_8_2_2_Valid_contract_document_metadata_is_linked_to_contract()
+    {
+        var tenantId = Guid.Parse("82828282-8282-8282-8282-8282828282a2");
+        var userId = Guid.Parse("82828282-8282-8282-8282-8282828282b2");
+        var contractId = Guid.Parse("82828282-8282-8282-8282-8282828282c2");
+        await using var factory = CreateFactory("tc-8-2-2", dbContext =>
+        {
+            SeedTenant(dbContext, tenantId);
+            dbContext.NoCuiAcknowledgements.Add(CreateAcknowledgement(tenantId, userId));
+            dbContext.Contracts.Add(CreateContractEntity(tenantId, "DOC-LINK", "Document link contract", contractId));
+        });
+        using var client = factory.CreateClient();
+
+        using var uploadRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/contracts/{contractId}/documents",
+            CreateDocumentRequest("sow.pdf", "application/pdf") with { Type = ContractDocumentType.StatementOfWork },
+            tenantId,
+            userId,
+            Permission.ManageContracts);
+        var uploadResponse = await client.SendAsync(uploadRequest);
+        var document = await uploadResponse.Content.ReadFromJsonAsync<ContractDocumentDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.Created, uploadResponse.StatusCode);
+        Assert.NotNull(document);
+        Assert.Equal(contractId, document.ContractId);
+        Assert.Equal(ContractDocumentType.StatementOfWork, document.Type);
+        Assert.Equal("sow.pdf", document.FileName);
+        Assert.StartsWith($"pending://contracts/{contractId}/documents/{document.Id}/", document.StorageUri, StringComparison.Ordinal);
+        Assert.Equal("accepted", document.ValidationStatus);
+        Assert.Equal("scan-pending", document.MalwareScanStatus);
+    }
+
+    [Fact]
+    public async Task TC_8_2_3_Disallowed_contract_document_file_is_rejected()
+    {
+        var tenantId = Guid.Parse("82828282-8282-8282-8282-8282828282a3");
+        var userId = Guid.Parse("82828282-8282-8282-8282-8282828282b3");
+        var contractId = Guid.Parse("82828282-8282-8282-8282-8282828282c3");
+        await using var factory = CreateFactory("tc-8-2-3", dbContext =>
+        {
+            SeedTenant(dbContext, tenantId);
+            dbContext.NoCuiAcknowledgements.Add(CreateAcknowledgement(tenantId, userId));
+            dbContext.Contracts.Add(CreateContractEntity(tenantId, "DOC-BLOCK", "Document block contract", contractId));
+        });
+        using var client = factory.CreateClient();
+
+        using var uploadRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/contracts/{contractId}/documents",
+            CreateDocumentRequest("installer.exe", "application/x-msdownload"),
+            tenantId,
+            userId,
+            Permission.ManageContracts);
+        var uploadResponse = await client.SendAsync(uploadRequest);
+
+        Assert.Equal(HttpStatusCode.BadRequest, uploadResponse.StatusCode);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Empty(await dbContext.Set<ContractDocumentEntity>().Where(document => document.ContractId == contractId).ToArrayAsync());
+        Assert.Contains(await dbContext.AuditLogEntries.ToArrayAsync(), audit => audit.EntityType == "ContractDocument" && audit.Action == AuditAction.Rejected);
+    }
+
+    [Fact]
+    public async Task TC_8_2_4_Contract_document_upload_and_delete_are_audit_logged()
+    {
+        var tenantId = Guid.Parse("82828282-8282-8282-8282-8282828282a4");
+        var userId = Guid.Parse("82828282-8282-8282-8282-8282828282b4");
+        var contractId = Guid.Parse("82828282-8282-8282-8282-8282828282c4");
+        await using var factory = CreateFactory("tc-8-2-4", dbContext =>
+        {
+            SeedTenant(dbContext, tenantId);
+            dbContext.NoCuiAcknowledgements.Add(CreateAcknowledgement(tenantId, userId));
+            dbContext.Contracts.Add(CreateContractEntity(tenantId, "DOC-AUDIT", "Document audit contract", contractId));
+        });
+        using var client = factory.CreateClient();
+
+        using var uploadRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/contracts/{contractId}/documents",
+            CreateDocumentRequest("subcontract.pdf", "application/pdf") with { Type = ContractDocumentType.Subcontract },
+            tenantId,
+            userId,
+            Permission.ManageContracts);
+        var uploadResponse = await client.SendAsync(uploadRequest);
+        var document = await uploadResponse.Content.ReadFromJsonAsync<ContractDocumentDto>(JsonOptions);
+        Assert.NotNull(document);
+        using var deleteRequest = CreateRequest(
+            HttpMethod.Delete,
+            $"/api/contracts/{contractId}/documents/{document.Id}",
+            tenantId,
+            userId,
+            Permission.ManageContracts);
+        var deleteResponse = await client.SendAsync(deleteRequest);
+
+        Assert.Equal(HttpStatusCode.Created, uploadResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        var auditEvents = await dbContext.AuditLogEntries
+            .Where(audit => audit.TenantId == tenantId && audit.EntityType == "ContractDocument")
+            .OrderBy(audit => audit.OccurredAt)
+            .ToArrayAsync();
+
+        Assert.Equal([AuditAction.Uploaded, AuditAction.Deleted], auditEvents.Select(audit => audit.Action).ToArray());
+    }
+
+    [Fact]
+    public async Task UAT_04_Text_document_bytes_are_scanned_stored_and_available_for_extraction()
+    {
+        var tenantId = Guid.Parse("82828282-8282-8282-8282-8282828282a5");
+        var userId = Guid.Parse("82828282-8282-8282-8282-8282828282b5");
+        var contractId = Guid.Parse("82828282-8282-8282-8282-8282828282c5");
+        await using var factory = CreateFactory("uat-04-file-upload", dbContext =>
+        {
+            SeedTenant(dbContext, tenantId);
+            dbContext.NoCuiAcknowledgements.Add(CreateAcknowledgement(tenantId, userId));
+            dbContext.Contracts.Add(CreateContractEntity(tenantId, "UAT-04", "Extraction upload contract", contractId));
+        });
+        using var client = factory.CreateClient();
+
+        using var uploadRequest = CreateContractFileUploadRequest(
+            contractId,
+            tenantId,
+            userId,
+            "FAR 52.204-21 - Basic Safeguarding.");
+        var uploadResponse = await client.SendAsync(uploadRequest);
+        var document = await uploadResponse.Content.ReadFromJsonAsync<ContractDocumentDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.Created, uploadResponse.StatusCode);
+        Assert.NotNull(document);
+        Assert.Equal("clean", document.MalwareScanStatus);
+        Assert.StartsWith($"contracts/{contractId}/", document.StorageUri, StringComparison.Ordinal);
+
+        using var startRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/contracts/{contractId}/documents/{document.Id}/extraction-jobs",
+            tenantId,
+            userId,
+            Permission.ManageContracts);
+        startRequest.Content = JsonContent.Create(new { classification = new { classification = document.Classification.Classification.ToString() } });
+        var startResponse = await client.SendAsync(startRequest);
+        var job = await startResponse.Content.ReadFromJsonAsync<ExtractionJobDto>(JsonOptions);
+        Assert.Equal(HttpStatusCode.Created, startResponse.StatusCode);
+        Assert.NotNull(job);
+
+        using var processRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/extraction-jobs/{job.Id}/process",
+            tenantId,
+            userId,
+            Permission.ManageContracts);
+        var processResponse = await client.SendAsync(processRequest);
+        var processed = await processResponse.Content.ReadFromJsonAsync<ExtractionJobProcessResultDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, processResponse.StatusCode);
+        Assert.NotNull(processed);
+        Assert.Equal(ExtractionJobStatus.Completed, processed.Job.Status);
+        Assert.Equal("FAR 52.204-21", Assert.Single(processed.Candidates).NormalizedCitation);
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Equal(
+            [AuditAction.Uploaded, AuditAction.Created, AuditAction.Updated],
+            (await dbContext.AuditLogEntries
+                .Where(audit => audit.TenantId == tenantId &&
+                    (audit.EntityType == "ContractDocument" || audit.EntityType == "ExtractionJob"))
+                .OrderBy(audit => audit.OccurredAt)
+                .ToArrayAsync())
+            .Select(audit => audit.Action)
+            .ToArray());
+    }
+
+    [Fact]
+    public async Task Contract_file_upload_for_another_tenant_has_no_scan_storage_or_audit_side_effect()
+    {
+        var tenantAId = Guid.Parse("82828282-8282-8282-8282-8282828282a6");
+        var tenantBId = Guid.Parse("82828282-8282-8282-8282-8282828282b6");
+        var userId = Guid.Parse("82828282-8282-8282-8282-8282828282c6");
+        var contractId = Guid.Parse("82828282-8282-8282-8282-8282828282d6");
+        await using var factory = CreateFactory("contract-file-cross-tenant", dbContext =>
+        {
+            SeedTenant(dbContext, tenantAId, "Tenant A");
+            SeedTenant(dbContext, tenantBId, "Tenant B");
+            dbContext.NoCuiAcknowledgements.Add(CreateAcknowledgement(tenantAId, userId));
+            dbContext.Contracts.Add(CreateContractEntity(tenantBId, "DOC-OTHER", "Other tenant contract", contractId));
+        });
+        using var client = factory.CreateClient();
+
+        using var uploadRequest = CreateContractFileUploadRequest(
+            contractId,
+            tenantAId,
+            userId,
+            "FAR 52.204-21 - Basic Safeguarding.");
+        var uploadResponse = await client.SendAsync(uploadRequest);
+
+        Assert.Equal(HttpStatusCode.NotFound, uploadResponse.StatusCode);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Empty(await dbContext.Set<ContractDocumentEntity>().ToArrayAsync());
+        Assert.Empty(await dbContext.AuditLogEntries.ToArrayAsync());
+        Assert.Equal(
+            0,
+            ((TestObjectStorageService)scope.ServiceProvider.GetRequiredService<IObjectStorageService>()).Count);
+        Assert.Equal(
+            0,
+            ((ConfiguredTestMalwareScanner)scope.ServiceProvider.GetRequiredService<IMalwareScanner>()).ScanCount);
+    }
+
+    [Fact]
+    public async Task Contract_file_upload_without_attestation_is_rejected_without_storage_or_persistence()
+    {
+        var tenantId = Guid.Parse("82828282-8282-8282-8282-8282828282a6");
+        var userId = Guid.Parse("82828282-8282-8282-8282-8282828282b6");
+        var contractId = Guid.Parse("82828282-8282-8282-8282-8282828282c6");
+        await using var factory = CreateFactory("contract-file-attestation", dbContext =>
+        {
+            SeedTenant(dbContext, tenantId);
+            dbContext.NoCuiAcknowledgements.Add(CreateAcknowledgement(tenantId, userId));
+            dbContext.Contracts.Add(CreateContractEntity(tenantId, "DOC-ATTEST", "Attestation contract", contractId));
+        });
+        using var client = factory.CreateClient();
+
+        using var request = CreateContractFileUploadRequest(
+            contractId,
+            tenantId,
+            userId,
+            "Synthetic text.",
+            noCuiAttestation: false);
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Empty(await dbContext.Set<ContractDocumentEntity>().Where(document => document.ContractId == contractId).ToArrayAsync());
+        Assert.Contains(
+            await dbContext.AuditLogEntries.Where(audit => audit.TenantId == tenantId).ToArrayAsync(),
+            audit => audit.Action == AuditAction.Rejected &&
+                audit.EntityType == "ContractDocument" &&
+                audit.MetadataJson.Contains("upload-validation", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task TC_18_1_1_User_with_contract_edit_permission_can_start_extraction_job()
+    {
+        var tenantId = Guid.Parse("18181818-1818-1818-1818-1818181811a1");
+        var userId = Guid.Parse("18181818-1818-1818-1818-1818181811b1");
+        var contractId = Guid.Parse("18181818-1818-1818-1818-1818181811c1");
+        var documentId = Guid.Parse("18181818-1818-1818-1818-1818181811d1");
+        await using var factory = CreateFactory("tc-18-1-1", dbContext =>
+        {
+            SeedTenant(dbContext, tenantId);
+            dbContext.Contracts.Add(CreateContractEntity(tenantId, "EXT-JOB", "Extraction job contract", contractId));
+            dbContext.Set<ContractDocumentEntity>().Add(CreateTextDocumentEntity(
+                contractId,
+                documentId,
+                userId,
+                "FAR 52.204-21 - Basic Safeguarding."));
+        });
+        using var client = factory.CreateClient();
+
+        using var request = CreateRequest(
+            HttpMethod.Post,
+            $"/api/contracts/{contractId}/documents/{documentId}/extraction-jobs",
+            tenantId,
+            userId,
+            Permission.ManageContracts);
+        var response = await client.SendAsync(request);
+        var job = await response.Content.ReadFromJsonAsync<ExtractionJobDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.NotNull(job);
+        Assert.Equal(tenantId, job.TenantId);
+        Assert.Equal(documentId, job.SourceDocumentId);
+        Assert.Equal(userId, job.RequestedByUserId);
+        Assert.Equal(ExtractionJobStatus.Queued, job.Status);
+        Assert.Null(job.StartedAt);
+        Assert.Null(job.CompletedAt);
+        Assert.Null(job.FailureReason);
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Contains(await dbContext.AuditLogEntries.ToArrayAsync(), audit =>
+            audit.TenantId == tenantId &&
+            audit.ActorUserId == userId &&
+            audit.EntityType == "ExtractionJob" &&
+            audit.Action == AuditAction.Created);
+    }
+
+    [Fact]
+    public async Task TC_18_1_2_User_without_contract_edit_permission_cannot_start_extraction_job()
+    {
+        var tenantId = Guid.Parse("18181818-1818-1818-1818-1818181812a1");
+        var userId = Guid.Parse("18181818-1818-1818-1818-1818181812b1");
+        var contractId = Guid.Parse("18181818-1818-1818-1818-1818181812c1");
+        var documentId = Guid.Parse("18181818-1818-1818-1818-1818181812d1");
+        await using var factory = CreateFactory("tc-18-1-2", dbContext =>
+        {
+            SeedTenant(dbContext, tenantId);
+            dbContext.Contracts.Add(CreateContractEntity(tenantId, "EXT-FORBID", "Extraction authorization contract", contractId));
+            dbContext.Set<ContractDocumentEntity>().Add(CreateDocumentEntity(contractId, documentId, userId));
+        });
+        using var client = factory.CreateClient();
+
+        using var request = CreateRequest(
+            HttpMethod.Post,
+            $"/api/contracts/{contractId}/documents/{documentId}/extraction-jobs",
+            tenantId,
+            userId,
+            Permission.ViewContracts);
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Empty(await dbContext.Set<ExtractionJobEntity>().ToArrayAsync());
+    }
+
+    [Fact]
+    public async Task TC_18_1_3_Starting_extraction_for_another_tenant_document_is_denied()
+    {
+        var tenantAId = Guid.Parse("18181818-1818-1818-1818-1818181813a1");
+        var tenantBId = Guid.Parse("18181818-1818-1818-1818-1818181813b1");
+        var userId = Guid.Parse("18181818-1818-1818-1818-1818181813c1");
+        var contractId = Guid.Parse("18181818-1818-1818-1818-1818181813d1");
+        var documentId = Guid.Parse("18181818-1818-1818-1818-1818181813e1");
+        await using var factory = CreateFactory("tc-18-1-3", dbContext =>
+        {
+            SeedTenant(dbContext, tenantAId, "Tenant A");
+            SeedTenant(dbContext, tenantBId, "Tenant B");
+            dbContext.Contracts.Add(CreateContractEntity(tenantBId, "EXT-OTHER", "Other tenant extraction contract", contractId));
+            dbContext.Set<ContractDocumentEntity>().Add(CreateDocumentEntity(contractId, documentId, userId));
+        });
+        using var client = factory.CreateClient();
+
+        using var request = CreateRequest(
+            HttpMethod.Post,
+            $"/api/contracts/{contractId}/documents/{documentId}/extraction-jobs",
+            tenantAId,
+            userId,
+            Permission.ManageContracts);
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Empty(await dbContext.Set<ExtractionJobEntity>().ToArrayAsync());
+    }
+
+    [Fact]
+    public async Task TC_18_2_1_Text_document_extraction_detects_clause_candidates_and_exact_library_matches()
+    {
+        var tenantId = Guid.Parse("18281828-1828-1828-1828-1828182811a1");
+        var userId = Guid.Parse("18281828-1828-1828-1828-1828182811b1");
+        var contractId = Guid.Parse("18281828-1828-1828-1828-1828182811c1");
+        var documentId = Guid.Parse("18281828-1828-1828-1828-1828182811d1");
+        await using var factory = CreateFactory("tc-18-2-1", dbContext =>
+        {
+            SeedTenant(dbContext, tenantId);
+            dbContext.Clauses.Add(CreateClause("far-52-204-21", "FAR", "52.204-21", "Basic Safeguarding"));
+            dbContext.Contracts.Add(CreateContractEntity(tenantId, "EXT-TEXT", "Text extraction contract", contractId));
+            dbContext.Set<ContractDocumentEntity>().Add(CreateTextDocumentEntity(
+                contractId,
+                documentId,
+                userId,
+                "Section 7 includes FAR 52.204-21 - Basic Safeguarding of Covered Contractor Information Systems.\nAlso review DFARS 252.204-7012 - Safeguarding Covered Defense Information."));
+        });
+        using var client = factory.CreateClient();
+
+        var job = await StartExtractionJobAsync(client, contractId, documentId, tenantId, userId);
+        using var processRequest = CreateRequest(HttpMethod.Post, $"/api/extraction-jobs/{job.Id}/process", tenantId, userId, Permission.ManageContracts);
+        var processResponse = await client.SendAsync(processRequest);
+        var result = await processResponse.Content.ReadFromJsonAsync<ExtractionJobProcessResultDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, processResponse.StatusCode);
+        Assert.NotNull(result);
+        Assert.Equal(ExtractionJobStatus.Completed, result.Job.Status);
+        Assert.NotNull(result.Job.StartedAt);
+        Assert.NotNull(result.Job.CompletedAt);
+        Assert.Collection(
+            result.Candidates.OrderBy(candidate => candidate.NormalizedCitation),
+            candidate =>
+            {
+                Assert.Equal("DFARS 252.204-7012", candidate.NormalizedCitation);
+                Assert.Equal(documentId, candidate.SourceDocumentId);
+                Assert.Contains("DFARS 252.204-7012", candidate.RawExtractedText);
+                Assert.Equal("line 2", candidate.LocationMetadata);
+                Assert.Equal("regex", candidate.MatchMethod);
+                Assert.Null(candidate.ClauseLibraryId);
+                Assert.Equal("pending_review", candidate.ReviewStatus);
+            },
+            candidate =>
+            {
+                Assert.Equal("FAR 52.204-21", candidate.NormalizedCitation);
+                Assert.Equal(documentId, candidate.SourceDocumentId);
+                Assert.Contains("FAR 52.204-21", candidate.RawExtractedText);
+                Assert.Equal("Basic Safeguarding of Covered Contractor Information Systems", candidate.DetectedTitle);
+                Assert.Equal(1.0m, candidate.Confidence);
+                Assert.Equal("line 1", candidate.LocationMetadata);
+                Assert.Equal("exact_library_match", candidate.MatchMethod);
+                Assert.Equal("far-52-204-21", candidate.ClauseLibraryId);
+            });
+    }
+
+    [Fact]
+    public async Task TC_18_2_4_Unsupported_document_is_rejected_before_a_job_is_created()
+    {
+        var tenantId = Guid.Parse("18281828-1828-1828-1828-1828182814a1");
+        var userId = Guid.Parse("18281828-1828-1828-1828-1828182814b1");
+        var contractId = Guid.Parse("18281828-1828-1828-1828-1828182814c1");
+        var documentId = Guid.Parse("18281828-1828-1828-1828-1828182814d1");
+        await using var factory = CreateFactory("tc-18-2-4", dbContext =>
+        {
+            SeedTenant(dbContext, tenantId);
+            dbContext.Contracts.Add(CreateContractEntity(tenantId, "EXT-FAIL", "Failed extraction contract", contractId));
+            dbContext.Set<ContractDocumentEntity>().Add(CreateDocumentEntity(contractId, documentId, userId));
+        });
+        using var client = factory.CreateClient();
+
+        using var startRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/contracts/{contractId}/documents/{documentId}/extraction-jobs",
+            tenantId,
+            userId,
+            Permission.ManageContracts);
+        var startResponse = await client.SendAsync(startRequest);
+
+        Assert.Equal(HttpStatusCode.BadRequest, startResponse.StatusCode);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Empty(await dbContext.Set<ExtractionJobEntity>().ToArrayAsync());
+        Assert.Empty(await dbContext.AuditLogEntries
+            .Where(audit => audit.EntityType == "ExtractionJob")
+            .ToArrayAsync());
+    }
+
+    [Fact]
+    public async Task TC_18_2_5_Extracted_candidates_remain_tenant_scoped()
+    {
+        var tenantAId = Guid.Parse("18281828-1828-1828-1828-1828182815a1");
+        var tenantBId = Guid.Parse("18281828-1828-1828-1828-1828182815b1");
+        var userId = Guid.Parse("18281828-1828-1828-1828-1828182815c1");
+        var contractId = Guid.Parse("18281828-1828-1828-1828-1828182815d1");
+        var documentId = Guid.Parse("18281828-1828-1828-1828-1828182815e1");
+        await using var factory = CreateFactory("tc-18-2-5", dbContext =>
+        {
+            SeedTenant(dbContext, tenantAId, "Tenant A");
+            SeedTenant(dbContext, tenantBId, "Tenant B");
+            dbContext.Contracts.Add(CreateContractEntity(tenantBId, "EXT-SCOPE", "Scoped extraction contract", contractId));
+            dbContext.Set<ContractDocumentEntity>().Add(CreateTextDocumentEntity(
+                contractId,
+                documentId,
+                userId,
+                "FAR 52.204-27 - Prohibition on a ByteDance Covered Application."));
+        });
+        using var client = factory.CreateClient();
+
+        var job = await StartExtractionJobAsync(client, contractId, documentId, tenantBId, userId);
+        using var tenantARequest = CreateRequest(HttpMethod.Post, $"/api/extraction-jobs/{job.Id}/process", tenantAId, userId, Permission.ManageContracts);
+        var tenantAResponse = await client.SendAsync(tenantARequest);
+        using var tenantBRequest = CreateRequest(HttpMethod.Post, $"/api/extraction-jobs/{job.Id}/process", tenantBId, userId, Permission.ManageContracts);
+        var tenantBResponse = await client.SendAsync(tenantBRequest);
+        var tenantBResult = await tenantBResponse.Content.ReadFromJsonAsync<ExtractionJobProcessResultDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.NotFound, tenantAResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, tenantBResponse.StatusCode);
+        Assert.NotNull(tenantBResult);
+        var candidate = Assert.Single(tenantBResult.Candidates);
+        Assert.Equal(tenantBId, candidate.TenantId);
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Empty(await dbContext.Set<ClauseCandidateEntity>().Where(candidate => candidate.TenantId == tenantAId).ToArrayAsync());
+        Assert.Single(await dbContext.Set<ClauseCandidateEntity>().Where(candidate => candidate.TenantId == tenantBId).ToArrayAsync());
+    }
+
+    [Fact]
+    public async Task TC_18_3_1_and_TC_18_3_2_User_can_view_extraction_results_with_review_fields()
+    {
+        var tenantId = Guid.Parse("18381838-1838-1838-1838-1838183811a1");
+        var userId = Guid.Parse("18381838-1838-1838-1838-1838183811b1");
+        var contractId = Guid.Parse("18381838-1838-1838-1838-1838183811c1");
+        var documentId = Guid.Parse("18381838-1838-1838-1838-1838183811d1");
+        await using var factory = CreateFactory("tc-18-3-1", dbContext =>
+        {
+            SeedTenant(dbContext, tenantId);
+            dbContext.Clauses.Add(CreateClause("far-52-204-21-review", "FAR", "52.204-21", "Basic Safeguarding"));
+            dbContext.Contracts.Add(CreateContractEntity(tenantId, "EXT-REVIEW", "Extraction review contract", contractId));
+            dbContext.Set<ContractDocumentEntity>().Add(CreateTextDocumentEntity(
+                contractId,
+                documentId,
+                userId,
+                "FAR 52.204-21 - Basic Safeguarding."));
+        });
+        using var client = factory.CreateClient();
+        await ProcessExtractionJobAsync(client, contractId, documentId, tenantId, userId);
+
+        using var request = CreateRequest(
+            HttpMethod.Get,
+            $"/api/contracts/{contractId}/documents/{documentId}/extraction-results",
+            tenantId,
+            userId,
+            Permission.ViewContracts);
+        var response = await client.SendAsync(request);
+        var results = await response.Content.ReadFromJsonAsync<ContractDocumentExtractionResultsDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(results);
+        Assert.Equal(ExtractionJobStatus.Completed, results.LatestJobStatus);
+        var candidate = Assert.Single(results.Candidates);
+        Assert.Equal("FAR 52.204-21", candidate.NormalizedCitation);
+        Assert.Equal(1.0m, candidate.Confidence);
+        Assert.Equal("exact_library_match", candidate.MatchMethod);
+        Assert.Equal("pending_review", candidate.ReviewStatus);
+        Assert.Equal("line 1", candidate.LocationMetadata);
+    }
+
+    [Fact]
+    public async Task TC_18_3_3_Accepted_candidates_create_contract_clause_links_after_user_action()
+    {
+        var tenantId = Guid.Parse("18381838-1838-1838-1838-1838183813a1");
+        var userId = Guid.Parse("18381838-1838-1838-1838-1838183813b1");
+        var contractId = Guid.Parse("18381838-1838-1838-1838-1838183813c1");
+        var documentId = Guid.Parse("18381838-1838-1838-1838-1838183813d1");
+        const string clauseId = "far-52-204-21-accept";
+        await using var factory = CreateFactory("tc-18-3-3", dbContext =>
+        {
+            SeedTenant(dbContext, tenantId);
+            dbContext.Clauses.Add(CreateClause(clauseId, "FAR", "52.204-21", "Basic Safeguarding"));
+            dbContext.Contracts.Add(CreateContractEntity(tenantId, "EXT-ACCEPT", "Extraction accept contract", contractId));
+            dbContext.Set<ContractDocumentEntity>().Add(CreateTextDocumentEntity(
+                contractId,
+                documentId,
+                userId,
+                "FAR 52.204-21 - Basic Safeguarding."));
+        });
+        using var client = factory.CreateClient();
+        var processResult = await ProcessExtractionJobAsync(client, contractId, documentId, tenantId, userId);
+        var candidate = Assert.Single(processResult.Candidates);
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+            Assert.Empty(await dbContext.Set<ContractClauseEntity>().Where(clause => clause.ContractId == contractId).ToArrayAsync());
+        }
+
+        using var request = CreateRequest(
+            HttpMethod.Post,
+            $"/api/contracts/{contractId}/documents/{documentId}/clause-candidates/{candidate.Id}/accept",
+            new ClauseCandidateReviewRequest(clauseId, "Confirmed by reviewer.", "Maps to the published safeguarding clause."),
+            tenantId,
+            userId,
+            Permission.ReviewClauses);
+        var response = await client.SendAsync(request);
+        var reviewed = await response.Content.ReadFromJsonAsync<ClauseCandidateDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(reviewed);
+        Assert.Equal("accepted", reviewed.ReviewStatus);
+        Assert.Equal(userId, reviewed.ReviewedByUserId);
+        Assert.NotNull(reviewed.ReviewedAt);
+        Assert.Equal("Maps to the published safeguarding clause.", reviewed.DecisionNote);
+        Assert.Equal("Confirmed by reviewer.", reviewed.DecisionReason);
+        using (var scope = factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+            var contractClause = Assert.Single(await dbContext.Set<ContractClauseEntity>().Where(clause => clause.ContractId == contractId).ToArrayAsync());
+            Assert.Equal(clauseId, contractClause.ClauseLibraryId);
+        }
+    }
+
+    [Fact]
+    public async Task TC_18_3_4_and_TC_18_3_5_Rejected_and_edited_candidates_remain_visible_and_are_audit_logged()
+    {
+        var tenantId = Guid.Parse("18381838-1838-1838-1838-1838183814a1");
+        var userId = Guid.Parse("18381838-1838-1838-1838-1838183814b1");
+        var contractId = Guid.Parse("18381838-1838-1838-1838-1838183814c1");
+        var documentId = Guid.Parse("18381838-1838-1838-1838-1838183814d1");
+        await using var factory = CreateFactory("tc-18-3-4", dbContext =>
+        {
+            SeedTenant(dbContext, tenantId);
+            dbContext.Contracts.Add(CreateContractEntity(tenantId, "EXT-REJECT", "Extraction reject contract", contractId));
+            dbContext.Set<ContractDocumentEntity>().Add(CreateTextDocumentEntity(
+                contractId,
+                documentId,
+                userId,
+                "DFARS 252.204-7012 - Safeguarding Covered Defense Information."));
+        });
+        using var client = factory.CreateClient();
+        var processResult = await ProcessExtractionJobAsync(client, contractId, documentId, tenantId, userId);
+        var candidate = Assert.Single(processResult.Candidates);
+
+        using var editRequest = CreateRequest(
+            HttpMethod.Patch,
+            $"/api/contracts/{contractId}/documents/{documentId}/clause-candidates/{candidate.Id}",
+            new ClauseCandidateEditRequest("DFARS 252.204-7012", null),
+            tenantId,
+            userId,
+            Permission.ReviewClauses);
+        var editResponse = await client.SendAsync(editRequest);
+        using var rejectRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/contracts/{contractId}/documents/{documentId}/clause-candidates/{candidate.Id}/reject",
+            new ClauseCandidateReviewRequest(null, "Not applicable to this contract."),
+            tenantId,
+            userId,
+            Permission.ReviewClauses);
+        var rejectResponse = await client.SendAsync(rejectRequest);
+
+        Assert.Equal(HttpStatusCode.OK, editResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, rejectResponse.StatusCode);
+        using var resultsRequest = CreateRequest(
+            HttpMethod.Get,
+            $"/api/contracts/{contractId}/documents/{documentId}/extraction-results?reviewStatus=rejected",
+            tenantId,
+            userId,
+            Permission.ViewContracts);
+        var resultsResponse = await client.SendAsync(resultsRequest);
+        var results = await resultsResponse.Content.ReadFromJsonAsync<ContractDocumentExtractionResultsDto>(JsonOptions);
+
+        Assert.NotNull(results);
+        Assert.Equal("rejected", Assert.Single(results.Candidates).ReviewStatus);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Empty(await dbContext.Set<ContractClauseEntity>().Where(clause => clause.ContractId == contractId).ToArrayAsync());
+        var candidateAudits = await dbContext.AuditLogEntries
+            .Where(audit => audit.TenantId == tenantId && audit.EntityType == "ClauseCandidate")
+            .OrderBy(audit => audit.OccurredAt)
+            .ToArrayAsync();
+        Assert.Equal([AuditAction.Updated, AuditAction.Rejected], candidateAudits.Select(audit => audit.Action).ToArray());
+    }
+
+    [Fact]
+    public async Task TC_19_1_2_Only_clause_review_permission_can_accept_or_reject_candidates()
+    {
+        var tenantId = Guid.Parse("19191919-1919-1919-1919-1919191912a1");
+        var userId = Guid.Parse("19191919-1919-1919-1919-1919191912b1");
+        var contractId = Guid.Parse("19191919-1919-1919-1919-1919191912c1");
+        var documentId = Guid.Parse("19191919-1919-1919-1919-1919191912d1");
+        const string clauseId = "far-52-204-21-review-permission";
+        await using var factory = CreateFactory("tc-19-1-2", dbContext =>
+        {
+            SeedTenant(dbContext, tenantId);
+            dbContext.Clauses.Add(CreateClause(clauseId, "FAR", "52.204-21", "Basic Safeguarding"));
+            dbContext.Contracts.Add(CreateContractEntity(tenantId, "EXT-REVIEW-PERM", "Extraction review permission contract", contractId));
+            dbContext.Set<ContractDocumentEntity>().Add(CreateTextDocumentEntity(
+                contractId,
+                documentId,
+                userId,
+                "FAR 52.204-21 - Basic Safeguarding."));
+        });
+        using var client = factory.CreateClient();
+        var processResult = await ProcessExtractionJobAsync(client, contractId, documentId, tenantId, userId);
+        var candidate = Assert.Single(processResult.Candidates);
+
+        using var request = CreateRequest(
+            HttpMethod.Post,
+            $"/api/contracts/{contractId}/documents/{documentId}/clause-candidates/{candidate.Id}/accept",
+            new ClauseCandidateReviewRequest(clauseId, "Attempt without review permission."),
+            tenantId,
+            userId,
+            Permission.ManageContracts);
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task TC_19_1_4_and_TC_19_1_5_Superseded_candidates_do_not_generate_obligations_and_are_audit_logged()
+    {
+        var tenantId = Guid.Parse("19191919-1919-1919-1919-1919191914a1");
+        var userId = Guid.Parse("19191919-1919-1919-1919-1919191914b1");
+        var contractId = Guid.Parse("19191919-1919-1919-1919-1919191914c1");
+        var documentId = Guid.Parse("19191919-1919-1919-1919-1919191914d1");
+        const string clauseId = "far-52-204-21-superseded";
+        await using var factory = CreateFactory("tc-19-1-4", dbContext =>
+        {
+            SeedTenant(dbContext, tenantId);
+            dbContext.Clauses.Add(CreateClause(clauseId, "FAR", "52.204-21", "Basic Safeguarding"));
+            dbContext.Contracts.Add(CreateContractEntity(tenantId, "EXT-SUPERSEDE", "Extraction supersede contract", contractId));
+            dbContext.Set<ContractDocumentEntity>().Add(CreateTextDocumentEntity(
+                contractId,
+                documentId,
+                userId,
+                "FAR 52.204-21 - Basic Safeguarding."));
+        });
+        using var client = factory.CreateClient();
+        var processResult = await ProcessExtractionJobAsync(client, contractId, documentId, tenantId, userId);
+        var candidate = Assert.Single(processResult.Candidates);
+
+        using var clarifyRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/contracts/{contractId}/documents/{documentId}/clause-candidates/{candidate.Id}/needs-clarification",
+            new ClauseCandidateStateChangeRequest("Need SME review.", "Potential duplicate citation."),
+            tenantId,
+            userId,
+            Permission.ReviewClauses);
+        var clarifyResponse = await client.SendAsync(clarifyRequest);
+        var clarification = await clarifyResponse.Content.ReadFromJsonAsync<ClauseCandidateDto>(JsonOptions);
+        using var supersedeRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/contracts/{contractId}/documents/{documentId}/clause-candidates/{candidate.Id}/supersede",
+            new ClauseCandidateStateChangeRequest("Later extraction run superseded this candidate.", "Use the newer candidate."),
+            tenantId,
+            userId,
+            Permission.ReviewClauses);
+        var supersedeResponse = await client.SendAsync(supersedeRequest);
+        var superseded = await supersedeResponse.Content.ReadFromJsonAsync<ClauseCandidateDto>(JsonOptions);
+        using var acceptRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/contracts/{contractId}/documents/{documentId}/clause-candidates/{candidate.Id}/accept",
+            new ClauseCandidateReviewRequest(clauseId, "Attempt to accept superseded candidate."),
+            tenantId,
+            userId,
+            Permission.ReviewClauses);
+        var acceptResponse = await client.SendAsync(acceptRequest);
+
+        Assert.Equal(HttpStatusCode.OK, clarifyResponse.StatusCode);
+        Assert.NotNull(clarification);
+        Assert.Equal("needs_clarification", clarification.ReviewStatus);
+        Assert.Equal("Potential duplicate citation.", clarification.DecisionNote);
+        Assert.Equal(HttpStatusCode.OK, supersedeResponse.StatusCode);
+        Assert.NotNull(superseded);
+        Assert.Equal("superseded", superseded.ReviewStatus);
+        Assert.Equal(userId, superseded.ReviewedByUserId);
+        Assert.NotNull(superseded.ReviewedAt);
+        Assert.Equal("Use the newer candidate.", superseded.DecisionNote);
+        Assert.Equal(HttpStatusCode.BadRequest, acceptResponse.StatusCode);
+
+        using var resultsRequest = CreateRequest(
+            HttpMethod.Get,
+            $"/api/contracts/{contractId}/documents/{documentId}/extraction-results?reviewStatus=superseded",
+            tenantId,
+            userId,
+            Permission.ViewContracts);
+        var resultsResponse = await client.SendAsync(resultsRequest);
+        var results = await resultsResponse.Content.ReadFromJsonAsync<ContractDocumentExtractionResultsDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, resultsResponse.StatusCode);
+        Assert.Equal("superseded", Assert.Single(results?.Candidates ?? []).ReviewStatus);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Empty(await dbContext.Set<ContractClauseEntity>().Where(clause => clause.ContractId == contractId).ToArrayAsync());
+        var candidateAudits = await dbContext.AuditLogEntries
+            .Where(audit => audit.TenantId == tenantId && audit.EntityType == "ClauseCandidate")
+            .OrderBy(audit => audit.OccurredAt)
+            .ToArrayAsync();
+        Assert.Equal([AuditAction.Updated, AuditAction.Updated], candidateAudits.Select(audit => audit.Action).ToArray());
+        Assert.Contains(candidateAudits, audit => audit.MetadataJson.Contains("needs_clarification", StringComparison.Ordinal));
+        Assert.Contains(candidateAudits, audit => audit.MetadataJson.Contains("superseded", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task TC_8_3_1_Deliverables_appear_on_contract_detail()
+    {
+        var tenantId = Guid.Parse("83838383-8383-8383-8383-8383838383a1");
+        var contractId = Guid.Parse("83838383-8383-8383-8383-8383838383b1");
+        await using var factory = CreateFactory("tc-8-3-1", dbContext =>
+        {
+            SeedTenant(dbContext, tenantId);
+            dbContext.Contracts.Add(CreateContractEntity(tenantId, "DEL-DETAIL", "Deliverable detail contract", contractId));
+        });
+        using var client = factory.CreateClient();
+
+        using var createRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/contracts/{contractId}/deliverables",
+            CreateDeliverableRequest("Monthly status report", new DateOnly(2026, 8, 15)),
+            tenantId,
+            Guid.NewGuid(),
+            Permission.ManageContracts);
+        var createResponse = await client.SendAsync(createRequest);
+        using var listRequest = CreateRequest(HttpMethod.Get, $"/api/contracts/{contractId}/deliverables", tenantId, Guid.NewGuid(), Permission.ViewContracts);
+        var listResponse = await client.SendAsync(listRequest);
+        var deliverables = await listResponse.Content.ReadFromJsonAsync<ContractDeliverableDto[]>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
+        var deliverable = Assert.Single(deliverables ?? []);
+        Assert.Equal("Monthly status report", deliverable.Name);
+        Assert.Equal("Contracts", deliverable.OwnerFunction);
+        Assert.Equal(DeliverableStatus.NotStarted, deliverable.Status);
+    }
+
+    [Fact]
+    public async Task TC_8_3_2_Deliverable_due_dates_create_calendar_tasks()
+    {
+        var tenantId = Guid.Parse("83838383-8383-8383-8383-8383838383a2");
+        var contractId = Guid.Parse("83838383-8383-8383-8383-8383838383b2");
+        var actorUserId = Guid.Parse("83838383-8383-8383-8383-8383838383c2");
+        var dueAt = new DateOnly(2026, 9, 1);
+        await using var factory = CreateFactory("tc-8-3-2", dbContext =>
+        {
+            SeedTenant(dbContext, tenantId);
+            dbContext.Contracts.Add(CreateContractEntity(tenantId, "DEL-TASK", "Deliverable task contract", contractId));
+        });
+        using var client = factory.CreateClient();
+
+        using var createRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/contracts/{contractId}/deliverables",
+            CreateDeliverableRequest("Submit security plan", dueAt),
+            tenantId,
+            actorUserId,
+            Permission.ManageContracts);
+        var createResponse = await client.SendAsync(createRequest);
+
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        var task = await dbContext.ComplianceTasks.SingleAsync(task => task.ContractId == contractId && task.Title == "Submit security plan");
+        Assert.Equal(tenantId, task.TenantId);
+        Assert.Equal(ComplianceTaskType.CalendarReminder, task.Type);
+        Assert.Equal(dueAt, task.DueAt);
+        Assert.Equal(actorUserId, task.CreatedByUserId);
+    }
+
+    [Fact]
+    public async Task TC_8_3_3_Past_due_incomplete_deliverables_are_flagged()
+    {
+        var tenantId = Guid.Parse("83838383-8383-8383-8383-8383838383a3");
+        var contractId = Guid.Parse("83838383-8383-8383-8383-8383838383b3");
+        await using var factory = CreateFactory("tc-8-3-3", dbContext =>
+        {
+            SeedTenant(dbContext, tenantId);
+            dbContext.Contracts.Add(CreateContractEntity(tenantId, "DEL-LATE", "Deliverable overdue contract", contractId));
+            dbContext.Set<ContractDeliverableEntity>().Add(new ContractDeliverableEntity
+            {
+                Id = Guid.Parse("83838383-8383-8383-8383-8383838383c3"),
+                ContractId = contractId,
+                Name = "Late report",
+                Description = "Past due",
+                DueAt = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-2),
+                OwnerFunction = "Contracts",
+                Status = DeliverableStatus.InProgress
+            });
+        });
+        using var client = factory.CreateClient();
+
+        using var listRequest = CreateRequest(HttpMethod.Get, $"/api/contracts/{contractId}/deliverables", tenantId, Guid.NewGuid(), Permission.ViewContracts);
+        var listResponse = await client.SendAsync(listRequest);
+        var deliverables = await listResponse.Content.ReadFromJsonAsync<ContractDeliverableDto[]>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
+        Assert.True(Assert.Single(deliverables ?? []).IsOverdue);
+    }
+
+    [Fact]
+    public async Task TC_8_3_4_Deliverable_status_changes_are_audit_logged()
+    {
+        var tenantId = Guid.Parse("83838383-8383-8383-8383-8383838383a4");
+        var contractId = Guid.Parse("83838383-8383-8383-8383-8383838383b4");
+        var actorUserId = Guid.Parse("83838383-8383-8383-8383-8383838383c4");
+        await using var factory = CreateFactory("tc-8-3-4", dbContext =>
+        {
+            SeedTenant(dbContext, tenantId);
+            dbContext.Contracts.Add(CreateContractEntity(tenantId, "DEL-AUDIT", "Deliverable audit contract", contractId));
+        });
+        using var client = factory.CreateClient();
+
+        using var createRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/contracts/{contractId}/deliverables",
+            CreateDeliverableRequest("Closeout package", new DateOnly(2026, 10, 1)),
+            tenantId,
+            actorUserId,
+            Permission.ManageContracts);
+        var createResponse = await client.SendAsync(createRequest);
+        var created = await createResponse.Content.ReadFromJsonAsync<ContractDeliverableDto>(JsonOptions);
+        Assert.NotNull(created);
+        using var updateRequest = CreateRequest(
+            HttpMethod.Put,
+            $"/api/contracts/{contractId}/deliverables/{created.Id}",
+            CreateDeliverableRequest("Closeout package", new DateOnly(2026, 10, 1)) with { Status = DeliverableStatus.Submitted },
+            tenantId,
+            actorUserId,
+            Permission.ManageContracts);
+        var updateResponse = await client.SendAsync(updateRequest);
+
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        var auditEvents = await dbContext.AuditLogEntries
+            .Where(audit => audit.TenantId == tenantId && audit.EntityType == "ContractDeliverable")
+            .OrderBy(audit => audit.OccurredAt)
+            .ToArrayAsync();
+
+        Assert.Equal([AuditAction.Created, AuditAction.Updated], auditEvents.Select(audit => audit.Action).ToArray());
+    }
+
+    private WebApplicationFactory<Program> CreateFactory(string databaseName, Action<GccsDbContext>? seed = null) =>
+        _factory.WithWebHostBuilder(builder =>
+        {
+            builder.UseSetting("LocalDependencies:Enabled", "false");
+            builder.UseSetting("ConnectionStrings:GccsDatabase", string.Empty);
+            builder.ConfigureServices(services =>
+            {
+                services.AddAcknowledgedNoticeFixture();
+                services.AddDbContext<GccsDbContext>(options => options.UseInMemoryDatabase(databaseName));
+                services.AddScoped<ContractService>();
+                services.AddScoped<IContractRepository, EfContractRepository>();
+                services.AddScoped<INoCuiAcknowledgementRepository, EfNoCuiAcknowledgementRepository>();
+                services.AddScoped<IAuditEventWriter, EfAuditEventWriter>();
+                services.AddSingleton<IObjectStorageService, TestObjectStorageService>();
+                services.AddSingleton<IMalwareScanner>(
+                    new ConfiguredTestMalwareScanner(MalwareScanResult.Clean("test-scanner", "clean")));
+
+                using var provider = services.BuildServiceProvider();
+                using var scope = provider.CreateScope();
+                var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+                dbContext.Database.EnsureDeleted();
+                dbContext.Database.EnsureCreated();
+                seed?.Invoke(dbContext);
+                dbContext.SaveChanges();
+            });
+        });
+
+    private static HttpRequestMessage CreateContractFileUploadRequest(
+        Guid contractId,
+        Guid tenantId,
+        Guid userId,
+        string text,
+        bool noCuiAttestation = true)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/api/contracts/{contractId}/documents/file");
+        request.Headers.Add("X-Gccs-Dev-Auth", "true");
+        request.Headers.Add("X-Gccs-Dev-Tenant", tenantId.ToString());
+        request.Headers.Add("X-Gccs-Dev-User", userId.ToString());
+        request.Headers.Add("X-Gccs-Dev-Permissions", Permission.ManageContracts.ToString());
+        var file = new ByteArrayContent(Encoding.UTF8.GetBytes(text));
+        file.Headers.ContentType = new("text/plain");
+        request.Content = new MultipartFormDataContent
+        {
+            { new StringContent("Contract"), "documentType" },
+            { new StringContent("Fci"), "classification" },
+            { new StringContent("Synthetic FCI-only UAT document."), "classificationReason" },
+            { new StringContent(noCuiAttestation.ToString()), "noCuiAttestation" },
+            { new StringContent("false"), "containsPotentialCui" },
+            { file, "file", "demo-nc-contract.txt" }
+        };
+        return ClassifiedWorkflowTestData.Confirm(request);
+    }
+
+    private static UpsertContractRequest CreateRequestBody(string contractNumber, ContractStatus status) =>
+        new(
+            contractNumber,
+            "Base operations support services",
+            "Department of Defense",
+            ContractorRelationship.Subcontractor,
+            ContractKind.FixedPrice,
+            status,
+            new DateOnly(2026, 6, 15),
+            new DateOnly(2026, 7, 1),
+            new DateOnly(2027, 6, 30),
+            "Arlington, VA",
+            "No-CUI contract intake record for compliance tracking.",
+            DataHandlingPosture.FciOnly);
+
+    private static ContractEntity CreateContractEntity(Guid tenantId, string contractNumber, string title, Guid? id = null) =>
+        new()
+        {
+            Id = id ?? Guid.NewGuid(),
+            TenantId = tenantId,
+            ContractNumber = contractNumber,
+            Title = title,
+            AgencyOrPrimeName = "Sample Prime",
+            Relationship = ContractorRelationship.Prime,
+            Kind = ContractKind.PurchaseOrder,
+            Status = ContractStatus.Active,
+            AwardedAt = new DateOnly(2026, 6, 15),
+            PeriodOfPerformanceStart = new DateOnly(2026, 7, 1),
+            PeriodOfPerformanceEnd = new DateOnly(2027, 6, 30),
+            PlaceOfPerformance = "Remote",
+            Description = "Seeded tenant-scoped contract.",
+            DataHandlingPosture = DataHandlingPosture.NoFciOrCui,
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+
+    private static ContractDocumentUploadRequest CreateDocumentRequest(string fileName, string contentType) =>
+        new(
+            ContractDocumentType.Contract,
+            fileName,
+            contentType,
+            2048,
+            false,
+            Unclassified());
+
+    private static ContentClassificationRequest Unclassified() =>
+        new(ContentClassification.Unclassified, Reason: "Test non-CUI document.");
+
+    private static ContractDocumentEntity CreateDocumentEntity(Guid contractId, Guid documentId, Guid userId) =>
+        new()
+        {
+            Id = documentId,
+            ContractId = contractId,
+            Type = ContractDocumentType.Contract,
+            FileName = "contract.pdf",
+            ContentType = "application/pdf",
+            SizeBytes = 2048,
+            StorageUri = $"pending://contracts/{contractId}/documents/{documentId}/contract.pdf",
+            ValidationStatus = "accepted",
+            MalwareScanStatus = EvidenceUploadGuardrails.CleanMalwareScanStatus,
+            NoticeVersion = NoCuiNotice.CurrentVersion,
+            UploadedAt = DateTimeOffset.UtcNow,
+            UploadedByUserId = userId,
+            ContainsPotentialCui = false
+        };
+
+    private static ContractDocumentEntity CreateTextDocumentEntity(Guid contractId, Guid documentId, Guid userId, string text) =>
+        new()
+        {
+            Id = documentId,
+            ContractId = contractId,
+            Type = ContractDocumentType.Contract,
+            FileName = "contract.txt",
+            ContentType = "text/plain",
+            SizeBytes = Encoding.UTF8.GetByteCount(text),
+            StorageUri = $"data:text/plain;base64,{Convert.ToBase64String(Encoding.UTF8.GetBytes(text))}",
+            ValidationStatus = "accepted",
+            MalwareScanStatus = EvidenceUploadGuardrails.CleanMalwareScanStatus,
+            NoticeVersion = NoCuiNotice.CurrentVersion,
+            UploadedAt = DateTimeOffset.UtcNow,
+            UploadedByUserId = userId,
+            ContainsPotentialCui = false
+        };
+
+    private static ClauseEntity CreateClause(string id, string source, string number, string title) =>
+        new()
+        {
+            Id = id,
+            Source = source,
+            Number = number,
+            Title = title,
+            PlainEnglishSummary = title,
+            SourceName = source,
+            SourceUrl = $"https://example.test/{id}",
+            SourceLastReviewedAt = new DateOnly(2026, 6, 17),
+            LastReviewedAt = new DateOnly(2026, 6, 17),
+            Confidence = "high",
+            SourceConfidence = "high",
+            ReviewState = ReviewState.Published
+        };
+
+    private static async Task<ExtractionJobDto> StartExtractionJobAsync(
+        HttpClient client,
+        Guid contractId,
+        Guid documentId,
+        Guid tenantId,
+        Guid userId)
+    {
+        using var request = CreateRequest(
+            HttpMethod.Post,
+            $"/api/contracts/{contractId}/documents/{documentId}/extraction-jobs",
+            tenantId,
+            userId,
+            Permission.ManageContracts);
+        var response = await client.SendAsync(request);
+        var job = await response.Content.ReadFromJsonAsync<ExtractionJobDto>(JsonOptions);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        return Assert.IsType<ExtractionJobDto>(job);
+    }
+
+    private static async Task<ExtractionJobProcessResultDto> ProcessExtractionJobAsync(
+        HttpClient client,
+        Guid contractId,
+        Guid documentId,
+        Guid tenantId,
+        Guid userId)
+    {
+        var job = await StartExtractionJobAsync(client, contractId, documentId, tenantId, userId);
+        using var request = CreateRequest(HttpMethod.Post, $"/api/extraction-jobs/{job.Id}/process", tenantId, userId, Permission.ManageContracts);
+        var response = await client.SendAsync(request);
+        var result = await response.Content.ReadFromJsonAsync<ExtractionJobProcessResultDto>(JsonOptions);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        return Assert.IsType<ExtractionJobProcessResultDto>(result);
+    }
+
+    private static UpsertContractDeliverableRequest CreateDeliverableRequest(string name, DateOnly dueAt) =>
+        new(
+            name,
+            "Deliverable tracked from contract intake.",
+            dueAt,
+            "Contracts",
+            DeliverableStatus.NotStarted);
+
+    private static NoCuiAcknowledgementEntity CreateAcknowledgement(Guid tenantId, Guid userId) =>
+        new()
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            UserId = userId,
+            NoticeVersion = NoCuiNotice.CurrentVersion,
+            NoticeCopy = NoCuiNotice.Copy,
+            AcknowledgedAt = DateTimeOffset.UtcNow,
+            CreatedAt = DateTimeOffset.UtcNow,
+            CreatedByUserId = userId
+        };
+
+    private static HttpRequestMessage CreateRequest<TContent>(
+        HttpMethod method,
+        string requestUri,
+        TContent content,
+        Guid tenantId,
+        Guid userId,
+        Permission permission)
+    {
+        var request = CreateRequest(method, requestUri, tenantId, userId, permission);
+        request.Content = JsonContent.Create(content, options: JsonOptions);
+        return ClassifiedWorkflowTestData.Confirm(request);
+    }
+
+    private static HttpRequestMessage CreateRequest(
+        HttpMethod method,
+        string requestUri,
+        Guid tenantId,
+        Guid userId,
+        Permission permission)
+    {
+        var request = new HttpRequestMessage(method, requestUri);
+        request.Headers.Add("X-Gccs-Dev-Auth", "true");
+        request.Headers.Add("X-Gccs-Dev-Tenant", tenantId.ToString());
+        request.Headers.Add("X-Gccs-Dev-User", userId.ToString());
+        request.Headers.Add("X-Gccs-Dev-Permissions", permission.ToString());
+        return ClassifiedWorkflowTestData.Confirm(request);
+    }
+
+    private static void SeedTenant(GccsDbContext dbContext, Guid tenantId, string name = "Contract Tenant")
+    {
+        dbContext.Tenants.Add(new TenantEntity
+        {
+            Id = tenantId,
+            Name = name,
+            Status = TenantStatus.Active,
+            DataPosture = TenantDataPosture.NoCui,
+            CreatedAt = DateTimeOffset.UtcNow
+        });
+    }
+}

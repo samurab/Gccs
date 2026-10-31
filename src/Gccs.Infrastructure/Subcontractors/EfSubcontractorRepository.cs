@@ -1,0 +1,971 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Gccs.Application.Security;
+using Gccs.Application.Subcontractors;
+using Gccs.Domain.Evidence;
+using Gccs.Domain.Vendors;
+using Gccs.Infrastructure.Persistence;
+using Gccs.Infrastructure.Persistence.Models;
+using Microsoft.EntityFrameworkCore;
+
+namespace Gccs.Infrastructure.Subcontractors;
+
+public sealed class EfSubcontractorRepository(
+    GccsDbContext dbContext,
+    ICurrentTenantContext tenantContext) : ISubcontractorRepository
+{
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new JsonStringEnumConverter() }
+    };
+
+    public async Task<IReadOnlyList<SubcontractorDto>> ListCurrentTenantAsync(
+        SubcontractorListQuery? query = null,
+        CancellationToken cancellationToken = default)
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var items = QueryCurrentTenant();
+        if (!string.IsNullOrWhiteSpace(query?.Status) &&
+            Enum.TryParse<SubcontractorStatus>(query.Status, true, out var status))
+        {
+            items = items.Where(subcontractor => subcontractor.Status == status);
+        }
+
+        if (query?.ExpiringInsuranceOnly == true)
+        {
+            var soon = today.AddDays(60);
+            items = items.Where(subcontractor => subcontractor.InsuranceExpiresAt != null && subcontractor.InsuranceExpiresAt <= soon);
+        }
+
+        if (!string.IsNullOrWhiteSpace(query?.Owner))
+        {
+            items = items.Where(subcontractor => subcontractor.OwnerFunction != null && subcontractor.OwnerFunction.Contains(query.Owner));
+        }
+
+        var subcontractors = await items.OrderBy(subcontractor => subcontractor.Name).ToArrayAsync(cancellationToken);
+        return subcontractors.Select(ToDto).ToArray();
+    }
+
+    public async Task<SubcontractorDto?> FindCurrentTenantAsync(Guid subcontractorId, CancellationToken cancellationToken = default)
+    {
+        var subcontractor = await QueryCurrentTenant()
+            .SingleOrDefaultAsync(candidate => candidate.Id == subcontractorId, cancellationToken);
+        return subcontractor is null ? null : ToDto(subcontractor);
+    }
+
+    public async Task<SubcontractorDto> CreateAsync(
+        UpsertSubcontractorRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var entity = new SubcontractorEntity
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantContext.TenantId,
+            CreatedAt = DateTimeOffset.UtcNow,
+            CreatedByUserId = actorUserId
+        };
+
+        Apply(entity, request);
+        SyncContractLinks(entity, request.ContractIds);
+        dbContext.Subcontractors.Add(entity);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return ToDto(entity);
+    }
+
+    public async Task<SubcontractorDto?> UpdateAsync(
+        Guid subcontractorId,
+        UpsertSubcontractorRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var entity = await QueryCurrentTenant()
+            .SingleOrDefaultAsync(candidate => candidate.Id == subcontractorId, cancellationToken);
+        if (entity is null)
+        {
+            return null;
+        }
+
+        Apply(entity, request);
+        SyncContractLinks(entity, request.ContractIds);
+        entity.UpdatedAt = DateTimeOffset.UtcNow;
+        entity.UpdatedByUserId = actorUserId;
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return ToDto(entity);
+    }
+
+    public async Task<SubcontractorDto?> ApplySamDataAsync(
+        Guid subcontractorId,
+        ApplySubcontractorEntityLookupRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var entity = await QueryCurrentTenant()
+            .SingleOrDefaultAsync(candidate => candidate.Id == subcontractorId, cancellationToken);
+        if (entity is null)
+        {
+            return null;
+        }
+
+        var selected = request.SelectedFields.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (selected.Contains("name"))
+        {
+            entity.Name = request.Result.LegalBusinessName;
+        }
+
+        if (selected.Contains("uei"))
+        {
+            entity.Uei = request.Result.Uei;
+        }
+
+        if (selected.Contains("cageCode"))
+        {
+            entity.CageCode = request.Result.CageCode;
+        }
+
+        entity.SamRegistrationStatus = request.Result.RegistrationStatus;
+        entity.SamRegistrationExpiresAt = request.Result.SamRegistrationExpiresAt;
+        entity.SamSource = request.Result.Source;
+        entity.SamRetrievedAt = request.Result.RetrievedAt;
+        entity.SamNaicsJson = JsonSerializer.Serialize(request.Result.NaicsCodes, JsonOptions);
+        entity.SamExclusionStatus = request.Result.ExclusionStatus;
+        entity.UpdatedAt = DateTimeOffset.UtcNow;
+        entity.UpdatedByUserId = actorUserId;
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return ToDto(entity);
+    }
+
+    public async Task<IReadOnlyList<SubcontractorFlowDownDto>?> ListFlowDownsAsync(
+        Guid subcontractorId,
+        Guid? contractId,
+        CancellationToken cancellationToken = default)
+    {
+        var subcontractorExists = await dbContext.Subcontractors
+            .AnyAsync(candidate => candidate.Id == subcontractorId && candidate.TenantId == tenantContext.TenantId, cancellationToken);
+        if (!subcontractorExists)
+        {
+            return null;
+        }
+
+        var query = dbContext.FlowDownClauses
+            .AsNoTracking()
+            .Where(flowDown => flowDown.SubcontractorId == subcontractorId);
+        if (contractId is not null)
+        {
+            query = query.Where(flowDown => flowDown.ContractId == contractId);
+        }
+
+        var flowDowns = await query
+            .OrderBy(flowDown => flowDown.ClauseNumber)
+            .ThenBy(flowDown => flowDown.Title)
+            .ToArrayAsync(cancellationToken);
+        return flowDowns.Select(ToDto).ToArray();
+    }
+
+    public async Task<SubcontractorFlowDownDto?> CreateFlowDownAsync(
+        Guid subcontractorId,
+        UpsertSubcontractorFlowDownRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var subcontractorExists = await dbContext.Subcontractors
+            .AnyAsync(candidate => candidate.Id == subcontractorId && candidate.TenantId == tenantContext.TenantId, cancellationToken);
+        if (!subcontractorExists)
+        {
+            return null;
+        }
+
+        var contractId = await ResolveAndValidateContractReferencesAsync(request, cancellationToken);
+        await ValidateSignedEvidenceAsync(request.SignedEvidenceItemId, cancellationToken);
+
+        var entity = new FlowDownClauseEntity
+        {
+            Id = Guid.NewGuid(),
+            SubcontractorId = subcontractorId,
+            ContractId = contractId,
+            CreatedAt = DateTimeOffset.UtcNow,
+            CreatedByUserId = actorUserId
+        };
+        Apply(entity, request);
+        dbContext.FlowDownClauses.Add(entity);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return ToDto(entity);
+    }
+
+    public async Task<SubcontractorFlowDownDto?> UpdateFlowDownAsync(
+        Guid subcontractorId,
+        Guid flowDownId,
+        UpsertSubcontractorFlowDownRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var entity = await dbContext.FlowDownClauses
+            .Include(flowDown => flowDown.Subcontractor)
+            .SingleOrDefaultAsync(
+                candidate => candidate.Id == flowDownId &&
+                    candidate.SubcontractorId == subcontractorId &&
+                    candidate.Subcontractor != null &&
+                    candidate.Subcontractor.TenantId == tenantContext.TenantId,
+                cancellationToken);
+        if (entity is null)
+        {
+            return null;
+        }
+
+        var contractId = await ResolveAndValidateContractReferencesAsync(request, cancellationToken);
+        await ValidateSignedEvidenceAsync(request.SignedEvidenceItemId, cancellationToken);
+        Apply(entity, request);
+        entity.ContractId = contractId;
+        entity.UpdatedAt = DateTimeOffset.UtcNow;
+        entity.UpdatedByUserId = actorUserId;
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return ToDto(entity);
+    }
+
+    public async Task<IReadOnlyList<SubcontractorEvidenceRequestDto>?> ListEvidenceRequestsAsync(
+        Guid subcontractorId,
+        CancellationToken cancellationToken = default)
+    {
+        var subcontractorExists = await dbContext.Subcontractors
+            .AnyAsync(candidate => candidate.Id == subcontractorId && candidate.TenantId == tenantContext.TenantId, cancellationToken);
+        if (!subcontractorExists)
+        {
+            return null;
+        }
+
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var requests = await dbContext.SubcontractorEvidenceRequests
+            .AsNoTracking()
+            .Where(request => request.SubcontractorId == subcontractorId && request.TenantId == tenantContext.TenantId)
+            .OrderBy(request => request.DueDate)
+            .ThenByDescending(request => request.CreatedAt)
+            .ToArrayAsync(cancellationToken);
+        return requests.Select(request => ToDto(request, today)).ToArray();
+    }
+
+    public async Task<IReadOnlyList<SupplierObligationDto>?> ListSupplierObligationsAsync(
+        Guid? subcontractorId,
+        Guid? contractId,
+        CancellationToken cancellationToken = default)
+    {
+        if (subcontractorId is not null)
+        {
+            var subcontractorExists = await dbContext.Subcontractors
+                .AnyAsync(candidate => candidate.Id == subcontractorId && candidate.TenantId == tenantContext.TenantId, cancellationToken);
+            if (!subcontractorExists)
+            {
+                return null;
+            }
+        }
+
+        var query = dbContext.SubcontractorEvidenceRequests
+            .AsNoTracking()
+            .Include(request => request.Subcontractor)
+            .Include(request => request.RelatedFlowDownClause)
+                .ThenInclude(flowDown => flowDown!.Contract)
+            .Where(request =>
+                request.TenantId == tenantContext.TenantId &&
+                request.Subcontractor != null &&
+                request.Subcontractor.TenantId == tenantContext.TenantId &&
+                request.RelatedFlowDownClauseId != null);
+
+        if (subcontractorId is not null)
+        {
+            query = query.Where(request => request.SubcontractorId == subcontractorId);
+        }
+
+        if (contractId is not null)
+        {
+            query = query.Where(request => request.RelatedFlowDownClause != null && request.RelatedFlowDownClause.ContractId == contractId);
+        }
+
+        var requests = await query
+            .OrderBy(request => request.DueDate)
+            .ThenBy(request => request.RelatedFlowDownClause == null ? string.Empty : request.RelatedFlowDownClause.ClauseNumber)
+            .ToArrayAsync(cancellationToken);
+        return requests.Select(ToSupplierObligationDto).ToArray();
+    }
+
+    public async Task<SubcontractorEvidenceRequestDto?> CreateEvidenceRequestAsync(
+        Guid subcontractorId,
+        UpsertSubcontractorEvidenceRequestRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var subcontractorExists = await dbContext.Subcontractors
+            .AnyAsync(candidate => candidate.Id == subcontractorId && candidate.TenantId == tenantContext.TenantId, cancellationToken);
+        if (!subcontractorExists)
+        {
+            return null;
+        }
+
+        await ValidateEvidenceRequestReferencesAsync(subcontractorId, request, cancellationToken);
+
+        var entity = new SubcontractorEvidenceRequestEntity
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantContext.TenantId,
+            SubcontractorId = subcontractorId,
+            CreatedAt = DateTimeOffset.UtcNow,
+            CreatedByUserId = actorUserId
+        };
+        Apply(entity, request, actorUserId);
+        dbContext.SubcontractorEvidenceRequests.Add(entity);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return ToDto(entity);
+    }
+
+    public async Task<SupplierObligationDto?> CreateSupplierObligationAsync(
+        Guid subcontractorId,
+        UpsertSupplierObligationRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var evidenceRequest = ToEvidenceRequest(request);
+        var created = await CreateEvidenceRequestAsync(subcontractorId, evidenceRequest, actorUserId, cancellationToken);
+        return created is null
+            ? null
+            : await FindSupplierObligationAsync(subcontractorId, created.Id, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<SupplierObligationDto>?> BulkCreateSupplierObligationsAsync(
+        Guid subcontractorId,
+        BulkCreateSupplierObligationsRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var subcontractorExists = await dbContext.Subcontractors
+            .AnyAsync(candidate => candidate.Id == subcontractorId && candidate.TenantId == tenantContext.TenantId, cancellationToken);
+        if (!subcontractorExists)
+        {
+            return null;
+        }
+
+        var contractExists = await dbContext.Contracts
+            .AnyAsync(contract => contract.Id == request.ContractId && contract.TenantId == tenantContext.TenantId, cancellationToken);
+        if (!contractExists)
+        {
+            throw new SubcontractorValidationException("Contract was not found for the current tenant.");
+        }
+
+        var acceptedFlowDowns = await dbContext.FlowDownClauses
+            .Include(flowDown => flowDown.Subcontractor)
+            .Where(flowDown =>
+                flowDown.SubcontractorId == subcontractorId &&
+                flowDown.ContractId == request.ContractId &&
+                flowDown.Subcontractor != null &&
+                flowDown.Subcontractor.TenantId == tenantContext.TenantId &&
+                flowDown.ObligationId != null &&
+                (flowDown.Status == FlowDownStatus.Acknowledged || flowDown.Status == FlowDownStatus.Signed))
+            .OrderBy(flowDown => flowDown.ClauseNumber)
+            .ThenBy(flowDown => flowDown.Title)
+            .ToArrayAsync(cancellationToken);
+
+        var flowDownIds = acceptedFlowDowns.Select(flowDown => flowDown.Id).ToArray();
+        var existingFlowDownIds = await dbContext.SubcontractorEvidenceRequests
+            .Where(candidate =>
+                candidate.TenantId == tenantContext.TenantId &&
+                candidate.SubcontractorId == subcontractorId &&
+                candidate.RelatedFlowDownClauseId != null &&
+                flowDownIds.Contains(candidate.RelatedFlowDownClauseId.Value))
+            .Select(candidate => candidate.RelatedFlowDownClauseId!.Value)
+            .ToArrayAsync(cancellationToken);
+        var existing = existingFlowDownIds.ToHashSet();
+        var createdIds = new List<Guid>();
+
+        foreach (var flowDown in acceptedFlowDowns.Where(flowDown => !existing.Contains(flowDown.Id)))
+        {
+            var entity = new SubcontractorEvidenceRequestEntity
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantContext.TenantId,
+                SubcontractorId = subcontractorId,
+                CreatedAt = DateTimeOffset.UtcNow,
+                CreatedByUserId = actorUserId
+            };
+            Apply(entity, new UpsertSubcontractorEvidenceRequestRequest(
+                $"{flowDown.ClauseNumber}: {flowDown.Title}",
+                request.RequiredEvidenceTypes,
+                request.DueDate,
+                request.Status,
+                null,
+                null,
+                flowDown.ObligationId,
+                flowDown.Id,
+                null,
+                request.OwnerFunction), actorUserId);
+            dbContext.SubcontractorEvidenceRequests.Add(entity);
+            createdIds.Add(entity.Id);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        var created = await ListSupplierObligationsAsync(subcontractorId, request.ContractId, cancellationToken);
+        return created?.Where(obligation => createdIds.Contains(obligation.Id)).ToArray() ?? [];
+    }
+
+    public async Task<SupplierObligationDto?> UpdateSupplierObligationAsync(
+        Guid subcontractorId,
+        Guid supplierObligationId,
+        UpsertSupplierObligationRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var entity = await dbContext.SubcontractorEvidenceRequests
+            .SingleOrDefaultAsync(candidate =>
+                candidate.Id == supplierObligationId &&
+                candidate.SubcontractorId == subcontractorId &&
+                candidate.TenantId == tenantContext.TenantId,
+                cancellationToken);
+        if (entity is null)
+        {
+            return null;
+        }
+
+        await ValidateEvidenceRequestReferencesAsync(subcontractorId, ToEvidenceRequest(request), cancellationToken);
+        Apply(entity, ToEvidenceRequest(request), actorUserId);
+        entity.UpdatedAt = DateTimeOffset.UtcNow;
+        entity.UpdatedByUserId = actorUserId;
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return await FindSupplierObligationAsync(subcontractorId, supplierObligationId, cancellationToken);
+    }
+
+    public async Task<SubcontractorEvidenceRequestDto?> UpdateEvidenceRequestAsync(
+        Guid subcontractorId,
+        Guid evidenceRequestId,
+        UpsertSubcontractorEvidenceRequestRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var entity = await dbContext.SubcontractorEvidenceRequests.SingleOrDefaultAsync(
+            candidate => candidate.Id == evidenceRequestId &&
+                candidate.SubcontractorId == subcontractorId &&
+                candidate.TenantId == tenantContext.TenantId,
+            cancellationToken);
+        if (entity is null)
+        {
+            return null;
+        }
+
+        await ValidateEvidenceRequestReferencesAsync(subcontractorId, request, cancellationToken);
+        Apply(entity, request, actorUserId);
+        entity.UpdatedAt = DateTimeOffset.UtcNow;
+        entity.UpdatedByUserId = actorUserId;
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return ToDto(entity);
+    }
+
+    private IQueryable<SubcontractorEntity> QueryCurrentTenant() =>
+        dbContext.Subcontractors
+            .Include(subcontractor => subcontractor.Contracts)
+            .Include(subcontractor => subcontractor.FlowDownClauses)
+            .Include(subcontractor => subcontractor.EvidenceRequests)
+            .Where(subcontractor => subcontractor.TenantId == tenantContext.TenantId);
+
+    private static void Apply(SubcontractorEntity entity, UpsertSubcontractorRequest request)
+    {
+        entity.Name = request.Name;
+        entity.Uei = request.Uei;
+        entity.CageCode = request.CageCode;
+        entity.Status = request.Status;
+        entity.RoleDescription = request.RoleDescription;
+        entity.SmallBusinessStatus = request.SmallBusinessStatus;
+        entity.NaicsCodesJson = JsonSerializer.Serialize(request.NaicsCodes ?? [], JsonOptions);
+        entity.CertificationsJson = JsonSerializer.Serialize(request.Certifications ?? [], JsonOptions);
+        entity.CmmcStatus = request.CmmcStatus;
+        entity.InsuranceExpiresAt = request.InsuranceExpiresAt;
+        entity.NdaStatus = request.NdaStatus;
+        entity.WorkshareDescription = request.WorkshareDescription;
+        entity.WorksharePercentage = request.WorksharePercentage;
+        entity.HasFciAccess = request.HasFciAccess;
+        entity.HasCuiAccess = request.HasCuiAccess;
+        entity.HasExportControlledAccess = request.HasExportControlledAccess;
+        entity.RequiredCmmcLevel = request.RequiredCmmcLevel;
+        entity.ContactName = request.ContactName;
+        entity.ContactEmail = request.ContactEmail;
+        entity.ContactPhone = request.ContactPhone;
+        entity.ContactTitle = request.ContactTitle;
+        entity.OwnerFunction = request.OwnerFunction;
+    }
+
+    private async Task<Guid?> ResolveAndValidateContractReferencesAsync(
+        UpsertSubcontractorFlowDownRequest request,
+        CancellationToken cancellationToken)
+    {
+        Guid? contractId = request.ContractId;
+        if (request.ContractClauseId is not null)
+        {
+            var clause = await dbContext.Set<ContractClauseEntity>()
+                .AsNoTracking()
+                .Include(candidate => candidate.Contract)
+                .SingleOrDefaultAsync(candidate => candidate.Id == request.ContractClauseId, cancellationToken);
+            if (clause?.Contract is null || clause.Contract.TenantId != tenantContext.TenantId)
+            {
+                throw new SubcontractorValidationException("Contract clause was not found for the current tenant.");
+            }
+
+            if (contractId is not null && contractId != clause.ContractId)
+            {
+                throw new SubcontractorValidationException("Contract clause does not belong to the requested contract.");
+            }
+
+            contractId = clause.ContractId;
+
+            if (request.ObligationId is not null)
+            {
+                var clauseHasObligation = await dbContext.Set<ContractClauseObligationEntity>()
+                    .AnyAsync(
+                        link => link.ContractClauseId == request.ContractClauseId && link.ObligationId == request.ObligationId,
+                        cancellationToken);
+                if (!clauseHasObligation)
+                {
+                    throw new SubcontractorValidationException("Obligation is not assigned to the requested contract clause.");
+                }
+            }
+        }
+
+        if (contractId is not null)
+        {
+            var contractExists = await dbContext.Contracts
+                .AnyAsync(contract => contract.Id == contractId && contract.TenantId == tenantContext.TenantId, cancellationToken);
+            if (!contractExists)
+            {
+                throw new SubcontractorValidationException("Contract was not found for the current tenant.");
+            }
+        }
+
+        if (request.ObligationId is not null && request.ContractClauseId is null)
+        {
+            var obligationExists = await dbContext.Obligations
+                .AnyAsync(obligation => obligation.Id == request.ObligationId, cancellationToken);
+            if (!obligationExists)
+            {
+                throw new SubcontractorValidationException("Obligation was not found.");
+            }
+        }
+
+        return contractId;
+    }
+
+    private async Task ValidateSignedEvidenceAsync(Guid? signedEvidenceItemId, CancellationToken cancellationToken)
+    {
+        if (signedEvidenceItemId is null)
+        {
+            return;
+        }
+
+        var evidence = await dbContext.EvidenceItems
+            .AsNoTracking()
+            .SingleOrDefaultAsync(candidate => candidate.Id == signedEvidenceItemId, cancellationToken);
+        if (evidence is null || evidence.TenantId != tenantContext.TenantId)
+        {
+            throw new SubcontractorValidationException("Signed evidence was not found for the current tenant.");
+        }
+
+        if (evidence.Status != EvidenceStatus.Approved || evidence.Type != EvidenceType.SignedFlowDown)
+        {
+            throw new SubcontractorValidationException("Signed evidence must be an approved signed flow-down evidence item.");
+        }
+    }
+
+    private async Task ValidateEvidenceRequestReferencesAsync(
+        Guid subcontractorId,
+        UpsertSubcontractorEvidenceRequestRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request.ObligationId is not null)
+        {
+            var obligationExists = await dbContext.Obligations
+                .AnyAsync(obligation => obligation.Id == request.ObligationId, cancellationToken);
+            if (!obligationExists)
+            {
+                throw new SubcontractorValidationException("Obligation was not found.");
+            }
+        }
+
+        if (request.RelatedFlowDownClauseId is not null)
+        {
+            var flowDownExists = await dbContext.FlowDownClauses
+                .Include(flowDown => flowDown.Subcontractor)
+                .AnyAsync(flowDown =>
+                    flowDown.Id == request.RelatedFlowDownClauseId &&
+                    flowDown.SubcontractorId == subcontractorId &&
+                    flowDown.Subcontractor != null &&
+                    flowDown.Subcontractor.TenantId == tenantContext.TenantId,
+                    cancellationToken);
+            if (!flowDownExists)
+            {
+                throw new SubcontractorValidationException("Related flow-down was not found for the subcontractor.");
+            }
+        }
+
+        if (request.ReceivedEvidenceItemId is not null)
+        {
+            var evidence = await dbContext.EvidenceItems
+                .AsNoTracking()
+                .SingleOrDefaultAsync(candidate => candidate.Id == request.ReceivedEvidenceItemId, cancellationToken);
+            if (evidence is null || evidence.TenantId != tenantContext.TenantId)
+            {
+                throw new SubcontractorValidationException("Received evidence was not found for the current tenant.");
+            }
+        }
+    }
+
+    private static void Apply(FlowDownClauseEntity entity, UpsertSubcontractorFlowDownRequest request)
+    {
+        entity.ContractClauseId = request.ContractClauseId;
+        entity.ObligationId = request.ObligationId;
+        entity.ClauseNumber = request.ClauseNumber;
+        entity.Title = request.Title;
+        entity.Status = request.Status;
+        entity.SentAt = request.SentAt;
+        entity.AcknowledgedAt = request.AcknowledgedAt;
+        entity.SignedAt = request.SignedAt;
+        entity.WaivedAt = request.WaivedAt;
+        entity.SignedEvidenceItemId = request.SignedEvidenceItemId;
+    }
+
+    private void Apply(SubcontractorEvidenceRequestEntity entity, UpsertSubcontractorEvidenceRequestRequest request, Guid actorUserId)
+    {
+        entity.RequestedItem = request.RequestedItem;
+        entity.RequestedEvidenceTypesJson = JsonSerializer.Serialize(request.RequestedEvidenceTypes, JsonOptions);
+        entity.DueDate = request.DueDate;
+        entity.Status = request.Status;
+        entity.OwnerFunction = request.OwnerFunction;
+        entity.RecipientName = request.RecipientName;
+        entity.RecipientEmail = request.RecipientEmail;
+        entity.ObligationId = request.ObligationId;
+        entity.RelatedFlowDownClauseId = request.RelatedFlowDownClauseId;
+        entity.ReceivedEvidenceItemId = request.ReceivedEvidenceItemId;
+        entity.CompletedAt = request.Status == SubcontractorEvidenceRequestStatus.Satisfied
+            ? entity.CompletedAt ?? DateTimeOffset.UtcNow
+            : null;
+
+        if (request.ReceivedEvidenceItemId is not null)
+        {
+            var linkExists = dbContext.Set<SubcontractorEvidenceEntity>()
+                .Any(link => link.SubcontractorId == entity.SubcontractorId && link.EvidenceItemId == request.ReceivedEvidenceItemId);
+            if (!linkExists)
+            {
+                dbContext.Set<SubcontractorEvidenceEntity>().Add(new SubcontractorEvidenceEntity
+                {
+                    SubcontractorId = entity.SubcontractorId,
+                    EvidenceItemId = request.ReceivedEvidenceItemId.Value
+                });
+            }
+        }
+    }
+
+    private async Task<SupplierObligationDto?> FindSupplierObligationAsync(
+        Guid subcontractorId,
+        Guid supplierObligationId,
+        CancellationToken cancellationToken)
+    {
+        var entity = await dbContext.SubcontractorEvidenceRequests
+            .AsNoTracking()
+            .Include(request => request.Subcontractor)
+            .Include(request => request.RelatedFlowDownClause)
+                .ThenInclude(flowDown => flowDown!.Contract)
+            .SingleOrDefaultAsync(request =>
+                request.Id == supplierObligationId &&
+                request.SubcontractorId == subcontractorId &&
+                request.TenantId == tenantContext.TenantId &&
+                request.RelatedFlowDownClauseId != null,
+                cancellationToken);
+        return entity is null ? null : ToSupplierObligationDto(entity);
+    }
+
+    private static UpsertSubcontractorEvidenceRequestRequest ToEvidenceRequest(UpsertSupplierObligationRequest request) =>
+        new(
+            request.RequestedItem,
+            request.RequiredEvidenceTypes,
+            request.DueDate,
+            request.Status,
+            null,
+            null,
+            request.ObligationId,
+            request.RelatedFlowDownClauseId,
+            request.ReceivedEvidenceItemId,
+            request.OwnerFunction);
+
+    private static void SyncContractLinks(SubcontractorEntity entity, IReadOnlyList<Guid> contractIds)
+    {
+        entity.Contracts.Clear();
+        foreach (var contractId in contractIds)
+        {
+            entity.Contracts.Add(new ContractSubcontractorEntity
+            {
+                ContractId = contractId,
+                SubcontractorId = entity.Id
+            });
+        }
+    }
+
+    private static SubcontractorDto ToDto(SubcontractorEntity entity) =>
+        new(
+            entity.Id,
+            entity.TenantId,
+            entity.Name,
+            entity.Uei,
+            entity.CageCode,
+            entity.SamRegistrationStatus,
+            entity.SamRegistrationExpiresAt,
+            entity.SamSource,
+            entity.SamRetrievedAt,
+            ReadSamNaics(entity.SamNaicsJson),
+            entity.SamExclusionStatus,
+            entity.Status,
+            entity.RoleDescription,
+            entity.SmallBusinessStatus,
+            ReadStringArray(entity.NaicsCodesJson),
+            ReadStringArray(entity.CertificationsJson),
+            entity.CmmcStatus,
+            entity.InsuranceExpiresAt,
+            entity.NdaStatus,
+            entity.WorkshareDescription,
+            entity.WorksharePercentage,
+            entity.HasFciAccess,
+            entity.HasCuiAccess,
+            entity.HasExportControlledAccess,
+            entity.RequiredCmmcLevel,
+            entity.ContactName,
+            entity.ContactEmail,
+            entity.ContactPhone,
+            entity.ContactTitle,
+            entity.OwnerFunction,
+            CalculateCompletion(entity),
+            CalculateCompletion(entity) == 100,
+            CalculateRisk(entity).Status,
+            CalculateRisk(entity).Drivers,
+            entity.Contracts.Select(link => link.ContractId).OrderBy(id => id).ToArray(),
+            entity.CreatedAt,
+            entity.UpdatedAt);
+
+    private static SubcontractorFlowDownDto ToDto(FlowDownClauseEntity entity) =>
+        new(
+            entity.Id,
+            entity.SubcontractorId,
+            entity.ContractId,
+            entity.ContractClauseId,
+            entity.ObligationId,
+            entity.ClauseNumber,
+            entity.Title,
+            entity.Status,
+            entity.SentAt,
+            entity.AcknowledgedAt,
+            entity.SignedAt,
+            entity.WaivedAt,
+            entity.SignedEvidenceItemId,
+            entity.CreatedAt,
+            entity.UpdatedAt);
+
+    private static SubcontractorEvidenceRequestDto ToDto(SubcontractorEvidenceRequestEntity entity) =>
+        ToDto(entity, DateOnly.FromDateTime(DateTime.UtcNow));
+
+    private static SubcontractorEvidenceRequestDto ToDto(SubcontractorEvidenceRequestEntity entity, DateOnly today) =>
+        new(
+            entity.Id,
+            entity.TenantId,
+            entity.SubcontractorId,
+            entity.RequestedItem,
+            DeserializeEvidenceTypes(entity.RequestedEvidenceTypesJson),
+            entity.DueDate,
+            entity.Status,
+            entity.OwnerFunction,
+            entity.RecipientName,
+            entity.RecipientEmail,
+            entity.ObligationId,
+            entity.RelatedFlowDownClauseId,
+            entity.ReceivedEvidenceItemId,
+            entity.CompletedAt,
+            IsEvidenceRequestOverdue(entity, today),
+            entity.CreatedAt,
+            entity.UpdatedAt);
+
+    private static SupplierObligationDto ToSupplierObligationDto(SubcontractorEvidenceRequestEntity entity)
+    {
+        var flowDown = entity.RelatedFlowDownClause;
+        var contract = flowDown?.Contract;
+        var ownerFunction = FirstPopulated(entity.OwnerFunction, entity.Subcontractor?.OwnerFunction, "Contracts");
+
+        return new SupplierObligationDto(
+            entity.Id,
+            entity.TenantId,
+            entity.SubcontractorId,
+            entity.Subcontractor?.Name ?? string.Empty,
+            flowDown?.ContractId,
+            contract?.ContractNumber,
+            entity.RelatedFlowDownClauseId,
+            flowDown?.ContractClauseId,
+            entity.ObligationId ?? flowDown?.ObligationId,
+            flowDown?.ClauseNumber ?? string.Empty,
+            entity.RequestedItem,
+            ownerFunction,
+            entity.DueDate,
+            entity.Status,
+            DeserializeEvidenceTypes(entity.RequestedEvidenceTypesJson),
+            entity.ReceivedEvidenceItemId,
+            entity.CreatedAt,
+            entity.UpdatedAt);
+    }
+
+    private static string FirstPopulated(params string?[] values) =>
+        values.First(value => !string.IsNullOrWhiteSpace(value))!;
+
+    private static bool IsEvidenceRequestOverdue(SubcontractorEvidenceRequestEntity entity, DateOnly today) =>
+        entity.DueDate < today &&
+        entity.Status is not SubcontractorEvidenceRequestStatus.Satisfied and not SubcontractorEvidenceRequestStatus.Cancelled;
+
+    private static IReadOnlyList<EvidenceType> DeserializeEvidenceTypes(string json)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<EvidenceType[]>(json, JsonOptions) ?? [];
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
+
+    private static IReadOnlyList<SubcontractorSamNaicsCodeDto> ReadSamNaics(string json)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<SubcontractorSamNaicsCodeDto[]>(json, JsonOptions) ?? [];
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
+
+    private static IReadOnlyList<string> ReadStringArray(string json)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<string[]>(json, JsonOptions) ?? [];
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
+
+    private static int CalculateCompletion(SubcontractorEntity entity)
+    {
+        var completed = 0;
+        const int total = 10;
+        completed += string.IsNullOrWhiteSpace(entity.Name) ? 0 : 1;
+        completed += string.IsNullOrWhiteSpace(entity.Uei) ? 0 : 1;
+        completed += string.IsNullOrWhiteSpace(entity.CageCode) ? 0 : 1;
+        completed += string.IsNullOrWhiteSpace(entity.RoleDescription) ? 0 : 1;
+        completed += string.IsNullOrWhiteSpace(entity.SmallBusinessStatus) ? 0 : 1;
+        completed += ReadStringArray(entity.NaicsCodesJson).Count == 0 ? 0 : 1;
+        completed += ReadStringArray(entity.CertificationsJson).Count == 0 ? 0 : 1;
+        completed += string.IsNullOrWhiteSpace(entity.CmmcStatus) ? 0 : 1;
+        completed += entity.InsuranceExpiresAt is null ? 0 : 1;
+        completed += string.IsNullOrWhiteSpace(entity.OwnerFunction) ? 0 : 1;
+        return (int)Math.Round(completed / (double)total * 100, MidpointRounding.AwayFromZero);
+    }
+
+    private static (string Status, IReadOnlyList<string> Drivers) CalculateRisk(SubcontractorEntity entity)
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var drivers = new List<string>();
+        var high = false;
+        var medium = false;
+        var needsReview = false;
+
+        if (entity.InsuranceExpiresAt is null)
+        {
+            needsReview = true;
+            drivers.Add("Insurance expiration is missing.");
+        }
+        else if (entity.InsuranceExpiresAt < today)
+        {
+            high = true;
+            drivers.Add("Insurance is expired.");
+        }
+        else if (entity.InsuranceExpiresAt <= today.AddDays(60))
+        {
+            medium = true;
+            drivers.Add("Insurance expires within 60 days.");
+        }
+
+        if (string.IsNullOrWhiteSpace(entity.NdaStatus) || entity.NdaStatus.Contains("unknown", StringComparison.OrdinalIgnoreCase))
+        {
+            needsReview = true;
+            drivers.Add("NDA status is unknown.");
+        }
+        else if (!IsClearedNdaStatus(entity.NdaStatus))
+        {
+            medium = true;
+            drivers.Add("NDA is not on file.");
+        }
+
+        if (entity.HasCuiAccess && (string.IsNullOrWhiteSpace(entity.CmmcStatus) || entity.CmmcStatus.Contains("unknown", StringComparison.OrdinalIgnoreCase)))
+        {
+            needsReview = true;
+            drivers.Add("CUI access is enabled but CMMC status is unknown.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(entity.SamRegistrationStatus) && !IsActiveSamStatus(entity.SamRegistrationStatus))
+        {
+            high = true;
+            drivers.Add("SAM registration is not active.");
+        }
+
+        if (entity.FlowDownClauses.Any(flowDown =>
+            flowDown.Status is not FlowDownStatus.Signed and
+                not FlowDownStatus.Waived and
+                not FlowDownStatus.NotApplicable and
+                not FlowDownStatus.NotRequired))
+        {
+            medium = true;
+            drivers.Add("One or more flow-downs are not signed or waived.");
+        }
+
+        if (entity.EvidenceRequests.Any(request =>
+            request.DueDate < today &&
+            request.Status is not SubcontractorEvidenceRequestStatus.Satisfied and not SubcontractorEvidenceRequestStatus.Cancelled))
+        {
+            high = true;
+            drivers.Add("One or more evidence requests are overdue.");
+        }
+
+        var status = high ? "High" : needsReview ? "NeedsReview" : medium ? "Medium" : "Low";
+        if (drivers.Count == 0)
+        {
+            drivers.Add("No elevated subcontractor risk signals detected.");
+        }
+
+        return (status, drivers);
+    }
+
+    private static bool IsClearedNdaStatus(string value)
+    {
+        var normalized = NormalizeStatus(value);
+        return normalized is "onfile" or "onfilesigned" or "signed" or "executed" or "complete" or "completed";
+    }
+
+    private static bool IsActiveSamStatus(string value)
+    {
+        var normalized = NormalizeStatus(value);
+        return normalized is "active" or "registrationactive";
+    }
+
+    private static string NormalizeStatus(string value)
+    {
+        Span<char> buffer = stackalloc char[value.Length];
+        var length = 0;
+        foreach (var character in value)
+        {
+            if (char.IsLetterOrDigit(character))
+            {
+                buffer[length++] = char.ToLowerInvariant(character);
+            }
+        }
+
+        return new string(buffer[..length]);
+    }
+}
