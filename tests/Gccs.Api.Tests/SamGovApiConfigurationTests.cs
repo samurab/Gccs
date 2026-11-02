@@ -53,6 +53,61 @@ public sealed class SamGovApiConfigurationTests
         Assert.Equal(SamGovEntityLookupClient.UserSafeFailureMessage, result.Error?.Message);
     }
 
+    [Theory]
+    [InlineData("http://sam.test", true)]
+    [InlineData("http://sam.test", false)]
+    [InlineData("HTTP://sam.test", true)]
+    [InlineData("ftp://sam.test", true)]
+    [InlineData("file:///tmp/sam", false)]
+    [InlineData("/relative-endpoint", true)]
+    [InlineData("", false)]
+    [InlineData("not a URI", true)]
+    public async Task Lookup_rejects_invalid_or_non_https_endpoints_without_sending_credentials(
+        string baseUrl,
+        bool lookupByUei)
+    {
+        var handler = new SequenceHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var logger = new CapturingLogger<SamGovEntityLookupClient>();
+        var client = CreateClient(handler,
+            new SamGovOptions { BaseUrl = baseUrl, ApiKey = "synthetic-sam-key", MaxRetries = 2 }, logger);
+
+        var result = lookupByUei
+            ? await client.LookupByUeiAsync("ABC123")
+            : await client.SearchAsync(new SamGovEntitySearchRequest(null, "Example Company"));
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("samgov_configuration_error", result.Error?.Code);
+        Assert.Equal(SamGovEntityLookupClient.UserSafeFailureMessage, result.Error?.Message);
+        Assert.Equal(0, handler.RequestCount);
+        Assert.Empty(handler.RequestUris);
+        Assert.DoesNotContain("synthetic-sam-key", string.Join("\n", logger.Messages), StringComparison.Ordinal);
+        Assert.DoesNotContain("api_key", string.Join("\n", logger.Messages), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData(true, "ueiSAM=ABC%2F123%20%26")]
+    [InlineData(false, "legalBusinessName=A%20%26%20B")]
+    public async Task Lookup_preserves_https_search_and_escaped_query_values(bool lookupByUei, string query)
+    {
+        var handler = new SequenceHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("synthetic-result")
+        });
+        var client = CreateClient(handler,
+            new SamGovOptions { BaseUrl = "https://sam.test", ApiKey = "test+key&", MaxRetries = 0 });
+
+        var result = lookupByUei
+            ? await client.LookupByUeiAsync(" ABC/123 & ")
+            : await client.SearchAsync(new SamGovEntitySearchRequest(null, " A & B "));
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("synthetic-result", result.PayloadJson);
+        Assert.Equal(1, handler.RequestCount);
+        Assert.Equal("https", handler.RequestUris.Single().Scheme);
+        Assert.Equal("/entity-information/v3/entities", handler.RequestUris.Single().AbsolutePath);
+        Assert.Equal($"?{query}&api_key=test%2Bkey%26", handler.RequestUris.Single().Query);
+    }
+
     [Fact]
     public async Task TC_22_1_3_and_TC_22_1_4_Failures_are_user_safe_and_logs_redact_secrets_and_payloads()
     {
@@ -99,15 +154,24 @@ public sealed class SamGovApiConfigurationTests
             Options.Create(options),
             logger ?? new CapturingLogger<SamGovEntityLookupClient>());
 
-    private static string FindRepositoryRoot()
+    private static string FindRepositoryRoot(
+        [System.Runtime.CompilerServices.CallerFilePath] string sourcePath = "")
     {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Gccs.slnx")))
+        foreach (var start in new[] { AppContext.BaseDirectory, Path.GetDirectoryName(sourcePath)! })
         {
-            directory = directory.Parent;
+            var directory = new DirectoryInfo(start);
+            while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Gccs.slnx")))
+            {
+                directory = directory.Parent;
+            }
+
+            if (directory is not null)
+            {
+                return directory.FullName;
+            }
         }
 
-        return directory?.FullName ?? throw new DirectoryNotFoundException("Could not locate repository root.");
+        throw new DirectoryNotFoundException("Could not locate repository root.");
     }
 
     private sealed class SequenceHandler(params Func<HttpRequestMessage, HttpResponseMessage>[] responses) : HttpMessageHandler

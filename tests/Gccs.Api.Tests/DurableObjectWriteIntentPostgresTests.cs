@@ -416,7 +416,8 @@ public sealed class DurableObjectWriteIntentPostgresTests
         Assert.StartsWith("s397-intent-", container);
         var storage = new AzureBlobObjectStorageService(Options.Create(new AzureBlobStorageOptions
         { UseManagedIdentity = false, Containers = new AzureBlobContainerOptions { Evidence = container } }),
-            new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["ConnectionStrings:AzureStorage"] = connection }).Build());
+            new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["ConnectionStrings:AzureStorage"] = connection }).Build(),
+            allowDevelopmentLoopbackHttp: true);
         var coordinator = new DurableObjectWriteCoordinator(f.Repository, new LostAcknowledgementStorage(storage));
         await Assert.ThrowsAsync<IOException>(() => coordinator.ExecuteAsync<Published>(f.Request(), f.User, f.Kind, f.Resource,
             (_, _) => throw new InvalidOperationException("Unknown write cannot publish.")));

@@ -47,7 +47,7 @@ public sealed class RetainedLocalProviderTests(ITestOutputHelper output)
         var storage = new AzureBlobObjectStorageService(Options.Create(new AzureBlobStorageOptions
         {
             UseManagedIdentity = false, Containers = new AzureBlobContainerOptions { Evidence = containerName }
-        }), configuration);
+        }), configuration, allowDevelopmentLoopbackHttp: true);
         var tenantA = Guid.NewGuid();
         var tenantB = Guid.NewGuid();
         cleanStream.Position = 0;

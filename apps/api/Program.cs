@@ -63,8 +63,8 @@ if (invitationDeliveryEnabled)
         (!builder.Environment.IsDevelopment() && publicWebUri.Scheme != Uri.UriSchemeHttps) ||
         !string.Equals(provider, "AzureCommunicationServices", StringComparison.OrdinalIgnoreCase) ||
         string.IsNullOrWhiteSpace(senderAddress) ||
-        (useManagedIdentity && !Uri.TryCreate(endpoint, UriKind.Absolute, out _)) ||
-        (!useManagedIdentity && string.IsNullOrWhiteSpace(connectionString)))
+        !Gccs.Infrastructure.Communication.AzureCommunicationEmailConfiguration.HasHttpsEndpoint(
+            useManagedIdentity, endpoint, connectionString))
     {
         throw new InvalidOperationException(
             "Enabled invitation delivery requires a valid public web URL, sender address, and Azure Communication Services credential configuration.");
@@ -149,7 +149,8 @@ builder.Services.AddHttpClient();
 builder.Services.Configure<LocalDependencyOptions>(builder.Configuration.GetSection(LocalDependencyOptions.SectionName));
 builder.Services.AddScoped<LocalDependencyHealthService>();
 builder.Services.AddGccsApiSecurity(builder.Configuration, builder.Environment);
-builder.Services.AddGccsInfrastructure(builder.Configuration);
+builder.Services.AddGccsInfrastructure(
+    builder.Configuration, allowDevelopmentLoopbackHttp: builder.Environment.IsDevelopment());
 builder.Services.AddSingleton(_ => new DataHandlingNoticePackage(
     ComplianceContentPackageLocator.FindPackageRoot(builder.Environment.ContentRootPath)));
 builder.Services.AddScoped<CurrentDataHandlingNoticeService>();
