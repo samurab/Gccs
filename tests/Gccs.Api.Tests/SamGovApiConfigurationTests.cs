@@ -69,7 +69,7 @@ public sealed class SamGovApiConfigurationTests
         var handler = new SequenceHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
         var logger = new CapturingLogger<SamGovEntityLookupClient>();
         var client = CreateClient(handler,
-            new SamGovOptions { BaseUrl = baseUrl, ApiKey = "synthetic-sam-key", MaxRetries = 2 }, logger);
+            new SamGovOptions { BaseUrl = baseUrl, ApiKey = "example-sam-key", MaxRetries = 2 }, logger);
 
         var result = lookupByUei
             ? await client.LookupByUeiAsync("ABC123")
@@ -80,7 +80,7 @@ public sealed class SamGovApiConfigurationTests
         Assert.Equal(SamGovEntityLookupClient.UserSafeFailureMessage, result.Error?.Message);
         Assert.Equal(0, handler.RequestCount);
         Assert.Empty(handler.RequestUris);
-        Assert.DoesNotContain("synthetic-sam-key", string.Join("\n", logger.Messages), StringComparison.Ordinal);
+        Assert.DoesNotContain("example-sam-key", string.Join("\n", logger.Messages), StringComparison.Ordinal);
         Assert.DoesNotContain("api_key", string.Join("\n", logger.Messages), StringComparison.OrdinalIgnoreCase);
     }
 
@@ -94,7 +94,7 @@ public sealed class SamGovApiConfigurationTests
             Content = new StringContent("synthetic-result")
         });
         var client = CreateClient(handler,
-            new SamGovOptions { BaseUrl = "https://sam.test", ApiKey = "test+key&", MaxRetries = 0 });
+            new SamGovOptions { BaseUrl = "https://sam.test", ApiKey = "example+key&", MaxRetries = 0 });
 
         var result = lookupByUei
             ? await client.LookupByUeiAsync(" ABC/123 & ")
@@ -105,7 +105,7 @@ public sealed class SamGovApiConfigurationTests
         Assert.Equal(1, handler.RequestCount);
         Assert.Equal("https", handler.RequestUris.Single().Scheme);
         Assert.Equal("/entity-information/v3/entities", handler.RequestUris.Single().AbsolutePath);
-        Assert.Equal($"?{query}&api_key=test%2Bkey%26", handler.RequestUris.Single().Query);
+        Assert.Equal($"?{query}&api_key=example%2Bkey%26", handler.RequestUris.Single().Query);
     }
 
     [Fact]
