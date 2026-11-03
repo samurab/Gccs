@@ -62,12 +62,17 @@ export function validateContext(context) {
   return true;
 }
 
+export function checkPlacementSha(context) {
+  validateContext(context);
+  return context.mode === 'ci' && context.event === 'pull_request' ? context.prHeadSha : context.candidateSha;
+}
+
 export function requireAdmission(checks, context) {
   try {
-    validateContext(context);
+    const placementSha = checkPlacementSha(context);
     require(Array.isArray(checks) && checks.length <= 1000);
     const details = `https://github.com/${context.repository}/actions/runs/${context.runId}/attempts/${context.runAttempt}`;
-    const matches = checks.filter(check => check && check.name === CHECK_NAME && check.head_sha === context.candidateSha &&
+    const matches = checks.filter(check => check && check.name === CHECK_NAME && check.head_sha === placementSha &&
       Number.isSafeInteger(check.app?.id) && String(check.app.id) === context.appId && check.details_url === details);
     require(matches.length === 1);
     const check = matches[0];
@@ -105,7 +110,8 @@ export function requireAdmission(checks, context) {
 }
 
 export function currentAdmissionTargets(checks, context) {
+  const placementSha = checkPlacementSha(context);
   const details = `https://github.com/${context.repository}/actions/runs/${context.runId}/attempts/${context.runAttempt}`;
-  return checks.filter(check => check && check.name === CHECK_NAME && check.head_sha === context.candidateSha &&
+  return checks.filter(check => check && check.name === CHECK_NAME && check.head_sha === placementSha &&
     Number.isSafeInteger(check.app?.id) && String(check.app.id) === context.appId && check.details_url === details);
 }
