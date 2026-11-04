@@ -57,6 +57,10 @@ public static class DependencyInjection
 {
     private sealed class DevelopmentObjectWritePersistence;
     public static IServiceCollection AddGccsInfrastructure(this IServiceCollection services, IConfiguration? configuration = null)
+        => AddGccsInfrastructure(services, configuration, allowDevelopmentLoopbackHttp: false);
+
+    public static IServiceCollection AddGccsInfrastructure(
+        this IServiceCollection services, IConfiguration? configuration, bool allowDevelopmentLoopbackHttp)
     {
         services.AddScoped<IApplicationTransaction, EfApplicationTransaction>();
         services.AddScoped<ComplianceOverviewService>();
@@ -354,7 +358,10 @@ public static class DependencyInjection
             services.Configure<ReportPdfOptions>(_ => { });
         }
         services.AddSingleton<IReportPdfRenderer, MigraDocReportPdfRenderer>();
-        services.AddScoped<IObjectStorageService, AzureBlobObjectStorageService>();
+        services.AddScoped<IObjectStorageService>(provider => new AzureBlobObjectStorageService(
+            provider.GetRequiredService<IOptions<AzureBlobStorageOptions>>(),
+            provider.GetRequiredService<IConfiguration>(),
+            allowDevelopmentLoopbackHttp));
         services.AddScoped<ContractDocumentFileService>();
         services.Configure<MalwareScanningOptions>(options =>
         {

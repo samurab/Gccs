@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
-import { EXPECTED_HELPERS, CHECK_NAME, hash, requireAdmission, validateContext } from './admission.mjs';
+import { EXPECTED_HELPERS, CHECK_NAME, hash, requireAdmission, validateContext, checkPlacementSha, currentAdmissionTargets } from './admission.mjs';
 import { readAllChecks, waitForAdmission, reconcileExactAdmission, bootstrapFromEnvironment, providerJson, rawBytes } from './inline-bootstrap.mjs';
 import { buildCandidateSnapshot, comparisonAuthority } from './runner.mjs';
 import { controlledGitArgv, gitEnvironment } from './native-checkout.mjs';
@@ -25,7 +25,7 @@ function fixture(mode = 'ci') {
     canonicalAuthorityBase64: mode === 'ci' ? Buffer.from(JSON.stringify({schemaVersion:2,purpose:'classified-ci-history',repository:context.repository,workflowSha:context.workflowSha,tipSha:context.candidateSha,sourceRef:context.ref,comparisonBaseSha:context.comparisonBaseSha,prHeadSha:context.prHeadSha})).toString('base64') : Buffer.from('{}').toString('base64'),
     helperSha256: Object.fromEntries(EXPECTED_HELPERS.map(path => [path, digest('f')])),
     baselineSnapshot: mode === 'ci' ? null : { path: 'release/migration-baseline.snapshot.json', sha256: digest('f') } };
-  const check = { id: 303, app: { id: 101 }, head_sha: context.candidateSha, name: CHECK_NAME,
+  const check = { id: 303, app: { id: 101 }, head_sha: mode === 'ci' ? context.prHeadSha : context.candidateSha, name: CHECK_NAME,
     status: 'completed', conclusion: 'success', external_id: 'fedril-historical129:' + carrier.bindingSha256,
     details_url: `https://github.com/${context.repository}/actions/runs/${context.runId}/attempts/${context.runAttempt}`,
     output: { text: JSON.stringify(carrier) } };
@@ -53,7 +53,7 @@ test('release admission requires exact finite helper map and baseline identity',
 
 test('wrong App head name state conclusion or attempt URL cannot admit', () => {
   const f = fixture();
-  for (const change of [{ app: { id: 102 } }, { head_sha: sha('d') }, { name: 'other' },
+  for (const change of [{ app: { id: 102 } }, { head_sha: sha('b') }, { name: 'other' },
     { status: 'queued' }, { conclusion: 'failure' }, { details_url: f.check.details_url + '/extra' },
     { details_url: f.check.details_url.replace('/attempts/1', '/attempts/2') }]) {
     assert.throws(() => requireAdmission([{ ...f.check, ...change }], f.context));
@@ -64,6 +64,7 @@ test('duplicate current-attempt targets reject without latest-success selection'
   const f = fixture();
   assert.throws(() => requireAdmission([f.check, { ...f.check, id: 304 }], f.context));
   assert.throws(() => requireAdmission([f.check, { ...f.check, id: 304, conclusion: 'failure' }], f.context));
+  assert.throws(() => requireAdmission([f.check, { ...f.check, id: 304, status: 'queued', conclusion: null }], f.context));
   const old = { ...f.check, id: 304, details_url: f.check.details_url.replace('/attempts/1', '/attempts/2') };
   assert.equal(requireAdmission([old, f.check], f.context).checkRunId, 303);
 });
@@ -87,7 +88,7 @@ test('production requires real staging SHA and release context', () => {
     assert.throws(() => validateContext({ ...f.context, ...change }));
 });
 
-test('CI preserves push dispatch and fork PR merge contexts without head fallback', () => {
+test('CI preserves push dispatch and fork PR tested-merge contexts', () => {
   const f = fixture();
   for (const event of ['push', 'workflow_dispatch']) {
     const context = { ...f.context, event, prHeadSha: null, ref: 'refs/heads/release-main',
@@ -106,7 +107,7 @@ test('full bounded pagination is collected with filter all and no latest selecto
     return { total_count: 101, check_runs: path.endsWith('page=1') ? checks.slice(0, 100) : checks.slice(100) };
   });
   assert.equal(result.length, 101); assert.equal(calls.length, 2);
-  assert.ok(calls.every(path => path.includes('filter=all') && path.includes(`/commits/${f.context.candidateSha}/`)));
+  assert.ok(calls.every(path => path.includes('filter=all') && path.includes(`/commits/${f.context.prHeadSha}/`)));
 });
 
 test('truncated duplicate changing and excessive check populations fail closed', async () => {
@@ -122,7 +123,7 @@ test('only absence waits; matching failure or duplicate stops immediately', asyn
   const result = await waitForAdmission(f.context, async () => ({ total_count: reads++ ? 1 : 0, check_runs: reads === 1 ? [] : [f.check] }),
     'synthetic', async milliseconds => { pauses++; assert.equal(milliseconds, 15000); });
   assert.equal(result.checkRunId, 303); assert.equal(pauses, 1);
-  for (const checks of [[{ ...f.check, conclusion: 'failure' }], [f.check, { ...f.check, id: 304 }]]) {
+  for (const checks of [[{ ...f.check, conclusion: 'failure' }], [{ ...f.check, status: 'queued', conclusion: null }], [f.check, { ...f.check, id: 304 }]]) {
     let delays = 0;
     await assert.rejects(waitForAdmission(f.context, async () => ({ total_count: checks.length, check_runs: checks }),
       'synthetic', async () => { delays++; }));
@@ -142,8 +143,9 @@ test('admission wait has finite observations and does not retry provider errors'
 
 test('context snapshot cannot be changed while waiting', async () => {
   const f = fixture(), original = clone(f.context); let reads = 0;
-  const result = await waitForAdmission(f.context, async () => {
-    if (!reads++) { f.context.runAttempt = '2'; f.context.candidateSha = sha('f'); return { total_count: 0, check_runs: [] }; }
+  const result = await waitForAdmission(f.context, async (_, path) => {
+    assert.ok(path.startsWith(`/commits/${original.prHeadSha}/check-runs?`));
+    if (!reads++) { f.context.runAttempt = '2'; f.context.candidateSha = sha('f'); f.context.prHeadSha = sha('e'); return { total_count: 0, check_runs: [] }; }
     return { total_count: 1, check_runs: [f.check] };
   }, 'synthetic', async () => {});
   assert.equal(result.carrier.runAttempt, original.runAttempt);
@@ -279,11 +281,16 @@ test('workflow drafts contain the current exact inline source and mode bindings'
   const base = new URL('../../../', import.meta.url);
   const a = await readFile(new URL('tools/release/protected/admission.mjs', base), 'utf8');
   const b = (await readFile(new URL('tools/release/protected/inline-bootstrap.mjs', base), 'utf8')).replace("import * as admission from './admission.mjs';\n", '');
-  const prefix = a + '\nconst admission = { CHECK_NAME, EXPECTED_HELPERS, hash, decodeAuthority, validateContext, requireAdmission, currentAdmissionTargets };\n' + b;
+  const prefix = a + '\nconst admission = { CHECK_NAME, EXPECTED_HELPERS, hash, decodeAuthority, validateContext, checkPlacementSha, requireAdmission, currentAdmissionTargets };\n' + b;
   for (const [name, mode] of [['ci.yml', 'ci'], ['staging.yml', 'staging'], ['production-release.yml', 'production']]) {
     const yaml = await readFile(new URL('.github/workflows/' + name, base), 'utf8');
-    const source = yaml.split("node --input-type=module <<'FEDRIL_BOOTSTRAP'\n")[1].split('          FEDRIL_BOOTSTRAP')[0].split('\n').map(line => line.startsWith('          ') ? line.slice(10) : line).join('\n');
-    assert.ok(source.startsWith(prefix)); assert.ok(yaml.includes('FEDRIL_MODE: ' + mode));
+    const blocks = yaml.split("node --input-type=module <<'FEDRIL_BOOTSTRAP'\n").slice(1);
+    assert.equal(blocks.length, name === 'ci.yml' ? 2 : 1);
+    for (const block of blocks) {
+      const source = block.split('          FEDRIL_BOOTSTRAP')[0].split('\n').map(line => line.startsWith('          ') ? line.slice(10) : line).join('\n');
+      assert.ok(source.startsWith(prefix));
+    }
+    assert.ok(yaml.includes('FEDRIL_MODE: ' + mode));
   }
 });
 
@@ -318,4 +325,97 @@ test('one CI admission gates backend exclusions without changing merge checkout 
   assert.ok(prerequisites.indexOf('Test trusted source and admission controls') < prerequisites.indexOf('Setup .NET SDK'));
   assert.ok(!prerequisites.includes('continue-on-error'));
 
+});
+
+
+test('PR check placement uses head while carrier still binds tested merge and tree', () => {
+  const f = fixture();
+  const headCheck = { ...f.check, head_sha: f.context.prHeadSha };
+  const admitted = requireAdmission([headCheck], f.context);
+  assert.equal(admitted.carrier.candidate.sha, f.context.candidateSha);
+  assert.equal(admitted.carrier.candidate.treeSha, f.context.candidateTreeSha);
+  assert.notEqual(headCheck.head_sha, admitted.carrier.candidate.sha);
+  assert.throws(() => requireAdmission([{ ...headCheck, head_sha: f.context.candidateSha }], f.context));
+});
+
+test('PR listing queries only validated PR head placement', async () => {
+  const f = fixture(), calls = [];
+  const result = await readAllChecks(f.context, async (repository, route) => {
+    calls.push(route);
+    assert.ok(route.startsWith(`/commits/${f.context.prHeadSha}/check-runs?`));
+    return { total_count: 0, check_runs: [] };
+  });
+  assert.deepEqual(result, []); assert.equal(calls.length, 1);
+});
+
+
+test('one shared placement rule is PR-only and preserves non-PR CI and release subjects', async () => {
+  const pr = fixture();
+  assert.equal(checkPlacementSha(pr.context), pr.context.prHeadSha);
+  assert.equal(currentAdmissionTargets([pr.check], pr.context).length, 1);
+  assert.equal(currentAdmissionTargets([{ ...pr.check, head_sha: pr.context.candidateSha }], pr.context).length, 0);
+  for (const mode of ['staging', 'production']) {
+    const f = fixture(mode);
+    assert.equal(checkPlacementSha(f.context), f.context.candidateSha);
+    assert.equal(requireAdmission([f.check], f.context).carrier.candidate.sha, f.context.candidateSha);
+    assert.throws(() => requireAdmission([{ ...f.check, head_sha: sha('e') }], f.context));
+    await readAllChecks(f.context, async (_, path) => {
+      assert.ok(path.startsWith(`/commits/${f.context.candidateSha}/check-runs?`));
+      return { total_count: 0, check_runs: [] };
+    });
+  }
+  for (const event of ['push', 'workflow_dispatch']) {
+    const f = fixture();
+    Object.assign(f.context, { event, prHeadSha: null, ref: 'refs/heads/release-main',
+      workflowRef: 'owner/repository/.github/workflows/ci.yml@refs/heads/release-main' });
+    const authority = JSON.parse(Buffer.from(f.carrier.canonicalAuthorityBase64, 'base64'));
+    Object.assign(authority, { sourceRef: f.context.ref, prHeadSha: null });
+    f.carrier.canonicalAuthorityBase64 = Buffer.from(JSON.stringify(authority)).toString('base64');
+    f.check.head_sha = f.context.candidateSha; f.check.output.text = JSON.stringify(f.carrier);
+    assert.equal(checkPlacementSha(f.context), f.context.candidateSha);
+    assert.equal(requireAdmission([f.check], f.context).carrier.candidate.sha, f.context.candidateSha);
+    assert.throws(() => requireAdmission([{ ...f.check, head_sha: sha('d') }], f.context));
+    await readAllChecks(f.context, async (_, path) => {
+      assert.ok(path.startsWith(`/commits/${f.context.candidateSha}/check-runs?`));
+      return { total_count: 0, check_runs: [] };
+    });
+  }
+});
+
+test('invalid PR context rejects before listing or current-target selection', async () => {
+  const f = fixture();
+  for (const change of [{ prHeadSha: null }, { prHeadSha: 'invalid' }, { prHeadSha: sha('0') },
+    { comparisonBaseSha: sha('0') }, { ref: 'refs/pull/7/head' }, { workflowRef: 'unbound' }]) {
+    const context = { ...f.context, ...change }; let reads = 0;
+    await assert.rejects(readAllChecks(context, async () => { reads++; return { total_count: 0, check_runs: [] }; }));
+    assert.equal(reads, 0);
+    assert.throws(() => currentAdmissionTargets([], context));
+    assert.throws(() => checkPlacementSha(context));
+  }
+});
+
+test('PR placement cannot replace candidate tree base or head authority binding', () => {
+  const f = fixture();
+  for (const change of [{ candidateSha: sha('e') }, { candidateTreeSha: sha('e') }, { comparisonBaseSha: sha('e') },
+    { workflowSha: sha('e') }, { runId: '999' }, { runAttempt: '2' }]) {
+    assert.throws(() => requireAdmission([f.check], { ...f.context, ...change }));
+  }
+  const changedHead = { ...f.context, prHeadSha: sha('e') };
+  assert.throws(() => requireAdmission([{ ...f.check, head_sha: changedHead.prHeadSha }], changedHead));
+  for (const field of ['comparisonBaseSha', 'prHeadSha', 'tipSha']) {
+    const carrier = clone(f.carrier), authority = JSON.parse(Buffer.from(carrier.canonicalAuthorityBase64, 'base64'));
+    authority[field] = sha('e'); carrier.canonicalAuthorityBase64 = Buffer.from(JSON.stringify(authority)).toString('base64');
+    assert.throws(() => requireAdmission([{ ...f.check, output: { text: JSON.stringify(carrier) } }], f.context));
+  }
+});
+
+test('exact-ID reconciliation rejects merge placement after valid PR-head listing', async () => {
+  const f = fixture(), paths = [];
+  await assert.rejects(reconcileExactAdmission(f.context, String(f.check.id), async (_, path) => {
+    paths.push(path);
+    return path.startsWith('/commits/') ? { total_count: 1, check_runs: [f.check] } : { ...f.check, head_sha: f.context.candidateSha };
+  }, 'synthetic'));
+  assert.equal(paths.length, 2);
+  assert.ok(paths[0].startsWith(`/commits/${f.context.prHeadSha}/check-runs?`));
+  assert.equal(paths[1], '/check-runs/' + f.check.id);
 });

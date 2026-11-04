@@ -38,10 +38,10 @@ export async function rawBytes(repository, workflowSha, path, cap, fetchImpl = f
 
 export async function readAllChecks(context, read = providerJson, token) {
   context = Object.freeze({ ...context });
-  admission.validateContext(context);
+  const placementSha = admission.checkPlacementSha(context);
   const all = [], ids = new Set(); let expected;
   for (let page = 1; page <= 10; page++) {
-    const result = await read(context.repository, `/commits/${context.candidateSha}/check-runs?filter=all&per_page=100&app_id=${context.appId}&check_name=${encodeURIComponent(admission.CHECK_NAME)}&page=${page}`, token);
+    const result = await read(context.repository, `/commits/${placementSha}/check-runs?filter=all&per_page=100&app_id=${context.appId}&check_name=${encodeURIComponent(admission.CHECK_NAME)}&page=${page}`, token);
     if (!Number.isSafeInteger(result.total_count) || result.total_count < 0 || result.total_count > 1000 ||
         !Array.isArray(result.check_runs) || result.check_runs.length > 100 || (expected !== undefined && expected !== result.total_count)) fixedFailure();
     expected = result.total_count;

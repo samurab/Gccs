@@ -110,12 +110,17 @@ jobs:
             return true;
           }
           
+          export function checkPlacementSha(context) {
+            validateContext(context);
+            return context.mode === 'ci' && context.event === 'pull_request' ? context.prHeadSha : context.candidateSha;
+          }
+
           export function requireAdmission(checks, context) {
             try {
-              validateContext(context);
+              const placementSha = checkPlacementSha(context);
               require(Array.isArray(checks) && checks.length <= 1000);
               const details = `https://github.com/${context.repository}/actions/runs/${context.runId}/attempts/${context.runAttempt}`;
-              const matches = checks.filter(check => check && check.name === CHECK_NAME && check.head_sha === context.candidateSha &&
+              const matches = checks.filter(check => check && check.name === CHECK_NAME && check.head_sha === placementSha &&
                 Number.isSafeInteger(check.app?.id) && String(check.app.id) === context.appId && check.details_url === details);
               require(matches.length === 1);
               const check = matches[0];
@@ -153,12 +158,13 @@ jobs:
           }
           
           export function currentAdmissionTargets(checks, context) {
+            const placementSha = checkPlacementSha(context);
             const details = `https://github.com/${context.repository}/actions/runs/${context.runId}/attempts/${context.runAttempt}`;
-            return checks.filter(check => check && check.name === CHECK_NAME && check.head_sha === context.candidateSha &&
+            return checks.filter(check => check && check.name === CHECK_NAME && check.head_sha === placementSha &&
               Number.isSafeInteger(check.app?.id) && String(check.app.id) === context.appId && check.details_url === details);
           }
           
-          const admission = { CHECK_NAME, EXPECTED_HELPERS, hash, decodeAuthority, validateContext, requireAdmission, currentAdmissionTargets };
+          const admission = { CHECK_NAME, EXPECTED_HELPERS, hash, decodeAuthority, validateContext, checkPlacementSha, requireAdmission, currentAdmissionTargets };
           import { mkdir, writeFile, appendFile } from 'node:fs/promises';
           import { dirname, join } from 'node:path';
           import { setTimeout as delay } from 'node:timers/promises';
@@ -198,10 +204,10 @@ jobs:
           
           export async function readAllChecks(context, read = providerJson, token) {
             context = Object.freeze({ ...context });
-            admission.validateContext(context);
+            const placementSha = admission.checkPlacementSha(context);
             const all = [], ids = new Set(); let expected;
             for (let page = 1; page <= 10; page++) {
-              const result = await read(context.repository, `/commits/${context.candidateSha}/check-runs?filter=all&per_page=100&app_id=${context.appId}&check_name=${encodeURIComponent(admission.CHECK_NAME)}&page=${page}`, token);
+              const result = await read(context.repository, `/commits/${placementSha}/check-runs?filter=all&per_page=100&app_id=${context.appId}&check_name=${encodeURIComponent(admission.CHECK_NAME)}&page=${page}`, token);
               if (!Number.isSafeInteger(result.total_count) || result.total_count < 0 || result.total_count > 1000 ||
                   !Array.isArray(result.check_runs) || result.check_runs.length > 100 || (expected !== undefined && expected !== result.total_count)) fixedFailure();
               expected = result.total_count;
@@ -772,12 +778,17 @@ jobs:
             return true;
           }
           
+          export function checkPlacementSha(context) {
+            validateContext(context);
+            return context.mode === 'ci' && context.event === 'pull_request' ? context.prHeadSha : context.candidateSha;
+          }
+
           export function requireAdmission(checks, context) {
             try {
-              validateContext(context);
+              const placementSha = checkPlacementSha(context);
               require(Array.isArray(checks) && checks.length <= 1000);
               const details = `https://github.com/${context.repository}/actions/runs/${context.runId}/attempts/${context.runAttempt}`;
-              const matches = checks.filter(check => check && check.name === CHECK_NAME && check.head_sha === context.candidateSha &&
+              const matches = checks.filter(check => check && check.name === CHECK_NAME && check.head_sha === placementSha &&
                 Number.isSafeInteger(check.app?.id) && String(check.app.id) === context.appId && check.details_url === details);
               require(matches.length === 1);
               const check = matches[0];
@@ -815,12 +826,13 @@ jobs:
           }
           
           export function currentAdmissionTargets(checks, context) {
+            const placementSha = checkPlacementSha(context);
             const details = `https://github.com/${context.repository}/actions/runs/${context.runId}/attempts/${context.runAttempt}`;
-            return checks.filter(check => check && check.name === CHECK_NAME && check.head_sha === context.candidateSha &&
+            return checks.filter(check => check && check.name === CHECK_NAME && check.head_sha === placementSha &&
               Number.isSafeInteger(check.app?.id) && String(check.app.id) === context.appId && check.details_url === details);
           }
           
-          const admission = { CHECK_NAME, EXPECTED_HELPERS, hash, decodeAuthority, validateContext, requireAdmission, currentAdmissionTargets };
+          const admission = { CHECK_NAME, EXPECTED_HELPERS, hash, decodeAuthority, validateContext, checkPlacementSha, requireAdmission, currentAdmissionTargets };
           import { mkdir, writeFile, appendFile } from 'node:fs/promises';
           import { dirname, join } from 'node:path';
           import { setTimeout as delay } from 'node:timers/promises';
@@ -860,10 +872,10 @@ jobs:
           
           export async function readAllChecks(context, read = providerJson, token) {
             context = Object.freeze({ ...context });
-            admission.validateContext(context);
+            const placementSha = admission.checkPlacementSha(context);
             const all = [], ids = new Set(); let expected;
             for (let page = 1; page <= 10; page++) {
-              const result = await read(context.repository, `/commits/${context.candidateSha}/check-runs?filter=all&per_page=100&app_id=${context.appId}&check_name=${encodeURIComponent(admission.CHECK_NAME)}&page=${page}`, token);
+              const result = await read(context.repository, `/commits/${placementSha}/check-runs?filter=all&per_page=100&app_id=${context.appId}&check_name=${encodeURIComponent(admission.CHECK_NAME)}&page=${page}`, token);
               if (!Number.isSafeInteger(result.total_count) || result.total_count < 0 || result.total_count > 1000 ||
                   !Array.isArray(result.check_runs) || result.check_runs.length > 100 || (expected !== undefined && expected !== result.total_count)) fixedFailure();
               expected = result.total_count;
