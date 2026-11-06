@@ -13,6 +13,7 @@ using Gccs.Application.Labor;
 using Gccs.Application.Marketing;
 using Gccs.Application.NoCui;
 using Gccs.Application.Notifications;
+using Gccs.Application.Operations;
 using Gccs.Application.Portals;
 using Gccs.Application.Repositories;
 using Gccs.Application.Reports;
@@ -37,6 +38,7 @@ using Gccs.Infrastructure.Labor;
 using Gccs.Infrastructure.Marketing;
 using Gccs.Infrastructure.NoCui;
 using Gccs.Infrastructure.Notifications;
+using Gccs.Infrastructure.Operations;
 using Gccs.Infrastructure.Persistence;
 using Gccs.Infrastructure.Portals;
 using Gccs.Infrastructure.Reports;
@@ -401,6 +403,9 @@ public static class DependencyInjection
                 provider.GetRequiredService<ILogger<SamGovEntityLookupClient>>()));
 
         var connectionString = configuration?.GetConnectionString("GccsDatabase");
+        services.AddScoped<IRuntimeDatabaseBindingDiagnostic>(provider => new EfRuntimeDatabaseBindingDiagnostic(
+            provider, !string.IsNullOrWhiteSpace(connectionString) &&
+                new Npgsql.NpgsqlConnectionStringBuilder(connectionString).Database is { Length: > 0 }));
         if (!string.IsNullOrWhiteSpace(connectionString))
         {
             services.AddScoped<IAiRetrievalSourceRepository>(provider => new EfAiRetrievalSourceRepository(
