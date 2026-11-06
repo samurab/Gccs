@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Text.Json.Serialization;
 using Gccs.Api.Security;
 using Gccs.Api.LocalDevelopment;
+using Gccs.Api.Operations;
 using Gccs.Api;
 using Gccs.Application.Audit;
 using Gccs.Application.Ai;
@@ -134,6 +135,7 @@ var taskSearchCursorOptions = builder.Configuration
 TaskSearchCursorOptions.Validate(taskSearchCursorOptions);
 builder.Services.AddSingleton(taskSearchCursorOptions);
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddHostedService<D01RuntimeDiagnosticObserver>();
 builder.Services.AddSingleton<IComplianceTaskCursorCodec, TaskSearchCursorProtector>();
 builder.Services.AddSingleton<TaskCompatibilityTelemetry>();
 builder.Services.AddHostedService<TaskCompatibilityTelemetryHeartbeatService>();
