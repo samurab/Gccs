@@ -20,7 +20,7 @@ public sealed class RuntimeDatabaseBindingDiagnosticTests
 {
     private const string Server = "db.diagnostic.example";
     private const string Database = "DiagnosticDatabase";
-    private const string Sentinel = "sentinel-credential-do-not-disclose";
+    private const string ExampleCredentialSentinel = "example-sentinel-credential-do-not-disclose";
 
     [Theory]
     [InlineData("db.diagnostic.example", 5432, "DiagnosticDatabase", true, true, true)]
@@ -152,7 +152,7 @@ public sealed class RuntimeDatabaseBindingDiagnosticTests
         using var provider = new ServiceCollection().AddScoped<GccsDbContext>(_ =>
         {
             resolutions++;
-            throw new InvalidOperationException(Sentinel);
+            throw new InvalidOperationException(ExampleCredentialSentinel);
         }).BuildServiceProvider();
 
         var result = new EfRuntimeDatabaseBindingDiagnostic(provider, databaseWasExplicitlyConfigured: true)
@@ -167,7 +167,7 @@ public sealed class RuntimeDatabaseBindingDiagnosticTests
     public void Context_resolution_failure_returns_only_fixed_failure_status()
     {
         using var provider = new ServiceCollection().AddScoped<GccsDbContext>(_ =>
-            throw new InvalidOperationException(Sentinel)).BuildServiceProvider();
+            throw new InvalidOperationException(ExampleCredentialSentinel)).BuildServiceProvider();
 
         var result = new EfRuntimeDatabaseBindingDiagnostic(provider, databaseWasExplicitlyConfigured: true).Observe(Expected());
 
@@ -197,7 +197,7 @@ public sealed class RuntimeDatabaseBindingDiagnosticTests
     public void Infrastructure_registration_binds_explicit_database_from_the_same_configuration_input(
         string? database, RuntimeDatabaseBindingStatus expectedStatus)
     {
-        var builder = new NpgsqlConnectionStringBuilder { Host = Server, Username = Database, Password = Sentinel };
+        var builder = new NpgsqlConnectionStringBuilder { Host = Server, Username = Database, Password = ExampleCredentialSentinel };
         if (database is not null)
             builder.Database = database;
         var services = new ServiceCollection();
@@ -224,7 +224,7 @@ public sealed class RuntimeDatabaseBindingDiagnosticTests
     {
         var builder = new NpgsqlConnectionStringBuilder
         {
-            Host = server, Port = port, Username = Sentinel, Password = Sentinel
+            Host = server, Port = port, Username = ExampleCredentialSentinel, Password = ExampleCredentialSentinel
         };
         if (database is not null)
             builder.Database = database;
@@ -237,10 +237,10 @@ public sealed class RuntimeDatabaseBindingDiagnosticTests
         var properties = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
         Assert.Equal(new[] { "DatabaseMatches", "PortMatches", "ProviderMatches", "ServerMatches", "Status" },
             properties.Keys.OrderBy(key => key, StringComparer.Ordinal).ToArray());
-        Assert.DoesNotContain(Sentinel, json);
+        Assert.DoesNotContain(ExampleCredentialSentinel, json);
         Assert.DoesNotContain(Server, json);
         Assert.DoesNotContain(Database, json);
-        Assert.DoesNotContain(Sentinel, result.ToString());
+        Assert.DoesNotContain(ExampleCredentialSentinel, result.ToString());
     }
 
     private sealed class RejectConnectionOpen : DbConnectionInterceptor

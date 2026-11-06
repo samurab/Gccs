@@ -18,7 +18,7 @@ public sealed class D01RuntimeDiagnosticObserver(
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken, lifetime.ApplicationStopping);
-        var token = cancellation.Token;
+        var cancellationToken = cancellation.Token;
         try
         {
             if (!bool.TryParse(configuration[Prefix + "Enabled"], out var enabled) || !enabled)
@@ -26,8 +26,8 @@ public sealed class D01RuntimeDiagnosticObserver(
 
             var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             using var registration = lifetime.ApplicationStarted.Register(() => started.TrySetResult());
-            await started.Task.WaitAsync(token);
-            token.ThrowIfCancellationRequested();
+            await started.Task.WaitAsync(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
 
             var expectation = new RuntimeDatabaseBindingExpectation(
                 configuration[Prefix + "ExpectedServerSha256"] ?? string.Empty,
@@ -54,15 +54,15 @@ public sealed class D01RuntimeDiagnosticObserver(
             using (var scope = scopes.CreateScope())
             {
                 var diagnostic = scope.ServiceProvider.GetRequiredService<IRuntimeDatabaseBindingDiagnostic>();
-                token.ThrowIfCancellationRequested();
+                cancellationToken.ThrowIfCancellationRequested();
                 result = time.GetUtcNow() >= expiry
                     ? new(RuntimeDatabaseBindingStatus.Expired)
                     : diagnostic.Observe(expectation);
             }
-            token.ThrowIfCancellationRequested();
+            cancellationToken.ThrowIfCancellationRequested();
             Log(time.GetUtcNow() >= expiry ? new(RuntimeDatabaseBindingStatus.Expired) : result);
         }
-        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
         }
         catch (Exception)
