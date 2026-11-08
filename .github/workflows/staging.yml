@@ -7,6 +7,10 @@ on:
         description: Optional protected SemVer candidate tag, for example v0.2.0-rc.1.
         required: false
         type: string
+      expected_staging_target_sha256:
+        description: Optional SHA256 of the approved evaluated staging target and Azure login binding.
+        required: false
+        type: string
       migration_comparison:
         description: Compatibility selector; both modes use the separately admitted snapshot comparison.
         required: true
@@ -436,6 +440,75 @@ jobs:
           test -n "$STAGING_RESOURCE_GROUP"
           node "$FEDRIL_TRUSTED_ROOT/tools/release/validate-auth-config.mjs"
 
+      - name: Bind evaluated staging target before Azure operations
+        id: staging_target
+        env:
+          EXPECTED_STAGING_TARGET_SHA256: ${{ inputs.expected_staging_target_sha256 }}
+          STAGING_LOGIN_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          STAGING_LOGIN_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          STAGING_LOGIN_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          node --input-type=module <<'FEDRIL_STAGING_TARGET'
+          import { createHash } from 'node:crypto';
+          import { appendFile } from 'node:fs/promises';
+          
+          try {
+            const env = process.env;
+            const expected = env.EXPECTED_STAGING_TARGET_SHA256 ?? '';
+            if (expected === '') {
+              console.log('Optional staging target binding not requested.');
+            } else {
+              const require = condition => { if (!condition) throw new Error('staging_target_binding_rejected'); };
+              require(/^[a-f0-9]{64}$/.test(expected));
+              const text = name => {
+                const value = env[name];
+                require(typeof value === 'string' && value.length > 0 && value === value.trim() &&
+                  /^[\x21-\x7e]+$/.test(value));
+                return value;
+              };
+              const guid = name => {
+                const value = text(name);
+                require(/^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$/.test(value));
+                return value.toLowerCase();
+              };
+              const tenantId = guid('STAGING_LOGIN_TENANT_ID');
+              const clientId = guid('STAGING_LOGIN_CLIENT_ID');
+              const subscriptionId = guid('DEPLOYMENT_AZURE_SUBSCRIPTION_ID');
+              require(guid('STAGING_LOGIN_SUBSCRIPTION_ID') === subscriptionId);
+              const group = text('STAGING_RESOURCE_GROUP');
+              const api = text('STAGING_API_APP_NAME');
+              const scanner = text('STAGING_MALWARE_SCANNER_NAME');
+              require(/^[A-Za-z0-9_.()-]{1,90}$/.test(group) && !group.endsWith('.'));
+              require(/^[A-Za-z0-9][A-Za-z0-9-]{0,59}$/.test(api));
+              require(/^[A-Za-z0-9][A-Za-z0-9-]{0,62}$/.test(scanner));
+              const baseUrl = name => {
+                const raw = text(name);
+                const uri = new URL(raw);
+                require(uri.protocol === 'https:' && uri.hostname && !uri.username && !uri.password &&
+                  !uri.search && !uri.hash && !raw.includes('\\'));
+                return raw;
+              };
+              const binding = {
+                schemaVersion: 1,
+                purpose: 'fedril-staging-evaluated-target-v1',
+                tenantId, clientId, subscriptionId,
+                apiResourceId: `/subscriptions/${subscriptionId}/resourceGroups/${group}/providers/Microsoft.Web/sites/${api}`.toLowerCase(),
+                scannerResourceId: `/subscriptions/${subscriptionId}/resourceGroups/${group}/providers/Microsoft.ContainerInstance/containerGroups/${scanner}`.toLowerCase(),
+                apiBaseUrl: baseUrl('STAGING_API_BASE_URL'),
+                webBaseUrl: baseUrl('STAGING_WEB_BASE_URL'),
+              };
+              require(createHash('sha256').update(JSON.stringify(binding), 'utf8').digest('hex') === expected);
+              require(typeof env.GITHUB_OUTPUT === 'string' && env.GITHUB_OUTPUT.length > 0);
+              await appendFile(env.GITHUB_OUTPUT,
+                `client_id=${clientId}\ntenant_id=${tenantId}\nsubscription_id=${subscriptionId}\n`);
+              console.log('Evaluated staging target and Azure login binding matched.');
+            }
+          } catch {
+            console.error('staging_target_binding_rejected');
+            process.exitCode = 1;
+          }
+          FEDRIL_STAGING_TARGET
+
       - name: Restore dependencies
         run: |
           dotnet restore Gccs.slnx
@@ -534,9 +607,9 @@ jobs:
       - name: Login to Azure staging subscription
         uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3
         with:
-          client-id: ${{ vars.AZURE_CLIENT_ID }}
-          tenant-id: ${{ vars.AZURE_TENANT_ID }}
-          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          client-id: ${{ inputs.expected_staging_target_sha256 == '' && vars.AZURE_CLIENT_ID || steps.staging_target.outputs.client_id }}
+          tenant-id: ${{ inputs.expected_staging_target_sha256 == '' && vars.AZURE_TENANT_ID || steps.staging_target.outputs.tenant_id }}
+          subscription-id: ${{ inputs.expected_staging_target_sha256 == '' && vars.AZURE_SUBSCRIPTION_ID || steps.staging_target.outputs.subscription_id }}
 
       - name: Apply staging migrations through approved CI/CD
         env:

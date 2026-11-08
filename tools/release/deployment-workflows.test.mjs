@@ -394,12 +394,34 @@ for (const [name, workflow, jobName, environment] of [
     assert.match(job, new RegExp(`^    environment:\\n      name: ${environment}$`, "m"));
     assert.match(job, /^    permissions:\n(?:      [^\n]+\n)*?      id-token: write$/m);
     assert.match(job, /uses: azure\/login@[a-f0-9]{40} # v3/);
-    assert.match(job, /client-id: \$\{\{ vars\.AZURE_CLIENT_ID \}\}/);
-    assert.match(job, /tenant-id: \$\{\{ vars\.AZURE_TENANT_ID \}\}/);
-    assert.match(job, /subscription-id: \$\{\{ vars\.AZURE_SUBSCRIPTION_ID \}\}/);
+    if (name === "staging") {
+      for (const [field, variable, output] of [
+        ["client-id", "AZURE_CLIENT_ID", "client_id"],
+        ["tenant-id", "AZURE_TENANT_ID", "tenant_id"],
+        ["subscription-id", "AZURE_SUBSCRIPTION_ID", "subscription_id"]
+      ]) {
+        assert.ok(job.includes(field + ": ${{ inputs.expected_staging_target_sha256 == '' && vars." +
+          variable + " || steps.staging_target.outputs." + output + " }}"));
+      }
+    } else {
+      assert.match(job, /client-id: \$\{\{ vars\.AZURE_CLIENT_ID \}\}/);
+      assert.match(job, /tenant-id: \$\{\{ vars\.AZURE_TENANT_ID \}\}/);
+      assert.match(job, /subscription-id: \$\{\{ vars\.AZURE_SUBSCRIPTION_ID \}\}/);
+    }
     assert.doesNotMatch(job, /creds:|AZURE_CREDENTIALS_GCCS_/);
   });
 }
+
+test("staging optionally binds evaluated target before Azure login", () => {
+  const input = topSection(staging, "on");
+  assert.match(input, /^      expected_staging_target_sha256:\n(?:        [^\n]+\n)*?        required: false$/m);
+  const guard = namedStep(staging, "Bind evaluated staging target before Azure operations");
+  assert.match(guard, /id: staging_target/);
+  assert.match(guard, /EXPECTED_STAGING_TARGET_SHA256: \$\{\{ inputs\.expected_staging_target_sha256 \}\}/);
+  assert.doesNotMatch(guard, /continue-on-error:/);
+  assertBefore(staging, "Bind evaluated staging target before Azure operations", "Login to Azure staging subscription");
+  assertBefore(staging, "Bind evaluated staging target before Azure operations", "Apply staging migrations through approved CI/CD");
+});
 
 for (const [name, workflow, jobName] of [
   ["staging", staging, "staging-deploy"],
