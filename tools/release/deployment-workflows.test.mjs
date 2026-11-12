@@ -49,6 +49,16 @@ const namedStep = (text, name) => {
   return text.slice(start, end < 0 ? undefined : end);
 };
 
+
+const assertStartupCondition = (step, environment) => {
+  if (environment === "staging") {
+    const normalGuard = "        if: ${{ inputs.operation == 'normal-deployment' }}\n";
+    assert.ok(step.includes(normalGuard), "Staging startup must select only normal deployment");
+    step = step.replace(normalGuard, "");
+  }
+  assert.doesNotMatch(step, /if:|always\(\)|continue-on-error/);
+};
+
 for (const [environment, workflow, migrationName, apiName] of [
   ["staging", staging, "Apply staging migrations through approved CI/CD", "Deploy staging API App Service"],
   ["production", production, "Apply the staged migration artifact", "Deploy the staged API artifact"]
@@ -66,7 +76,7 @@ for (const [environment, workflow, migrationName, apiName] of [
       start.indexOf(` ${environment} Stopped`) < start.indexOf("az webapp start"));
     assert.ok(start.indexOf(` ${environment} Running`) > start.indexOf("az webapp start"));
     assert.match(start, /az webapp start --subscription "\$DEPLOYMENT_AZURE_SUBSCRIPTION_ID"/);
-    assert.doesNotMatch(start, /if:|always\(\)|continue-on-error/);
+    assertStartupCondition(start, environment);
     assert.doesNotMatch(workflow, /ObjectCleanupProcessing(?:__|:)Enabled\s*=\s*true/i);
     assert.match(workflow, /^      DEPLOYMENT_AZURE_SUBSCRIPTION_ID: \$\{\{ vars\.AZURE_SUBSCRIPTION_ID \}\}$/m);
   });
@@ -88,6 +98,21 @@ for (const [environment, workflow, migrationName, apiName] of [
     }
   });
 }
+
+
+test("startup conditions reject bypasses, alternate guards, and duplicates", () => {
+  const stagingStart = namedStep(staging, "Start staging API with cleanup held");
+  const productionStart = namedStep(production, "Start production API with cleanup held");
+  const normalGuard = "        if: ${{ inputs.operation == 'normal-deployment' }}\n";
+  for (const guard of ["", "        if: always()\n", "        if: ${{ inputs.operation == 'api-artifact-restoration-exercise' }}\n", normalGuard + normalGuard]) {
+    assert.throws(() => assertStartupCondition(stagingStart.replace(normalGuard, guard), "staging"));
+  }
+  for (const bypass of ["        continue-on-error: true\n", "        if: always()\n"]) {
+    assert.throws(() => assertStartupCondition(stagingStart + bypass, "staging"));
+    assert.throws(() => assertStartupCondition(productionStart + bypass, "production"));
+  }
+  assert.throws(() => assertStartupCondition(productionStart + normalGuard, "production"));
+});
 
 test("staging retains the externally pinned cleanup guard before candidate preparation", () => {
   const bootstrap = staging.indexOf("const admissionResult = await bootstrapFromEnvironment(process.env)");

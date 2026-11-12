@@ -297,6 +297,57 @@ public sealed class LocalDependencyConfigurationTests : IClassFixture<WebApplica
         Assert.Single(findings);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Secret_scanner_allows_only_known_complete_staging_Python_reference_assignments(bool tupleInitialization)
+    {
+        var findings = new List<string>();
+        var source = tupleInitialization
+            ? string.Concat("self.env, self.to", "ken = env, None")
+            : string.Concat("self.to", "ken = value['accessToken']");
+        AddSecretFindings(findings, ".github/workflows/staging.yml", string.Concat("  ", source, "\r\n"));
+        Assert.Empty(findings);
+    }
+
+    [Theory]
+    [InlineData(".github/workflows/other.yml", "reference")]
+    [InlineData("docs/staging.yml", "reference")]
+    [InlineData(".github/workflows/staging.yml", "literal")]
+    [InlineData(".github/workflows/staging.yml", "trailing-assignment")]
+    [InlineData(".github/workflows/staging.yml", "fallback")]
+    [InlineData(".github/workflows/staging.yml", "changed-reference")]
+    [InlineData(".github/workflows/staging.yml", "trailing-comment")]
+    [InlineData(".github/workflows/staging.yml", "tuple-literal")]
+    public void Secret_scanner_keeps_literals_and_modified_staging_Python_statements(string path, string scenario)
+    {
+        var findings = new List<string>();
+        var source = string.Concat("self.to", "ken = value['accessToken']");
+        source = scenario switch
+        {
+            "literal" => string.Concat("self.to", "ken = 'production-value'"),
+            "trailing-assignment" => string.Concat(source, "; se", "cret = 'production-value'"),
+            "fallback" => string.Concat(source, " or 'production-value'"),
+            "changed-reference" => string.Concat("self.to", "ken = other['accessToken']"),
+            "trailing-comment" => string.Concat(source, " # trailing comment"),
+            "tuple-literal" => string.Concat("self.env, self.to", "ken = env, 'production-value'"),
+            _ => source
+        };
+        AddSecretFindings(findings, path, source);
+        Assert.NotEmpty(findings);
+    }
+
+    [Theory]
+    [InlineData("GitHub token")]
+    [InlineData("non-placeholder email")]
+    public void Staging_Python_reference_exception_does_not_exempt_other_finding_categories(string findingName)
+    {
+        var source = string.Concat("self.to", "ken = value['accessToken']");
+        var match = Regex.Match(source, "token");
+        Assert.True(match.Success);
+        Assert.False(IsKnownStagingPythonNonliteralAssignment(".github/workflows/staging.yml", findingName, match, source));
+    }
+
     [Fact]
     public void Customer_data_scanner_still_checks_lines_with_environment_references()
     {
@@ -429,7 +480,8 @@ public sealed class LocalDependencyConfigurationTests : IClassFixture<WebApplica
             {
                 var value = match.Groups["value"].Success ? match.Groups["value"].Value : match.Value;
                 if (IsCSharpAssignedCredentialFalsePositive(relativePath, name, match.Value, value, content.AsSpan(0, match.Index)) ||
-                    IsWorkflowJavaScriptEnvironmentReference(relativePath, name, match, content.AsSpan(0, match.Index), content.AsSpan(match.Index + match.Length)))
+                    IsWorkflowJavaScriptEnvironmentReference(relativePath, name, match, content.AsSpan(0, match.Index), content.AsSpan(match.Index + match.Length)) ||
+                    IsKnownStagingPythonNonliteralAssignment(relativePath, name, match, content))
                 {
                     continue;
                 }
@@ -442,6 +494,23 @@ public sealed class LocalDependencyConfigurationTests : IClassFixture<WebApplica
                 findings.Add($"{relativePath}: possible {name} '{Redact(value)}'");
             }
         }
+    }
+
+    private static bool IsKnownStagingPythonNonliteralAssignment(string relativePath, string findingName, Match match, string content)
+    {
+        if (!string.Equals(relativePath.Replace('\\', '/'), ".github/workflows/staging.yml", StringComparison.Ordinal) ||
+            !string.Equals(findingName, "assigned credential", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        // These complete Python statements contain references/None, never credential literals.
+        // Keep this exact allowlist narrow; altered statements and additional assignments stay scanned.
+        var lineStart = content.LastIndexOf('\n', match.Index) + 1;
+        var lineEnd = content.IndexOf('\n', match.Index);
+        var line = content[lineStart..(lineEnd < 0 ? content.Length : lineEnd)].Trim();
+        return line == string.Concat("self.env, self.to", "ken = env, None") ||
+            line == string.Concat("self.to", "ken = value['accessToken']");
     }
 
     private static bool IsWorkflowJavaScriptEnvironmentReference(string relativePath, string findingName, Match match,
