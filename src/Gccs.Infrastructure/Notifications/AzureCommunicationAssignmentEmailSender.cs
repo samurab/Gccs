@@ -3,6 +3,7 @@ using Azure;
 using Azure.Communication.Email;
 using Azure.Identity;
 using Gccs.Application.Notifications;
+using Gccs.Infrastructure.Communication;
 using Gccs.Infrastructure.Identity;
 using Microsoft.Extensions.Options;
 
@@ -30,9 +31,8 @@ public sealed class AzureCommunicationAssignmentEmailSender : IAssignmentEmailSe
         _options.Enabled &&
         string.Equals(_options.Provider, "AzureCommunicationServices", StringComparison.OrdinalIgnoreCase) &&
         !string.IsNullOrWhiteSpace(_options.SenderAddress) &&
-        (_options.UseManagedIdentity
-            ? Uri.TryCreate(_options.Endpoint, UriKind.Absolute, out _)
-            : !string.IsNullOrWhiteSpace(_options.ConnectionString));
+        AzureCommunicationEmailConfiguration.HasHttpsEndpoint(
+            _options.UseManagedIdentity, _options.Endpoint, _options.ConnectionString);
 
     public async Task<AssignmentEmailSendResult> SendAsync(
         AssignmentEmailMessage message,

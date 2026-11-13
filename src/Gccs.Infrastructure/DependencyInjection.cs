@@ -13,6 +13,7 @@ using Gccs.Application.Labor;
 using Gccs.Application.Marketing;
 using Gccs.Application.NoCui;
 using Gccs.Application.Notifications;
+using Gccs.Application.Operations;
 using Gccs.Application.Portals;
 using Gccs.Application.Repositories;
 using Gccs.Application.Reports;
@@ -37,6 +38,7 @@ using Gccs.Infrastructure.Labor;
 using Gccs.Infrastructure.Marketing;
 using Gccs.Infrastructure.NoCui;
 using Gccs.Infrastructure.Notifications;
+using Gccs.Infrastructure.Operations;
 using Gccs.Infrastructure.Persistence;
 using Gccs.Infrastructure.Portals;
 using Gccs.Infrastructure.Reports;
@@ -57,6 +59,10 @@ public static class DependencyInjection
 {
     private sealed class DevelopmentObjectWritePersistence;
     public static IServiceCollection AddGccsInfrastructure(this IServiceCollection services, IConfiguration? configuration = null)
+        => AddGccsInfrastructure(services, configuration, allowDevelopmentLoopbackHttp: false);
+
+    public static IServiceCollection AddGccsInfrastructure(
+        this IServiceCollection services, IConfiguration? configuration, bool allowDevelopmentLoopbackHttp)
     {
         services.AddScoped<IApplicationTransaction, EfApplicationTransaction>();
         services.AddScoped<ComplianceOverviewService>();
@@ -354,7 +360,10 @@ public static class DependencyInjection
             services.Configure<ReportPdfOptions>(_ => { });
         }
         services.AddSingleton<IReportPdfRenderer, MigraDocReportPdfRenderer>();
-        services.AddScoped<IObjectStorageService, AzureBlobObjectStorageService>();
+        services.AddScoped<IObjectStorageService>(provider => new AzureBlobObjectStorageService(
+            provider.GetRequiredService<IOptions<AzureBlobStorageOptions>>(),
+            provider.GetRequiredService<IConfiguration>(),
+            allowDevelopmentLoopbackHttp));
         services.AddScoped<ContractDocumentFileService>();
         services.Configure<MalwareScanningOptions>(options =>
         {
@@ -394,6 +403,9 @@ public static class DependencyInjection
                 provider.GetRequiredService<ILogger<SamGovEntityLookupClient>>()));
 
         var connectionString = configuration?.GetConnectionString("GccsDatabase");
+        services.AddScoped<IRuntimeDatabaseBindingDiagnostic>(provider => new EfRuntimeDatabaseBindingDiagnostic(
+            provider, !string.IsNullOrWhiteSpace(connectionString) &&
+                new Npgsql.NpgsqlConnectionStringBuilder(connectionString).Database is { Length: > 0 }));
         if (!string.IsNullOrWhiteSpace(connectionString))
         {
             services.AddScoped<IAiRetrievalSourceRepository>(provider => new EfAiRetrievalSourceRepository(

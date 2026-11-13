@@ -226,7 +226,7 @@ public sealed class DurableObjectWriteIntentTests
         }), new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["ConnectionStrings:AzureStorage"] = connection
-        }).Build());
+        }).Build(), allowDevelopmentLoopbackHttp: true);
 }
 
 internal sealed class RetainedIntentProviderFactAttribute : FactAttribute

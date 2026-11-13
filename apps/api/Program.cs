@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Text.Json.Serialization;
 using Gccs.Api.Security;
 using Gccs.Api.LocalDevelopment;
+using Gccs.Api.Operations;
 using Gccs.Api;
 using Gccs.Application.Audit;
 using Gccs.Application.Ai;
@@ -63,8 +64,8 @@ if (invitationDeliveryEnabled)
         (!builder.Environment.IsDevelopment() && publicWebUri.Scheme != Uri.UriSchemeHttps) ||
         !string.Equals(provider, "AzureCommunicationServices", StringComparison.OrdinalIgnoreCase) ||
         string.IsNullOrWhiteSpace(senderAddress) ||
-        (useManagedIdentity && !Uri.TryCreate(endpoint, UriKind.Absolute, out _)) ||
-        (!useManagedIdentity && string.IsNullOrWhiteSpace(connectionString)))
+        !Gccs.Infrastructure.Communication.AzureCommunicationEmailConfiguration.HasHttpsEndpoint(
+            useManagedIdentity, endpoint, connectionString))
     {
         throw new InvalidOperationException(
             "Enabled invitation delivery requires a valid public web URL, sender address, and Azure Communication Services credential configuration.");
@@ -134,6 +135,7 @@ var taskSearchCursorOptions = builder.Configuration
 TaskSearchCursorOptions.Validate(taskSearchCursorOptions);
 builder.Services.AddSingleton(taskSearchCursorOptions);
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddHostedService<D01RuntimeDiagnosticObserver>();
 builder.Services.AddSingleton<IComplianceTaskCursorCodec, TaskSearchCursorProtector>();
 builder.Services.AddSingleton<TaskCompatibilityTelemetry>();
 builder.Services.AddHostedService<TaskCompatibilityTelemetryHeartbeatService>();
@@ -149,7 +151,8 @@ builder.Services.AddHttpClient();
 builder.Services.Configure<LocalDependencyOptions>(builder.Configuration.GetSection(LocalDependencyOptions.SectionName));
 builder.Services.AddScoped<LocalDependencyHealthService>();
 builder.Services.AddGccsApiSecurity(builder.Configuration, builder.Environment);
-builder.Services.AddGccsInfrastructure(builder.Configuration);
+builder.Services.AddGccsInfrastructure(
+    builder.Configuration, allowDevelopmentLoopbackHttp: builder.Environment.IsDevelopment());
 builder.Services.AddSingleton(_ => new DataHandlingNoticePackage(
     ComplianceContentPackageLocator.FindPackageRoot(builder.Environment.ContentRootPath)));
 builder.Services.AddScoped<CurrentDataHandlingNoticeService>();
