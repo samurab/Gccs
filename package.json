@@ -49,5 +49,16 @@
     "@playwright/test": "^1.61.0",
     "@redocly/cli": "2.51.2",
     "playwright": "^1.61.0"
+  },
+  "overrides": {
+    "@remotion/media": {
+      "zod": "4.6.7"
+    },
+    "@remotion/studio": {
+      "zod": "4.6.7"
+    },
+    "@remotion/studio-server": {
+      "zod": "4.6.7"
+    }
   }
 }
