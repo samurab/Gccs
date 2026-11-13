@@ -536,7 +536,7 @@ test("workflow Node setups select the reviewed exact LTS version", async () => {
   const observed = [];
   for (const file of (await readdir(new URL("../../.github/workflows/", import.meta.url))).filter(name => /\.ya?ml$/.test(name)).sort()) {
     const workflow = await readWorkflow(file);
-    const steps = [...workflow.matchAll(/^      - (?:name: [^\n]+\n        )?uses: actions\/setup-node@[^\n]+\n([\s\S]*?)(?=^      - |$(?![\s\S]))/gm)];
+    const steps = [...workflow.matchAll(/^      - (?:name: [^\n]+\n        (?:if: [^\n]+\n        )?)?uses: actions\/setup-node@[^\n]+\n([\s\S]*?)(?=^      - |$(?![\s\S]))/gm)];
     for (const [, body] of steps) {
       assert.deepEqual([...body.matchAll(/^          node-version: ([^\n]+)$/gm)].map(match => match[1]), ['"24.22.1"'], file);
       assert.doesNotMatch(body, /^          (?:node-version-file|check-latest):/m, file);
@@ -561,7 +561,7 @@ test("workflow SDK setups retain the exact repository SDK without roll-forward",
   assert.equal(sdk.rollForward, "disable");
   let setups = 0;
   for (const file of ["ci.yml", "production.yml", "staging.yml"]) {
-    for (const [, body] of (await readWorkflow(file)).matchAll(/^      - (?:name: [^\n]+\n        )?uses: actions\/setup-dotnet@[^\n]+\n([\s\S]*?)(?=^      - |$(?![\s\S]))/gm)) {
+    for (const [, body] of (await readWorkflow(file)).matchAll(/^      - (?:name: [^\n]+\n        (?:if: [^\n]+\n        )?)?uses: actions\/setup-dotnet@[^\n]+\n([\s\S]*?)(?=^      - |$(?![\s\S]))/gm)) {
       assert.match(body, file === "staging.yml" ? /^          global-json-file: fedril-source\/global.json$/m : /^          global-json-file: global.json$/m, file);
       assert.doesNotMatch(body, /^          (?:dotnet-version|dotnet-quality):/m, file);
       setups += 1;
