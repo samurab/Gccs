@@ -51,17 +51,26 @@ jobs:
       DEMO_REQUESTS_ENDPOINT: ${{ vars.DEMO_REQUESTS_ENDPOINT }}
       DEMO_REQUESTS_SENDER_ADDRESS: ${{ vars.DEMO_REQUESTS_SENDER_ADDRESS }}
       DEMO_REQUESTS_RECIPIENT_ADDRESS: ${{ vars.DEMO_REQUESTS_RECIPIENT_ADDRESS }}
-      DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY: ${{ secrets.DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY }}
-      HUBSPOT_PRIVATE_APP_TOKEN: ${{ secrets.HUBSPOT_PRIVATE_APP_TOKEN }}
-      TASK_SEARCH_CURSOR_SIGNING_KEY: ${{ secrets.TASK_SEARCH_CURSOR_SIGNING_KEY }}
-      TASK_SEARCH_PREVIOUS_CURSOR_SIGNING_KEY: ${{ secrets.TASK_SEARCH_PREVIOUS_CURSOR_SIGNING_KEY }}
     steps:
       - name: Checkout production deployment controls
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 
+      - name: Retain current API package guard before source checkout
+        run: |
+          guard_dir="$RUNNER_TEMP/soc2-39.8-package-guard-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          mkdir "$guard_dir"
+          cp -n tools/release/check-api-package.py "$guard_dir/check-api-package.py"
+          cmp -s tools/release/check-api-package.py "$guard_dir/check-api-package.py"
+          guard_sha="$(sha256sum tools/release/check-api-package.py | cut -d ' ' -f 1)"
+          printf '%s  %s\n' "$guard_sha" "$guard_dir/check-api-package.py" | sha256sum --check --status
+          echo "API_PACKAGE_GUARD=$guard_dir/check-api-package.py" >> "$GITHUB_ENV"
+          echo "API_PACKAGE_GUARD_SHA256=$guard_sha" >> "$GITHUB_ENV"
+
       - name: Validate approved launch candidate input
+        env:
+          REQUESTED_LAUNCH_CANDIDATE_TAG: ${{ github.event.inputs.launch_candidate_tag }}
         run: |
           test -f "$APPROVED_LAUNCH_CANDIDATE_MANIFEST"
           approved_tag="$(jq -r '.approvedLaunchCandidateTag' "$APPROVED_LAUNCH_CANDIDATE_MANIFEST")"
@@ -70,18 +79,18 @@ jobs:
           test "$approved_tag" != "null"
           test -n "$approved_sha"
           test "$approved_sha" != "null"
-          test "${{ github.event.inputs.launch_candidate_tag }}" = "$approved_tag"
+          test "$REQUESTED_LAUNCH_CANDIDATE_TAG" = "$approved_tag"
           test "$approved_tag" = "$LEGACY_ROLLBACK_TAG"
           git fetch --force --tags
           test "$(git rev-list -n 1 "$approved_tag")" = "$approved_sha"
 
       - name: Setup Node.js for authentication validation
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: "25"
+          node-version: "24.22.1"
 
       - name: Login to Azure production subscription
-        uses: azure/login@v3
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
@@ -95,6 +104,11 @@ jobs:
           cp tools/release/write-runtime-config.mjs tools/release/validate-auth-config.mjs "$RUNNER_TEMP/"
 
       - name: Validate production CI/CD and No-CUI deployment guardrails
+        env:
+          DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY: ${{ secrets.DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY }}
+          HUBSPOT_PRIVATE_APP_TOKEN: ${{ secrets.HUBSPOT_PRIVATE_APP_TOKEN }}
+          TASK_SEARCH_CURSOR_SIGNING_KEY: ${{ secrets.TASK_SEARCH_CURSOR_SIGNING_KEY }}
+          TASK_SEARCH_PREVIOUS_CURSOR_SIGNING_KEY: ${{ secrets.TASK_SEARCH_PREVIOUS_CURSOR_SIGNING_KEY }}
         run: |
           test "$PRODUCTION_CUSTOMER_DATA_MODE" = "no-cui-only"
           test "$Gccs__DataPosture" = "No-CUI / compliance management only"
@@ -121,7 +135,7 @@ jobs:
           test "$resource_count" -ge 20
 
       - name: Validate production Terraform configuration
-        uses: hashicorp/setup-terraform@v4
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4
         with:
           terraform_version: "1.9.8"
 
@@ -132,19 +146,19 @@ jobs:
           terraform -chdir=infra/terraform/environments/production validate
 
       - name: Checkout approved launch candidate artifact source
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ github.event.inputs.launch_candidate_tag }}
 
       - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v6
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           global-json-file: global.json
 
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: "25"
+          node-version: "24.22.1"
           cache: npm
 
       - name: Restore dependencies
@@ -172,6 +186,23 @@ jobs:
           if grep -R "http://localhost:5062" apps/web/dist; then exit 1; fi
           if grep -R "Local test context" apps/web/dist; then exit 1; fi
           if grep -R "/api/development/testing-context" apps/web/dist; then exit 1; fi
+
+      - name: Package explicitly classified legacy source rebuild
+        id: legacy_api_package
+        run: |
+          printf '%s  %s\n' "$API_PACKAGE_GUARD_SHA256" "$API_PACKAGE_GUARD" | sha256sum --check --status
+          python3 -I -B "$API_PACKAGE_GUARD" --check-tree "$RUNNER_TEMP/gccs-api-production"
+          archive_dir="$RUNNER_TEMP/soc2-39.8-api-legacy-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          mkdir "$archive_dir"
+          api_zip="$archive_dir/fedril-api-legacy-rebuild.zip"
+          (cd "$RUNNER_TEMP/gccs-api-production" && zip -X -q -r "$api_zip" .)
+          api_sha="$(sha256sum "$api_zip" | cut -d ' ' -f 1)"
+          python3 -I -B "$API_PACKAGE_GUARD" "$api_zip" "$api_sha" --publish-root "$RUNNER_TEMP/gccs-api-production"
+          printf '%s  %s\n' "$api_sha" fedril-api-legacy-rebuild.zip > "$archive_dir/SHA256SUMS"
+          printf 'classification=legacy-source-rebuild\nsource_sha=%s\napi_sha256=%s\n' "$(git rev-parse HEAD)" "$api_sha" > "$archive_dir/package-evidence.txt"
+          echo "path=$api_zip" >> "$GITHUB_OUTPUT"
+          echo "API_PACKAGE_PATH=$api_zip" >> "$GITHUB_ENV"
+          echo "API_PACKAGE_SHA256=$api_sha" >> "$GITHUB_ENV"
 
       - name: Preserve effective legacy authentication metadata for repeated recovery
         env:
@@ -202,6 +233,11 @@ jobs:
           psql "$PRODUCTION_DATABASE_URL" --set ON_ERROR_STOP=on --file "$RUNNER_TEMP/gccs-production-migrations.sql"
 
       - name: Configure production email delivery
+        env:
+          DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY: ${{ secrets.DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY }}
+          HUBSPOT_PRIVATE_APP_TOKEN: ${{ secrets.HUBSPOT_PRIVATE_APP_TOKEN }}
+          TASK_SEARCH_CURSOR_SIGNING_KEY: ${{ secrets.TASK_SEARCH_CURSOR_SIGNING_KEY }}
+          TASK_SEARCH_PREVIOUS_CURSOR_SIGNING_KEY: ${{ secrets.TASK_SEARCH_PREVIOUS_CURSOR_SIGNING_KEY }}
         run: |
           customer_auth_settings=()
           if [[ -n "$FEDRIL_CUSTOMER_AUTHORITY" ]]; then
@@ -270,14 +306,19 @@ jobs:
           PRODUCTION_CUSTOMER_AUDIENCE: ${{ env.FEDRIL_CUSTOMER_AUDIENCE }}
         run: node "$RUNNER_TEMP/check-azure-settings.mjs" production
 
+      - name: Recheck legacy rebuild API ZIP immediately before deployment
+        run: |
+          printf '%s  %s\n' "$API_PACKAGE_GUARD_SHA256" "$API_PACKAGE_GUARD" | sha256sum --check --status
+          python3 -I -B "$API_PACKAGE_GUARD" "$API_PACKAGE_PATH" "$API_PACKAGE_SHA256" --publish-root "$RUNNER_TEMP/gccs-api-production"
+
       - name: Deploy production API App Service
-        uses: azure/webapps-deploy@v3
+        uses: azure/webapps-deploy@02a81bead70021f5284939794bcec79c271ab383 # v3
         with:
           app-name: ${{ env.PRODUCTION_API_APP_NAME }}
-          package: ${{ runner.temp }}/gccs-api-production
+          package: ${{ steps.legacy_api_package.outputs.path }}
 
       - name: Deploy production Static Web App
-        uses: Azure/static-web-apps-deploy@v1
+        uses: Azure/static-web-apps-deploy@1a947af9992250f3bc2e68ad0754c0b0c11566c9 # v1
         env:
           VITE_API_BASE_URL: ${{ env.PRODUCTION_API_BASE_URL }}
           VITE_MSAL_CLIENT_ID: ${{ vars.PRODUCTION_MSAL_CLIENT_ID }}
@@ -319,6 +360,8 @@ jobs:
             echo "deployment_time_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
             echo "artifact_tag=${{ github.event.inputs.launch_candidate_tag }}"
             echo "artifact_sha=$(git rev-parse HEAD)"
+            echo "artifact_classification=legacy-source-rebuild"
+            echo "api_package_sha256=$API_PACKAGE_SHA256"
             echo "operator=${{ github.actor }}"
             echo "environment=production"
             echo "workflow=${{ github.workflow }}"
@@ -333,10 +376,12 @@ jobs:
 
       - name: Upload production deployment evidence
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: production-deployment-evidence
           path: |
             ${{ runner.temp }}/production-deployment-evidence.txt
             ${{ runner.temp }}/production-health.json
             ${{ runner.temp }}/gccs-production-migrations.sql
+            ${{ runner.temp }}/soc2-39.8-api-legacy-${{ github.run_id }}-${{ github.run_attempt }}/SHA256SUMS
+            ${{ runner.temp }}/soc2-39.8-api-legacy-${{ github.run_id }}-${{ github.run_attempt }}/package-evidence.txt

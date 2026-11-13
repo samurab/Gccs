@@ -15,9 +15,10 @@ public static class ApiProblemDetails
             ? DefaultDetail(statusCode)
             : problem.Detail;
 
+        var correlationId = ApiCorrelation.Get(context.HttpContext);
         problem.Extensions.TryAdd("errorCode", DefaultErrorCode(statusCode));
         problem.Extensions.TryAdd("traceId", context.HttpContext.TraceIdentifier);
-        problem.Extensions.TryAdd("correlationId", ApiCorrelation.Get(context.HttpContext));
+        problem.Extensions.TryAdd("correlationId", correlationId);
     }
 
     public static IResult Create(

@@ -1,0 +1,4 @@
+interface:
+  display_name: "FeDril SOC 2 Story Orchestrator"
+  short_description: "Continue eligible SOC 2 tasks with verified checkpoints"
+  default_prompt: "Use $fedril-soc2-story-orchestrator to reconcile the current checkpoint and continue eligible authorized SOC 2 work, preserving evidence, review and release gates."

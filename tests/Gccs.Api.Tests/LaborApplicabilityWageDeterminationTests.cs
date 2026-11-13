@@ -233,11 +233,12 @@ public sealed class LaborApplicabilityWageDeterminationTests : IClassFixture<Web
 
     private WebApplicationFactory<Program> CreateFactory(string name, StoryIds ids) => factory.WithWebHostBuilder(builder =>
     {
+        var retainedDatabaseName = $"labor-{name}-{Guid.NewGuid():N}";
         builder.UseSetting("LocalDependencies:Enabled", "false");
         builder.UseSetting("ConnectionStrings:GccsDatabase", string.Empty);
         builder.ConfigureServices(services =>
         {
-            services.AddDbContext<GccsDbContext>(options => options.UseInMemoryDatabase($"labor-{name}"));
+            services.AddDbContext<GccsDbContext>(options => options.UseInMemoryDatabase(retainedDatabaseName));
             services.AddScoped<IAuditEventWriter, EfAuditEventWriter>();
             services.AddScoped<INoCuiAcknowledgementRepository, EfNoCuiAcknowledgementRepository>();
             services.AddScoped<ITenantRepository, Gccs.Infrastructure.Tenancy.EfTenantRepository>();
@@ -245,7 +246,7 @@ public sealed class LaborApplicabilityWageDeterminationTests : IClassFixture<Web
             services.AddSingleton<IObjectStorageService, TestObjectStorage>();
             services.AddSingleton<IMalwareScanner>(new CleanScanner());
             using var provider = services.BuildServiceProvider(); using var scope = provider.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<GccsDbContext>(); db.Database.EnsureDeleted(); db.Database.EnsureCreated();
+            var db = scope.ServiceProvider.GetRequiredService<GccsDbContext>(); db.Database.EnsureCreated();
             Seed(db, ids); db.SaveChanges();
         });
     });
@@ -346,16 +347,21 @@ public sealed class LaborApplicabilityWageDeterminationTests : IClassFixture<Web
 
     private sealed class TestObjectStorage : IObjectStorageService
     {
-        private readonly Dictionary<string, byte[]> objects = [];
+        private readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte[]> objects = new();
         public async Task<ObjectStorageWriteResult> UploadAsync(ObjectStorageWriteRequest request, CancellationToken cancellationToken = default)
         {
             using var buffer = new MemoryStream(); await request.Content.CopyToAsync(buffer, cancellationToken);
-            var name = ObjectStorageNames.BuildTenantBlobName(request.TenantId, request.ObjectName); objects[name] = buffer.ToArray();
+            var name = ObjectStorageNames.BuildTenantBlobName(request.TenantId, request.ObjectName);
+            if (request.CreateOnly && !objects.TryAdd(name, buffer.ToArray())) throw new InvalidOperationException("Synthetic create-only conflict.");
+            if (!request.CreateOnly) objects[name] = buffer.ToArray();
             return new(request.Container, name, new Uri($"https://storage.test/{name}"), "test", DateTimeOffset.UtcNow);
         }
         public Task<ObjectStorageReadResult?> OpenReadAsync(ObjectStorageReadRequest request, CancellationToken cancellationToken = default) => Task.FromResult<ObjectStorageReadResult?>(null);
         public Task<bool> ExistsAsync(ObjectStorageReadRequest request, CancellationToken cancellationToken = default) => Task.FromResult(objects.ContainsKey(ObjectStorageNames.BuildTenantBlobName(request.TenantId, request.ObjectName)));
-        public Task<bool> DeleteAsync(ObjectStorageReadRequest request, CancellationToken cancellationToken = default) => Task.FromResult(objects.Remove(ObjectStorageNames.BuildTenantBlobName(request.TenantId, request.ObjectName)));
+        public Task<bool> DeleteAsync(ObjectStorageReadRequest request, CancellationToken cancellationToken = default) {
+            if (request.ExpectedETag is not null && request.ExpectedETag != "test") throw new InvalidOperationException("Synthetic version mismatch.");
+            return Task.FromResult(objects.TryRemove(ObjectStorageNames.BuildTenantBlobName(request.TenantId, request.ObjectName), out _));
+        }
     }
 
     private sealed class LaborAuditFailureInterceptor : SaveChangesInterceptor

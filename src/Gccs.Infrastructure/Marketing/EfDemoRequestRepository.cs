@@ -1,3 +1,4 @@
+using System.Data;
 using Gccs.Application.Marketing;
 using Gccs.Infrastructure.Persistence;
 using Gccs.Infrastructure.Persistence.Models;
@@ -243,9 +244,12 @@ public sealed class EfDemoRequestRepository(
 
     public async Task<int> DeleteExpiredAsync(DateTimeOffset receivedBefore, CancellationToken cancellationToken = default)
     {
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        // Protect the eligibility read from concurrent history/outbox writes.
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
         var requestIds = await dbContext.DemoRequests
             .Where(request => request.ReceivedAt < receivedBefore &&
+                !dbContext.DemoAppointmentEvents.Any(item => item.DemoRequestId == request.Id) &&
+                !dbContext.DemoFollowUpResponses.Any(item => item.DemoRequestId == request.Id) &&
                 dbContext.DemoRequestDeliveries.Any(delivery =>
                     delivery.DemoRequestId == request.Id) &&
                 !dbContext.DemoRequestDeliveries.Any(delivery =>
@@ -253,9 +257,7 @@ public sealed class EfDemoRequestRepository(
             .Select(request => request.Id)
             .ToListAsync(cancellationToken);
         await dbContext.DemoRequestDeliveries.Where(delivery => requestIds.Contains(delivery.DemoRequestId)).ExecuteDeleteAsync(cancellationToken);
-        await dbContext.DemoFollowUpResponses.Where(item => requestIds.Contains(item.DemoRequestId)).ExecuteDeleteAsync(cancellationToken);
         await dbContext.DemoFollowUpRequests.Where(item => requestIds.Contains(item.DemoRequestId)).ExecuteDeleteAsync(cancellationToken);
-        await dbContext.DemoAppointmentEvents.Where(item => requestIds.Contains(item.DemoRequestId)).ExecuteDeleteAsync(cancellationToken);
         await dbContext.DemoAppointments.Where(item => requestIds.Contains(item.DemoRequestId)).ExecuteDeleteAsync(cancellationToken);
         var deleted = await dbContext.DemoRequests.Where(request => requestIds.Contains(request.Id)).ExecuteDeleteAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);

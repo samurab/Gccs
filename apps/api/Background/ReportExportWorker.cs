@@ -58,7 +58,6 @@ public sealed class ReportExportWorker(
             catch (Exception exception)
             {
                 logger.LogError(
-                    exception,
                     "PDF report export worker iteration failed. ExportId={ExportId} Attempt={Attempt} ExceptionType={ExceptionType}",
                     claimed?.ExportId,
                     claimed?.AttemptNumber,
@@ -93,7 +92,6 @@ public sealed class ReportExportWorker(
         catch (Exception failureException) when (failureException is not OperationCanceledException)
         {
             logger.LogError(
-                failureException,
                 "PDF report export worker could not persist failure state. ExportId={ExportId} ExceptionType={ExceptionType}",
                 claimed.ExportId,
                 failureException.GetType().Name);

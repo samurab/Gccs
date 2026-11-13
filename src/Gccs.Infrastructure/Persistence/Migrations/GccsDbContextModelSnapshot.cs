@@ -2254,6 +2254,14 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(80)")
                         .HasColumnName("notice_version");
 
+                    b.Property<Guid?>("ObjectWriteIntentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("object_write_intent_id");
+
+                    b.Property<Guid?>("ObjectWriteIntentTenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("object_write_intent_tenant_id");
+
                     b.Property<long>("SizeBytes")
                         .HasColumnType("bigint")
                         .HasColumnName("size_bytes");
@@ -2290,7 +2298,14 @@ namespace Gccs.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ContractId", "Type");
 
-                    b.ToTable("contract_documents", "gccs");
+                    b.HasIndex("ObjectWriteIntentTenantId", "ContractId");
+
+                    b.HasIndex("ObjectWriteIntentTenantId", "ObjectWriteIntentId");
+
+                    b.ToTable("contract_documents", "gccs", t =>
+                        {
+                            t.HasCheckConstraint("ck_contract_documents_intent_pair", "(object_write_intent_id IS NULL) = (object_write_intent_tenant_id IS NULL)");
+                        });
                 });
 
             modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.ContractEntity", b =>
@@ -4095,6 +4110,14 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(80)")
                         .HasColumnName("malware_scan_status");
 
+                    b.Property<Guid?>("ObjectWriteIntentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("object_write_intent_id");
+
+                    b.Property<Guid?>("ObjectWriteIntentTenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("object_write_intent_tenant_id");
+
                     b.Property<long>("SizeBytes")
                         .HasColumnType("bigint")
                         .HasColumnName("size_bytes");
@@ -4130,7 +4153,14 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                     b.HasIndex("EvidenceItemId", "VersionNumber")
                         .IsUnique();
 
-                    b.ToTable("evidence_file_versions", "gccs");
+                    b.HasIndex("ObjectWriteIntentTenantId", "EvidenceItemId");
+
+                    b.HasIndex("ObjectWriteIntentTenantId", "ObjectWriteIntentId");
+
+                    b.ToTable("evidence_file_versions", "gccs", t =>
+                        {
+                            t.HasCheckConstraint("ck_evidence_file_versions_intent_pair", "(object_write_intent_id IS NULL) = (object_write_intent_tenant_id IS NULL)");
+                        });
                 });
 
             modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.EvidenceItemEntity", b =>
@@ -7303,6 +7333,11 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<string>("ExpectedETag")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("expected_e_tag");
+
                     b.Property<string>("LastErrorCode")
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)")
@@ -7318,17 +7353,117 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(1024)")
                         .HasColumnName("object_name");
 
+                    b.Property<Guid?>("ObjectWriteIntentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("object_write_intent_id");
+
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid")
                         .HasColumnName("tenant_id");
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ObjectWriteIntentId")
+                        .IsUnique()
+                        .HasFilter("object_write_intent_id IS NOT NULL AND completed_at IS NULL");
+
                     b.HasIndex("CompletedAt", "NextAttemptAt");
 
                     b.HasIndex("TenantId", "Id");
 
+                    b.HasIndex("TenantId", "ObjectWriteIntentId");
+
                     b.ToTable("object_cleanup", "gccs");
+                });
+
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.ObjectWriteIntentEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ActorUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("actor_user_id");
+
+                    b.Property<string>("Container")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("container");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("ETag")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("e_tag");
+
+                    b.Property<long>("Generation")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("generation");
+
+                    b.Property<DateTimeOffset>("LeaseUntil")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("lease_until");
+
+                    b.Property<string>("ObjectName")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)")
+                        .HasColumnName("object_name");
+
+                    b.Property<Guid>("OwnerId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uuid")
+                        .HasColumnName("owner_id");
+
+                    b.Property<Guid>("ResourceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("resource_id");
+
+                    b.Property<Guid?>("ResourceLeaseId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("resource_lease_id");
+
+                    b.Property<string>("ResourceType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("resource_type");
+
+                    b.Property<string>("ResultCode")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("result_code");
+
+                    b.Property<string>("State")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("state");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("State", "LeaseUntil");
+
+                    b.HasIndex("TenantId", "Container", "ObjectName")
+                        .IsUnique();
+
+                    b.ToTable("object_write_intents", "gccs");
                 });
 
             modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.ObligationApplicabilityEvaluationEntity", b =>
@@ -8835,6 +8970,10 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(500)")
                         .HasColumnName("object_name");
 
+                    b.Property<Guid?>("ObjectWriteIntentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("object_write_intent_id");
+
                     b.Property<int>("ProcessingAttemptCount")
                         .HasColumnType("integer")
                         .HasColumnName("processing_attempt_count");
@@ -8889,6 +9028,8 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                     b.HasIndex("CreatedAt", "UpdatedAt");
 
                     b.HasIndex("Status", "RequestedAt");
+
+                    b.HasIndex("TenantId", "ObjectWriteIntentId");
 
                     b.HasIndex("TenantId", "ReportId", "Format", "RenderVersion")
                         .IsUnique();
@@ -12825,6 +12966,18 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.ContractEntity", null)
+                        .WithMany()
+                        .HasForeignKey("ObjectWriteIntentTenantId", "ContractId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.ObjectWriteIntentEntity", null)
+                        .WithMany()
+                        .HasForeignKey("ObjectWriteIntentTenantId", "ObjectWriteIntentId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("Contract");
                 });
 
@@ -13181,6 +13334,18 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                         .HasForeignKey("EvidenceItemId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.EvidenceItemEntity", null)
+                        .WithMany()
+                        .HasForeignKey("ObjectWriteIntentTenantId", "EvidenceItemId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.ObjectWriteIntentEntity", null)
+                        .WithMany()
+                        .HasForeignKey("ObjectWriteIntentTenantId", "ObjectWriteIntentId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("EvidenceItem");
                 });
@@ -13911,6 +14076,21 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                         .HasForeignKey("TenantId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.ObjectWriteIntentEntity", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "ObjectWriteIntentId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.ObjectWriteIntentEntity", b =>
+                {
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.TenantEntity", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.ObligationApplicabilityEvaluationEntity", b =>
@@ -14196,6 +14376,12 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                         .HasForeignKey("TenantId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.ObjectWriteIntentEntity", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "ObjectWriteIntentId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Gccs.Infrastructure.Persistence.Models.ReportEntity", "Report")
                         .WithMany("Exports")

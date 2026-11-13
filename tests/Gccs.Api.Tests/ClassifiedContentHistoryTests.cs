@@ -126,6 +126,17 @@ public sealed class ClassifiedContentHistoryTests
         using var queue = await client.SendAsync(Request(HttpMethod.Get, $"/api/classified-content/{route}?reviewOnly=true", read));
         Assert.Equal(HttpStatusCode.OK, queue.StatusCode); Assert.Contains(ids[type].ToString(), await queue.Content.ReadAsStringAsync());
         Assert.DoesNotContain("Synthetic classified note body", await queue.Content.ReadAsStringAsync());
+        using var own = await client.SendAsync(Request(HttpMethod.Get, path, read));
+        Assert.Equal(HttpStatusCode.OK, own.StatusCode);
+        Assert.Contains(ids[type].ToString(), await own.Content.ReadAsStringAsync());
+        Assert.DoesNotContain("Synthetic classified note body", await own.Content.ReadAsStringAsync());
+        using var emptyQueue = await client.SendAsync(Request(HttpMethod.Get,
+            $"/api/classified-content/{route}?reviewOnly=true", read, other: Guid.NewGuid()));
+        Assert.Equal(HttpStatusCode.OK, emptyQueue.StatusCode);
+        Assert.Equal("[]", await emptyQueue.Content.ReadAsStringAsync());
+        using var emptyHistory = await client.SendAsync(Request(HttpMethod.Get, path + "/history", read));
+        Assert.Equal(HttpStatusCode.OK, emptyHistory.StatusCode);
+        Assert.Equal("[]", await emptyHistory.Content.ReadAsStringAsync());
         foreach (var suffix in new[] { "", "/history" })
         {
             using var foreign = await client.SendAsync(Request(HttpMethod.Get, path + suffix, read, other: Guid.NewGuid()));

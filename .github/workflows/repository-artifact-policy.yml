@@ -1,4 +1,5 @@
 name: Repository artifact policy
+run-name: artifact-policy ${{ github.ref }} ${{ github.sha }} ${{ github.event.before || 'none' }}
 
 on:
   push:
@@ -19,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository history
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 

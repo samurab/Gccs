@@ -27,7 +27,7 @@ public sealed class AiOutputRetentionWorker(IServiceScopeFactory scopes, ILogger
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { return; }
             catch (Exception exception)
             {
-                logger.LogError(exception, "AI output retention processing failed; expired records remain eligible for retry.");
+                logger.LogError("AI output retention processing failed; expired records remain eligible for retry. ExceptionType={ExceptionType}", exception.GetType().Name);
                 try { await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken); }
                 catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { return; }
             }

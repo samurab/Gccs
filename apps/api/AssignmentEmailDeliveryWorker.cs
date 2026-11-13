@@ -37,7 +37,6 @@ public sealed class AssignmentEmailDeliveryWorker(
             catch (Exception exception)
             {
                 logger.LogError(
-                    exception,
                     "Assignment email delivery worker iteration failed. ExceptionType={ExceptionType}",
                     exception.GetType().Name);
                 await Task.Delay(pollInterval, stoppingToken);

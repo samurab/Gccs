@@ -3,6 +3,7 @@ using Azure;
 using Azure.Communication.Email;
 using Azure.Identity;
 using Gccs.Application.Identity;
+using Gccs.Infrastructure.Communication;
 using Microsoft.Extensions.Options;
 
 namespace Gccs.Infrastructure.Identity;
@@ -45,9 +46,8 @@ public sealed class AzureCommunicationInvitationEmailSender : IInvitationEmailSe
         _options.Enabled &&
         string.Equals(_options.Provider, "AzureCommunicationServices", StringComparison.OrdinalIgnoreCase) &&
         !string.IsNullOrWhiteSpace(_options.SenderAddress) &&
-        (_options.UseManagedIdentity
-            ? Uri.TryCreate(_options.Endpoint, UriKind.Absolute, out _)
-            : !string.IsNullOrWhiteSpace(_options.ConnectionString));
+        AzureCommunicationEmailConfiguration.HasHttpsEndpoint(
+            _options.UseManagedIdentity, _options.Endpoint, _options.ConnectionString);
 
     public async Task<InvitationEmailSendResult> SendAsync(
         InvitationEmailMessage message,

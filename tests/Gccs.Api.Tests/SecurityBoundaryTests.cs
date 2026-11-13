@@ -40,6 +40,54 @@ public sealed class SecurityBoundaryTests : IClassFixture<WebApplicationFactory<
     }
 
     [Fact]
+    public async Task Anonymous_rate_limit_cannot_be_bypassed_with_tenant_selection_headers()
+    {
+        await using var factory = _factory.WithWebHostBuilder(builder =>
+            builder.UseSetting("Security:RateLimiting:PermitLimit", "1"));
+        using var client = factory.CreateClient();
+        using var first = new HttpRequestMessage(HttpMethod.Get, "/api/compliance/overview");
+        first.Headers.Add(ApiSecurityExtensions.TenantSelectionHeader, Guid.NewGuid().ToString());
+        using var firstResponse = await client.SendAsync(first);
+        Assert.Equal(HttpStatusCode.Unauthorized, firstResponse.StatusCode);
+
+        using var second = new HttpRequestMessage(HttpMethod.Get, "/api/compliance/overview");
+        second.Headers.Add(ApiSecurityExtensions.TenantSelectionHeader, Guid.NewGuid().ToString());
+        using var secondResponse = await client.SendAsync(second);
+        Assert.Equal(HttpStatusCode.TooManyRequests, secondResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task Authenticated_rate_limit_follows_the_user_across_tenant_selections()
+    {
+        await using var factory = _factory.WithWebHostBuilder(builder =>
+            builder.UseSetting("Security:RateLimiting:PermitLimit", "1"));
+        using var client = factory.CreateClient();
+        var userId = Guid.NewGuid();
+        using var first = CreateAuthenticatedAccessRequest(Guid.NewGuid(), userId);
+        using var firstResponse = await client.SendAsync(first);
+        Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
+
+        using var second = CreateAuthenticatedAccessRequest(Guid.NewGuid(), userId);
+        using var secondResponse = await client.SendAsync(second);
+        Assert.Equal(HttpStatusCode.TooManyRequests, secondResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task Authenticated_users_have_separate_rate_limits_in_the_same_tenant()
+    {
+        await using var factory = _factory.WithWebHostBuilder(builder =>
+            builder.UseSetting("Security:RateLimiting:PermitLimit", "1"));
+        using var client = factory.CreateClient();
+        var tenantId = Guid.NewGuid();
+        foreach (var userId in new[] { Guid.NewGuid(), Guid.NewGuid() })
+        {
+            using var request = CreateAuthenticatedAccessRequest(tenantId, userId);
+            using var response = await client.SendAsync(request);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        }
+    }
+
+    [Fact]
     public async Task Health_is_public()
     {
         using var client = _factory.CreateClient();
@@ -307,6 +355,15 @@ public sealed class SecurityBoundaryTests : IClassFixture<WebApplicationFactory<
         Assert.Equal(LogLevel.Warning, failureLog.Level);
         Assert.Equal("anonymous", failureLog.Properties["UserId"]);
         Assert.Equal("none", failureLog.Properties["TenantId"]);
+    }
+
+    private static HttpRequestMessage CreateAuthenticatedAccessRequest(Guid tenantId, Guid userId)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, "/api/me/access");
+        request.Headers.Add("X-Gccs-Dev-Auth", "true");
+        request.Headers.Add("X-Gccs-Dev-Tenant", tenantId.ToString());
+        request.Headers.Add("X-Gccs-Dev-User", userId.ToString());
+        return request;
     }
 
     private WebApplicationFactory<Program> CreatePersistenceFactory(string databaseName) =>

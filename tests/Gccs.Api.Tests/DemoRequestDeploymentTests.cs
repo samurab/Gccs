@@ -163,13 +163,22 @@ public sealed class DemoRequestDeploymentTests
 
     private static string ReadText(params string[] path)
     {
-        var directory = new DirectoryInfo(Directory.GetCurrentDirectory());
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Gccs.slnx")))
+        foreach (var start in new[] { Directory.GetCurrentDirectory(), Path.GetDirectoryName(SourceFile())! })
         {
-            directory = directory.Parent;
+            var directory = new DirectoryInfo(start);
+            while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Gccs.slnx")))
+            {
+                directory = directory.Parent;
+            }
+
+            if (directory is not null)
+            {
+                return File.ReadAllText(Path.Combine([directory.FullName, .. path]));
+            }
         }
 
-        Assert.NotNull(directory);
-        return File.ReadAllText(Path.Combine([directory.FullName, .. path]));
+        throw new DirectoryNotFoundException("Could not locate repository root.");
+
+        static string SourceFile([System.Runtime.CompilerServices.CallerFilePath] string sourcePath = "") => sourcePath;
     }
 }

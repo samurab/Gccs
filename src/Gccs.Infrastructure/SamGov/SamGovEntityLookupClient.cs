@@ -30,7 +30,8 @@ public sealed class SamGovEntityLookupClient(
             return SamGovEntityLookupResult.Failure(ConfigurationErrorCode, UserSafeFailureMessage);
         }
 
-        if (!Uri.TryCreate(configured.BaseUrl, UriKind.Absolute, out var baseUri))
+        if (!Uri.TryCreate(configured.BaseUrl, UriKind.Absolute, out var baseUri) ||
+            baseUri.Scheme != Uri.UriSchemeHttps)
         {
             logger.LogWarning("SAM.gov lookup is not configured: invalid base URL.");
             return SamGovEntityLookupResult.Failure(ConfigurationErrorCode, UserSafeFailureMessage);

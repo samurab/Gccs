@@ -59,7 +59,7 @@ public sealed class DemoRequestDeliveryWorker(
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
             catch (Exception exception)
             {
-                logger.LogError(exception, "Demo request delivery worker iteration failed. ExceptionType={ExceptionType}", exception.GetType().Name);
+                logger.LogError("Demo request delivery worker iteration failed. ExceptionType={ExceptionType}", exception.GetType().Name);
                 await Task.Delay(interval, stoppingToken);
             }
         }

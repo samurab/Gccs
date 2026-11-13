@@ -22,6 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      actions: read
       attestations: read
       id-token: write
     environment:
@@ -29,6 +30,7 @@ jobs:
       url: ${{ vars.PRODUCTION_WEB_BASE_URL }}
     env:
       APPROVED_RELEASE_MANIFEST: docs/release/approved-release.json
+      DEPLOYMENT_AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
       DOTNET_ENVIRONMENT: Production
       ASPNETCORE_ENVIRONMENT: Production
       Gccs__DataPosture: No-CUI / compliance management only
@@ -59,28 +61,37 @@ jobs:
       DEMO_REQUESTS_ENDPOINT: ${{ vars.DEMO_REQUESTS_ENDPOINT }}
       DEMO_REQUESTS_SENDER_ADDRESS: ${{ vars.DEMO_REQUESTS_SENDER_ADDRESS }}
       DEMO_REQUESTS_RECIPIENT_ADDRESS: ${{ vars.DEMO_REQUESTS_RECIPIENT_ADDRESS }}
-      DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY: ${{ secrets.DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY }}
-      HUBSPOT_PRIVATE_APP_TOKEN: ${{ secrets.HUBSPOT_PRIVATE_APP_TOKEN }}
-      TASK_SEARCH_CURSOR_SIGNING_KEY: ${{ secrets.TASK_SEARCH_CURSOR_SIGNING_KEY }}
-      TASK_SEARCH_PREVIOUS_CURSOR_SIGNING_KEY: ${{ secrets.TASK_SEARCH_PREVIOUS_CURSOR_SIGNING_KEY }}
     steps:
       - name: Checkout production deployment controls
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 
+      - name: Retain current API package guard before source checkout
+        run: |
+          guard_dir="$RUNNER_TEMP/soc2-39.8-package-guard-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          mkdir "$guard_dir"
+          cp -n tools/release/check-api-package.py "$guard_dir/check-api-package.py"
+          cmp -s tools/release/check-api-package.py "$guard_dir/check-api-package.py"
+          guard_sha="$(sha256sum tools/release/check-api-package.py | cut -d ' ' -f 1)"
+          printf '%s  %s\n' "$guard_sha" "$guard_dir/check-api-package.py" | sha256sum --check --status
+          echo "API_PACKAGE_GUARD=$guard_dir/check-api-package.py" >> "$GITHUB_ENV"
+          echo "API_PACKAGE_GUARD_SHA256=$guard_sha" >> "$GITHUB_ENV"
+
       - name: Setup Node.js for release validation
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: "25"
+          node-version: "24.22.1"
 
       - name: Validate approved immutable release
         env:
           RELEASE_TAG_INPUT: ${{ github.event.inputs.release_tag }}
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
+          set -o noclobber
           node tools/release/release-control.mjs production "$APPROVED_RELEASE_MANIFEST" "$RELEASE_TAG_INPUT"
-          gh attestation verify "$APPROVED_RELEASE_MANIFEST" --repo "$GITHUB_REPOSITORY"
+          gh attestation verify "$APPROVED_RELEASE_MANIFEST" --repo "$GITHUB_REPOSITORY" --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/approved-release-attestation.yml"
           release_version="$(jq -r '.version' "$APPROVED_RELEASE_MANIFEST")"
           candidate_tag="$(jq -r '.candidateTag' "$APPROVED_RELEASE_MANIFEST")"
           release_tag="$(jq -r '.releaseTag' "$APPROVED_RELEASE_MANIFEST")"
@@ -99,10 +110,15 @@ jobs:
             tag_ref="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${tag}")"
             test "$(jq -r '.object.type' <<<"$tag_ref")" = "commit"
             test "$(jq -r '.object.sha' <<<"$tag_ref")" = "$commit_sha"
+            node tools/release/release-evidence.mjs artifact-policy "$GITHUB_REPOSITORY" "$GITHUB_REPOSITORY_ID" "$commit_sha" "refs/tags/$tag"
           done
           gh api "repos/${GITHUB_REPOSITORY}/commits/${commit_sha}" --jq '.commit.verification.verified' | grep -Fx true
           git merge-base --is-ancestor "$commit_sha" origin/main
           test "$release_asset_tag" = "$candidate_tag"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${staging_run_id}" > "$RUNNER_TEMP/approved-staging-run.json"
+          staging_workflow_sha="$(node tools/release/release-evidence.mjs staging-run "$APPROVED_RELEASE_MANIFEST" "$RUNNER_TEMP/approved-staging-run.json")"
+          gh api "repos/${GITHUB_REPOSITORY}/commits/${staging_workflow_sha}" --jq '.commit.verification.verified' | grep -Fx true
+          git merge-base --is-ancestor "$staging_workflow_sha" origin/main
           echo "RELEASE_VERSION=$release_version" >> "$GITHUB_ENV"
           echo "CANDIDATE_TAG=$candidate_tag" >> "$GITHUB_ENV"
           echo "RELEASE_TAG=$release_tag" >> "$GITHUB_ENV"
@@ -114,23 +130,46 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
           mkdir -p "$RUNNER_TEMP/release-bundle"
           gh release download "$RELEASE_ASSET_TAG" \
             --repo "$GITHUB_REPOSITORY" \
             --dir "$RUNNER_TEMP/release-bundle"
           node tools/release/release-control.mjs bundle "$APPROVED_RELEASE_MANIFEST" "$RUNNER_TEMP/release-bundle"
           for artifact in $(jq -r '.artifacts | [.api.name, .web.name, .migration.name, .sbom.name, .metadata.name] | .[]' "$APPROVED_RELEASE_MANIFEST"); do
-            gh attestation verify "$RUNNER_TEMP/release-bundle/$artifact" --repo "$GITHUB_REPOSITORY"
+            gh attestation verify "$RUNNER_TEMP/release-bundle/$artifact" --repo "$GITHUB_REPOSITORY" --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/staging.yml" --format json |
+              node tools/release/release-evidence.mjs attestation "$APPROVED_RELEASE_MANIFEST" "$RUNNER_TEMP/approved-staging-run.json"
           done
+
+      - name: Inspect manifest-selected API ZIP before extraction
+        id: api_package
+        run: |
+          printf '%s  %s\n' "$API_PACKAGE_GUARD_SHA256" "$API_PACKAGE_GUARD" | sha256sum --check --status
+          api_name="$(jq -r '.artifacts.api.name' "$APPROVED_RELEASE_MANIFEST")"
+          [[ "$api_name" =~ ^[0-9A-Za-z][0-9A-Za-z._-]*$ ]]
+          api_zip="$RUNNER_TEMP/release-bundle/$api_name"
+          api_sha="$(jq -r '.artifacts.api.sha256' "$APPROVED_RELEASE_MANIFEST")"
+          python3 -I -B "$API_PACKAGE_GUARD" "$api_zip" "$api_sha"
+          echo "path=$api_zip" >> "$GITHUB_OUTPUT"
+          echo "API_PACKAGE_PATH=$api_zip" >> "$GITHUB_ENV"
+          echo "API_PACKAGE_SHA256=$api_sha" >> "$GITHUB_ENV"
 
       - name: Extract approved deployment artifacts
         run: |
-          mkdir -p "$RUNNER_TEMP/gccs-api-production" "$GITHUB_WORKSPACE/.release/web" "$RUNNER_TEMP/gccs-migrations-production"
-          unzip -q "$RUNNER_TEMP/release-bundle/$(jq -r '.artifacts.api.name' "$APPROVED_RELEASE_MANIFEST")" -d "$RUNNER_TEMP/gccs-api-production"
+          mkdir "$RUNNER_TEMP/gccs-api-production"
+          unzip -q "$API_PACKAGE_PATH" -d "$RUNNER_TEMP/gccs-api-production"
+          printf '%s  %s\n' "$API_PACKAGE_GUARD_SHA256" "$API_PACKAGE_GUARD" | sha256sum --check --status
+          python3 -I -B "$API_PACKAGE_GUARD" "$API_PACKAGE_PATH" "$API_PACKAGE_SHA256" --publish-root "$RUNNER_TEMP/gccs-api-production"
+          mkdir -p "$GITHUB_WORKSPACE/.release/web" "$RUNNER_TEMP/gccs-migrations-production"
           unzip -q "$RUNNER_TEMP/release-bundle/$(jq -r '.artifacts.web.name' "$APPROVED_RELEASE_MANIFEST")" -d "$GITHUB_WORKSPACE/.release/web"
           unzip -q "$RUNNER_TEMP/release-bundle/$(jq -r '.artifacts.migration.name' "$APPROVED_RELEASE_MANIFEST")" -d "$RUNNER_TEMP/gccs-migrations-production"
 
       - name: Validate production CI/CD and No-CUI deployment guardrails
+        env:
+          DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY: ${{ secrets.DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY }}
+          HUBSPOT_PRIVATE_APP_TOKEN: ${{ secrets.HUBSPOT_PRIVATE_APP_TOKEN }}
+          TASK_SEARCH_CURSOR_SIGNING_KEY: ${{ secrets.TASK_SEARCH_CURSOR_SIGNING_KEY }}
+          TASK_SEARCH_PREVIOUS_CURSOR_SIGNING_KEY: ${{ secrets.TASK_SEARCH_PREVIOUS_CURSOR_SIGNING_KEY }}
         run: |
           node tools/release/validate-auth-config.mjs
           test -n "$PRODUCTION_POSTGRES_SERVER_NAME"
@@ -161,7 +200,7 @@ jobs:
           grep -F "No-CUI / compliance management only" infra/terraform/environments/production/main.tf
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v4
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4
         with:
           terraform_version: "1.9.8"
 
@@ -172,7 +211,7 @@ jobs:
           terraform -chdir=infra/terraform/environments/production validate
 
       - name: Login to Azure production subscription
-        uses: azure/login@v3
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
@@ -196,10 +235,16 @@ jobs:
           test -n "$PRODUCTION_DATABASE_URL"
           sudo apt-get update
           sudo apt-get install --yes postgresql-client
+          node tools/release/check-cleanup-quiescence.mjs production Stopped
           psql "$PRODUCTION_DATABASE_URL" --set ON_ERROR_STOP=on --file "$RUNNER_TEMP/gccs-migrations-production/001-predeploy-compliance-task-search-index.sql"
           psql "$PRODUCTION_DATABASE_URL" --set ON_ERROR_STOP=on --file "$RUNNER_TEMP/gccs-migrations-production/002-ef-core-migrations.sql"
 
       - name: Configure production services and release identity
+        env:
+          DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY: ${{ secrets.DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY }}
+          HUBSPOT_PRIVATE_APP_TOKEN: ${{ secrets.HUBSPOT_PRIVATE_APP_TOKEN }}
+          TASK_SEARCH_CURSOR_SIGNING_KEY: ${{ secrets.TASK_SEARCH_CURSOR_SIGNING_KEY }}
+          TASK_SEARCH_PREVIOUS_CURSOR_SIGNING_KEY: ${{ secrets.TASK_SEARCH_PREVIOUS_CURSOR_SIGNING_KEY }}
         run: |
           application_insights_connection_string="$(az monitor app-insights component show \
             --app "$PRODUCTION_APP_INSIGHTS_NAME" \
@@ -271,14 +316,26 @@ jobs:
           FEDRIL_BUILD_ID: ${{ github.run_id }}
         run: node tools/release/write-runtime-config.mjs "$GITHUB_WORKSPACE/.release/web/runtime-config.js"
 
+      - name: Recheck original promoted API ZIP immediately before deployment
+        run: |
+          printf '%s  %s\n' "$API_PACKAGE_GUARD_SHA256" "$API_PACKAGE_GUARD" | sha256sum --check --status
+          python3 -I -B "$API_PACKAGE_GUARD" "$API_PACKAGE_PATH" "$API_PACKAGE_SHA256" --publish-root "$RUNNER_TEMP/gccs-api-production"
+
       - name: Deploy the staged API artifact
-        uses: azure/webapps-deploy@v3
+        uses: azure/webapps-deploy@02a81bead70021f5284939794bcec79c271ab383 # v3
         with:
           app-name: ${{ env.PRODUCTION_API_APP_NAME }}
-          package: ${{ runner.temp }}/gccs-api-production
+          package: ${{ steps.api_package.outputs.path }}
+          restart: false
+
+      - name: Start production API with cleanup held
+        run: |
+          node tools/release/check-cleanup-quiescence.mjs production Stopped
+          az webapp start --subscription "$DEPLOYMENT_AZURE_SUBSCRIPTION_ID" --resource-group "$PRODUCTION_RESOURCE_GROUP" --name "$PRODUCTION_API_APP_NAME" --output none
+          node tools/release/check-cleanup-quiescence.mjs production Running
 
       - name: Deploy the staged web artifact
-        uses: Azure/static-web-apps-deploy@v1
+        uses: Azure/static-web-apps-deploy@1a947af9992250f3bc2e68ad0754c0b0c11566c9 # v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_GCCS_PRODUCTION }}
           action: upload
@@ -336,7 +393,7 @@ jobs:
 
       - name: Upload production promotion evidence
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: production-release-evidence-${{ github.event.inputs.release_tag }}
           path: |
@@ -356,7 +413,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout approved release record
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Publish immutable final release record
         env:

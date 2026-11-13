@@ -15,10 +15,10 @@ public sealed class ContractDocumentFileService(
     ICurrentTenantContext tenantContext,
     IAuditEventWriter auditEventWriter,
     ContentClassificationPolicy classificationPolicy,
-    IObjectStorageService objectStorageService,
     IMalwareScanner malwareScanner,
     IApplicationTransaction transaction,
-    IObjectCleanupQueue cleanup)
+    IObjectCleanupQueue cleanup,
+    DurableObjectWriteCoordinator objectWrites)
 {
     public async Task<bool> DeleteAsync(
         Guid contractId,
@@ -152,7 +152,7 @@ public sealed class ContractDocumentFileService(
 
         var uploadId = Guid.NewGuid();
         var objectName = BuildObjectName(contractId, uploadId, metadata.FileName);
-        await objectStorageService.UploadAsync(
+        return await objectWrites.ExecuteAsync(
             new ObjectStorageWriteRequest(
                 tenantContext.TenantId,
                 ObjectStorageContainer.ContractDocuments,
@@ -166,13 +166,10 @@ public sealed class ContractDocumentFileService(
                     ["classification"] = classification.Classification.ToString(),
                     ["malwareScanStatus"] = EvidenceUploadGuardrails.CleanMalwareScanStatus,
                     ["malwareScanner"] = scanResult.ScannerName
-                }),
-            cancellationToken);
-
-        try
+                }), actorUserId, "Contract", contractId, async (_, transactionToken) =>
         {
-            var document = await transaction.ExecuteAsync(async transactionToken =>
-            {
+                await classificationPolicy.EnsureAllowedAsync(classification, TenantDataHandlingWorkflow.ContractDocumentUpload,
+                    actorUserId, "ContractDocument", contractId.ToString(), transactionToken);
                 var created = await repository.CreateDocumentMetadataAsync(
                     contractId,
                     metadata,
@@ -207,20 +204,7 @@ public sealed class ContractDocumentFileService(
                     },
                     transactionToken);
                 return created;
-            }, cancellationToken);
-
-            if (document is null)
-            {
-                await DeleteStoredObjectAsync(objectName, cancellationToken);
-            }
-
-            return document;
-        }
-        catch
-        {
-            await DeleteStoredObjectAsync(objectName, CancellationToken.None);
-            throw;
-        }
+        }, cancellationToken);
     }
 
     private async Task WriteRejectedAuditAsync(
@@ -249,23 +233,6 @@ public sealed class ContractDocumentFileService(
                 ["noFileContentLogged"] = bool.TrueString
             },
             cancellationToken);
-    }
-
-    private async Task DeleteStoredObjectAsync(string objectName, CancellationToken cancellationToken)
-    {
-        try
-        {
-            await objectStorageService.DeleteAsync(
-                new ObjectStorageReadRequest(
-                    tenantContext.TenantId,
-                    ObjectStorageContainer.ContractDocuments,
-                    objectName),
-                cancellationToken);
-        }
-        catch
-        {
-            // Preserve the original persistence/audit failure. Orphan detection can remove this tenant-scoped object.
-        }
     }
 
     private static async Task<MemoryStream> BufferAndValidateSizeAsync(

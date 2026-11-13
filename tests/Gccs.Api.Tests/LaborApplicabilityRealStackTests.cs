@@ -17,6 +17,7 @@ using Gccs.Domain.Contracts;
 using Gccs.Domain.Evidence;
 using Gccs.Domain.Identity;
 using Gccs.Domain.Tenancy;
+using Gccs.Domain.Storage;
 using Gccs.Infrastructure.NoCui;
 using Gccs.Infrastructure.Persistence;
 using Gccs.Infrastructure.Persistence.Models;
@@ -41,9 +42,120 @@ public sealed class LaborApplicabilityRealStackTests : IClassFixture<WebApplicat
 
     public LaborApplicabilityRealStackTests(WebApplicationFactory<Program> factory) => this.factory = factory;
 
+    [Story32RetainedFact]
+    [Trait("Category", "RetainedLocalProvider")]
+    public async Task Retained_wage_upload_uses_real_scanner_storage_and_relational_audit_without_fixture_disposal()
+    {
+        var containerName = RequiredEnvironment("GCCS_RETAINED_PROVIDER_CONTAINER");
+        Assert.StartsWith("s397-retained-", containerName);
+        var blobService = new BlobServiceClient(RequiredEnvironment("ConnectionStrings__AzureStorage"));
+        Assert.Equal("127.0.0.1", blobService.Uri.Host);
+        Assert.Equal("127.0.0.1", RequiredEnvironment("MalwareScanning__Host"));
+        var container = blobService.GetBlobContainerClient(containerName);
+        Assert.False(await container.ExistsAsync());
+        var ids = StoryIds.Create();
+        var failure = new AuditFailureInterceptor();
+        await using var app = CreateFactory(ids, failure, containerName);
+        using var client = app.CreateClient();
+        var labor = await CreateLaborAsync(client, ids);
+        using (var scope = app.Services.CreateScope())
+        {
+            Assert.IsType<ClamAvMalwareScanner>(scope.ServiceProvider.GetRequiredService<IMalwareScanner>());
+            Assert.IsType<AzureBlobObjectStorageService>(scope.ServiceProvider.GetRequiredService<IObjectStorageService>());
+        }
+        using (var malicious = await UploadAsync(client, ids, labor.Id, EicarTestPayload(), "eicar.txt"))
+            Assert.Equal(HttpStatusCode.BadRequest, malicious.StatusCode);
+        Assert.Equal(0, await CountTenantBlobsAsync(container, ids.TenantId));
+        using (var clean = await UploadAsync(client, ids, labor.Id, "Synthetic retained public wage determination.", "wage.txt"))
+            Assert.Equal(HttpStatusCode.Created, clean.StatusCode);
+        Assert.Equal(1, await CountTenantBlobsAsync(container, ids.TenantId));
+        using var verification = app.Services.CreateScope();
+        var db = verification.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Single(await db.EvidenceFileVersions.Where(x => x.EvidenceItemId == ids.EvidenceId).ToArrayAsync());
+        Assert.Single(await db.AuditLogEntries.Where(x => x.TenantId == ids.TenantId &&
+            x.EntityType == "EvidenceUploadIntent" && x.Action == AuditAction.Rejected).ToArrayAsync());
+        Assert.Single(await db.AuditLogEntries.Where(x => x.TenantId == ids.TenantId &&
+            x.EntityType == "EvidenceFileVersion" && x.Action == AuditAction.Uploaded).ToArrayAsync());
+        // Retained fixture: no finally cleanup and no rollback upload that would delete an object.
+    }
+
+    [Story32RetainedFact]
+    [Trait("Category", "RetainedLocalProvider")]
+    public async Task Retained_unavailable_scanner_rejects_upload_without_stored_bytes_or_file_version()
+    {
+        var containerName = RequiredEnvironment("GCCS_RETAINED_PROVIDER_CONTAINER") + "-timeout";
+        Assert.StartsWith("s397-retained-", containerName);
+        var blobService = new BlobServiceClient(RequiredEnvironment("ConnectionStrings__AzureStorage"));
+        Assert.Equal("127.0.0.1", blobService.Uri.Host);
+        var container = blobService.GetBlobContainerClient(containerName);
+        Assert.False(await container.ExistsAsync());
+        // An open loopback socket with no ClamAV response proves the real adapter's timeout path.
+        using var silentScanner = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
+        silentScanner.Start();
+        var ids = StoryIds.Create();
+        await using var app = CreateFactory(ids, new AuditFailureInterceptor(), containerName,
+            ((System.Net.IPEndPoint)silentScanner.LocalEndpoint).Port);
+        using var client = app.CreateClient();
+        var labor = await CreateLaborAsync(client, ids);
+        using (var rejected = await UploadAsync(client, ids, labor.Id, "Synthetic timeout verification.", "timeout.txt"))
+            Assert.Equal(HttpStatusCode.ServiceUnavailable, rejected.StatusCode);
+        Assert.False(await container.ExistsAsync());
+        using var verification = app.Services.CreateScope();
+        var db = verification.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Empty(await db.EvidenceFileVersions.Where(x => x.EvidenceItemId == ids.EvidenceId).ToArrayAsync());
+        Assert.Single(await db.AuditLogEntries.Where(x => x.TenantId == ids.TenantId &&
+            x.EntityType == "EvidenceUploadIntent" && x.Action == AuditAction.Rejected).ToArrayAsync());
+    }
+
+    [Story32RetainedFact]
+    [Trait("Category", "RetainedLocalProvider")]
+    public async Task Retained_rollback_preflight_confirms_fresh_loopback_container()
+    {
+        var containerName = RequiredEnvironment("GCCS_RETAINED_PROVIDER_CONTAINER");
+        Assert.StartsWith("s397-retained-", containerName);
+        var service = new BlobServiceClient(RequiredEnvironment("ConnectionStrings__AzureStorage"));
+        Assert.Equal("127.0.0.1", service.Uri.Host);
+        Assert.False(await service.GetBlobContainerClient(containerName).ExistsAsync());
+    }
+
+    [Story32RetainedRollbackFact]
+    [Trait("Category", "RetainedLocalProvider")]
+    public async Task Scoped_rollback_retains_failed_upload_for_durable_cleanup_and_successful_fixture()
+    {
+        var containerName = RequiredEnvironment("GCCS_RETAINED_PROVIDER_CONTAINER");
+        var tenantId = Guid.Parse(RequiredEnvironment("GCCS_RETAINED_PROVIDER_TENANT"));
+        var prefix = $"{containerName}/tenants/{tenantId:D}/";
+        Assert.Equal(prefix, RequiredEnvironment("GCCS_APPROVED_ROLLBACK_PREFIX"));
+        Assert.StartsWith("s397-retained-", containerName);
+        var service = new BlobServiceClient(RequiredEnvironment("ConnectionStrings__AzureStorage"));
+        Assert.Equal("127.0.0.1", service.Uri.Host);
+        Assert.Equal("127.0.0.1", RequiredEnvironment("MalwareScanning__Host"));
+        var container = service.GetBlobContainerClient(containerName);
+        Assert.False(await container.ExistsAsync());
+        var ids = StoryIds.Create() with { TenantId = tenantId };
+        var failure = new AuditFailureInterceptor();
+        await using var app = CreateFactory(ids, failure, containerName);
+        using var client = app.CreateClient();
+        var labor = await CreateLaborAsync(client, ids);
+        using (var clean = await UploadAsync(client, ids, labor.Id, "Synthetic retained rollback baseline.", "baseline.txt"))
+            Assert.Equal(HttpStatusCode.Created, clean.StatusCode);
+        Assert.Equal(1, await CountTenantBlobsAsync(container, ids.TenantId));
+        failure.Enabled = true;
+        using (var rejected = await UploadAsync(client, ids, labor.Id, "Synthetic failed replacement.", "replacement.txt"))
+            Assert.Equal(HttpStatusCode.InternalServerError, rejected.StatusCode);
+        failure.Enabled = false;
+        Assert.Equal(2, await CountTenantBlobsAsync(container, ids.TenantId));
+        using var verification = app.Services.CreateScope();
+        var db = verification.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Single(await db.EvidenceFileVersions.Where(x => x.EvidenceItemId == ids.EvidenceId).ToArrayAsync());
+        Assert.Single(await db.AuditLogEntries.Where(x => x.TenantId == ids.TenantId &&
+            x.EntityType == "EvidenceFileVersion" && x.Action == AuditAction.Uploaded).ToArrayAsync());
+        // Both provider objects, durable cleanup obligation, DB rows and audit evidence remain retained.
+    }
+
     [Story32RealStackFact]
     [Trait("Category", "RealStackIntegration")]
-    public async Task Wage_upload_uses_PostgreSQL_ClamAV_and_Azurite_and_cleans_up_after_audit_rollback()
+    public async Task Wage_upload_uses_PostgreSQL_ClamAV_and_Azurite_and_retains_durable_cleanup_after_audit_rollback()
     {
         var ids = StoryIds.Create();
         var failure = new AuditFailureInterceptor();
@@ -75,22 +187,32 @@ public sealed class LaborApplicabilityRealStackTests : IClassFixture<WebApplicat
                 Assert.Equal(HttpStatusCode.InternalServerError, rolledBack.StatusCode);
             failure.Enabled = false;
 
-            Assert.Equal(1, await CountTenantBlobsAsync(blobContainer, ids.TenantId));
+            // The failed write remains until the durable cleanup worker can process it.
+            Assert.Equal(2, await CountTenantBlobsAsync(blobContainer, ids.TenantId));
             using var verification = app.Services.CreateScope();
             var db = verification.ServiceProvider.GetRequiredService<GccsDbContext>();
             Assert.Single(await db.EvidenceFileVersions.Where(x => x.EvidenceItemId == ids.EvidenceId).ToArrayAsync());
+            var intents = await db.Set<ObjectWriteIntentEntity>().Where(x => x.TenantId == ids.TenantId).ToArrayAsync();
+            Assert.Equal(2, intents.Length);
+            Assert.Single(intents, x => x.State == ObjectWriteIntentState.Committed);
+            var pending = Assert.Single(intents, x => x.State == ObjectWriteIntentState.CleanupPending);
+            var cleanup = Assert.Single(await db.Set<ObjectCleanupEntity>().Where(x => x.TenantId == ids.TenantId).ToArrayAsync());
+            Assert.Equal(pending.Id, cleanup.ObjectWriteIntentId);
+            Assert.False(string.IsNullOrWhiteSpace(cleanup.ExpectedETag));
+            Assert.Single(await db.AuditLogEntries.Where(x => x.TenantId == ids.TenantId &&
+                x.EntityType == "EvidenceFileVersion" && x.Action == AuditAction.Uploaded).ToArrayAsync());
             Assert.Single(await db.AuditLogEntries.Where(x => x.TenantId == ids.TenantId &&
                 x.EntityType == "EvidenceUploadIntent" && x.Action == AuditAction.Rejected).ToArrayAsync());
         }
         finally
         {
             failure.Enabled = false;
-            await DeleteTenantBlobsAsync(blobContainer, ids.TenantId);
-            await DeleteFixturesAsync(app, ids);
+            // Retain provider bytes, write intents, business rows and audit evidence together.
         }
     }
 
-    private WebApplicationFactory<Program> CreateFactory(StoryIds ids, AuditFailureInterceptor failure) =>
+    private WebApplicationFactory<Program> CreateFactory(StoryIds ids, AuditFailureInterceptor failure,
+        string? retainedContainer = null, int? scannerPort = null) =>
         factory.WithWebHostBuilder(builder =>
         {
             var connectionString = RequiredEnvironment("GCCS_TEST_POSTGRES_CONNECTION");
@@ -101,6 +223,17 @@ public sealed class LaborApplicabilityRealStackTests : IClassFixture<WebApplicat
             builder.UseSetting("MalwareScanning:Enabled", "true");
             builder.UseSetting("MalwareScanning:Host", RequiredEnvironment("MalwareScanning__Host"));
             builder.UseSetting("MalwareScanning:Port", RequiredEnvironment("MalwareScanning__Port"));
+            if (retainedContainer is not null)
+            {
+                builder.UseSetting("Storage:UseManagedIdentity", "false");
+                builder.UseSetting("Storage:Containers:Evidence", retainedContainer);
+            }
+            if (scannerPort.HasValue)
+            {
+                builder.UseSetting("MalwareScanning:Host", "127.0.0.1");
+                builder.UseSetting("MalwareScanning:Port", scannerPort.Value.ToString());
+                builder.UseSetting("MalwareScanning:TimeoutSeconds", "1");
+            }
             builder.ConfigureServices(services =>
             {
                 services.RemoveAll<GccsDbContext>();
@@ -253,7 +386,9 @@ public sealed class LaborApplicabilityRealStackTests : IClassFixture<WebApplicat
         public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
             DbContextEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default)
         {
-            if (Enabled && eventData.Context!.ChangeTracker.Entries<AuditLogEntryEntity>().Any(x => x.State == EntityState.Added))
+            if (Enabled && eventData.Context!.ChangeTracker.Entries<AuditLogEntryEntity>().Any(x =>
+                x.State == EntityState.Added && x.Entity.EntityType == "EvidenceFileVersion" &&
+                x.Entity.Action == AuditAction.Uploaded))
                 throw new InvalidOperationException("Injected Story 32 audit persistence failure.");
             return ValueTask.FromResult(result);
         }
@@ -270,5 +405,34 @@ internal sealed class Story32RealStackFactAttribute : FactAttribute
         };
         var missing = required.Where(name => string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(name))).ToArray();
         if (missing.Length > 0) Skip = $"Set the Story 32 real-stack environment values: {string.Join(", ", missing)}.";
+    }
+}
+
+internal sealed class Story32RetainedFactAttribute : FactAttribute
+{
+    public Story32RetainedFactAttribute()
+    {
+        var required = new[]
+        {
+            "GCCS_TEST_POSTGRES_CONNECTION", "ConnectionStrings__AzureStorage", "MalwareScanning__Host",
+            "MalwareScanning__Port", "GCCS_RETAINED_PROVIDER_CONTAINER"
+        };
+        if (required.Any(name => string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(name))))
+            Skip = "Requires explicit loopback providers, synthetic PostgreSQL and a fresh retained container.";
+    }
+}
+
+internal sealed class Story32RetainedRollbackFactAttribute : FactAttribute
+{
+    public Story32RetainedRollbackFactAttribute()
+    {
+        var required = new[]
+        {
+            "GCCS_TEST_POSTGRES_CONNECTION", "ConnectionStrings__AzureStorage", "MalwareScanning__Host",
+            "MalwareScanning__Port", "GCCS_RETAINED_PROVIDER_CONTAINER", "GCCS_RETAINED_PROVIDER_TENANT",
+            "GCCS_APPROVED_ROLLBACK_PREFIX"
+        };
+        if (required.Any(name => string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(name))))
+            Skip = "Requires separately approved exact synthetic rollback prefix; successful fixtures remain retained.";
     }
 }

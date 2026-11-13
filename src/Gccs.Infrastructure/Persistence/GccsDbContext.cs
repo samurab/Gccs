@@ -293,9 +293,31 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.HasOne<TenantEntity>().WithMany().HasForeignKey(n => n.TenantId).OnDelete(DeleteBehavior.Restrict);
         });
 
+        modelBuilder.Entity<ObjectWriteIntentEntity>(entity =>
+        {
+            entity.ToTable("object_write_intents");
+            entity.HasKey(item => item.Id);
+            entity.HasAlternateKey(item => new { item.TenantId, item.Id });
+            entity.Property(item => item.Container).HasConversion<string>().HasMaxLength(32);
+            entity.Property(item => item.State).HasConversion<string>().HasMaxLength(32).IsConcurrencyToken();
+            entity.Property(item => item.OwnerId).IsConcurrencyToken();
+            entity.Property(item => item.Generation).IsConcurrencyToken();
+            entity.Property(item => item.ObjectName).HasMaxLength(1024).IsRequired();
+            entity.Property(item => item.ResourceType).HasMaxLength(32).IsRequired();
+            entity.Property(item => item.ETag).HasMaxLength(200);
+            entity.Property(item => item.ResultCode).HasMaxLength(128);
+            entity.HasIndex(item => new { item.TenantId, item.Container, item.ObjectName }).IsUnique();
+            entity.HasIndex(item => new { item.State, item.LeaseUntil });
+        });
+
         modelBuilder.Entity<ObjectCleanupEntity>(entity =>
         {
             entity.ToTable("object_cleanup");
+            entity.Property(item => item.ExpectedETag).HasMaxLength(200);
+            entity.HasIndex(item => item.ObjectWriteIntentId).IsUnique()
+                .HasFilter("object_write_intent_id IS NOT NULL AND completed_at IS NULL");
+            entity.HasOne<ObjectWriteIntentEntity>().WithMany().HasForeignKey(item => new { item.TenantId, item.ObjectWriteIntentId })
+                .HasPrincipalKey(item => new { item.TenantId, item.Id }).OnDelete(DeleteBehavior.Restrict);
             entity.HasKey(item => item.Id);
             entity.Property(item => item.Container).HasConversion<string>().HasMaxLength(32);
             entity.Property(item => item.ObjectName).HasMaxLength(1024).IsRequired();
@@ -1352,7 +1374,12 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
 
         modelBuilder.Entity<ContractDocumentEntity>(entity =>
         {
-            entity.ToTable("contract_documents");
+            entity.ToTable("contract_documents", table => table.HasCheckConstraint("ck_contract_documents_intent_pair",
+                "(object_write_intent_id IS NULL) = (object_write_intent_tenant_id IS NULL)"));
+            entity.HasOne<ObjectWriteIntentEntity>().WithMany().HasForeignKey(x => new { x.ObjectWriteIntentTenantId, x.ObjectWriteIntentId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<ContractEntity>().WithMany().HasForeignKey(x => new { x.ObjectWriteIntentTenantId, x.ContractId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => new { x.ContractId, x.Type });
             entity.Property(x => x.FileName).HasMaxLength(300).IsRequired();
@@ -1778,7 +1805,12 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
 
         modelBuilder.Entity<EvidenceFileVersionEntity>(entity =>
         {
-            entity.ToTable("evidence_file_versions");
+            entity.ToTable("evidence_file_versions", table => table.HasCheckConstraint("ck_evidence_file_versions_intent_pair",
+                "(object_write_intent_id IS NULL) = (object_write_intent_tenant_id IS NULL)"));
+            entity.HasOne<ObjectWriteIntentEntity>().WithMany().HasForeignKey(x => new { x.ObjectWriteIntentTenantId, x.ObjectWriteIntentId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<EvidenceItemEntity>().WithMany().HasForeignKey(x => new { x.ObjectWriteIntentTenantId, x.EvidenceItemId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => new { x.EvidenceItemId, x.VersionNumber }).IsUnique();
             entity.Property(x => x.FileName).HasMaxLength(240).IsRequired();
@@ -2481,6 +2513,8 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         modelBuilder.Entity<ReportExportEntity>(entity =>
         {
             entity.ToTable("report_exports");
+            entity.HasOne<ObjectWriteIntentEntity>().WithMany().HasForeignKey(x => new { x.TenantId, x.ObjectWriteIntentId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => new { x.TenantId, x.ReportId, x.Format, x.RenderVersion }).IsUnique();
             entity.HasIndex(x => new { x.Status, x.RequestedAt });

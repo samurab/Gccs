@@ -38,7 +38,7 @@ public sealed class PortalPackageLifecycleWorker(
             }
             catch (Exception exception)
             {
-                logger.LogError(exception, "Portal package lifecycle processing failed.");
+                logger.LogError("Portal package lifecycle processing failed. ExceptionType={ExceptionType}", exception.GetType().Name);
             }
 
             await Task.Delay(interval, timeProvider, stoppingToken);

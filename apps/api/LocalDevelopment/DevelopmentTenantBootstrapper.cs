@@ -153,7 +153,9 @@ public sealed class DevelopmentTenantBootstrapper(
         }
         catch (Exception exception)
         {
-            logger.LogWarning(exception, "Development tenant bootstrap skipped because tenant creation failed.");
+            logger.LogWarning(
+                "Development tenant bootstrap skipped because tenant creation failed. ExceptionType={ExceptionType}",
+                exception.GetType().Name);
         }
     }
 

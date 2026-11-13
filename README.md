@@ -55,10 +55,12 @@ Compliance workflow logic must be reusable from backend services and tests. The 
 
 Prerequisites:
 
-- .NET SDK matching [`global.json`](global.json)
-- Node.js and npm
+- .NET SDK 10.0.402 matching [`global.json`](global.json); SDK roll-forward is disabled
+- Node.js 24.22.1 and its bundled npm, matching the CI setup steps
 - Terraform matching [`.terraform-version`](.terraform-version) when validating infrastructure
 - Docker, when local PostgreSQL/Redis/Azurite/ClamAV services are needed
+
+Install the exact SDK if `dotnet --version` reports that the requested SDK is unavailable; a newer feature band does not substitute for it. CI service images use content digests. Update runtime versions and image digests through a reviewed dependency change with compatibility checks; a pin alone does not establish security freshness. Runner images, system packages, browser downloads and action-internal tools retain separate update and verification requirements.
 
 Start the complete local stack with one supervised command:
 

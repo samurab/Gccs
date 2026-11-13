@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authorization.Policy;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 
@@ -197,12 +198,12 @@ public static class ApiSecurityExtensions
             };
             options.AddPolicy("api", httpContext =>
             {
-                var partitionKey =
-                    httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier) ??
-                    httpContext.Request.Headers[TenantSelectionHeader].FirstOrDefault() ??
-                    httpContext.User.FindFirstValue(TenantIdClaimType) ??
-                    httpContext.Connection.RemoteIpAddress?.ToString() ??
-                    "anonymous";
+                var userId = httpContext.User.Identity?.IsAuthenticated is true
+                    ? httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                    : null;
+                var partitionKey = !string.IsNullOrWhiteSpace(userId)
+                    ? $"user:{httpContext.User.FindFirstValue(AuthenticationPlaneClaimType)}:{userId}"
+                    : $"ip:{httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
 
                 return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
                 {
@@ -264,9 +265,8 @@ public static class ApiSecurityExtensions
                     .GetRequiredService<ILoggerFactory>()
                     .CreateLogger($"Gccs.Api.Security.{authenticationPlane}.JwtBearer");
                 logger.LogDebug(
-                    "JWT bearer request received. AuthenticationPlane={AuthenticationPlane} Path={Path} AuthorizationHeaderPresent={AuthorizationHeaderPresent}",
+                    "JWT bearer request received. AuthenticationPlane={AuthenticationPlane} AuthorizationHeaderPresent={AuthorizationHeaderPresent}",
                     authenticationPlane,
-                    context.HttpContext.Request.Path,
                     context.Request.Headers.ContainsKey("Authorization"));
                 return Task.CompletedTask;
             },
@@ -276,12 +276,9 @@ public static class ApiSecurityExtensions
                     .GetRequiredService<ILoggerFactory>()
                     .CreateLogger($"Gccs.Api.Security.{authenticationPlane}.JwtBearer");
                 logger.LogWarning(
-                    context.Exception,
-                    "JWT bearer authentication failed. AuthenticationPlane={AuthenticationPlane} Path={Path} ExceptionType={ExceptionType} Message={Message}",
+                    "JWT bearer authentication failed. AuthenticationPlane={AuthenticationPlane} ExceptionType={ExceptionType}",
                     authenticationPlane,
-                    context.HttpContext.Request.Path,
-                    context.Exception.GetType().Name,
-                    context.Exception.Message);
+                    context.Exception.GetType().Name);
                 return Task.CompletedTask;
             },
             OnTokenValidated = context =>
@@ -637,38 +634,45 @@ public static class ApiSecurityExtensions
             var logger = loggerFactory.CreateLogger("Gccs.Api.Security.ApiFailureLogging");
             var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "anonymous";
             var tenantId = context.User.FindFirstValue(TenantIdClaimType) ?? "none";
+            var exceptionFeature = context.Features.Get<IExceptionHandlerFeature>();
+            var endpoint = exceptionFeature?.Endpoint ?? context.GetEndpoint();
+            var path = (endpoint as RouteEndpoint)?.RoutePattern.RawText ?? "unmatched";
+            var exceptionType = exceptionFeature?.Error.GetType().Name ?? "none";
 
             if (context.Response.StatusCode >= StatusCodes.Status500InternalServerError)
             {
                 logger.LogError(
-                    "API request failed. StatusCode={StatusCode} Method={Method} Path={Path} CorrelationId={CorrelationId} TraceId={TraceId} UserId={UserId} TenantId={TenantId}",
+                    "API request failed. StatusCode={StatusCode} Method={Method} Path={Path} CorrelationId={CorrelationId} TraceId={TraceId} UserId={UserId} TenantId={TenantId} ExceptionType={ExceptionType}",
                     context.Response.StatusCode,
                     context.Request.Method,
-                    context.Request.Path.Value,
+                    path,
                     correlationId,
                     context.TraceIdentifier,
                     userId,
-                    tenantId);
+                    tenantId,
+                    exceptionType);
                 return;
             }
 
             logger.LogWarning(
-                "API request failed. StatusCode={StatusCode} Method={Method} Path={Path} CorrelationId={CorrelationId} TraceId={TraceId} UserId={UserId} TenantId={TenantId}",
+                "API request failed. StatusCode={StatusCode} Method={Method} Path={Path} CorrelationId={CorrelationId} TraceId={TraceId} UserId={UserId} TenantId={TenantId} ExceptionType={ExceptionType}",
                 context.Response.StatusCode,
                 context.Request.Method,
-                context.Request.Path.Value,
+                path,
                 correlationId,
                 context.TraceIdentifier,
                 userId,
-                tenantId);
+                tenantId,
+                exceptionType);
         });
     }
 
     public static IApplicationBuilder UseGccsApiProblemDetails(this IApplicationBuilder app)
     {
-        return app.UseExceptionHandler(errorApp =>
+        return app.UseExceptionHandler(new ExceptionHandlerOptions
         {
-            errorApp.Run(async context =>
+            SuppressDiagnosticsCallback = context => context.HttpContext.Request.Path.StartsWithSegments("/api"),
+            ExceptionHandler = async context =>
             {
                 var exception = context.Features.Get<IExceptionHandlerFeature>()?.Error;
                 if (exception is null)
@@ -765,7 +769,7 @@ public static class ApiSecurityExtensions
                                 ? new Dictionary<string, object?> { ["workflowContext"] = noticeRequired.WorkflowContext }
                                 : null)
                     .ExecuteAsync(context);
-            });
+            }
         });
     }
 

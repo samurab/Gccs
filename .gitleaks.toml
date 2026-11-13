@@ -2,9 +2,11 @@
 useDefault = true
 
 [allowlist]
-description = "Known non-secret values used only by disposable development stacks and deterministic tests."
+description = "Known non-secret development/test values and exact auditor access-lifecycle prose."
 regexTarget = "secret"
 regexes = [
   '''^Z2Njcy1sb2NhbC1kZXYtc3RvcmFnZS1rZXktMDEyMzQ1Njc4OWFiY2RlZg==$''',
-  '''^sprs-operation-123$'''
+  '''^sprs-operation-123$''',
+  # Ordinary auditor access-lifecycle prose, not a credential or API key.
+  '''^approval/expiry/revocation$'''
 ]

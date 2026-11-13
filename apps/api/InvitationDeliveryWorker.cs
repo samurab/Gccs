@@ -36,7 +36,7 @@ public sealed class InvitationDeliveryWorker(
             }
             catch (Exception exception)
             {
-                logger.LogError(exception, "Invitation delivery worker iteration failed. ExceptionType={ExceptionType}", exception.GetType().Name);
+                logger.LogError("Invitation delivery worker iteration failed. ExceptionType={ExceptionType}", exception.GetType().Name);
                 await Task.Delay(pollInterval, stoppingToken);
             }
         }

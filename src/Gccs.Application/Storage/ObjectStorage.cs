@@ -33,12 +33,14 @@ public sealed record ObjectStorageWriteRequest(
     string ObjectName,
     Stream Content,
     string ContentType,
-    IReadOnlyDictionary<string, string>? Metadata = null);
+    IReadOnlyDictionary<string, string>? Metadata = null,
+    bool CreateOnly = false);
 
 public sealed record ObjectStorageReadRequest(
     Guid TenantId,
     ObjectStorageContainer Container,
-    string ObjectName);
+    string ObjectName,
+    string? ExpectedETag = null);
 
 public sealed record ObjectStorageWriteResult(
     ObjectStorageContainer Container,

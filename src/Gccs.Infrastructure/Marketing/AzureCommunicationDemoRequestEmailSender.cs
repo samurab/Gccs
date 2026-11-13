@@ -4,6 +4,7 @@ using Azure;
 using Azure.Communication.Email;
 using Azure.Identity;
 using Gccs.Application.Marketing;
+using Gccs.Infrastructure.Communication;
 using Microsoft.Extensions.Options;
 
 namespace Gccs.Infrastructure.Marketing;
@@ -66,9 +67,8 @@ public sealed class DemoRequestOptions
                 !IsValidPublicWebUri(options.PublicWebBaseUrl, allowLoopbackHttp: true) ||
                 options.FollowUpTokenSigningKey.Length < 32 ||
                 options.FollowUpTokenLifetimeHours is < 1 or > 168 ||
-                (options.UseManagedIdentity &&
-                    (!Uri.TryCreate(options.Endpoint, UriKind.Absolute, out var developmentEndpointUri) || developmentEndpointUri.Scheme != Uri.UriSchemeHttps)) ||
-                (!options.UseManagedIdentity && string.IsNullOrWhiteSpace(options.ConnectionString)))
+                !AzureCommunicationEmailConfiguration.HasHttpsEndpoint(
+                    options.UseManagedIdentity, options.Endpoint, options.ConnectionString))
             {
                 throw new InvalidOperationException("Enabled development requester email requires valid Azure Communication Services delivery configuration, a loopback HTTP or HTTPS public web URL, and a follow-up signing key.");
             }
@@ -86,9 +86,8 @@ public sealed class DemoRequestOptions
             !string.IsNullOrEmpty(publicWebUri.Fragment) ||
             options.FollowUpTokenSigningKey.Length < 32 ||
             options.FollowUpTokenLifetimeHours is < 1 or > 168 ||
-            (options.UseManagedIdentity &&
-                (!Uri.TryCreate(options.Endpoint, UriKind.Absolute, out var endpointUri) || endpointUri.Scheme != Uri.UriSchemeHttps)) ||
-            (!options.UseManagedIdentity && string.IsNullOrWhiteSpace(options.ConnectionString)))
+            !AzureCommunicationEmailConfiguration.HasHttpsEndpoint(
+                options.UseManagedIdentity, options.Endpoint, options.ConnectionString))
         {
             throw new InvalidOperationException("Enabled demo requests require a supported provider, valid delivery configuration, HTTPS public web URL, and follow-up signing key.");
         }
@@ -136,7 +135,8 @@ public sealed class AzureCommunicationDemoRequestEmailSender : IDemoRequestDeliv
         (string.Equals(_options.Provider, DemoRequestOptions.AzureCommunicationServicesProvider, StringComparison.OrdinalIgnoreCase) ||
          string.Equals(_options.Provider, DemoRequestOptions.DevelopmentRequesterEmailProvider, StringComparison.OrdinalIgnoreCase)) &&
         !string.IsNullOrWhiteSpace(_options.SenderAddress) &&
-        (_options.UseManagedIdentity ? Uri.TryCreate(_options.Endpoint, UriKind.Absolute, out _) : !string.IsNullOrWhiteSpace(_options.ConnectionString));
+        AzureCommunicationEmailConfiguration.HasHttpsEndpoint(
+            _options.UseManagedIdentity, _options.Endpoint, _options.ConnectionString);
 
     public async Task<DemoRequestDeliveryResult> DeliverAsync(ClaimedDemoRequestDelivery request, CancellationToken cancellationToken = default)
     {

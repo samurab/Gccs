@@ -74,7 +74,6 @@ public sealed class ExtractionJobWorker(
             catch (Exception exception)
             {
                 logger.LogError(
-                    exception,
                     "Extraction worker iteration failed. JobId={JobId} Attempt={Attempt} ExceptionType={ExceptionType}",
                     claimed?.JobId,
                     claimed?.AttemptNumber,
@@ -108,7 +107,6 @@ public sealed class ExtractionJobWorker(
         catch (Exception failureException) when (failureException is not OperationCanceledException)
         {
             logger.LogError(
-                failureException,
                 "Extraction worker could not persist failure state. JobId={JobId} ExceptionType={ExceptionType}",
                 claimed.JobId,
                 failureException.GetType().Name);
