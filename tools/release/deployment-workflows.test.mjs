@@ -49,6 +49,16 @@ const namedStep = (text, name) => {
   return text.slice(start, end < 0 ? undefined : end);
 };
 
+
+const assertStartupCondition = (step, environment) => {
+  if (environment === "staging") {
+    const normalGuard = "        if: ${{ inputs.operation == 'normal-deployment' }}\n";
+    assert.ok(step.includes(normalGuard), "Staging startup must select only normal deployment");
+    step = step.replace(normalGuard, "");
+  }
+  assert.doesNotMatch(step, /if:|always\(\)|continue-on-error/);
+};
+
 for (const [environment, workflow, migrationName, apiName] of [
   ["staging", staging, "Apply staging migrations through approved CI/CD", "Deploy staging API App Service"],
   ["production", production, "Apply the staged migration artifact", "Deploy the staged API artifact"]
@@ -66,7 +76,7 @@ for (const [environment, workflow, migrationName, apiName] of [
       start.indexOf(` ${environment} Stopped`) < start.indexOf("az webapp start"));
     assert.ok(start.indexOf(` ${environment} Running`) > start.indexOf("az webapp start"));
     assert.match(start, /az webapp start --subscription "\$DEPLOYMENT_AZURE_SUBSCRIPTION_ID"/);
-    assert.doesNotMatch(start, /if:|always\(\)|continue-on-error/);
+    assertStartupCondition(start, environment);
     assert.doesNotMatch(workflow, /ObjectCleanupProcessing(?:__|:)Enabled\s*=\s*true/i);
     assert.match(workflow, /^      DEPLOYMENT_AZURE_SUBSCRIPTION_ID: \$\{\{ vars\.AZURE_SUBSCRIPTION_ID \}\}$/m);
   });
@@ -88,6 +98,21 @@ for (const [environment, workflow, migrationName, apiName] of [
     }
   });
 }
+
+
+test("startup conditions reject bypasses, alternate guards, and duplicates", () => {
+  const stagingStart = namedStep(staging, "Start staging API with cleanup held");
+  const productionStart = namedStep(production, "Start production API with cleanup held");
+  const normalGuard = "        if: ${{ inputs.operation == 'normal-deployment' }}\n";
+  for (const guard of ["", "        if: always()\n", "        if: ${{ inputs.operation == 'api-artifact-restoration-exercise' }}\n", normalGuard + normalGuard]) {
+    assert.throws(() => assertStartupCondition(stagingStart.replace(normalGuard, guard), "staging"));
+  }
+  for (const bypass of ["        continue-on-error: true\n", "        if: always()\n"]) {
+    assert.throws(() => assertStartupCondition(stagingStart + bypass, "staging"));
+    assert.throws(() => assertStartupCondition(productionStart + bypass, "production"));
+  }
+  assert.throws(() => assertStartupCondition(productionStart + normalGuard, "production"));
+});
 
 test("staging retains the externally pinned cleanup guard before candidate preparation", () => {
   const bootstrap = staging.indexOf("const admissionResult = await bootstrapFromEnvironment(process.env)");
@@ -511,7 +536,7 @@ test("workflow Node setups select the reviewed exact LTS version", async () => {
   const observed = [];
   for (const file of (await readdir(new URL("../../.github/workflows/", import.meta.url))).filter(name => /\.ya?ml$/.test(name)).sort()) {
     const workflow = await readWorkflow(file);
-    const steps = [...workflow.matchAll(/^      - (?:name: [^\n]+\n        )?uses: actions\/setup-node@[^\n]+\n([\s\S]*?)(?=^      - |$(?![\s\S]))/gm)];
+    const steps = [...workflow.matchAll(/^      - (?:name: [^\n]+\n        (?:if: [^\n]+\n        )?)?uses: actions\/setup-node@[^\n]+\n([\s\S]*?)(?=^      - |$(?![\s\S]))/gm)];
     for (const [, body] of steps) {
       assert.deepEqual([...body.matchAll(/^          node-version: ([^\n]+)$/gm)].map(match => match[1]), ['"24.22.1"'], file);
       assert.doesNotMatch(body, /^          (?:node-version-file|check-latest):/m, file);
@@ -536,7 +561,7 @@ test("workflow SDK setups retain the exact repository SDK without roll-forward",
   assert.equal(sdk.rollForward, "disable");
   let setups = 0;
   for (const file of ["ci.yml", "production.yml", "staging.yml"]) {
-    for (const [, body] of (await readWorkflow(file)).matchAll(/^      - (?:name: [^\n]+\n        )?uses: actions\/setup-dotnet@[^\n]+\n([\s\S]*?)(?=^      - |$(?![\s\S]))/gm)) {
+    for (const [, body] of (await readWorkflow(file)).matchAll(/^      - (?:name: [^\n]+\n        (?:if: [^\n]+\n        )?)?uses: actions\/setup-dotnet@[^\n]+\n([\s\S]*?)(?=^      - |$(?![\s\S]))/gm)) {
       assert.match(body, file === "staging.yml" ? /^          global-json-file: fedril-source\/global.json$/m : /^          global-json-file: global.json$/m, file);
       assert.doesNotMatch(body, /^          (?:dotnet-version|dotnet-quality):/m, file);
       setups += 1;
