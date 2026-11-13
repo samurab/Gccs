@@ -47,6 +47,33 @@ public sealed class TaskSearchCursorProtectorTests
         Assert.Equal(position, decoded);
     }
 
+    [Fact]
+    public void Removing_previous_key_rejects_unexpired_old_cursor_and_preserves_new_cursor()
+    {
+        var clock = new MutableTimeProvider(new DateTimeOffset(2026, 9, 9, 12, 0, 0, TimeSpan.Zero));
+        var oldKey = Convert.ToBase64String(Enumerable.Repeat((byte)1, 32).ToArray());
+        var newKey = Convert.ToBase64String(Enumerable.Repeat((byte)2, 32).ToArray());
+        var tenantId = Guid.NewGuid();
+        var position = new ComplianceTaskCursor(null, clock.GetUtcNow(), Guid.NewGuid());
+        var oldProtector = new TaskSearchCursorProtector(new TaskSearchCursorOptions { CursorSigningKey = oldKey }, clock);
+        var overlapProtector = new TaskSearchCursorProtector(new TaskSearchCursorOptions
+        {
+            CursorSigningKey = newKey,
+            PreviousCursorSigningKey = oldKey
+        }, clock);
+        var retiredProtector = new TaskSearchCursorProtector(new TaskSearchCursorOptions { CursorSigningKey = newKey }, clock);
+        var oldCursor = oldProtector.Protect(tenantId, "filters", position);
+        var newCursor = overlapProtector.Protect(tenantId, "filters", position);
+
+        Assert.True(oldProtector.TryUnprotect(oldCursor, tenantId, "filters", out _));
+        Assert.True(overlapProtector.TryUnprotect(oldCursor, tenantId, "filters", out _));
+        Assert.False(oldProtector.TryUnprotect(newCursor, tenantId, "filters", out _));
+        Assert.False(retiredProtector.TryUnprotect(oldCursor, tenantId, "filters", out var rejected));
+        Assert.Null(rejected);
+        Assert.True(retiredProtector.TryUnprotect(newCursor, tenantId, "filters", out var decoded));
+        Assert.Equal(position, decoded);
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData("not-base64")]
