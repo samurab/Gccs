@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { driftJobNames, evaluateDriftRun, evaluateScheduledDriftCycle } from "./drift-status.mjs";
 
@@ -162,14 +164,18 @@ test("plan outcome is a job output, without new identities, notification or disp
   assert.doesNotMatch(planShell, /terraform.*apply|curl|gh |az /);
 });
 for (const [planExit, expectedExit, outcome] of [[0, 0, "no_drift"], [2, 1, "drift"], [1, 1, "execution_error"], [7, 7, "execution_error"]]) {
-  test(`actual plan shell preserves Terraform ${planExit} exit semantics and outputs only ${outcome}`, () => {
+  test(`actual plan shell preserves Terraform ${planExit} exit semantics and outputs only ${outcome}`, async () => {
     assert.ok(planShell);
+    // Match GitHub's regular output-file contract; retain generated fixtures for operator disposition.
+    const outputDirectory = await mkdtemp(join(tmpdir(), "fedril-drift-plan-"));
+    const outputFile = join(outputDirectory, "github-output");
+    await writeFile(outputFile, "", { flag: "wx", mode: 0o600 });
     // A shell function replaces Terraform; no provider, state or plan file is touched.
     const child = spawnSync("/bin/bash", ["-c", `terraform() { return ${planExit}; }\n${planShell}`], {
-      env: { PATH: "/usr/bin:/bin", GITHUB_OUTPUT: "/dev/stdout", RUNNER_TEMP: "/synthetic-not-created" }, encoding: "utf8", timeout: 5_000
+      env: { PATH: "/usr/bin:/bin", GITHUB_OUTPUT: outputFile, RUNNER_TEMP: "/synthetic-not-created" }, encoding: "utf8", timeout: 5_000
     });
     assert.ifError(child.error);
     assert.equal(child.status, expectedExit, child.stderr);
-    assert.deepEqual(child.stdout.match(/^outcome=.+$/gm), [`outcome=${outcome}`]);
+    assert.deepEqual((await readFile(outputFile, "utf8")).match(/^outcome=.+$/gm), [`outcome=${outcome}`]);
   });
 }
