@@ -10,6 +10,9 @@ const makeRun = () => ({ id: 10, run_attempt: 2, path: ".github/workflows/produc
   head_branch: "release-main", event: "schedule", repository: { full_name: "example/service", id: 1 },
   head_repository: { full_name: "example/service", id: 1 }, status: "completed", conclusion: "success", created_at: "2026-11-09T13:18:00Z" });
 const makeJobs = () => driftJobNames.map((name, i) => ({ id: i + 1, name, run_id: 10, run_attempt: 2, head_sha: "a".repeat(40), status: "completed", conclusion: "success" }));
+const outcomeSteps = outcome => ["no_drift", "drift", "execution_error"].map(name => ({
+  name: `Record plan outcome ${name}`, status: "completed", conclusion: name === outcome ? "success" : "skipped"
+}));
 function provider({ runs = [], jobs = makeJobs(), issues = [], override } = {}) {
   const calls = [];
   const request = async (route, options) => {
@@ -82,6 +85,14 @@ test("generic failed plan never becomes drift through Jobs API alone", async () 
   const outcome = await observeInfrastructureDrift(input(), mock.request);
   assert.equal(outcome.status, "failed");
   assert.match(writes(mock.calls)[0].options.body.body, /failure_requires_triage/);
+});
+test("exact attempt plan marker records detected drift without reading logs or artifacts", async () => {
+  const jobs = makeJobs(); jobs[2].conclusion = "failure"; jobs[2].steps = outcomeSteps("drift");
+  const mock = provider({ runs: [{ ...makeRun(), conclusion: "failure" }], jobs });
+  const outcome = await observeInfrastructureDrift(input(), mock.request);
+  assert.equal(outcome.status, "drift");
+  assert.match(writes(mock.calls)[0].options.body.body, /bound_plan_detected_drift/);
+  assert.ok(mock.calls.every(call => !/logs|artifacts/.test(call.route)));
 });
 test("complete terminal event uses exact attempt endpoint and no logs/artifacts", async () => {
   const eventRun = makeRun();
@@ -209,4 +220,10 @@ test("observer workflow uses trusted default-source SHA and no cloud or trigger-
   assert.match(workflow, /if: vars.DRIFT_OBSERVER_READY == 'true'/);
   assert.match(workflow, /cancel-in-progress: false/);
   assert.doesNotMatch(workflow, /id-token:|azure\/login|environment:|workflow_dispatch:|github.event.workflow_run.head_sha|download-artifact|npm |pull_request_target|secrets\./);
+});
+test("drift workflow emits one fixed allowlisted plan-outcome marker", async () => {
+  const workflow = await readFile(new URL("../../.github/workflows/production-infrastructure-drift.yml", import.meta.url), "utf8");
+  for (const outcome of ["no_drift", "drift", "execution_error"]) {
+    assert.match(workflow, new RegExp(`- name: Record plan outcome ${outcome}\\n        if: always\\(\\) && steps\\.drift-plan\\.outputs\\.outcome == '${outcome}'\\n        run: true`));
+  }
 });

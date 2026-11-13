@@ -6,6 +6,11 @@ export const driftJobNames = Object.freeze([
   "Check Production public runtime settings",
   "plan"
 ]);
+const planOutcomeStepNames = Object.freeze({
+  no_drift: "Record plan outcome no_drift",
+  drift: "Record plan outcome drift",
+  execution_error: "Record plan outcome execution_error"
+});
 const pending = new Set(["queued", "in_progress", "waiting", "requested", "pending"]);
 const conclusions = new Set(["success", "failure", "cancelled", "skipped", "timed_out", "neutral", "action_required", "stale", "startup_failure"]);
 const integer = value => Number.isSafeInteger(value) && value > 0;
@@ -42,8 +47,22 @@ export function evaluateDriftRun({ binding, run, jobs, jobsComplete, jobsAttempt
         job?.run_attempt !== undefined && job.run_attempt !== run.run_attempt || job?.head_sha !== run.head_sha)) return unknown("job_inventory_mismatch");
   if (rows.some(job => job.status !== "completed" || !conclusions.has(job.conclusion))) return unknown("invalid_job_state");
   const plan = rows.find(job => job.name === "plan");
-  // Jobs API failure alone does not distinguish drift from init/auth/plan errors.
-  // A caller may supply a separately collected, exact-bound plan-output receipt.
+  const planOutcomeSteps = Array.isArray(plan.steps)
+    ? plan.steps.filter(step => Object.values(planOutcomeStepNames).includes(step?.name)) : [];
+  if (planOutcomeSteps.length > 0) {
+    const selected = planOutcomeSteps.filter(step => step?.status === "completed" && step?.conclusion === "success");
+    if (planOutcomeSteps.length !== 3 || new Set(planOutcomeSteps.map(step => step?.name)).size !== 3 || selected.length !== 1 ||
+        planOutcomeSteps.some(step => step?.status !== "completed" || !["success", "skipped"].includes(step?.conclusion)) ||
+        planOutcomeSteps.some(step => step !== selected[0] && step?.conclusion !== "skipped")) return unknown("plan_outcome_mismatch");
+    const derivedOutcome = Object.entries(planOutcomeStepNames).find(([, name]) => name === selected[0].name)?.[0];
+    const derived = { runId: run.id, runAttempt: run.run_attempt, headSha: run.head_sha, jobId: plan.id, outcome: derivedOutcome };
+    if (planOutcome !== undefined && Object.keys(derived).some(key => planOutcome?.[key] !== derived[key]))
+      return unknown("plan_outcome_mismatch");
+    planOutcome = derived;
+  }
+  // A failed plan job alone does not distinguish drift from initialization,
+  // authentication, or Terraform execution errors. Fixed workflow step names
+  // expose only the allowlisted outcome through the exact attempt Jobs API.
   if (planOutcome !== undefined && (planOutcome?.runId !== run.id || planOutcome?.runAttempt !== run.run_attempt ||
       planOutcome?.headSha !== run.head_sha || planOutcome?.jobId !== plan.id ||
       !["no_drift", "drift", "execution_error"].includes(planOutcome?.outcome) ||

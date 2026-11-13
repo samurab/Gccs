@@ -147,3 +147,15 @@ jobs:
           echo "outcome=execution_error" >> "$GITHUB_OUTPUT"
           echo "Terraform plan failed with exit code $plan_exit."
           exit "$plan_exit"
+
+      - name: Record plan outcome no_drift
+        if: always() && steps.drift-plan.outputs.outcome == 'no_drift'
+        run: true
+
+      - name: Record plan outcome drift
+        if: always() && steps.drift-plan.outputs.outcome == 'drift'
+        run: true
+
+      - name: Record plan outcome execution_error
+        if: always() && steps.drift-plan.outputs.outcome == 'execution_error'
+        run: true

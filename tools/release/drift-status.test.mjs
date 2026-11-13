@@ -19,6 +19,9 @@ const failedPlan = () => {
   return input;
 };
 const receipt = outcome => ({ runId: 10, runAttempt: 2, headSha: binding.headSha, jobId: 3, outcome });
+const outcomeSteps = outcome => Object.keys({ no_drift: 0, drift: 0, execution_error: 0 }).map(name => ({
+  name: `Record plan outcome ${name}`, status: "completed", conclusion: name === outcome ? "success" : "skipped"
+}));
 
 test("all three exact jobs must succeed for a healthy run", () => {
   assert.deepEqual(evaluateDriftRun(fixture()), { status: "healthy", reason: "all_expected_jobs_succeeded" });
@@ -30,6 +33,10 @@ for (const [outcome, status] of [["drift", "drift"], ["execution_error", "failed
   test(`exact-bound ${outcome} receipt classifies the sole failed plan`, () => {
     assert.equal(evaluateDriftRun({ ...failedPlan(), planOutcome: receipt(outcome) }).status, status);
   });
+  test(`exact attempt step markers classify ${outcome} without reading logs or artifacts`, () => {
+    const input = failedPlan(); input.jobs.jobs[2].steps = outcomeSteps(outcome);
+    assert.equal(evaluateDriftRun(input).status, status);
+  });
 }
 test("extra settings failure stays triage-required even with a drift receipt", () => {
   const input = failedPlan(); input.jobs.jobs[0].conclusion = "failure";
@@ -37,6 +44,17 @@ test("extra settings failure stays triage-required even with a drift receipt", (
 });
 test("an exact no-drift receipt is compatible with a successful plan", () => {
   assert.equal(evaluateDriftRun({ ...fixture(), planOutcome: receipt("no_drift") }).status, "healthy");
+});
+test("exact attempt step markers bind a successful no-drift plan", () => {
+  const input = fixture(); input.jobs.jobs[2].steps = outcomeSteps("no_drift");
+  assert.equal(evaluateDriftRun(input).status, "healthy");
+});
+test("ambiguous or conflicting plan outcome markers are unverified", () => {
+  const ambiguous = failedPlan(); ambiguous.jobs.jobs[2].steps = outcomeSteps("drift");
+  ambiguous.jobs.jobs[2].steps[2].conclusion = "success";
+  assert.equal(evaluateDriftRun(ambiguous).reason, "plan_outcome_mismatch");
+  const conflicting = failedPlan(); conflicting.jobs.jobs[2].steps = outcomeSteps("drift");
+  assert.equal(evaluateDriftRun({ ...conflicting, planOutcome: receipt("execution_error") }).reason, "plan_outcome_mismatch");
 });
 test("optional job run_attempt can be absent only with the bound attempt-specific request", () => {
   const input = fixture();
