@@ -277,6 +277,26 @@ public sealed class ContinuousIntegrationBaselineTests
         Assert.Contains("vitest-junit.xml", GetStepBlock(workflow, "Frontend validation", "Run frontend unit tests"));
     }
 
+    [Fact]
+    public void Tc_1_3_3_real_stack_shared_database_disables_unrelated_row_consumers()
+    {
+        var job = GetJobBlock(ReadWorkflow(), "Real-stack report RBAC");
+
+        foreach (var setting in new[]
+        {
+            "DemoRequests__Enabled",
+            "ExtractionProcessing__Enabled",
+            "ReportExportProcessing__Enabled",
+            "ObjectCleanupProcessing__Enabled",
+            "AiOutputRetentionProcessing__Enabled",
+            "DueDateReminderProcessing__Enabled",
+            "PortalPackageLifecycleProcessing__Enabled"
+        })
+        {
+            Assert.Contains($"{setting}: \"false\"", job);
+        }
+    }
+
     [Theory]
     [InlineData("Backend prerequisites", "Scan backend dependencies for known vulnerabilities")]
     [InlineData("Frontend validation", "Scan frontend dependencies for known vulnerabilities")]
