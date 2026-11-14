@@ -91,8 +91,12 @@ public sealed class StagingEnvironmentTests
         Assert.Contains("select(.status == \"ok\")", workflow);
         Assert.Contains("curl --fail --show-error --silent \"$STAGING_WEB_BASE_URL/runtime-config.js\"", workflow);
         Assert.Contains("Staging did not converge to release", workflow);
-        Assert.Contains("Upload staging smoke test results", workflow);
-        Assert.Contains("if: always()", workflow);
+        var uploadSteps = workflow.Replace("\r\n", "\n", StringComparison.Ordinal)
+            .Split("      - name: Upload staging smoke test results\n", StringSplitOptions.None);
+        Assert.Equal(2, uploadSteps.Length);
+        var uploadStep = uploadSteps[1].Split("\n      - name:", 2, StringSplitOptions.None)[0];
+        Assert.Equal("        if: ${{ always() && inputs.operation == 'normal-deployment' }}",
+            Assert.Single(uploadStep.Split('\n').Where(line => line.StartsWith("        if:", StringComparison.Ordinal))));
         Assert.Contains("staging-smoke-test-results", workflow);
         Assert.Contains("staging-health.json", workflow);
         Assert.Contains("success or failure is visible in CI/CD", runbook);

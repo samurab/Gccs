@@ -3,6 +3,20 @@ name: Staging deployment
 on:
   workflow_dispatch:
     inputs:
+      operation:
+        description: Normal staging deployment or separately authorized API artifact restoration exercise.
+        required: true
+        default: normal-deployment
+        type: choice
+        options: [normal-deployment, api-artifact-restoration-exercise]
+      exercise_authorization_b64:
+        description: Public-safe base64 exact exercise authorization capsule; no credentials or private identifiers.
+        required: false
+        type: string
+      exercise_authorization_sha256:
+        description: SHA256 of the exact decoded exercise authorization capsule.
+        required: false
+        type: string
       candidate_tag:
         description: Optional protected SemVer candidate tag, for example v0.2.0-rc.1.
         required: false
@@ -35,6 +49,7 @@ jobs:
       run:
         working-directory: fedril-source
     name: Deploy staging
+    timeout-minutes: ${{ inputs.operation == 'api-artifact-restoration-exercise' && 60 || 360 }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -372,6 +387,31 @@ jobs:
           const admissionResult = await bootstrapFromEnvironment(process.env);
           FEDRIL_BOOTSTRAP
 
+      - name: Validate closed staging operation
+        working-directory: ${{ github.workspace }}
+        env:
+          SELECTED_OPERATION: ${{ inputs.operation }}
+          SELECTED_CANDIDATE: ${{ inputs.candidate_tag }}
+          SELECTED_TARGET: ${{ inputs.expected_staging_target_sha256 }}
+          EXERCISE_AUTHORIZATION_B64: ${{ inputs.exercise_authorization_b64 }}
+          EXERCISE_AUTHORIZATION_SHA256: ${{ inputs.exercise_authorization_sha256 }}
+        run: |
+          python3 -I -B - <<'PY_OPERATION'
+          import os, re
+          operation = os.environ['SELECTED_OPERATION']
+          if operation not in ('normal-deployment', 'api-artifact-restoration-exercise'):
+              raise SystemExit('OPERATION_NOT_ALLOWED')
+          if operation == 'api-artifact-restoration-exercise':
+              if os.environ.get('GITHUB_EVENT_NAME') != 'workflow_dispatch' or os.environ.get('GITHUB_REF') != 'refs/heads/release-main':
+                  raise SystemExit('EXERCISE_MANUAL_RELEASE_MAIN_REQUIRED')
+              if os.environ['SELECTED_CANDIDATE'] != 'v0.2.1-rc.1':
+                  raise SystemExit('EXERCISE_CURRENT_CANDIDATE_REQUIRED')
+              if re.fullmatch('[a-f0-9]{64}', os.environ['SELECTED_TARGET']) is None:
+                  raise SystemExit('EXERCISE_EXACT_TARGET_REQUIRED')
+              if not os.environ['EXERCISE_AUTHORIZATION_B64'] or re.fullmatch('[a-f0-9]{64}', os.environ['EXERCISE_AUTHORIZATION_SHA256']) is None:
+                  raise SystemExit('EXERCISE_EXACT_AUTHORIZATION_REQUIRED')
+          PY_OPERATION
+
       - name: Prepare verified workflow and candidate sources with snapshot comparison
         timeout-minutes: 10
         working-directory: ${{ github.workspace }}
@@ -418,16 +458,23 @@ jobs:
           echo "candidate_tag=$candidate_tag" >> "$GITHUB_OUTPUT"
           echo "bundle_name=$bundle_name" >> "$GITHUB_OUTPUT"
 
+      - name: Bind exercise to the current verified application candidate
+        if: ${{ inputs.operation == 'api-artifact-restoration-exercise' }}
+        run: |
+          test "$COMMIT_SHA" = e7776e43e59544ff02eb61f04f75c8999e02dc9b
+
       - name: Verify admitted snapshot migration comparison
         run: |
           test -f "$FEDRIL_TRUSTED_ROOT/preparation-result.json"
 
       - name: Setup .NET SDK
+        if: ${{ inputs.operation == 'normal-deployment' }}
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           global-json-file: fedril-source/global.json
 
       - name: Setup Node.js
+        if: ${{ inputs.operation == 'normal-deployment' }}
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: "24.22.1"
@@ -510,11 +557,13 @@ jobs:
           FEDRIL_STAGING_TARGET
 
       - name: Restore dependencies
+        if: ${{ inputs.operation == 'normal-deployment' }}
         run: |
           dotnet restore Gccs.slnx
           npm ci
 
       - name: Build staging artifacts (environment-neutral)
+        if: ${{ inputs.operation == 'normal-deployment' }}
         run: |
           dotnet publish apps/api/Gccs.Api.csproj \
             --configuration Release \
@@ -527,6 +576,7 @@ jobs:
           if grep -R "/api/development/testing-context" apps/web/dist; then exit 1; fi
 
       - name: Generate idempotent migration script
+        if: ${{ inputs.operation == 'normal-deployment' }}
         run: |
           dotnet tool restore
           dotnet tool run dotnet-ef migrations script --idempotent \
@@ -536,6 +586,7 @@ jobs:
             --output "$RUNNER_TEMP/gccs-staging-migrations.sql"
 
       - name: Generate release SBOM
+        if: ${{ inputs.operation == 'normal-deployment' }}
         uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
         with:
           path: fedril-source
@@ -544,6 +595,7 @@ jobs:
           upload-artifact: false
 
       - name: Package immutable deployment artifacts
+        if: ${{ inputs.operation == 'normal-deployment' }}
         run: |
           printf '%s  %s\n' "$API_PACKAGE_GUARD_SHA256" "$API_PACKAGE_GUARD" | sha256sum --check --status
           python3 -I -B "$API_PACKAGE_GUARD" --check-tree "$RUNNER_TEMP/gccs-api-staging"
@@ -573,6 +625,7 @@ jobs:
           echo "API_PACKAGE_SHA256=$api_sha" >> "$GITHUB_ENV"
 
       - name: Validate staging No-CUI and no production data guardrails
+        if: ${{ inputs.operation == 'normal-deployment' }}
         env:
           DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY: ${{ secrets.DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY }}
           TASK_SEARCH_CURSOR_SIGNING_KEY: ${{ secrets.TASK_SEARCH_CURSOR_SIGNING_KEY }}
@@ -593,6 +646,7 @@ jobs:
           grep -R "no production customer data" docs/staging-environment.md
 
       - name: Validate staging infrastructure contract
+        if: ${{ inputs.operation == 'normal-deployment' }}
         run: |
           test -f infra/terraform/environments/staging/main.tf
           grep -R "api" infra/terraform/environments/staging/main.tf
@@ -604,6 +658,535 @@ jobs:
           grep -R "malware_scanner" infra/terraform/environments/staging/main.tf
           grep -R "secrets" infra/terraform/environments/staging/main.tf
 
+      - name: Create exact exercise controller and authorization exclusively
+        if: ${{ inputs.operation == 'api-artifact-restoration-exercise' }}
+        working-directory: ${{ github.workspace }}
+        env:
+          EXERCISE_AUTHORIZATION_B64: ${{ inputs.exercise_authorization_b64 }}
+          EXERCISE_AUTHORIZATION_SHA256: ${{ inputs.exercise_authorization_sha256 }}
+        run: |
+          python3 -I -B - <<'PY_EXERCISE_CONTROLLER'
+          import base64, hashlib, os, re
+          from pathlib import Path
+          encoded = os.environ['EXERCISE_AUTHORIZATION_B64']
+          expected = os.environ['EXERCISE_AUTHORIZATION_SHA256']
+          if len(encoded) > 43692 or re.fullmatch('[a-f0-9]{64}', expected) is None:
+              raise SystemExit('EXERCISE_CAPSULE_BOUND')
+          raw = base64.b64decode(encoded, validate=True)
+          if len(raw) > 32768 or hashlib.sha256(raw).hexdigest() != expected:
+              raise SystemExit('EXERCISE_CAPSULE_HASH')
+          run_id, attempt = os.environ['GITHUB_RUN_ID'], os.environ['GITHUB_RUN_ATTEMPT']
+          if re.fullmatch('[1-9][0-9]*', run_id) is None or attempt != '1':
+              raise SystemExit('EXERCISE_FIRST_ATTEMPT_REQUIRED')
+          root = Path(os.environ['RUNNER_TEMP']) / ('fedril-artifact-exercise-' + run_id + '-' + attempt)
+          if any(item.is_symlink() for item in (root, *root.parents)):
+              raise SystemExit('EXERCISE_ROOT_SYMLINK')
+          root.mkdir(mode=0o700)
+          controller = r'''"""Exact staging API artifact-restoration phases. Import and source publication authorize no operation."""
+          import argparse
+          from datetime import datetime, timezone
+          import hashlib
+          import http.client
+          import json
+          import os
+          from pathlib import Path, PurePosixPath
+          import re
+          import shutil
+          import ssl
+          import subprocess
+          import time
+          from urllib.parse import quote, urlsplit
+          import zipfile
+
+          A_SHA = '8664735d9aa43cffc0ca158f7fa02a9e4f2bf9fdde5acbc14404e3dae8cc8dd6'
+          B_SHA = '58484e5d40be5ee3f7a56bc50e7878c8da9a00c17673578a692bbcb48e799250'
+          TARGET_SHA = '0eca73b02a22464706d2a9256002a6c988da98ebb5b9814751696b5f45405edb'
+          MARKER = 'fedril-soc2-rollback-exercise.txt'
+          MARKER_BYTES = (b'FeDril synthetic API artifact restoration exercise.\n'
+                          b'Not a real incident. No customer or CUI data.\n'
+                          b'Baseline API SHA256: ' + A_SHA.encode() + b'\n')
+          MARKER_SHA = '05f944d770925ddf3a24f7bd8618e1c33b539ab656038f68d132fa97e1b42129'
+          ASSET_URL = 'https://github.com/samurab/Gccs/releases/download/v0.2.1-rc.1/fedril-api.zip'
+          PHASES = ('prepare', 'baseline', 'stop-B', 'verify-B', 'start-B', 'stop-A', 'verify-A', 'start-A')
+          LIMITS = {'anonymous_GETs': 2, 'VFS_GETs': 300, 'ARM_requests': 32,
+                    'health_GETs': 18, 'token_calls': 7, 'Stop_POSTs': 2, 'Start_POSTs': 2,
+                    'HTTP_timeout_seconds': 30, 'unit_elapsed_seconds': 2700,
+                    'response_bytes': 33554432, 'transfer_bytes': 536870912}
+          API_VERSION = '2024-11-01'
+          COMPLETION_SCOPE = 'ORDERED_B_THEN_A_RESTORATION_UNIT'
+          LIMITS_SCOPE = 'DIRECT_CONTROLLER_ONLY_EXCLUDES_LOGIN_AND_DEPLOY_ACTION_INTERNALS'
+
+
+          def need(ok, code):
+              if not ok:
+                  raise ValueError(code)
+
+
+          def digest(raw):
+              return hashlib.sha256(raw).hexdigest()
+
+
+          def file_hash(path):
+              h = hashlib.sha256()
+              with path.open('rb') as stream:
+                  for chunk in iter(lambda: stream.read(1048576), b''):
+                      h.update(chunk)
+              return h.hexdigest()
+
+
+          def encoded(value):
+              return json.dumps(value, sort_keys=True, separators=(',', ':')).encode()
+
+
+          def parse(raw):
+              def pairs(rows):
+                  out = {}
+                  for key, value in rows:
+                      need(key not in out, 'DUPLICATE_JSON')
+                      out[key] = value
+                  return out
+              return json.loads(raw, object_pairs_hook=pairs,
+                                parse_constant=lambda _: need(False, 'NONFINITE_JSON'))
+
+
+          def utc(value):
+              result = datetime.fromisoformat(value.replace('Z', '+00:00'))
+              need(result.tzinfo is not None and result.utcoffset().total_seconds() == 0, 'UTC_REQUIRED')
+              return result
+
+
+          def now():
+              return datetime.now(timezone.utc)
+
+
+          def failure_category(error):
+              code = error.args[0] if type(error) is ValueError and len(error.args) == 1 and type(error.args[0]) is str else None
+              groups = {'PACKAGE': {'EXACT_PACKAGE_A', 'EXACT_DERIVED_PACKAGE_B', 'LOCAL_PACKAGES_CHANGED',
+                                    'PACKAGE_INVENTORY_CHANGED', 'MARKER_COLLISION', 'ZIP_MEMBERS', 'ZIP_MEMBER_PATH'},
+                        'TREE_OR_CONTENT': {'VFS_CENSUS_HTTP', 'VFS_CENSUS_SCHEMA', 'VFS_CENSUS_MEMBER',
+                                            'UNEXPECTED_TARGET_TREE', 'DEPLOYED_MEMBER_HASH', 'MARKER_NOT_REMOVED'},
+                        'STATE_OR_CONFIGURATION': {'ARM_HTTP', 'SITE_STATE', 'SITE_IDENTITY', 'CLEANUP_NOT_DISABLED',
+                                                   'SETTINGS_SCHEMA', 'TOPOLOGY_CHANGED', 'TOPOLOGY_INCOMPLETE',
+                                                   'STATE_TRANSITION_UNVERIFIED'},
+                        'HEALTH': {'HEALTH_HTTP', 'HEALTH_IDENTITY', 'HEALTH_NOT_READY'},
+                        'TIME_OR_CAP': {'EXERCISE_CUTOFF', 'HTTP_PORT_TIMEOUT', 'RESOURCE_PORT_CAP', 'TRANSFER_CAP',
+                                        'HTTP_BODY_CAP', 'HTTP_HEADER_CAP', 'TOKEN_CAP', 'STATE_MUTATION_CAP'}}
+              return next((category for category, codes in groups.items() if code in codes), 'UNKNOWN')
+
+
+          def read_json(path, maximum=131072):
+              need(path.is_file() and not any(p.is_symlink() for p in [path, *path.parents]), 'REGULAR_INPUT')
+              need(0 < path.stat().st_size <= maximum, 'JSON_CAP')
+              raw = path.read_bytes()
+              need(0 < len(raw) <= maximum, 'JSON_CAP')
+              return parse(raw)
+
+
+          def keep(path, value):
+              with path.open('x', encoding='utf-8') as stream:
+                  json.dump(value, stream, sort_keys=True)
+                  stream.write('\n')
+
+
+          def member_name(name):
+              need(type(name) is str and name and len(name) <= 512 and name.isascii() and
+                   not name.startswith('/') and '\\' not in name and ':' not in name and
+                   not any(p in ('', '.', '..') for p in name.rstrip('/').split('/')), 'ZIP_MEMBER_PATH')
+              return name
+
+
+          def inventory(path):
+              need(path.stat().st_size <= 16777216, 'ZIP_ARCHIVE_CAP')
+              out = []
+              with zipfile.ZipFile(path) as archive:
+                  rows = archive.infolist()
+                  need(0 < len(rows) <= 100 and len({r.filename for r in rows}) == len(rows), 'ZIP_MEMBERS')
+                  need(len({r.filename.rstrip('/').casefold() for r in rows}) == len(rows), 'ZIP_CASE_COLLISION')
+                  need(sum(r.file_size for r in rows) <= 67108864, 'ZIP_EXPANSION_CAP')
+                  for row in rows:
+                      name = member_name(row.filename)
+                      mode = row.external_attr >> 16
+                      need(mode & 0o170000 in (0, 0o040000, 0o100000) and not row.flag_bits & 1, 'ZIP_MEMBER_TYPE')
+                      raw = archive.read(row)
+                      out.append({'path': name, 'directory': row.is_dir(), 'size': len(raw),
+                                  'mode': mode, 'sha256': digest(raw)})
+              return out
+
+
+          def build_b(a_path, b_path):
+              need(file_hash(a_path) == A_SHA, 'EXACT_PACKAGE_A')
+              before = inventory(a_path)
+              need(MARKER not in {r['path'] for r in before}, 'MARKER_COLLISION')
+              with a_path.open('rb') as source, b_path.open('xb') as output:
+                  shutil.copyfileobj(source, output, 1048576)
+              with zipfile.ZipFile(b_path, 'a') as archive:
+                  item = zipfile.ZipInfo(MARKER, (1980, 1, 1, 0, 0, 0))
+                  item.create_system = 3
+                  item.external_attr = 0o100644 << 16
+                  item.compress_type = zipfile.ZIP_STORED
+                  archive.writestr(item, MARKER_BYTES)
+              after = inventory(b_path)
+              need(file_hash(b_path) == B_SHA and after[:-1] == before and
+                   after[-1] == {'path': MARKER, 'directory': False, 'size': len(MARKER_BYTES),
+                                 'mode': 0o100644, 'sha256': MARKER_SHA}, 'EXACT_DERIVED_PACKAGE_B')
+              need(file_hash(a_path) == A_SHA, 'PACKAGE_A_PRESERVED')
+              return before, after
+
+
+          def authorize(root, path, expected, env, current=now):
+              need(re.fullmatch('[1-9][0-9]*', env.get('GITHUB_RUN_ID', '')) and env.get('GITHUB_RUN_ATTEMPT') == '1',
+                   'EXACT_RUN_CONTEXT')
+              need(root == Path(env['RUNNER_TEMP']) / ('fedril-artifact-exercise-' + env['GITHUB_RUN_ID'] + '-1') and
+                   path == root / 'authorization.json' and not any(p.is_symlink() for p in [root, *root.parents]), 'EXACT_RUN_ROOT')
+              a = read_json(path, 32768)
+              need(re.fullmatch('[a-f0-9]{64}', expected or '') is not None and digest(path.read_bytes()) == expected,
+                   'AUTHORIZATION_HASH')
+              need(set(a) == {'purpose', 'decision', 'exercise_labeled', 'source_publication_only', 'limits',
+                             'artifact_a_sha256', 'artifact_b_sha256', 'marker_sha256', 'expected_target_sha256',
+                             'request_sha256', 'owner_statement_sha256', 'approval_record_sha256',
+                             'lifecycle_scope_sha256', 'workflow_sha', 'execution_window',
+                             'completion_scope', 'limits_scope'}, 'CAPSULE_FIELDS')
+              need(a.get('purpose') == 'FEDRIL_STAGING_API_ARTIFACT_EXERCISE_AUTHORIZATION_V1' and
+                   a.get('decision') == 'APPROVE_EXACT_STAGING_API_ARTIFACT_RESTORATION_EXERCISE' and
+                   a.get('exercise_labeled') is True and a.get('source_publication_only') is False and
+                   a.get('limits') == LIMITS and a.get('artifact_a_sha256') == A_SHA and
+                   a.get('artifact_b_sha256') == B_SHA and a.get('marker_sha256') == MARKER_SHA and
+                   a.get('expected_target_sha256') == TARGET_SHA and
+                   a.get('completion_scope') == COMPLETION_SCOPE and a.get('limits_scope') == LIMITS_SCOPE,
+                   'EXACT_OPERATION_AUTHORIZATION')
+              for key in ('request_sha256', 'owner_statement_sha256', 'approval_record_sha256', 'lifecycle_scope_sha256'):
+                  need(type(a.get(key)) is str and re.fullmatch('[a-f0-9]{64}', a[key]) is not None, 'APPROVAL_REFERENCES')
+              need(env.get('GITHUB_REPOSITORY') == 'samurab/Gccs' and env.get('GITHUB_REPOSITORY_ID') == '1261681112' and
+                   env.get('GITHUB_EVENT_NAME') == 'workflow_dispatch' and env.get('GITHUB_REF') == 'refs/heads/release-main' and
+                   env.get('GITHUB_WORKFLOW_REF') == 'samurab/Gccs/.github/workflows/staging.yml@refs/heads/release-main' and
+                   env.get('GITHUB_RUN_ATTEMPT') == '1' and re.fullmatch('[1-9][0-9]*', env.get('GITHUB_RUN_ID', '')) and
+                   re.fullmatch('[a-f0-9]{40}', env.get('GITHUB_WORKFLOW_SHA', '')) and
+                   a.get('workflow_sha') == env['GITHUB_WORKFLOW_SHA'] and
+                   env.get('GITHUB_SHA') == env['GITHUB_WORKFLOW_SHA'] and
+                   env.get('EXPECTED_STAGING_TARGET_SHA256') == TARGET_SHA, 'EXACT_WORKFLOW_CONTEXT')
+              window = a.get('execution_window', {})
+              need(set(window) == {'not_before_utc', 'deadline_utc', 'owner_final_deadline_utc'}, 'WINDOW_FIELDS')
+              t = current()
+              need(utc(window['not_before_utc']) <= t < utc(window['owner_final_deadline_utc']) and
+                   utc(window['not_before_utc']) < utc(window['deadline_utc']) <= utc(window['owner_final_deadline_utc']),
+                   'EXECUTION_WINDOW')
+              return a
+
+
+          class Exercise:
+              def __init__(self, root, authorization, authorization_sha, env, io, current=now, pause=time.sleep):
+                  self.root, self.a, self.auth_sha, self.env, self.io = root, authorization, authorization_sha, env, io
+                  self.current, self.pause = current, pause
+                  self.counts = {k: 0 for k in ('anonymous_GETs', 'VFS_GETs', 'ARM_requests', 'health_GETs',
+                                               'token_calls', 'Stop_POSTs', 'Start_POSTs', 'transfer_bytes')}
+                  self.started = current()
+                  self.phase = None
+                  self.inventory_a = None
+
+              def check(self, new_action=False, reserve=0):
+                  t = self.current()
+                  deadline = utc(self.a['execution_window']['deadline_utc' if new_action else 'owner_final_deadline_utc'])
+                  left = min((deadline - t).total_seconds(), LIMITS['unit_elapsed_seconds'] - (t - self.started).total_seconds())
+                  need(left > reserve, 'EXERCISE_CUTOFF')
+                  return min(LIMITS['HTTP_timeout_seconds'], left)
+
+              def request(self, kind, method, path, cap, body=None):
+                  self.check()
+                  need(type(cap) is int and 0 < cap <= LIMITS['response_bytes'], 'RESPONSE_CAP')
+                  key = {'asset': 'anonymous_GETs', 'scm': 'VFS_GETs', 'arm': 'ARM_requests', 'health': 'health_GETs'}[kind]
+                  self.counts[key] += 1
+                  need(self.counts[key] <= LIMITS[key], 'RESOURCE_PORT_CAP')
+                  status, headers, raw = self.io.call(kind, method, path, cap, self.check(), body)
+                  # Debit the entire permitted header allowance, so omitted/private headers
+                  # cannot make the global transfer budget appear smaller than the body.
+                  self.counts['transfer_bytes'] += len(raw) + 65536
+                  need(len(raw) <= cap and self.counts['transfer_bytes'] <= LIMITS['transfer_bytes'], 'TRANSFER_CAP')
+                  self.check()
+                  return status, headers, raw
+
+              def arm(self, port):
+                  method = 'POST' if port in ('settings', 'stop', 'start') else 'GET'
+                  status, _, raw = self.request('arm', method, port, 1048576)
+                  need(status in (200, 202, 204) if port in ('stop', 'start') else status == 200, 'ARM_HTTP')
+                  return parse(raw) if raw else {}
+
+              def state(self, expected):
+                  row = self.arm('site')
+                  need(row.get('id', '').lower() == self.io.site_id.lower() and
+                       row.get('properties', {}).get('state') == expected, 'SITE_STATE')
+
+              def cleanup(self):
+                  rows = self.arm('settings').get('properties')
+                  need(type(rows) is dict, 'SETTINGS_SCHEMA')
+                  keys = [k for k in rows if k.replace('__', ':').lower() == 'objectcleanupprocessing:enabled']
+                  need(len(keys) == 1 and type(rows[keys[0]]) is str and rows[keys[0]].strip().lower() == 'false',
+                       'CLEANUP_NOT_DISABLED')
+
+              def topology(self):
+                  for port in ('sites', 'slots'):
+                      value = self.arm(port)
+                      need(type(value.get('value')) is list and not value.get('nextLink'), 'TOPOLOGY_INCOMPLETE')
+                      rows = value['value']
+                      need(rows == [] if port == 'slots' else len(rows) == 1 and
+                           rows[0].get('id', '').lower() == self.io.site_id.lower(), 'TOPOLOGY_CHANGED')
+
+              def health(self):
+                  for index in range(6):
+                      status, _, raw = self.request('health', 'GET', '/health', 1048576)
+                      need(status in (200, 503), 'HEALTH_HTTP')
+                      row = parse(raw)
+                      if status == 200:
+                          need(row.get('status') == 'ok' and row.get('service') == 'gccs-api' and
+                               row.get('version') == '0.2.1' and row.get('candidateTag') == 'v0.2.1-rc.1' and
+                               row.get('commitSha') == 'e7776e43e59544ff02eb61f04f75c8999e02dc9b' and
+                               row.get('dataPosture') == 'No-CUI / compliance management only', 'HEALTH_IDENTITY')
+                          return
+                      if index != 5:
+                          self.check()
+                          self.pause(5)
+                  need(False, 'HEALTH_NOT_READY')
+
+              def tree(self, use_b):
+                  rows = self.inventory_a + ([{'path': MARKER, 'directory': False, 'size': len(MARKER_BYTES),
+                                             'mode': 0o100644, 'sha256': MARKER_SHA}] if use_b else [])
+                  files = {r['path']: r for r in rows if not r['directory']}
+                  dirs = {r['path'] for r in rows if r['directory']} | {''}
+                  for path in sorted(dirs):
+                      status, _, raw = self.request('scm', 'GET', path, 1048576)
+                      need(status == 200, 'VFS_CENSUS_HTTP')
+                      observed = parse(raw)
+                      need(type(observed) is list and len(observed) <= 100, 'VFS_CENSUS_SCHEMA')
+                      expected = set()
+                      for name in files.keys() | (dirs - {''}):
+                          relative = name[len(path):] if name.startswith(path) else ''
+                          if relative and '/' not in relative.rstrip('/'):
+                              expected.add(relative.rstrip('/'))
+                      actual = []
+                      for item in observed:
+                          need(type(item) is dict and type(item.get('name')) is str and
+                               item['name'] not in ('', '.', '..') and '/' not in item['name'] and '\\' not in item['name'],
+                               'VFS_CENSUS_MEMBER')
+                          actual.append(item['name'])
+                      need(len(set(actual)) == len(actual) and set(actual) == expected, 'UNEXPECTED_TARGET_TREE')
+                  for name, row in sorted(files.items()):
+                      status, _, raw = self.request('scm', 'GET', name, row['size'])
+                      need(status == 200 and len(raw) == row['size'] and digest(raw) == row['sha256'], 'DEPLOYED_MEMBER_HASH')
+                  if not use_b:
+                      status, _, raw = self.request('scm', 'GET', MARKER, 4096)
+                      need(status == 404, 'MARKER_NOT_REMOVED')
+
+              def change_state(self, action, expected):
+                  self.check(reserve=600 if action == 'stop' else 0)
+                  key = 'Stop_POSTs' if action == 'stop' else 'Start_POSTs'
+                  self.counts[key] += 1
+                  need(self.counts[key] <= LIMITS[key], 'STATE_MUTATION_CAP')
+                  self.arm(action)
+                  for index in range(3):
+                      row = self.arm('site')
+                      need(row.get('id', '').lower() == self.io.site_id.lower(), 'SITE_IDENTITY')
+                      if row.get('properties', {}).get('state') == expected:
+                          return
+                      if index != 2:
+                          self.check()
+                          self.pause(5)
+                  need(False, 'STATE_TRANSITION_UNVERIFIED')
+
+              def run(self, phase):
+                  index = PHASES.index(phase)
+                  self.phase = phase
+                  previous = None
+                  if index:
+                      previous = read_json(self.root / (PHASES[index - 1] + '-result.json'))
+                      need(previous.get('state') == 'PHASE_VERIFIED' and previous.get('phase') == PHASES[index - 1] and
+                           previous.get('authorization_sha256') == self.auth_sha and
+                           previous.get('run_id') == self.env['GITHUB_RUN_ID'] and
+                           previous.get('workflow_sha') == self.env['GITHUB_WORKFLOW_SHA'], 'PHASE_ORDER')
+                      self.started = utc(previous['started_at_utc'])
+                      need(previous.get('completion_scope') == COMPLETION_SCOPE and previous.get('limits_scope') == LIMITS_SCOPE and
+                           previous.get('unit_admitted_at_utc') == previous['started_at_utc'] and
+                           utc(self.a['execution_window']['not_before_utc']) <= self.started <
+                           utc(self.a['execution_window']['deadline_utc']), 'ADMITTED_UNIT_SCOPE')
+                      self.counts = previous['counts']
+                      need(file_hash(self.root / 'package-inventory.json') == previous['package_inventory_sha256'],
+                           'PACKAGE_INVENTORY_CHANGED')
+                      self.inventory_a = read_json(self.root / 'package-inventory.json')['A']
+                  deployment_reserve = 600 if phase in ('stop-B', 'stop-A') else 0
+                  self.check(index == 0, reserve=deployment_reserve)
+                  need(not (self.root / (phase + '-intent.json')).exists(), 'PHASE_ALREADY_ATTEMPTED')
+                  keep(self.root / (phase + '-intent.json'), {'phase': phase, 'authorization_sha256': self.auth_sha,
+                       'run_id': self.env['GITHUB_RUN_ID'], 'workflow_sha': self.env['GITHUB_WORKFLOW_SHA'],
+                       'at_utc': self.current().isoformat()})
+                  try:
+                      if phase == 'prepare':
+                          status, headers, raw = self.request('asset', 'GET', ASSET_URL, 16777216)
+                          if status in (301, 302, 303, 307, 308):
+                              location = headers.get('location')
+                              need(type(location) is str, 'ASSET_REDIRECT')
+                              status, _, raw = self.request('asset', 'GET', location, 16777216)
+                          need(status == 200 and len(raw) == 10769942 and digest(raw) == A_SHA, 'EXACT_PACKAGE_A')
+                          with (self.root / 'A.zip').open('xb') as stream:
+                              stream.write(raw)
+                          before, after = build_b(self.root / 'A.zip', self.root / 'B.zip')
+                          keep(self.root / 'package-inventory.json', {'A': before, 'B': after})
+                      else:
+                          need(file_hash(self.root / 'A.zip') == A_SHA and file_hash(self.root / 'B.zip') == B_SHA,
+                               'LOCAL_PACKAGES_CHANGED')
+                          self.check(reserve=deployment_reserve)
+                          self.counts['token_calls'] += 1
+                          need(self.counts['token_calls'] <= LIMITS['token_calls'], 'TOKEN_CAP')
+                          self.io.authenticate()
+                          if phase == 'baseline':
+                              self.state('Running'); self.cleanup(); self.topology(); self.health(); self.tree(False)
+                          elif phase in ('stop-B', 'stop-A'):
+                              self.state('Running'); self.cleanup(); self.change_state('stop', 'Stopped')
+                          elif phase in ('verify-B', 'verify-A'):
+                              self.state('Stopped'); self.cleanup(); self.tree(phase == 'verify-B')
+                          elif phase in ('start-B', 'start-A'):
+                              self.state('Stopped'); self.change_state('start', 'Running'); self.health()
+                      self.check(reserve=deployment_reserve)
+                      result = {'state': 'PHASE_VERIFIED', 'phase': phase, 'authorization_sha256': self.auth_sha,
+                                'run_id': self.env['GITHUB_RUN_ID'], 'workflow_sha': self.env['GITHUB_WORKFLOW_SHA'],
+                                'started_at_utc': self.started.isoformat(), 'completed_at_utc': self.current().isoformat(),
+                                'unit_admitted_at_utc': self.started.isoformat(),
+                                'completion_scope': COMPLETION_SCOPE, 'limits_scope': LIMITS_SCOPE,
+                                'package_inventory_sha256': file_hash(self.root / 'package-inventory.json'),
+                                'counts': self.counts, 'transport_retries': 0,
+                                'previous_result_sha256': file_hash(self.root / (PHASES[index - 1] + '-result.json')) if index else None}
+                      keep(self.root / (phase + '-result.json'), result)
+                      return result
+                  except BaseException as error:
+                      keep(self.root / (phase + '-uncertain.json'), {'state': 'PHASE_HELD_NO_RETRY', 'phase': phase,
+                           'counts': self.counts, 'raw_exception_retained': False, 'automatic_restoration': False,
+                           'failure_category': failure_category(error), 'category_is_guard_observation_not_root_cause': True})
+                      raise
+
+
+          class RealIO:
+              def __init__(self, env):
+                  self.env, self.token = env, None
+                  guid = env.get('DEPLOYMENT_AZURE_SUBSCRIPTION_ID', '')
+                  group, app = env.get('STAGING_RESOURCE_GROUP', ''), env.get('STAGING_API_APP_NAME', '')
+                  need(re.fullmatch('[a-fA-F0-9-]{36}', guid) and re.fullmatch('[A-Za-z0-9_.()-]{1,90}', group) and
+                       re.fullmatch('[A-Za-z0-9][A-Za-z0-9-]{0,59}', app), 'TARGET_ENVIRONMENT')
+                  self.site_id = f'/subscriptions/{guid}/resourceGroups/{group}/providers/Microsoft.Web/sites/{app}'
+                  self.arm_root = 'https://management.azure.com'
+                  self.scm_root = f'https://{app}.scm.azurewebsites.net'
+                  self.api_root = env.get('STAGING_API_BASE_URL', '').rstrip('/')
+                  parsed = urlsplit(self.api_root)
+                  need(parsed.scheme == 'https' and parsed.hostname and not parsed.username and not parsed.password and
+                       not parsed.query and not parsed.fragment and parsed.path in ('', '/') and parsed.port in (None, 443), 'API_ORIGIN')
+
+              def authenticate(self):
+                  result = subprocess.run(['az', 'account', 'get-access-token', '--resource', 'https://management.azure.com/',
+                                           '--subscription', self.env['DEPLOYMENT_AZURE_SUBSCRIPTION_ID'], '--output', 'json'],
+                                          stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=45)
+                  need(result.returncode == 0 and 0 < len(result.stdout) <= 1048576, 'OPAQUE_TOKEN_ACQUISITION')
+                  value = parse(result.stdout)
+                  need(value.get('tokenType') == 'Bearer' and type(value.get('accessToken')) is str and
+                       value['accessToken'] and '\r' not in value['accessToken'] and '\n' not in value['accessToken'], 'OPAQUE_TOKEN_SCHEMA')
+                  self.token = value['accessToken']
+
+              def call(self, kind, method, path, cap, timeout, body=None):
+                  headers = {'Accept': 'application/json', 'Accept-Encoding': 'identity'}
+                  if kind == 'arm':
+                      routes = {'site': ('GET', self.site_id), 'sites': ('GET', self.site_id.rsplit('/providers/', 1)[0] + '/providers/Microsoft.Web/sites'),
+                                'slots': ('GET', self.site_id + '/slots'), 'settings': ('POST', self.site_id + '/config/appsettings/list'),
+                                'stop': ('POST', self.site_id + '/stop'), 'start': ('POST', self.site_id + '/start')}
+                      need(path in routes and routes[path][0] == method and body is None and self.token, 'EXACT_ARM_ROUTE')
+                      url = self.arm_root + routes[path][1] + '?api-version=' + API_VERSION
+                      headers['Authorization'] = 'Bearer ' + self.token
+                  elif kind == 'scm':
+                      need(method == 'GET' and body is None and self.token, 'EXACT_VFS_METHOD')
+                      if path:
+                          member_name(path)
+                      url = self.scm_root + '/api/vfs/site/wwwroot/' + quote(path, safe='/')
+                      headers['Authorization'] = 'Bearer ' + self.token
+                  elif kind == 'health':
+                      need(method == 'GET' and path == '/health' and body is None, 'EXACT_HEALTH_ROUTE')
+                      url = self.api_root + '/health'
+                  else:
+                      need(kind == 'asset' and method == 'GET' and body is None, 'EXACT_ASSET_METHOD')
+                      url = path
+                  parsed = urlsplit(url)
+                  need(parsed.scheme == 'https' and not parsed.username and not parsed.password and not parsed.fragment and
+                       parsed.port in (None, 443) and '\\' not in url, 'HTTPS_ORIGIN')
+                  if kind == 'asset':
+                      need(url == ASSET_URL or parsed.hostname == 'release-assets.githubusercontent.com', 'ASSET_ORIGIN')
+                  deadline = time.monotonic() + timeout
+                  connection = http.client.HTTPSConnection(parsed.hostname, timeout=timeout, context=ssl.create_default_context())
+                  try:
+                      connection.request(method, parsed.path + ('?' + parsed.query if parsed.query else ''), body=body, headers=headers)
+                      response = connection.getresponse()
+                      entries = response.getheaders()
+                      need(sum(len(k) + len(v) for k, v in entries) <= 65536, 'HTTP_HEADER_CAP')
+                      selected = {}
+                      for key, value in entries:
+                          key = key.lower()
+                          if key in ('location', 'content-length', 'content-encoding'):
+                              need(key not in selected, 'DUPLICATE_HTTP_HEADER')
+                              selected[key] = value
+                      need(selected.get('content-encoding', 'identity').lower() == 'identity', 'HTTP_CONTENT_ENCODING')
+                      length = selected.get('content-length')
+                      need(length is None or length.isascii() and length.isdecimal() and int(length) <= cap,
+                           'HTTP_CONTENT_LENGTH')
+                      raw = bytearray()
+                      while True:
+                          remaining = deadline - time.monotonic()
+                          need(remaining > 0, 'HTTP_PORT_TIMEOUT')
+                          response.fp.raw._sock.settimeout(remaining)
+                          block = response.read1(min(65536, cap + 1 - len(raw)))
+                          if not block:
+                              break
+                          raw.extend(block)
+                          need(len(raw) <= cap, 'HTTP_BODY_CAP')
+                          if response.isclosed():
+                              break
+                      need(time.monotonic() <= deadline, 'HTTP_PORT_TIMEOUT')
+                      need(length is None or len(raw) == int(length), 'HTTP_COMPLETE_BODY')
+                      return response.status, selected, bytes(raw)
+                  finally:
+                      connection.close()
+
+
+          def main():
+              parser = argparse.ArgumentParser(description=__doc__)
+              parser.add_argument('phase', choices=PHASES)
+              for name in ('root', 'authorization', 'authorization-sha256'):
+                  parser.add_argument('--' + name, required=True)
+              args = parser.parse_args()
+              try:
+                  os.umask(0o077)
+                  root = Path(args.root)
+                  auth = authorize(root, Path(args.authorization), args.authorization_sha256, os.environ)
+                  result = Exercise(root, auth, args.authorization_sha256, os.environ, RealIO(os.environ)).run(args.phase)
+                  print('PHASE_VERIFIED:' + result['phase'])
+                  return 0
+              except BaseException:
+                  print('STAGING_ARTIFACT_EXERCISE_HELD_NO_RETRY')
+                  return 2
+
+
+          if __name__ == '__main__':
+              raise SystemExit(main())
+          '''
+          if hashlib.sha256(controller.encode()).hexdigest() != '5e7f7368b4dbf701665fb650d598bd9181ccdf8d8607af935db9be1838f742ae':
+              raise SystemExit('EXERCISE_CONTROLLER_HASH')
+          for path, payload in ((root / 'controller.py', controller.encode()), (root / 'authorization.json', raw)):
+              with path.open('xb') as stream:
+                  stream.write(payload)
+          with open(os.environ['GITHUB_ENV'], 'a') as stream:
+              stream.write('EXERCISE_ROOT=' + str(root) + '\n')
+          PY_EXERCISE_CONTROLLER
+
+      - name: Exercise prepare
+        if: ${{ inputs.operation == 'api-artifact-restoration-exercise' }}
+        working-directory: ${{ github.workspace }}
+        env:
+          EXPECTED_STAGING_TARGET_SHA256: ${{ inputs.expected_staging_target_sha256 }}
+          EXERCISE_AUTHORIZATION_SHA256: ${{ inputs.exercise_authorization_sha256 }}
+        run: |
+          python3 -I -B "$EXERCISE_ROOT/controller.py" prepare --root "$EXERCISE_ROOT" --authorization "$EXERCISE_ROOT/authorization.json" --authorization-sha256 "$EXERCISE_AUTHORIZATION_SHA256"
+
       - name: Login to Azure staging subscription
         uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3
         with:
@@ -611,7 +1194,89 @@ jobs:
           tenant-id: ${{ inputs.expected_staging_target_sha256 == '' && vars.AZURE_TENANT_ID || steps.staging_target.outputs.tenant_id }}
           subscription-id: ${{ inputs.expected_staging_target_sha256 == '' && vars.AZURE_SUBSCRIPTION_ID || steps.staging_target.outputs.subscription_id }}
 
+      - name: Exercise baseline
+        if: ${{ inputs.operation == 'api-artifact-restoration-exercise' }}
+        working-directory: ${{ github.workspace }}
+        env:
+          EXPECTED_STAGING_TARGET_SHA256: ${{ inputs.expected_staging_target_sha256 }}
+          EXERCISE_AUTHORIZATION_SHA256: ${{ inputs.exercise_authorization_sha256 }}
+        run: |
+          python3 -I -B "$EXERCISE_ROOT/controller.py" baseline --root "$EXERCISE_ROOT" --authorization "$EXERCISE_ROOT/authorization.json" --authorization-sha256 "$EXERCISE_AUTHORIZATION_SHA256"
+
+      - name: Exercise stop-B
+        if: ${{ inputs.operation == 'api-artifact-restoration-exercise' }}
+        working-directory: ${{ github.workspace }}
+        env:
+          EXPECTED_STAGING_TARGET_SHA256: ${{ inputs.expected_staging_target_sha256 }}
+          EXERCISE_AUTHORIZATION_SHA256: ${{ inputs.exercise_authorization_sha256 }}
+        run: |
+          python3 -I -B "$EXERCISE_ROOT/controller.py" stop-B --root "$EXERCISE_ROOT" --authorization "$EXERCISE_ROOT/authorization.json" --authorization-sha256 "$EXERCISE_AUTHORIZATION_SHA256"
+
+      - name: Exercise deploy exact API B
+        if: ${{ inputs.operation == 'api-artifact-restoration-exercise' }}
+        timeout-minutes: 10
+        uses: azure/webapps-deploy@02a81bead70021f5284939794bcec79c271ab383 # v3
+        with:
+          app-name: ${{ env.STAGING_API_APP_NAME }}
+          package: ${{ env.EXERCISE_ROOT }}/B.zip
+          restart: false
+
+      - name: Exercise verify-B
+        if: ${{ inputs.operation == 'api-artifact-restoration-exercise' }}
+        working-directory: ${{ github.workspace }}
+        env:
+          EXPECTED_STAGING_TARGET_SHA256: ${{ inputs.expected_staging_target_sha256 }}
+          EXERCISE_AUTHORIZATION_SHA256: ${{ inputs.exercise_authorization_sha256 }}
+        run: |
+          python3 -I -B "$EXERCISE_ROOT/controller.py" verify-B --root "$EXERCISE_ROOT" --authorization "$EXERCISE_ROOT/authorization.json" --authorization-sha256 "$EXERCISE_AUTHORIZATION_SHA256"
+
+      - name: Exercise start-B
+        if: ${{ inputs.operation == 'api-artifact-restoration-exercise' }}
+        working-directory: ${{ github.workspace }}
+        env:
+          EXPECTED_STAGING_TARGET_SHA256: ${{ inputs.expected_staging_target_sha256 }}
+          EXERCISE_AUTHORIZATION_SHA256: ${{ inputs.exercise_authorization_sha256 }}
+        run: |
+          python3 -I -B "$EXERCISE_ROOT/controller.py" start-B --root "$EXERCISE_ROOT" --authorization "$EXERCISE_ROOT/authorization.json" --authorization-sha256 "$EXERCISE_AUTHORIZATION_SHA256"
+
+      - name: Exercise stop-A
+        if: ${{ inputs.operation == 'api-artifact-restoration-exercise' }}
+        working-directory: ${{ github.workspace }}
+        env:
+          EXPECTED_STAGING_TARGET_SHA256: ${{ inputs.expected_staging_target_sha256 }}
+          EXERCISE_AUTHORIZATION_SHA256: ${{ inputs.exercise_authorization_sha256 }}
+        run: |
+          python3 -I -B "$EXERCISE_ROOT/controller.py" stop-A --root "$EXERCISE_ROOT" --authorization "$EXERCISE_ROOT/authorization.json" --authorization-sha256 "$EXERCISE_AUTHORIZATION_SHA256"
+
+      - name: Exercise deploy exact API A
+        if: ${{ inputs.operation == 'api-artifact-restoration-exercise' }}
+        timeout-minutes: 10
+        uses: azure/webapps-deploy@02a81bead70021f5284939794bcec79c271ab383 # v3
+        with:
+          app-name: ${{ env.STAGING_API_APP_NAME }}
+          package: ${{ env.EXERCISE_ROOT }}/A.zip
+          restart: false
+
+      - name: Exercise verify-A
+        if: ${{ inputs.operation == 'api-artifact-restoration-exercise' }}
+        working-directory: ${{ github.workspace }}
+        env:
+          EXPECTED_STAGING_TARGET_SHA256: ${{ inputs.expected_staging_target_sha256 }}
+          EXERCISE_AUTHORIZATION_SHA256: ${{ inputs.exercise_authorization_sha256 }}
+        run: |
+          python3 -I -B "$EXERCISE_ROOT/controller.py" verify-A --root "$EXERCISE_ROOT" --authorization "$EXERCISE_ROOT/authorization.json" --authorization-sha256 "$EXERCISE_AUTHORIZATION_SHA256"
+
+      - name: Exercise start-A
+        if: ${{ inputs.operation == 'api-artifact-restoration-exercise' }}
+        working-directory: ${{ github.workspace }}
+        env:
+          EXPECTED_STAGING_TARGET_SHA256: ${{ inputs.expected_staging_target_sha256 }}
+          EXERCISE_AUTHORIZATION_SHA256: ${{ inputs.exercise_authorization_sha256 }}
+        run: |
+          python3 -I -B "$EXERCISE_ROOT/controller.py" start-A --root "$EXERCISE_ROOT" --authorization "$EXERCISE_ROOT/authorization.json" --authorization-sha256 "$EXERCISE_AUTHORIZATION_SHA256"
+
       - name: Apply staging migrations through approved CI/CD
+        if: ${{ inputs.operation == 'normal-deployment' }}
         env:
           STAGING_DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
         run: |
@@ -624,11 +1289,13 @@ jobs:
           psql "$STAGING_DATABASE_URL" --set ON_ERROR_STOP=on --file "$RUNNER_TEMP/gccs-staging-migrations.sql"
 
       - name: Deploy staging API, web, data, storage, cache, queue, and secrets
+        if: ${{ inputs.operation == 'normal-deployment' }}
         run: |
           echo "Staging database, object storage, cache, queue, malware scanner, network integration, and secrets are provisioned outside this repository workflow."
           echo "API and web artifacts are deployed by the following workflow steps."
 
       - name: Configure staging runtime dependencies
+        if: ${{ inputs.operation == 'normal-deployment' }}
         env:
           DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY: ${{ secrets.DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY }}
           TASK_SEARCH_CURSOR_SIGNING_KEY: ${{ secrets.TASK_SEARCH_CURSOR_SIGNING_KEY }}
@@ -709,6 +1376,7 @@ jobs:
             --output tsv)" = "$malware_scanner_ip"
 
       - name: Verify staging public settings contract
+        if: ${{ inputs.operation == 'normal-deployment' }}
         env:
           STAGING_MSAL_TENANT_ID: ${{ env.FEDRIL_WORKFORCE_TENANT_ID }}
           STAGING_MSAL_API_SCOPE: ${{ env.FEDRIL_WORKFORCE_API_SCOPE }}
@@ -717,11 +1385,13 @@ jobs:
         run: node "$FEDRIL_TRUSTED_ROOT/tools/release/check-azure-settings.mjs" staging
 
       - name: Recheck original staging API ZIP immediately before deployment
+        if: ${{ inputs.operation == 'normal-deployment' }}
         run: |
           printf '%s  %s\n' "$API_PACKAGE_GUARD_SHA256" "$API_PACKAGE_GUARD" | sha256sum --check --status
           python3 -I -B "$API_PACKAGE_GUARD" "$RUNNER_TEMP/release-bundle/fedril-api.zip" "$API_PACKAGE_SHA256" --publish-root "$RUNNER_TEMP/gccs-api-staging"
 
       - name: Deploy staging API App Service
+        if: ${{ inputs.operation == 'normal-deployment' }}
         uses: azure/webapps-deploy@02a81bead70021f5284939794bcec79c271ab383 # v3
         with:
           app-name: ${{ env.STAGING_API_APP_NAME }}
@@ -729,6 +1399,7 @@ jobs:
           restart: false
 
       - name: Start staging API with cleanup held
+        if: ${{ inputs.operation == 'normal-deployment' }}
         run: |
           cleanup_checker="$FEDRIL_TRUSTED_ROOT/tools/release/check-cleanup-quiescence.mjs"
           node "$cleanup_checker" staging Stopped
@@ -736,6 +1407,7 @@ jobs:
           node "$cleanup_checker" staging Running
 
       - name: Write staging runtime configuration
+        if: ${{ inputs.operation == 'normal-deployment' }}
         env:
           FEDRIL_API_BASE_URL: ${{ env.STAGING_API_BASE_URL }}
           FEDRIL_APP_VERSION: ${{ env.RELEASE_VERSION }}
@@ -745,6 +1417,7 @@ jobs:
         run: node tools/release/write-runtime-config.mjs apps/web/dist/runtime-config.js
 
       - name: Deploy staging Static Web App
+        if: ${{ inputs.operation == 'normal-deployment' }}
         uses: Azure/static-web-apps-deploy@1a947af9992250f3bc2e68ad0754c0b0c11566c9 # v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_MANGO_ROCK_016FF040F }}
@@ -755,6 +1428,7 @@ jobs:
           skip_app_build: true
 
       - name: Record staging deployment inputs
+        if: ${{ inputs.operation == 'normal-deployment' }}
         run: |
           echo "Deploy API artifact from $RUNNER_TEMP/gccs-api-staging"
           echo "Deploy web artifact from apps/web/dist"
@@ -762,6 +1436,7 @@ jobs:
           echo "Provisioned staging database, object storage, cache, queue, and secrets through Azure resource group $STAGING_RESOURCE_GROUP."
 
       - name: Run staging smoke tests
+        if: ${{ inputs.operation == 'normal-deployment' }}
         run: |
           set -o pipefail
           test -n "$STAGING_API_BASE_URL"
@@ -801,7 +1476,7 @@ jobs:
           done
 
       - name: Upload staging smoke test results
-        if: always()
+        if: ${{ always() && inputs.operation == 'normal-deployment' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: staging-smoke-test-results
@@ -811,15 +1486,51 @@ jobs:
             ${{ runner.temp }}/gccs-staging-migrations.sql
 
       - name: Upload immutable staging bundle
+        if: ${{ inputs.operation == 'normal-deployment' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: ${{ env.BUNDLE_NAME }}
           path: ${{ runner.temp }}/release-bundle
           compression-level: 0
 
+      - name: Upload exact artifact exercise receipts
+        if: ${{ always() && inputs.operation == 'api-artifact-restoration-exercise' && env.EXERCISE_ROOT != '' }}
+        timeout-minutes: 5
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: staging-api-artifact-exercise-receipts-${{ github.run_id }}-${{ github.run_attempt }}
+          retention-days: 90
+          if-no-files-found: warn
+          path: |
+            ${{ env.EXERCISE_ROOT }}/prepare-intent.json
+            ${{ env.EXERCISE_ROOT }}/prepare-result.json
+            ${{ env.EXERCISE_ROOT }}/prepare-uncertain.json
+            ${{ env.EXERCISE_ROOT }}/baseline-intent.json
+            ${{ env.EXERCISE_ROOT }}/baseline-result.json
+            ${{ env.EXERCISE_ROOT }}/baseline-uncertain.json
+            ${{ env.EXERCISE_ROOT }}/stop-B-intent.json
+            ${{ env.EXERCISE_ROOT }}/stop-B-result.json
+            ${{ env.EXERCISE_ROOT }}/stop-B-uncertain.json
+            ${{ env.EXERCISE_ROOT }}/verify-B-intent.json
+            ${{ env.EXERCISE_ROOT }}/verify-B-result.json
+            ${{ env.EXERCISE_ROOT }}/verify-B-uncertain.json
+            ${{ env.EXERCISE_ROOT }}/start-B-intent.json
+            ${{ env.EXERCISE_ROOT }}/start-B-result.json
+            ${{ env.EXERCISE_ROOT }}/start-B-uncertain.json
+            ${{ env.EXERCISE_ROOT }}/stop-A-intent.json
+            ${{ env.EXERCISE_ROOT }}/stop-A-result.json
+            ${{ env.EXERCISE_ROOT }}/stop-A-uncertain.json
+            ${{ env.EXERCISE_ROOT }}/verify-A-intent.json
+            ${{ env.EXERCISE_ROOT }}/verify-A-result.json
+            ${{ env.EXERCISE_ROOT }}/verify-A-uncertain.json
+            ${{ env.EXERCISE_ROOT }}/start-A-intent.json
+            ${{ env.EXERCISE_ROOT }}/start-A-result.json
+            ${{ env.EXERCISE_ROOT }}/start-A-uncertain.json
+            ${{ env.EXERCISE_ROOT }}/package-inventory.json
+
   publish-candidate:
     name: Publish immutable release candidate
-    if: github.event_name == 'workflow_dispatch' && inputs.candidate_tag != '' && needs.staging-deploy.result == 'success'
+    if: github.event_name == 'workflow_dispatch' && inputs.operation == 'normal-deployment' && inputs.candidate_tag != '' && needs.staging-deploy.result == 'success'
     needs: staging-deploy
     runs-on: ubuntu-latest
     permissions:
@@ -828,20 +1539,24 @@ jobs:
       attestations: write
     steps:
       - name: Download verified staging bundle
+        if: ${{ inputs.operation == 'normal-deployment' }}
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
           name: ${{ needs.staging-deploy.outputs.bundle_name }}
           path: ${{ runner.temp }}/release-bundle
 
       - name: Verify bundle checksums
+        if: ${{ inputs.operation == 'normal-deployment' }}
         run: cd "$RUNNER_TEMP/release-bundle" && sha256sum --check SHA256SUMS
 
       - name: Attest candidate build provenance
+        if: ${{ inputs.operation == 'normal-deployment' }}
         uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
         with:
           subject-path: ${{ runner.temp }}/release-bundle/*
 
       - name: Publish immutable GitHub prerelease assets
+        if: ${{ inputs.operation == 'normal-deployment' }}
         env:
           GH_TOKEN: ${{ github.token }}
           CANDIDATE_TAG: ${{ needs.staging-deploy.outputs.candidate_tag }}
