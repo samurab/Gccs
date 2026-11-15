@@ -49,5 +49,16 @@
     "@playwright/test": "^1.61.0",
     "@redocly/cli": "2.51.2",
     "playwright": "^1.61.0"
+  },
+  "overrides": {
+    "eslint": {
+      "minimatch": "11.0.8"
+    },
+    "@eslint/config-array": {
+      "minimatch": "11.0.8"
+    },
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "11.0.8"
+    }
   }
 }
