@@ -150,12 +150,12 @@ jobs:
 
       - name: Record plan outcome no_drift
         if: always() && steps.drift-plan.outputs.outcome == 'no_drift'
-        run: true
+        run: 'true'
 
       - name: Record plan outcome drift
         if: always() && steps.drift-plan.outputs.outcome == 'drift'
-        run: true
+        run: 'true'
 
       - name: Record plan outcome execution_error
         if: always() && steps.drift-plan.outputs.outcome == 'execution_error'
-        run: true
+        run: 'true'

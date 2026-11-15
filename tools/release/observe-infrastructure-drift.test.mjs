@@ -224,6 +224,6 @@ test("observer workflow uses trusted default-source SHA and no cloud or trigger-
 test("drift workflow emits one fixed allowlisted plan-outcome marker", async () => {
   const workflow = await readFile(new URL("../../.github/workflows/production-infrastructure-drift.yml", import.meta.url), "utf8");
   for (const outcome of ["no_drift", "drift", "execution_error"]) {
-    assert.match(workflow, new RegExp(`- name: Record plan outcome ${outcome}\\n        if: always\\(\\) && steps\\.drift-plan\\.outputs\\.outcome == '${outcome}'\\n        run: true`));
+    assert.match(workflow, new RegExp(`- name: Record plan outcome ${outcome}\\n        if: always\\(\\) && steps\\.drift-plan\\.outputs\\.outcome == '${outcome}'\\n        run: 'true'`));
   }
 });
