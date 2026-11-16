@@ -62,6 +62,8 @@ jobs:
   plan:
     runs-on: ubuntu-latest
     environment: Production
+    outputs:
+      plan_outcome: ${{ steps.drift-plan.outputs.outcome }}
     env:
       ARM_USE_OIDC: "true"
       ARM_CLIENT_ID: ${{ vars.AZURE_PRODUCTION_TERRAFORM_CLIENT_ID }}
@@ -122,6 +124,7 @@ jobs:
             -backend-config="use_azuread_auth=true"
 
       - name: Fail on configuration drift
+        id: drift-plan
         run: |
           set +e
           terraform -chdir=infra/terraform/environments/production plan \
@@ -132,12 +135,27 @@ jobs:
           plan_exit="$?"
           set -e
           if [ "$plan_exit" -eq 0 ]; then
+            echo "outcome=no_drift" >> "$GITHUB_OUTPUT"
             echo "No production infrastructure drift detected."
             exit 0
           fi
           if [ "$plan_exit" -eq 2 ]; then
+            echo "outcome=drift" >> "$GITHUB_OUTPUT"
             echo "Production infrastructure differs from the reviewed Terraform configuration."
             exit 1
           fi
+          echo "outcome=execution_error" >> "$GITHUB_OUTPUT"
           echo "Terraform plan failed with exit code $plan_exit."
           exit "$plan_exit"
+
+      - name: Record plan outcome no_drift
+        if: always() && steps.drift-plan.outputs.outcome == 'no_drift'
+        run: 'true'
+
+      - name: Record plan outcome drift
+        if: always() && steps.drift-plan.outputs.outcome == 'drift'
+        run: 'true'
+
+      - name: Record plan outcome execution_error
+        if: always() && steps.drift-plan.outputs.outcome == 'execution_error'
+        run: 'true'
