@@ -70,6 +70,10 @@ npm run dev
 
 This starts or reuses the Docker dependencies, applies pending development migrations when the API is not already running, and supervises the API at `http://localhost:5062` and web app at `http://127.0.0.1:5173`. If either managed application process stops, the command stops the other one so the UI cannot silently remain online without its API.
 
+Recovery tests should use test-owned processes and isolated ports by default. A real API also needs isolated data and disabled external delivery. The login-managed services on ports `5062` and `5173` are shared with interactive UI sessions; stopping or hanging them for a test interrupts those sessions. Shared-stack failure tests require an explicitly authorized interruption window under [the local recovery test guidance](AGENTS.md#local-recovery-test-isolation). When investigating restarts, compare launchd and supervisor events with recovery-test records: intentional test stops can otherwise look like application instability. On November 18, 2026, repeated shared-stack test stops caused this symptom.
+
+Run `npm run test:dev:recovery` for four alternating API-crash/web-hang and API-hang/web-crash startup rounds. The maintained runner builds the real API into a unique run directory, allocates separate HTTP and lease ports, and creates dedicated PostgreSQL, Redis and Azurite containers from locally available images. API configuration excludes user secrets and inherited service settings; delivery, retention, seed and processing workers are disabled. Vite uses a run-owned environment directory and cache. The runner checks that shared API/UI process identities and sampled health remain unchanged, verifies takeover by original waiters and clean URL exits, and stops only its own apps and dependency containers. It never stops or restarts launchd. Logs, synthetic data, build outputs and stopped containers are retained under the run's reported evidence path; removing them requires separate disposition approval. Docker, the local dependency images, .NET and Node must already be available. This tests startup recovery rather than production isolation or business-workflow behavior.
+
 ### Backend
 
 ```bash
@@ -77,6 +81,8 @@ dotnet restore Gccs.slnx
 dotnet build Gccs.slnx
 dotnet run --project apps/api
 ```
+
+When a healthy local API already serves the configured HTTP loopback URL, `dotnet run --project apps/api` prints that URL and exits successfully before migrations, seeding, or workers start. Simultaneous launches coordinate through an OS-held loopback lease before that work begins; extra attempts wait for the owner's healthy URL and then exit successfully. The lease stays with the owning process and is released by the OS on exit or crash. This applies only in Development during direct API execution. Unhealthy or unrelated listeners retain normal startup errors. HTTPS, non-loopback bindings, and explicit Kestrel endpoints retain normal startup behavior.
 
 Useful endpoints:
 

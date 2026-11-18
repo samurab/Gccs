@@ -41,6 +41,16 @@ using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Test hosts and EF tooling must execute their normal startup path.
+using var developmentStartup = System.Reflection.Assembly.GetEntryAssembly() == typeof(Program).Assembly
+    ? await ExistingDevelopmentApi.CoordinateStartupAsync(builder.Configuration, builder.Environment)
+    : null;
+if (developmentStartup?.ExistingUrl is { } existingApiUrl)
+{
+    Console.WriteLine($"FeDril API is already running and healthy at {existingApiUrl}. Using the existing instance; no new API was started.");
+    return;
+}
+
 LocalDependencyOptions.ValidateRequiredConfiguration(builder.Configuration);
 
 var releaseVersion = builder.Configuration["Gccs:Release:Version"]

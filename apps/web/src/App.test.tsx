@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -821,7 +821,8 @@ const {
   }
 }));
 
-vi.mock("@/lib/api", () => ({
+vi.mock("@/lib/api", async (importOriginal) => ({
+  ApiRequestError: (await importOriginal<typeof import("./lib/api")>()).ApiRequestError,
   getAiOutputs: vi.fn().mockResolvedValue([]),
   getAiOutputReviewHistory: vi.fn().mockResolvedValue([]),
   reviewAiOutput: vi.fn(),
@@ -1039,6 +1040,7 @@ vi.mock("@/lib/api", () => ({
   updateTenantMemberStatus: updateTenantMemberStatusMock}));
 
 import { App } from "@/App";
+import { ApiRequestError } from "@/lib/api";
 
 const reportDisclaimer =
   "Workflow guidance only. This report is not legal advice, a certification decision, an assessor determination, a contracting-officer determination, or a government endorsement.";
@@ -1554,6 +1556,7 @@ describe("App", () => {
 
   afterEach(() => {
     cleanup();
+    vi.useRealTimers();
     vi.unstubAllEnvs();
   });
 
@@ -3459,6 +3462,63 @@ describe("App", () => {
       "Navigation unavailable until the API connection is restored."
     );
     expect(screen.getByRole("button", { name: "Retry connection" })).toBeInTheDocument();
+  });
+
+  it.each([undefined, 502, 503, 504])("recovers initial workspace reads after a transient API failure (%s)", async (status) => {
+    vi.useFakeTimers();
+    getCurrentUserAccessMock.mockRejectedValueOnce(new ApiRequestError("Unavailable", "/api/me/access", status));
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getTenantMembersMock.mockResolvedValueOnce([]);
+    getTenantInvitationsMock.mockResolvedValueOnce([]);
+
+    render(<App />);
+    await act(async () => {});
+    expect(screen.getByRole("alert")).toHaveTextContent("Workspace data could not be loaded");
+    expect(getComplianceOverviewMock).not.toHaveBeenCalled();
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(5_000); });
+
+    expect(screen.queryByText("Workspace data could not be loaded")).not.toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: /primary workspace navigation/i })).toContainElement(
+      screen.getByRole("link", { name: /contracts/i })
+    );
+    expect(getCurrentUserAccessMock).toHaveBeenCalledTimes(2);
+    expect(saveCompanyProfileMock).not.toHaveBeenCalled();
+    expect(createTenantInvitationMock).not.toHaveBeenCalled();
+  });
+
+  it.each([400, 401, 403, 404, 409, 422, 500])("does not automatically retry a non-transient API failure (%s)", async (status) => {
+    vi.useFakeTimers();
+    getCurrentUserAccessMock.mockRejectedValue(new ApiRequestError("Denied", "/api/me/access", status));
+
+    render(<App />);
+    await act(async () => { await vi.advanceTimersByTimeAsync(65_000); });
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Workspace data could not be loaded");
+    expect(getCurrentUserAccessMock).toHaveBeenCalledTimes(1);
+    expect(getComplianceOverviewMock).not.toHaveBeenCalled();
+    expect(screen.getByRole("navigation", { name: /primary workspace navigation/i }).querySelectorAll("a")).toHaveLength(0);
+  });
+
+  it("bounds automatic workspace retries and cancels them on unmount", async () => {
+    vi.useFakeTimers();
+    getCurrentUserAccessMock.mockRejectedValue(new ApiRequestError("Offline", "/api/me/access"));
+    const { unmount } = render(<App />);
+    await act(async () => {});
+    for (let attempt = 0; attempt < 13; attempt++) {
+      await act(async () => { await vi.advanceTimersByTimeAsync(5_000); });
+    }
+    expect(getCurrentUserAccessMock).toHaveBeenCalledTimes(13);
+    expect(screen.getByRole("alert")).toHaveTextContent("Workspace data could not be loaded");
+    unmount();
+
+    getCurrentUserAccessMock.mockClear();
+    const next = render(<App />);
+    await act(async () => {});
+    next.unmount();
+    await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
+    expect(getCurrentUserAccessMock).toHaveBeenCalledTimes(1);
   });
 
   it("keeps user invitation actions in the role-aware settings route", async () => {

@@ -72,6 +72,33 @@ suites for low-risk work.
 - Do not terminate deployments to permit a snapshot. The snapshot runner
   defers cooperatively and records prolonged deferral separately.
 
+## Local Recovery Test Isolation
+
+- Use `npm run test:dev:recovery` for the real repeated mixed-failure startup
+  test. Its maintained runner is `tools/dev/recovery_stress.py`; legacy local
+  controllers redirect to it. Do not reconstruct the old launchd-stop workflow
+  from historical test reports. Keep test artifacts and stopped test dependency
+  containers until separately approved disposition.
+- Run automated crash, hang, watchdog and takeover checks with test-owned
+  processes and isolated ports by default. Use isolated data and disable
+  external delivery when a real API is needed; a different HTTP port alone
+  does not isolate database writes or background workers.
+- Treat the login-managed API on `5062`, web app on `5173`, their startup leases
+  and `com.fedril.local-stack` as a shared interactive workspace. Do not stop,
+  suspend, crash or restart them merely to verify recovery. A request to test
+  recovery or reconcile issues does not by itself select these shared targets.
+  Before a shared-stack failure test, establish explicit user authorization
+  naming the affected services and interruption window, and check active task
+  ownership. Preserve existing exact approvals within their stated scope.
+- Correlate a restart with launchd events, supervisor logs and active recovery
+  test records before changing application behavior. Distinguish injected
+  failures and intentional stops from spontaneous crashes. After an authorized
+  test, verify normal supervisor ownership and endpoint health; do not start
+  another disruptive round solely to verify restoration.
+- Rationale: on November 18, 2026, shared-stack recovery tests caused repeated
+  intentional API outages while the UI was in use. These are procedural
+  safeguards, not an operating-system barrier to process signals.
+
 ## Product Invariants
 
 FeDril is a multi-tenant compliance-management SaaS for small U.S. government

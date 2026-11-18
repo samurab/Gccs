@@ -67,6 +67,7 @@ import {
 } from "@/components/ui";
 import { formatUsDateOnly, formatUsDateTime } from "./lib/dateFormat";
 import {
+  ApiRequestError,
   acknowledgeNoCuiNotice,
   acknowledgeSharedResponsibilityMatrix,
   acceptClauseCandidate,
@@ -731,6 +732,7 @@ export function App() {
   );
   const [activeRoute, setActiveRoute] = useState<WorkspaceRoute>(getInitialRoute);
   const [loadState, setLoadState] = useState<LoadState>("loading");
+  const [workspaceLoadAttempt, setWorkspaceLoadAttempt] = useState(0);
   const [accessLoadState, setAccessLoadState] = useState<AccessLoadState>("loading");
   const [workspaceInitialized, setWorkspaceInitialized] = useState(import.meta.env.DEV);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -932,6 +934,7 @@ export function App() {
 
     let isMounted = true;
     let resolvedAccess: CurrentUserAccess | null = null;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
 
     getCurrentUserAccess()
       .then(async (nextAccess) => {
@@ -1108,7 +1111,7 @@ export function App() {
           setLoadState("ready");
         }
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (isMounted) {
           setOverview(fallbackOverview);
           setAccess(resolvedAccess ?? fallbackAccess);
@@ -1163,13 +1166,23 @@ export function App() {
           setCmmcStatus("idle");
           setSelectedEvidenceItemId(null);
           setLoadState("error");
+          // Recover initial reads after a brief API outage without replaying writes or reloading forms.
+          if (error instanceof ApiRequestError &&
+              (error.status === undefined || [502, 503, 504].includes(error.status)) &&
+              workspaceLoadAttempt < 12) {
+            retryTimer = setTimeout(() => {
+              setLoadState("loading");
+              setWorkspaceLoadAttempt((attempt) => attempt + 1);
+            }, 5_000);
+          }
         }
       });
 
     return () => {
       isMounted = false;
+      clearTimeout(retryTimer);
     };
-  }, [clauseCandidateReviewStatusFilter, workspaceInitialized]);
+  }, [clauseCandidateReviewStatusFilter, workspaceInitialized, workspaceLoadAttempt]);
 
   const handleWorkspaceInitialized = useCallback(() => {
     setWorkspaceInitialized(true);
@@ -2667,7 +2680,7 @@ export function App() {
         </div>
         <div className="sidebar-posture" aria-label="Workspace compliance posture">
           {import.meta.env.DEV && !demoCaptureMode ? (
-            <DevelopmentTestingContextSelector currentTenantId={currentTenant?.id ?? access.tenantId} />
+            <DevelopmentTestingContextSelector key={workspaceLoadAttempt} currentTenantId={currentTenant?.id ?? access.tenantId} />
           ) : !import.meta.env.DEV ? (
             <TenantWorkspaceSelector
               currentTenantId={currentTenant?.id ?? access.tenantId}

@@ -25,6 +25,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="..\..\tools\dev\startup-owner-identity.sh" Link="LocalDevelopment\startup-owner-identity.sh" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\tools\dev\startup-owner-watchdog.sh" Link="LocalDevelopment\startup-owner-watchdog.sh" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="..\..\packages\compliance-content\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
