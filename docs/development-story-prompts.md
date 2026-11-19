@@ -5759,21 +5759,28 @@ Revision: 2026-09-19. This is the consolidated execution backlog for the SOC 2 p
 
 ### FeDril Service Scope And Proportionate Work
 
-The owner's goal is a SOC 2 report for the defined FeDril service, examined by an
-independent licensed CPA firm using AICPA standards. AICPA itself does not perform
-the FeDril examination. Final service boundary, report type and Trust Services
-categories require agreement with the CPA; this guidance establishes no auditor
+The owner's current readiness goal is a favorable SOC 2 Type 1 report for the
+defined FeDril service, examined by an independent licensed CPA firm under AICPA
+standards. AICPA itself does not perform the FeDril examination. This is an
+objective, not a guaranteed pass or assurance claim. Final service boundary,
+report type, Trust Services categories and specified date remain subject to
+management and independent CPA agreement; this guidance establishes no auditor
 engagement, current service use, completed control or report.
 
 Include the FeDril application and relevant Azure, GitHub and other service
 dependencies, data, access, deployment/change control, recovery, incident response,
 and vendor, personnel and governance processes only insofar as they support
 operating the scoped service. Scope is not limited to application code. Exclude
-unrelated personal or business systems and generic checklist expansion.
+unrelated personal or business systems and generic checklist expansion. Do not
+expand current Type 1 preparation into Type 2 observation-period or CMMC work
+without a separately applicable scope and authority; preserve existing historical
+requirements and their recorded scope/status.
 
-Before proposing or selecting any task, identify in the existing task/story
-record its concrete FeDril risk or dependency, or applicable Trust Services
-criterion; the evidence gap; and the proportionate outcome that closes that gap.
+For every readiness story, task and assessment recommendation, identify in the
+existing task/story record its concrete FeDril risk or dependency, applicable
+Trust Services criterion, actual evidence gap and proportionate outcome. Record
+an unavailable or unresolved criterion mapping and its existing dependency rather
+than inventing coverage or treating it as fulfilled.
 Reuse existing controls, records, checks and approvals when they suffice. Do not
 add redundant documents, checks or approvals without a real gap, and do not weaken
 necessary security or approval controls. Uncertain applicability requires a
@@ -5781,9 +5788,57 @@ reasoned scope decision with supporting evidence, remaining uncertainty and the
 applicable decision authority; it is neither automatic implementation nor
 unsupported Not Applicable. Preserve existing N/A and deferral decision gates.
 
-This is implementation guidance only. It does not accept controls, close gaps,
-authorize operational tasks, lift writer pauses, approve publication, or permit
-evidence disposal. Retain historical evidence and exact-action approval gates.
+When a technical suggestion or prompt conflicts with this scoped objective,
+prefer an evidence-supported approach that meets the applicable control
+requirements, briefly explain the material correction and continue eligible work
+within existing authority. Do not weaken controls, acceptance or independence
+requirements, fabricate or backdate evidence, hide failures, or convert unknowns
+into success to pursue a favorable report. Preserve management and independent
+CPA judgment; technical discretion is not authority to override their decisions.
+
+This is implementation guidance only. The broad goal never overrides a specific
+hold or stop instruction, exact action/retry approval, file-preservation rule,
+management decision or independent CPA judgment. It does not accept controls,
+close gaps, authorize operations or credentials, approve consequential delivery or
+protection changes, approve publication/deployment or permit evidence disposal. Ask only for genuine
+decisions, authority or facts unavailable through authorized sources while
+continuing other eligible work. Retain historical evidence and all existing gates.
+
+### Internal Work and Deferred Reviews
+
+Qualified CPA, Legal/privacy, Procurement and Independent security reviews are
+**REVIEW DEFERRED—UNASSIGNED** until suitable reviewers are available. This is not
+review completion, acceptance or Not Applicable. Continue implementation,
+compatible corrections and relevant verification whose internal prerequisites and
+existing authority are satisfied, and prepare scoped artifacts for those reviewers.
+Do not wait for unavailable reviewers to draft, reconcile or verify independent
+internal work; do not repeat completed tests or approvals merely to reactivate it.
+
+In the existing task plan distinguish an executable internal unit from missing
+facts/technical dependencies, an exact consequential-action decision, and deferred
+external review. A task may have ready internal preparation while final acceptance
+remains deferred. Finish the ready unit and record its evidence and limitations.
+Preserve actual management signatures, service/scope and risk decisions, independent
+judgment and professional qualification requirements. Reviewer-ready means prepared
+for review, not reviewer acceptance, audit readiness or assurance.
+
+Evaluate consequential actions individually against their actual prerequisites
+and exact authorization. Preserve platform and repository safeguards, applicable
+holds, and retry limits. When a decision or prerequisite is missing, finish
+permitted preparation, present the specific action for review, and continue
+independent eligible work. Authorized operators resolve underlying decisions
+through the accepted private manifest under the
+[public and protected records boundary](soc2/public-record-boundary.md).
+
+Before every factual question or approval request, resolve the prior answer or
+decision in the existing manifest-bound task index and its linked ledger/source
+receipts: source, scope, event or collection time, supersession, application or
+consumed budget, and any changed evidence. Reuse that index; do not create a parallel
+answer or decision tracker. Do not reopen an answered question, completed decision
+or superseded hold without a material change; identify the change when a new exact
+decision is necessary. Consolidate genuine blockers once. Inspect only relevant
+history and changed inputs; avoid repeated full-history, hash or document work
+unless required by the checkpoint contract. Continue other eligible authorized work.
 
 ### Execution Order And Stage Gates
 

@@ -330,7 +330,7 @@ rules, tests, and No-CUI product posture.
 
 ### SOC 2 autonomy and bounded execution
 
-Apply [FeDril service scope and proportionate work](docs/development-story-prompts.md#fedril-service-scope-and-proportionate-work) before proposing or selecting SOC 2 work. Record the service risk/dependency or applicable criterion, evidence gap and proportionate outcome in the existing task/story record.
+Apply [FeDril service scope and proportionate work](docs/development-story-prompts.md#fedril-service-scope-and-proportionate-work) to every SOC 2 story, task and assessment recommendation. Follow its scoped Type 1 objective, risk/criterion/evidence-gap mapping and evidence-supported technical-correction rule. Record unresolved mappings honestly; apply its current internal-work activation and deferred-review rule while preserving exact consequential authority and management/independent-CPA judgment boundaries.
 
 For Stories 39.1–39.23, use section 39's shared execution contract and dependency
 gates. On every execution request, briefly identify material prompt inefficiency
@@ -373,6 +373,14 @@ unresolved breaking decisions or otherwise gated actions, not the entire queue.
   authorization scope, blockers, and exact next action. Store restricted details
   only in approved protected evidence. Reconcile live state after interruption
   before replay; completion of a chat turn is not proof of task completion.
+- At SOC 2 evidence-selection and checkpoint boundaries, use the operator-bound
+  protected master catalog and its maintenance README. Check freshness before
+  reliance; after authorized source/index/review/status changes, seal the
+  governance version and invoke its bounded checkpoint hook with an exclusive
+  external receipt. Record that receipt without editing sealed inputs.
+  Read-only agents report drift to the canonical writer and do not refresh.
+  Missing bindings or unexpected integrity drift remain explicit blockers;
+  preserve workflow holds and do not infer readiness or background monitoring.
 - Reuse verification only for unchanged relevant source/configuration,
   environment, population and freshness. Run the High/Release checks required
   by the affected boundary; do not run whole-repository checks for record-only

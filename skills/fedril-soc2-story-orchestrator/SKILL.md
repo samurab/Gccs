@@ -18,7 +18,9 @@ This skill coordinates them; it does not replace them or broaden authorization.
 
 ## Shared rules
 
-Apply section 39's **FeDril Service Scope And Proportionate Work** rule before proposing or selecting work. Record the concrete service risk/dependency or applicable criterion, evidence gap and proportionate outcome in the existing task/story record. The source is `docs/development-story-prompts.md#fedril-service-scope-and-proportionate-work` in the verified repository; resolve it there for installed skill copies.
+Apply section 39's **FeDril Service Scope And Proportionate Work** rule to every readiness story, task and assessment recommendation: use its scoped Type 1 objective, risk/criterion/evidence-gap mapping and evidence-supported technical corrections, without overriding holds, exact authority or management/independent-CPA judgment. Record unresolved mappings honestly. The canonical source is `docs/development-story-prompts.md#fedril-service-scope-and-proportionate-work` in the verified repository; resolve it there for installed skill copies instead of duplicating the rule in evidence artifacts.
+
+Apply section 39's **Internal Work and Deferred Reviews** rule. Continue eligible internal implementation, verification and reviewer preparation while external reviews are deferred. Use the existing task plan to distinguish ready work from unresolved dependencies and actions requiring exact authorization, and preserve all acceptance gates.
 
 - Inspect each incoming execution prompt for material inefficiency. Briefly give
   a better bounded prompt if useful, then proceed under existing authorization.
@@ -48,6 +50,18 @@ Apply section 39's **FeDril Service Scope And Proportionate Work** rule before p
   is unavailable, preserve that limitation and continue eligible independent work.
   Do not create another tracker or reconstruct private records from public history.
   Use the [record template](references/story-record.md) for applicable record fields.
+- Before relying on SOC 2 evidence, resolve the operator-bound protected master
+  catalog and run its read-only freshness check. After authorized source, index,
+  review or status changes, seal the governance version first; invoke the bound
+  checkpoint wrapper with `--expected-governance-manifest <sealed manifest>` and
+  an exclusive `--receipt-directory <catalog>/checkpoint-runs/<checkpoint-name>`.
+  Follow the catalog maintenance README for exact local commands and permitted
+  refresh conditions. Retain the external receipt with the actual catalog version,
+  cutoff and result; do not edit sealed inputs to add a receipt and make them stale.
+  Missing bindings or unexpected source/integrity drift require reconciliation,
+  not blind refresh. Read-only agents return drift to the canonical writer.
+  Preserve all holds; guidance does not prove adoption by other running chats,
+  continuous monitoring, backup/restore, evidence completeness or acceptance.
 - A task/story is `Accepted` only with evidenced acceptance criteria and actual
   applicable decisions/gates. Use section 39's existing statuses; do not add a
   `Complete` status. Track design, implementation, operating evidence, governance
