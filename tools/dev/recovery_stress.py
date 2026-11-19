@@ -3,7 +3,7 @@
 import subprocess, urllib.request, json, datetime, time, hashlib, os, signal, traceback, re, concurrent.futures, sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from recovery_isolation import RecoveryEnvironment, clean_env, stop_owned_group
+from recovery_isolation import RecoveryCancellation, RecoveryCancelled, RecoveryEnvironment, clean_env, stop_owned_group
 
 if sys.argv[1:] == ['--help']:
     print('Usage: python3 tools/dev/recovery_stress.py\nFour isolated API-crash/web-hang and API-hang/web-crash rounds. No shared-service stops.\nRun artifacts and stopped dependency containers are retained; no automatic deletion.')
@@ -20,6 +20,7 @@ api_lease = (api_port - 1 + 32768) % 65535 + 1
 web_lease = (web_port - 1 + 32768) % 65535 + 1
 report = {'startedUtc': datetime.datetime.now(datetime.timezone.utc).isoformat(), 'directory': str(folder), 'race': None}
 attempts=[]; handles=[]; instrumentation=[]; failure=None
+cancellation = RecoveryCancellation()
 shared_before = None
 last_shared_check = 0
 
@@ -27,12 +28,12 @@ sources=['tools/dev/recovery_stress.py','tools/dev/recovery_isolation.py','tools
 def hashes():return {p:hashlib.sha256((repo/p).read_bytes()).hexdigest() for p in sources}
 def rows():
     result=[]
-    for line in subprocess.check_output(['ps','-axo','pid=,ppid=,pgid=,state=,command='],text=True).splitlines():
+    for line in subprocess.check_output(['ps','-axo','pid=,ppid=,pgid=,state=,command='],text=True,start_new_session=True).splitlines():
         p=line.strip().split(None,4)
         if len(p)==5:result.append({'pid':int(p[0]),'ppid':int(p[1]),'pgid':int(p[2]),'state':p[3],'command':p[4]})
     return result
 def get_process(pid):
-    output=subprocess.run(['ps','-p',str(pid),'-o','pid=,ppid=,pgid=,state=,command='],capture_output=True,text=True).stdout.strip()
+    output=subprocess.run(['ps','-p',str(pid),'-o','pid=,ppid=,pgid=,state=,command='],capture_output=True,text=True,start_new_session=True).stdout.strip()
     if not output:return None
     p=output.split(None,4)
     return {'pid':int(p[0]),'ppid':int(p[1]),'pgid':int(p[2]),'state':p[3],'command':p[4]}
@@ -40,7 +41,7 @@ def roots():return [p for p in rows() if p['command']=='node tools/dev/start-loc
 def api_exes():return [p for p in rows() if p['pgid'] in {a['process'].pid for a in attempts if a['record']['app']=='API'} and p['command'].startswith(str(environment.api_command[0]))]
 def web_exes():return [p for p in rows() if p['pgid'] in {a['process'].pid for a in attempts if a['record']['app']=='Web'} and str(repo/'tools/dev/start-web.mjs') in p['command']]
 def listeners(port):
-    r=subprocess.run(['lsof','-nP','-t','-iTCP:'+str(port),'-sTCP:LISTEN'],capture_output=True,text=True)
+    r=subprocess.run(['lsof','-nP','-t','-iTCP:'+str(port),'-sTCP:LISTEN'],capture_output=True,text=True,start_new_session=True)
     if r.returncode not in [0,1]:raise RuntimeError(r.stderr)
     return sorted(set(map(int,r.stdout.split())))
 def all_listeners():return {str(port):listeners(port) for port in [api_port,web_port,api_lease,web_lease]}
@@ -58,7 +59,7 @@ def shared_snapshot():
     current = {str(port): listeners(port) for port in [5062,5173,37830,37941]}
     identities = {}
     for pid in sorted({pid for owners in current.values() for pid in owners} | {p['pid'] for p in roots()}):
-        identities[str(pid)] = subprocess.check_output(['ps','-p',str(pid),'-o','pid=,ppid=,lstart=,command='],text=True).strip()
+        identities[str(pid)] = subprocess.check_output(['ps','-p',str(pid),'-o','pid=,ppid=,lstart=,command='],text=True,start_new_session=True).strip()
     for port,path in [(5062,'/health'),(5173,'/')]:
         with urllib.request.urlopen('http://127.0.0.1:'+str(port)+path, timeout=5) as response:
             body=response.read().decode()
@@ -92,6 +93,7 @@ def cold():
         time.sleep(.1)
     raise RuntimeError('Could not establish cold app state')
 def launch(app,index,result):
+    cancellation.check()
     args,cwd=environment.api_command,environment.api_cwd
     if app=='Web':
         args=['node','--inspect-brk=127.0.0.1:0',str(repo/'tools/dev/start-web.mjs'),'--host','127.0.0.1','--port',str(web_port),'--strictPort','--config',str(folder/'vite.config.mjs'),'--configLoader','native']
@@ -115,18 +117,22 @@ def events(path):
 def attach_web_client(attempt):
     deadline=time.monotonic()+30;endpoint=None
     while time.monotonic()<deadline:
+        cancellation.check()
         match=re.search(r'Debugger listening on (ws://[^\s]+)',Path(attempt['record']['log']).read_text())
         if match:endpoint=match.group(1);break
         assert attempt['process'].poll() is None,'Web attempt exited before debugger attach'
         time.sleep(.01)
     if endpoint is None:raise RuntimeError('No inspector endpoint')
+    cancellation.check()
     debugpath=folder/('web-debug-'+str(attempt['record']['index'])+'.log')
     handle=debugpath.open('x');handles.append(handle)
     process=subprocess.Popen(['node',str(repo/'tools/dev/fixtures/pause-web-startup.mjs'),endpoint,str(repo/'tools/dev/start-web.mjs'),str(leaseLine)],stdin=subprocess.PIPE,stdout=handle,stderr=subprocess.STDOUT,text=True,start_new_session=True,env=clean_env())
     item={'process':process,'log':str(debugpath),'targetPid':attempt['process'].pid}
     clients[attempt['process'].pid]=item;instrumentation.append(item)
+    report.setdefault('instrumentationProcesses',[]).append({'pid':process.pid,'targetPid':attempt['process'].pid})
     deadline=time.monotonic()+30
     while time.monotonic()<deadline:
+        cancellation.check()
         if any(e.get('event') in ['running','paused-at-lease'] for e in events(debugpath)):return item
         assert process.poll() is None,'Debugger exited before starting real entry point'
         time.sleep(.01)
@@ -138,6 +144,7 @@ def app_attempt_for_group(app,group):
 def capture_api(excluded):
     deadline=time.monotonic()+65
     while time.monotonic()<deadline:
+        cancellation.check()
         owners=listeners(api_lease)
         if owners and owners[0] not in excluded:
             assert len(owners)==1
@@ -145,6 +152,7 @@ def capture_api(excluded):
             if candidate is None:continue
             attempt=app_attempt_for_group('API',candidate['pgid'])
             assert candidate['command'].startswith(str(environment.api_command[0]))
+            cancellation.check()
             os.kill(candidate['pid'],signal.SIGSTOP)
             owner=get_process(candidate['pid'])
             assert owner and owner['state'].startswith('T') and not listeners(api_port),'Missed API pre-health window'
@@ -155,6 +163,7 @@ def capture_api(excluded):
 def capture_web(excluded):
     deadline=time.monotonic()+65
     while time.monotonic()<deadline:
+        cancellation.check()
         owners=listeners(web_lease)
         if owners and owners[0] not in excluded:
             assert len(owners)==1
@@ -168,6 +177,7 @@ def capture_web(excluded):
                 assert item['process'].poll() is None,'Debugger exited before lease pause'
                 time.sleep(.005);continue
             assert pauses[-1]['location']['lineNumber']==leaseLine and not listeners(web_port)
+            cancellation.check()
             os.kill(candidate['pid'],signal.SIGSTOP)
             owner=get_process(candidate['pid'])
             assert owner and owner['state'].startswith('T') and not listeners(web_port)
@@ -180,14 +190,12 @@ def release_client(item):
     item['process'].stdin.write('{"command":"release"}\n');item['process'].stdin.flush()
 def wait_client(item):
     assert item['process'].wait(timeout=10)==0,('Debugger release failed',item['log'])
-def cancel(signum, frame):
-    raise InterruptedError('Recovery test cancelled by signal '+str(signum))
-signal.signal(signal.SIGINT,cancel)
-signal.signal(signal.SIGTERM,cancel)
+signal.signal(signal.SIGINT,cancellation.request)
+signal.signal(signal.SIGTERM,cancellation.request)
 
 try:
     report['sourceHashesBefore']=hashes()
-    report['candidateSha']=subprocess.check_output(['git','rev-parse','HEAD'],cwd=repo,text=True).strip()
+    report['candidateSha']=subprocess.check_output(['git','rev-parse','HEAD'],cwd=repo,text=True,start_new_session=True).strip()
     report['harness']={'controller':__file__,'sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),'fault':'Two cycles / four rounds: API crash-Web hang, API hang-Web crash, repeated; all failures before health','waiterPolicy':'same original pool; no replacement launches'}
     shared_before=shared_snapshot()
     report['sharedBefore']=shared_before
@@ -370,10 +378,14 @@ try:
         failure=RuntimeError(result['reason']);report['failure']=result['reason']
     print('RESULT '+json.dumps({'status':result['status'],'failedStartupOwners':len(killed),'watchdogTerminations':result['watchdogTerminatedOwnerCount'],'injectedCrashes':result['injectedCrashOwnerCount'],'expiredWaiters':result['expiredWaiterCount'],'cleanUrlExits':len(clean),'healthy':result['finalObservation']['healthy']}),flush=True)
 
+except RecoveryCancelled as error:
+    print('CANCELLED '+str(error)+'; stopping only test-owned resources.',flush=True)
 except Exception as error:
     failure=error;report['failure']=repr(error);report['traceback']=traceback.format_exc()
     print('TEST FAILURE '+repr(error),flush=True)
 finally:
+    cancellation.cleaning_up = True
+    cleanup_started = time.monotonic()
     try:
         try:
             stop_manual_groups()
@@ -398,7 +410,11 @@ finally:
     report['sourceHashesAfter']=hashes()
     report['sourcesUnchanged']=report['sourceHashesAfter']==report['sourceHashesBefore']
     report['finishedUtc']=datetime.datetime.now(datetime.timezone.utc).isoformat()
-    report['status']='PASS' if failure is None else 'FAIL'
+    report['cleanupSeconds']=round(time.monotonic()-cleanup_started,3)
+    if cancellation.signal_number is not None:
+        report['cancellation']={'signal':cancellation.signal_number}
+    report['status']='FAIL' if failure is not None else 'CANCELLED' if cancellation.signal_number is not None else 'PASS'
     with (folder/'report.json').open('x') as f:json.dump(report,f,indent=2)
     print('EVIDENCE '+str(folder/'report.json'),flush=True)
 if failure is not None:raise failure
+if cancellation.signal_number is not None:raise SystemExit(128+cancellation.signal_number)

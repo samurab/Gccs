@@ -24,6 +24,28 @@ IMAGES = {
 }
 
 
+class RecoveryCancelled(Exception):
+    pass
+
+
+class RecoveryCancellation:
+    """Interrupt the controller once; let worker threads observe the same request."""
+    def __init__(self):
+        self.signal_number = None
+        self.cleaning_up = False
+
+    def request(self, signum, frame=None):
+        if self.signal_number is not None:
+            return
+        self.signal_number = signum
+        if not self.cleaning_up:
+            self.check()
+
+    def check(self):
+        if self.signal_number is not None:
+            raise RecoveryCancelled('Recovery test cancelled by signal ' + str(self.signal_number))
+
+
 def clean_env():
     """Do not inherit application configuration, cloud credentials or profiler hooks."""
     allowed = ("PATH", "HOME", "USER", "LOGNAME", "TMPDIR", "LANG", "LC_ALL",
@@ -47,7 +69,8 @@ def stop_owned_group(child, grace_seconds=5):
     def alive():
         child.poll()
         listing = subprocess.run(["ps", "-axo", "pgid=,stat="], check=True,
-                                 text=True, capture_output=True, timeout=5, env=clean_env()).stdout
+                                 text=True, capture_output=True, timeout=5, env=clean_env(),
+                                 start_new_session=True).stdout
         return any(int(parts[0]) == child.pid and not parts[1].startswith("Z")
                    for line in listing.splitlines() if len(parts := line.split()) == 2)
 
@@ -148,7 +171,7 @@ class RecoveryEnvironment:
 
     def _run(self, command, **kwargs):
         return subprocess.run(command, check=True, text=True, capture_output=True,
-                              env=clean_env(), timeout=120, **kwargs).stdout
+                              env=clean_env(), timeout=120, start_new_session=True, **kwargs).stdout
 
     def _create_container(self, service, container_port, extra):
         name = "fedril-recovery-" + self.run_id[:12] + "-" + service

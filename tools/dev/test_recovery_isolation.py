@@ -1,7 +1,9 @@
 import json
+import concurrent.futures
 import os
 from pathlib import Path
 import socket
+import signal
 import subprocess
 import sys
 import tempfile
@@ -9,12 +11,42 @@ import time
 import unittest
 from unittest.mock import patch
 
-from recovery_isolation import (RecoveryEnvironment, SHARED_PORTS, allocate_app_ports,
+from recovery_isolation import (RecoveryCancellation, RecoveryCancelled, RecoveryEnvironment, SHARED_PORTS, allocate_app_ports,
                                 clean_env, lease_port, run_owned_command, stop_owned_group,
                                 validate_app_ports)
 
 
 class RecoveryIsolationTests(unittest.TestCase):
+    def test_cancellation_interrupts_workers_and_repeated_signals_allow_cleanup(self):
+        cancellation = RecoveryCancellation()
+        def wait_for_owner():
+            while True:
+                cancellation.check()
+                time.sleep(.01)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            worker = pool.submit(wait_for_owner)
+            with self.assertRaises(RecoveryCancelled):
+                cancellation.request(signal.SIGINT)
+            with self.assertRaises(RecoveryCancelled):
+                worker.result(timeout=1)
+            cancellation.cleaning_up = True
+            cancellation.request(signal.SIGINT)
+            cancellation.request(signal.SIGTERM)
+        self.assertEqual(cancellation.signal_number, signal.SIGINT)
+
+    def test_first_cancellation_during_cleanup_does_not_interrupt_cleanup(self):
+        cancellation = RecoveryCancellation()
+        cancellation.cleaning_up = True
+        cancellation.request(signal.SIGTERM)
+        cancellation.request(signal.SIGINT)
+        self.assertEqual(cancellation.signal_number, signal.SIGTERM)
+
+    def test_dependency_commands_are_outside_the_npm_signal_group(self):
+        environment = self.environment()
+        with patch('recovery_isolation.subprocess.run') as run:
+            environment._run(['docker', 'inspect', 'test-owned-container'])
+        self.assertTrue(run.call_args.kwargs['start_new_session'])
+
     def environment(self):
         # Retain test artifacts; the repository's file-preservation rule forbids automatic removal.
         folder = Path(tempfile.mkdtemp(prefix="fedril-isolation-unit-"))
@@ -150,7 +182,10 @@ class RecoveryIsolationTests(unittest.TestCase):
         child, descendant = self.process_fixture(
             "import os,time;print(os.getpid(),flush=True);time.sleep(60)", leader_exits=True)
         self.assertEqual(child.wait(timeout=5), 0)
-        stop_owned_group(child, grace_seconds=.1)
+        with patch('recovery_isolation.subprocess.run', wraps=subprocess.run) as run:
+            stop_owned_group(child, grace_seconds=.1)
+        self.assertTrue(run.call_args_list)
+        self.assertTrue(all(call.kwargs['start_new_session'] for call in run.call_args_list))
         self.assert_process_stopped(descendant)
 
     @unittest.skipUnless(os.name == "posix", "POSIX process-group cleanup")
