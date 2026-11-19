@@ -190,10 +190,9 @@ def release_client(item):
     item['process'].stdin.write('{"command":"release"}\n');item['process'].stdin.flush()
 def wait_client(item):
     assert item['process'].wait(timeout=10)==0,('Debugger release failed',item['log'])
-signal.signal(signal.SIGINT,cancellation.request)
-signal.signal(signal.SIGTERM,cancellation.request)
-
 try:
+    signal.signal(signal.SIGINT,cancellation.request)
+    signal.signal(signal.SIGTERM,cancellation.request)
     report['sourceHashesBefore']=hashes()
     report['candidateSha']=subprocess.check_output(['git','rev-parse','HEAD'],cwd=repo,text=True,start_new_session=True).strip()
     report['harness']={'controller':__file__,'sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),'fault':'Two cycles / four rounds: API crash-Web hang, API hang-Web crash, repeated; all failures before health','waiterPolicy':'same original pool; no replacement launches'}
@@ -388,15 +387,18 @@ finally:
     cleanup_started = time.monotonic()
     try:
         try:
-            stop_manual_groups()
+            # The runner starts no apps or containers before the shared baseline.
+            if shared_before is not None:
+                stop_manual_groups()
         finally:
             environment.close()
-        shared_unchanged(force=True)
-        report['sharedAfter']=shared_snapshot()
-        report['isolatedStopped']={'listeners':all_listeners(),'containers':environment.docker_inventory()}
-        assert not any(report['isolatedStopped']['listeners'].values())
-        assert all(not c['running'] for c in report['isolatedStopped']['containers'].values())
-        print('STOPPED only isolated apps/dependencies; shared API/UI process identities unchanged.',flush=True)
+        if shared_before is not None:
+            shared_unchanged(force=True)
+            report['sharedAfter']=shared_snapshot()
+            report['isolatedStopped']={'listeners':all_listeners(),'containers':environment.docker_inventory()}
+            assert not any(report['isolatedStopped']['listeners'].values())
+            assert all(not c['running'] for c in report['isolatedStopped']['containers'].values())
+            print('STOPPED only isolated apps/dependencies; shared API/UI process identities unchanged.',flush=True)
     except Exception as error:
         report['restorationFailure']=repr(error)
         if failure is None:failure=error
@@ -407,8 +409,10 @@ finally:
             report.setdefault('instrumentationCleanupFailures',[]).append(str(error))
             if failure is None:failure=error
     for handle in handles:handle.close()
-    report['sourceHashesAfter']=hashes()
-    report['sourcesUnchanged']=report['sourceHashesAfter']==report['sourceHashesBefore']
+    report['sourcesUnchanged'] = None
+    if 'sourceHashesBefore' in report:
+        report['sourceHashesAfter']=hashes()
+        report['sourcesUnchanged']=report['sourceHashesAfter']==report['sourceHashesBefore']
     report['finishedUtc']=datetime.datetime.now(datetime.timezone.utc).isoformat()
     report['cleanupSeconds']=round(time.monotonic()-cleanup_started,3)
     if cancellation.signal_number is not None:

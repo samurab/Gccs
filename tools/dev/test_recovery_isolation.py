@@ -2,6 +2,7 @@ import json
 import concurrent.futures
 import os
 from pathlib import Path
+import runpy
 import socket
 import signal
 import subprocess
@@ -17,6 +18,41 @@ from recovery_isolation import (RecoveryCancellation, RecoveryCancelled, Recover
 
 
 class RecoveryIsolationTests(unittest.TestCase):
+    @unittest.skipUnless(os.name == "posix", "POSIX recovery controller")
+    def test_early_sigint_writes_cancellation_report_without_baselines(self):
+        environment = self.environment()
+        runner = Path(__file__).with_name("recovery_stress.py")
+        handlers = {}
+        read_bytes = Path.read_bytes
+
+        def interrupt_initial_hash(path):
+            if handlers and path == runner:
+                handler = handlers.pop(signal.SIGINT, None)
+                if handler is not None:
+                    handler(signal.SIGINT, None)
+            return read_bytes(path)
+
+        with (patch.object(sys, "argv", [str(runner)]),
+              patch.object(sys, "path", sys.path.copy()),
+              patch("signal.signal", side_effect=handlers.__setitem__),
+              patch("recovery_isolation.RecoveryEnvironment", return_value=environment),
+              patch.object(environment, "start") as start,
+              patch.object(environment, "close", wraps=environment.close) as close,
+              patch.object(Path, "read_bytes", autospec=True, side_effect=interrupt_initial_hash),
+              patch("subprocess.run", side_effect=AssertionError("Unexpected subprocess")),
+              patch("urllib.request.urlopen", side_effect=AssertionError("Unexpected HTTP request")),
+              self.assertRaises(SystemExit) as exit_status):
+            runpy.run_path(str(runner), run_name="__main__")
+
+        start.assert_not_called()
+        close.assert_called_once_with()
+        self.assertEqual(exit_status.exception.code, 130)
+        report = json.loads((environment.folder / "report.json").read_text())
+        self.assertEqual(report["status"], "CANCELLED")
+        self.assertEqual(report["cancellation"], {"signal": signal.SIGINT})
+        self.assertIsNone(report["sourcesUnchanged"])
+        self.assertNotIn("sharedAfter", report)
+
     def test_cancellation_interrupts_workers_and_repeated_signals_allow_cleanup(self):
         cancellation = RecoveryCancellation()
         def wait_for_owner():
