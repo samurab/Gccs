@@ -72,6 +72,100 @@ public sealed class DemoRequestRetentionPostgresTests
 
     [PostgresFact]
     [Trait("Category", "PostgresIntegration")]
+    public async Task Retention_preserves_valid_pending_follow_ups_until_the_expiry_boundary()
+    {
+        var now = Cutoff.AddDays(2);
+        var clock = new FixedTimeProvider(now);
+        await using var db = new GccsDbContext(Options());
+        await PostgresTestDatabase.MigrateAsync(db);
+        var active = new List<Scenario>();
+        foreach (var status in new[] { "Sent", "Captured", "Failed" })
+            active.Add(await SeedAsync(db, status: status,
+                followUpStatus: DemoFollowUpCatalog.Pending, followUpExpiresAt: now.AddMilliseconds(1)));
+        var atExpiry = await SeedAsync(db,
+            followUpStatus: DemoFollowUpCatalog.Pending, followUpExpiresAt: now);
+        var pastExpiry = await SeedAsync(db,
+            followUpStatus: DemoFollowUpCatalog.Pending, followUpExpiresAt: now.AddMilliseconds(-1));
+        var alreadyExpired = await SeedAsync(db,
+            followUpStatus: DemoFollowUpCatalog.Expired, followUpExpiresAt: now.AddDays(1));
+        var before = await SnapshotAsync(db, active.ToArray());
+        var repository = new EfDemoRequestRepository(db, timeProvider: clock);
+
+        await repository.DeleteExpiredAsync(Cutoff);
+
+        Assert.Equal(before, await SnapshotAsync(db, active.ToArray()));
+        foreach (var expired in new[] { atExpiry, pastExpiry, alreadyExpired })
+            Assert.False(await db.DemoRequests.AnyAsync(item => item.Id == expired.RequestId));
+        Assert.Equal(0, await repository.DeleteExpiredAsync(Cutoff));
+        Assert.Equal(before, await SnapshotAsync(db, active.ToArray()));
+
+        clock.UtcNow = now.AddMilliseconds(1);
+        await repository.DeleteExpiredAsync(Cutoff);
+
+        foreach (var expired in active)
+            Assert.False(await db.DemoRequests.AnyAsync(item => item.Id == expired.RequestId));
+    }
+
+    [PostgresFact]
+    [Trait("Category", "PostgresIntegration")]
+    public async Task Retention_racing_pending_follow_up_creation_or_renewal_rolls_back_child_deletes()
+    {
+        var now = Cutoff.AddDays(2);
+        var options = Options();
+        await using var db = new GccsDbContext(options);
+        await PostgresTestDatabase.MigrateAsync(db);
+        foreach (var create in new[] { true, false })
+        {
+            var scenario = await SeedAsync(db);
+            string? committed = null;
+            var interceptor = new RetentionDeleteInterceptor(async () =>
+            {
+                await using var writer = new GccsDbContext(options);
+                if (create)
+                    writer.DemoFollowUpRequests.Add(new DemoFollowUpRequestEntity
+                    {
+                        Id = Guid.NewGuid(), DemoRequestId = scenario.RequestId,
+                        TokenHash = Convert.ToHexString(Guid.NewGuid().ToByteArray()).PadRight(64, '0'),
+                        Status = DemoFollowUpCatalog.Pending,
+                        TemplateVersion = DemoFollowUpCatalog.TemplateVersion,
+                        NoCuiNoticeVersion = DemoFollowUpCatalog.NoCuiNoticeVersion,
+                        ExpiresAt = now.AddDays(1), RequestedAt = now, UpdatedAt = now
+                    });
+                else
+                {
+                    var followUp = await writer.DemoFollowUpRequests.SingleAsync(item => item.Id == scenario.FollowUpId);
+                    followUp.Status = DemoFollowUpCatalog.Pending;
+                    followUp.ExpiresAt = now.AddDays(1);
+                    followUp.UpdatedAt = now;
+                }
+                await writer.SaveChangesAsync();
+                committed = await SnapshotAsync(writer, [scenario]);
+            });
+            await using (var purge = new GccsDbContext(Options(interceptor)))
+            {
+                var exception = await Assert.ThrowsAnyAsync<Exception>(() =>
+                    new EfDemoRequestRepository(purge, timeProvider: new FixedTimeProvider(now))
+                        .DeleteExpiredAsync(Cutoff));
+                var postgresException = exception is PostgresException postgres
+                    ? postgres
+                    : Assert.IsType<PostgresException>(Assert.IsType<InvalidOperationException>(exception).InnerException);
+                Assert.Contains(postgresException.SqlState, new[]
+                {
+                    PostgresErrorCodes.SerializationFailure, PostgresErrorCodes.ForeignKeyViolation
+                });
+            }
+            Assert.True(interceptor.Invoked);
+            Assert.NotNull(committed);
+            Assert.Equal(committed, await SnapshotAsync(db, [scenario]));
+
+            await new EfDemoRequestRepository(db, timeProvider: new FixedTimeProvider(now)).DeleteExpiredAsync(Cutoff);
+
+            Assert.Equal(committed, await SnapshotAsync(db, [scenario]));
+        }
+    }
+
+    [PostgresFact]
+    [Trait("Category", "PostgresIntegration")]
     public async Task Retention_cancellation_after_child_delete_rolls_back_the_complete_request()
     {
         var options = Options();
@@ -200,7 +294,9 @@ public sealed class DemoRequestRetentionPostgresTests
         bool appointmentHistory = false,
         bool responseHistory = false,
         string? status = "Sent",
-        DateTimeOffset? receivedAt = null)
+        DateTimeOffset? receivedAt = null,
+        string? followUpStatus = null,
+        DateTimeOffset? followUpExpiresAt = null)
     {
         var scenario = new Scenario(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
         db.DemoRequests.Add(new DemoRequestEntity
@@ -223,10 +319,10 @@ public sealed class DemoRequestRetentionPostgresTests
         {
             Id = scenario.FollowUpId, DemoRequestId = scenario.RequestId,
             TokenHash = Convert.ToHexString(Guid.NewGuid().ToByteArray()).PadRight(64, '0'),
-            Status = responseHistory ? "Responded" : "Expired",
+            Status = followUpStatus ?? (responseHistory ? "Responded" : "Expired"),
             TemplateVersion = DemoFollowUpCatalog.TemplateVersion,
             NoCuiNoticeVersion = DemoFollowUpCatalog.NoCuiNoticeVersion,
-            ExpiresAt = Cutoff, RequestedAt = Cutoff.AddDays(-1), UpdatedAt = Cutoff
+            ExpiresAt = followUpExpiresAt ?? Cutoff, RequestedAt = Cutoff.AddDays(-1), UpdatedAt = Cutoff
         });
         if (status is not null)
             db.DemoRequestDeliveries.Add(new DemoRequestDeliveryEntity
@@ -276,6 +372,12 @@ public sealed class DemoRequestRetentionPostgresTests
     }
 
     private sealed record Scenario(Guid RequestId, Guid AppointmentId, Guid FollowUpId);
+
+    private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
+    {
+        public DateTimeOffset UtcNow { get; set; } = now;
+        public override DateTimeOffset GetUtcNow() => UtcNow;
+    }
 
     private sealed class RetentionDeleteInterceptor(Func<Task> action, bool afterDelete = false) : DbCommandInterceptor
     {

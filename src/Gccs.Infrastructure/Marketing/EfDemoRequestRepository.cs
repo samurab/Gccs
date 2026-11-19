@@ -11,7 +11,8 @@ namespace Gccs.Infrastructure.Marketing;
 
 public sealed class EfDemoRequestRepository(
     GccsDbContext dbContext,
-    IOptions<DemoRequestOptions>? demoRequestOptions = null) : IDemoRequestRepository
+    IOptions<DemoRequestOptions>? demoRequestOptions = null,
+    TimeProvider? timeProvider = null) : IDemoRequestRepository
 {
     public async Task<bool?> QueueOperatorResponseAsync(Guid requestId, string templateKey, Guid actorUserId, DateTimeOffset now, CancellationToken cancellationToken = default)
     {
@@ -244,12 +245,15 @@ public sealed class EfDemoRequestRepository(
 
     public async Task<int> DeleteExpiredAsync(DateTimeOffset receivedBefore, CancellationToken cancellationToken = default)
     {
+        var now = (timeProvider ?? TimeProvider.System).GetUtcNow();
         // Protect the eligibility read from concurrent history/outbox writes.
         await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
         var requestIds = await dbContext.DemoRequests
             .Where(request => request.ReceivedAt < receivedBefore &&
                 !dbContext.DemoAppointmentEvents.Any(item => item.DemoRequestId == request.Id) &&
                 !dbContext.DemoFollowUpResponses.Any(item => item.DemoRequestId == request.Id) &&
+                !dbContext.DemoFollowUpRequests.Any(item => item.DemoRequestId == request.Id &&
+                    item.Status == DemoFollowUpCatalog.Pending && item.ExpiresAt > now) &&
                 dbContext.DemoRequestDeliveries.Any(delivery =>
                     delivery.DemoRequestId == request.Id) &&
                 !dbContext.DemoRequestDeliveries.Any(delivery =>
