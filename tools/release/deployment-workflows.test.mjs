@@ -423,6 +423,7 @@ test("workflow Node setups select the reviewed exact LTS version", async () => {
     ["approved-release-attestation.yml", 1],
     ["azure-static-web-apps-mango-rock-016ff040f.yml", 1],
     ["ci.yml", 3],
+    ["production-infrastructure-drift-observer.yml", 1],
     ["production-infrastructure-drift.yml", 1],
     ["production-release.yml", 1],
     ["production.yml", 2],
