@@ -144,7 +144,11 @@ test("owned process termination waits for graceful exit", { skip: process.platfo
     await stopOwnedProcess(child, 500);
     const [, signal] = await exited;
     assert.equal(signal, "SIGTERM");
-  } finally { await stopOwnedProcess(child, 50); }
+  } finally {
+    if (child.exitCode === null && child.signalCode === null) {
+      await stopOwnedProcess(child, 50);
+    }
+  }
 });
 
 test("a suspended owned process ignoring termination is resumed then killed within the grace bound", { skip: process.platform === "win32" }, async () => {
@@ -157,7 +161,11 @@ test("a suspended owned process ignoring termination is resumed then killed with
     await stopOwnedProcess(child, 100);
     const [, signal] = await exited;
     assert.equal(signal, "SIGKILL");
-  } finally { await stopOwnedProcess(child, 50); }
+  } finally {
+    if (child.exitCode === null && child.signalCode === null) {
+      await stopOwnedProcess(child, 50);
+    }
+  }
 });
 
 test("absence of an owned child never causes a process signal", async () => {

@@ -17,6 +17,8 @@ export async function stopOwnedProcess(child, graceMs = 5_000) {
     try { process.kill(-child.pid, 0); return true; }
     catch (error) {
       if (error.code === "ESRCH") return false;
+      // macOS can return EPERM while the group is still exiting.
+      if (error.code === "EPERM") return true;
       throw error;
     }
   };
@@ -25,8 +27,8 @@ export async function stopOwnedProcess(child, graceMs = 5_000) {
     while (alive() && Date.now() < deadline) await delay(50);
     return !alive();
   };
+  if (posix) signal("SIGCONT"); // Resume suspended processes before termination.
   signal("SIGTERM");
-  if (posix) signal("SIGCONT"); // Let suspended processes handle termination.
   if (await wait(graceMs)) return;
   signal("SIGKILL");
   if (!(await wait(5_000))) throw new Error("Owned process group did not exit; replacement deferred.");
