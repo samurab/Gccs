@@ -5840,6 +5840,25 @@ decision is necessary. Consolidate genuine blockers once. Inspect only relevant
 history and changed inputs; avoid repeated full-history, hash or document work
 unless required by the checkpoint contract. Continue other eligible authorized work.
 
+### Type 1 readiness summary
+
+FeDril is preparing for a SOC 2 Type 1 examination of its compliance management
+service under the current No-CUI scope. Security is the proposed starting
+category. The final service boundary, applicable Trust Services Categories, and
+specified date remain subject to agreement between management and an independent
+CPA firm. Preparation covers documenting the proposed scope, mapping controls,
+and identifying evidence needed for review. It does not establish control
+acceptance, completed independent review, or an issued SOC 2 report.
+
+Authorized operators resolve the private readiness materials through the
+operator's separately accepted manifest under the
+[public and protected records boundary](soc2/public-record-boundary.md). Verify
+the manifest's version binding, permitted data classes, and access scope before
+relying on those materials. If the binding is unavailable, record that limit and
+continue eligible independent work. Keep protected locators, detailed findings,
+and the working tracker in approved custody. Existing review, publication, and
+operational gates remain in force.
+
 ### Execution Order And Stage Gates
 
 Run the setup portions of 39.1, 39.2, and 39.3 first, then use numeric order as the default priority for eligible work in 39.4–39.23, subject to the independent-work allowance below. **Exception: begin 39.4 exposure triage immediately if exposure is still plausible; do not wait for governance paperwork.** Stories 39.1–39.3 are parent workflows: their setup gates permit child work; their final closure requires child evidence. Do not create a circular dependency by demanding their final closure before starting the children.

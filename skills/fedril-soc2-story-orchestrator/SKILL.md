@@ -22,6 +22,8 @@ Apply section 39's **FeDril Service Scope And Proportionate Work** rule to every
 
 Apply section 39's **Internal Work and Deferred Reviews** rule. Continue eligible internal implementation, verification and reviewer preparation while external reviews are deferred. Use the existing task plan to distinguish ready work from unresolved dependencies and actions requiring exact authorization, and preserve all acceptance gates.
 
+Use section 39's **Type 1 readiness summary** for the public scope and limits. Authorized operators resolve the private readiness materials through the operator's separately accepted manifest, following `docs/soc2/public-record-boundary.md`. Check the version and authorized access before use. If the binding is unavailable, record the limitation and continue eligible independent work. Keep protected locators and working records in approved custody, and preserve the existing evidence, review, and publication gates.
+
 - Inspect each incoming execution prompt for material inefficiency. Briefly give
   a better bounded prompt if useful, then proceed under existing authorization.
   Do not manufacture flaws, repeat critique on routine continuation, or wait for
