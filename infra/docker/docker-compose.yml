@@ -1,6 +1,7 @@
 services:
   postgres:
     image: postgres:17
+    restart: unless-stopped
     environment:
       POSTGRES_DB: gccs
       POSTGRES_USER: gccs
@@ -17,6 +18,7 @@ services:
 
   redis:
     image: redis:8
+    restart: unless-stopped
     ports:
       - "16379:6379"
     healthcheck:
@@ -27,6 +29,7 @@ services:
 
   azurite:
     image: mcr.microsoft.com/azure-storage/azurite:3.35.0
+    restart: unless-stopped
     command: azurite-blob --blobHost 0.0.0.0 --location /data
     environment:
       AZURITE_ACCOUNTS: "gccs:Z2Njcy1sb2NhbC1kZXYtc3RvcmFnZS1rZXktMDEyMzQ1Njc4OWFiY2RlZg=="
@@ -42,6 +45,7 @@ services:
 
   clamav:
     image: clamav/clamav-debian:stable
+    restart: unless-stopped
     ports:
       - "13310:3310"
     healthcheck:
