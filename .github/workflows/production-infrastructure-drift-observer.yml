@@ -1,0 +1,40 @@
+name: Production infrastructure drift observer
+
+on:
+  workflow_run:
+    workflows: [Production infrastructure drift]
+    types: [completed]
+  schedule:
+    - cron: "0 14 * * *"
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+concurrency:
+  group: production-infrastructure-drift-observer
+  cancel-in-progress: false
+
+jobs:
+  observe:
+    # Proposed issue route/30-minute grace require adoption and delivery testing.
+    if: vars.DRIFT_OBSERVER_READY == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # workflow_run GITHUB_SHA is the observer's default-branch source.
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          submodules: false
+          lfs: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: "24.22.1"
+      - name: Observe metadata and record assigned triage issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DRIFT_RESPONSE_ASSIGNEE: ${{ vars.DRIFT_RESPONSE_ASSIGNEE }}
+        run: node tools/release/observe-infrastructure-drift.mjs
